@@ -1,3 +1,5 @@
+const API_BASE_URL = "https://dispo-pompier.onrender.com";
+
 async function login() {
   const agent = document.getElementById("agent").value.trim();
   const password = document.getElementById("password").value.trim();
@@ -9,7 +11,7 @@ async function login() {
   }
 
   try {
-    const response = await fetch("http://localhost:3000/api/login", {
+    const response = await fetch(`${API_BASE_URL}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agent, mdp: password }),
@@ -36,4 +38,5 @@ async function login() {
     error.textContent = "Impossible de se connecter au serveur.";
   }
 }
+
 
