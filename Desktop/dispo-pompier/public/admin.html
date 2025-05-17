@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Espace Admin</title>
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+  <div class="admin-container">
+    <header>
+      <h2>Planning Global - Admin</h2>
+
+      <!-- Sélecteur de semaine et bouton d'export -->
+      <div class="admin-header">
+        <div class="week-selector">
+          <label for="week-selector">Semaine :</label>
+          <select id="week-selector"></select>
+        </div>
+
+        <button id="export-pdf">📄 Exporter en PDF</button>
+      </div>
+    </header>
+
+    <!-- Onglets pour la sélection des jours -->
+    <div class="tabs" id="day-tabs">
+      <button class="tab active" data-day="lundi">Lundi</button>
+      <button class="tab" data-day="mardi">Mardi</button>
+      <button class="tab" data-day="mercredi">Mercredi</button>
+      <button class="tab" data-day="jeudi">Jeudi</button>
+      <button class="tab" data-day="vendredi">Vendredi</button>
+      <button class="tab" data-day="samedi">Samedi</button>
+      <button class="tab" data-day="dimanche">Dimanche</button>
+    </div>
+
+    <!-- Tableau des créneaux -->
+    <div id="global-planning" class="table-container"></div>
+
+    <!-- Bouton de déconnexion -->
+    <button id="logout-btn" class="logout-btn">Déconnexion</button>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</body>
+</html>

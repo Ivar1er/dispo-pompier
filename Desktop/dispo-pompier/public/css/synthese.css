@@ -1,0 +1,134 @@
+/* Corps de la page */
+body {
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f4f7fc;
+  color: #333;
+}
+
+/* Conteneur principal */
+.synthese-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 30px; /* marge intérieure à gauche et droite */
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+}
+
+/* En-tête */
+h1 {
+  font-size: 28px;
+  color: #333;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+/* Conteneur de la sélection semaine + date */
+.week-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+label {
+  font-size: 16px;
+}
+
+select {
+  font-size: 16px;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+/* Date range stylée */
+#date-range {
+  font-weight: bold;
+  font-size: 16px;
+  color: #444; /* Couleur plus sobre que le bleu */
+}
+
+/* Planning scrollable horizontal */
+#global-planning {
+  overflow-x: auto;
+  margin-top: 20px;
+  padding-right: 20px; /* espace à droite du tableau */
+  box-sizing: border-box;
+}
+
+/* Table de planning */
+.planning-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-right: 10px; /* petit espace à droite du tableau */
+}
+
+.planning-table th,
+.planning-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: center;
+  background-color: #fff;
+  font-size: 14px;
+}
+
+.planning-table th {
+  background-color: #007bff;
+  color: #fff;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.planning-table td:first-child {
+  font-weight: bold;
+  background-color: #f4f4f4;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+}
+
+/* Créneaux sélectionnés */
+.planning-table td.slot.selected {
+  background-color: #4caf50;
+  color: white;
+}
+
+/* Survol des créneaux */
+.planning-table td.slot:hover {
+  background-color: #81c784;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+/* Bouton retour */
+.btn-retour {
+  display: block;
+  width: fit-content;
+  margin: 40px auto 0;
+  padding: 12px 24px;
+  background-color: #007bff;
+  color: white;
+  text-decoration: none;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-retour:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
