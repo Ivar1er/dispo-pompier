@@ -94,7 +94,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
 
-    // ✅ Enregistrement corrigé : mise à jour d’un seul jour dans la semaine
     document.getElementById("save-button").addEventListener("click", async () => {
       const week = weekSelect.value;
       const weekKey = `week-${week}`;
@@ -134,6 +133,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
+// --- NOUVEAU : Pour stocker les deux clics (début et fin) pour la sélection multiple ---
+const selectedRange = {
+  start: null,
+  end: null
+};
+
 function updateDisplay(weekNumber) {
   document.getElementById("date-range").textContent = getWeekDateRange(weekNumber);
   showDay('lundi', weekNumber, planningDataAgent);
@@ -153,7 +158,14 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
   container.innerHTML = "";
 
   const weekKey = `week-${weekNumber}`;
-  const selectedSlots = planningData[weekKey]?.[day] || [];
+  if (!planningData[weekKey]) planningData[weekKey] = {};
+  if (!planningData[weekKey][day]) planningData[weekKey][day] = [];
+  const selectedSlots = planningData[weekKey][day];
+
+  // Fonction pour convertir un créneau en index
+  function slotIndex(slot) {
+    return horaires.indexOf(slot);
+  }
 
   horaires.forEach(horaire => {
     const button = document.createElement("button");
@@ -166,23 +178,70 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
     }
 
     button.addEventListener("click", () => {
-      button.classList.toggle("selected");
+      // Si on a pas de début sélectionné, on le met
+      if (selectedRange.start === null) {
+        selectedRange.start = horaire;
+        // Sélection temporaire du bouton cliqué
+        clearTemporarySelection();
+        button.classList.add("selected");
+      }
+      // Si on a un début et pas encore de fin, on le définit et sélectionne tout entre
+      else if (selectedRange.end === null) {
+        selectedRange.end = horaire;
 
-      const weekKey = `week-${weekNumber}`;
-      if (!planningDataAgent[weekKey]) planningDataAgent[weekKey] = {};
-      if (!planningDataAgent[weekKey][day]) planningDataAgent[weekKey][day] = [];
+        const startIdx = slotIndex(selectedRange.start);
+        const endIdx = slotIndex(selectedRange.end);
 
-      const slotText = button.textContent.trim();
-      const index = planningDataAgent[weekKey][day].indexOf(slotText);
+        // Calculer min et max pour supporter clic inversé (fin avant début)
+        const from = Math.min(startIdx, endIdx);
+        const to = Math.max(startIdx, endIdx);
 
-      if (button.classList.contains("selected")) {
-        if (index === -1) planningDataAgent[weekKey][day].push(slotText);
-      } else {
-        if (index > -1) planningDataAgent[weekKey][day].splice(index, 1);
+        // Ajouter tous les créneaux entre start et end (inclus)
+        for (let i = from; i <= to; i++) {
+          const slot = horaires[i];
+          if (!selectedSlots.includes(slot)) {
+            selectedSlots.push(slot);
+          }
+        }
+
+        // Nettoyer la sélection temporaire
+        clearTemporarySelection();
+
+        // Rafraîchir l’affichage des boutons (pour refléter la sélection multiple)
+        refreshButtonsSelection(container, selectedSlots);
+
+        // Réinitialiser la sélection pour la prochaine plage
+        selectedRange.start = null;
+        selectedRange.end = null;
+      }
+      // Si on a déjà start ET end, on recommence une nouvelle sélection (reset)
+      else {
+        selectedRange.start = horaire;
+        selectedRange.end = null;
+        clearTemporarySelection();
+        button.classList.add("selected");
       }
     });
 
     container.appendChild(button);
+  });
+}
+
+// Nettoyer les sélections temporaires (boutons "start" seul sélectionné)
+function clearTemporarySelection() {
+  document.querySelectorAll(".slot-button").forEach(btn => {
+    if (!btn.classList.contains("selected")) {
+      btn.classList.remove("temp-selected");
+    }
+  });
+}
+
+// Met à jour les boutons sélectionnés visuellement en fonction de selectedSlots
+function refreshButtonsSelection(container, selectedSlots) {
+  container.querySelectorAll(".slot-button").forEach(btn => {
+    if (selectedSlots.includes(btn.textContent.trim())) {
+      btn.classList.add("selected");
+    }
   });
 }
 
