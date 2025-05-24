@@ -229,3 +229,9 @@ function selectRange(day, weekKey, startIndex, endIndex) {
     if (btn) btn.classList.add("selected");
   }
 }
+
+// Fonction de déconnexion
+function logout() {
+  sessionStorage.removeItem("agent");
+  window.location.href = "index.html";
+}
