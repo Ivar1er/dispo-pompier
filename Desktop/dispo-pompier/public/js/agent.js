@@ -14,13 +14,16 @@ for (let h = 7; h < 31; h++) {
   }
 }
 
+// Fonction fiable pour obtenir la semaine ISO actuelle
 function getCurrentISOWeek() {
-  const now = new Date();
-  const jan4 = new Date(now.getFullYear(), 0, 4);
-  const dayDiff = (now - jan4) / 86400000;
-  return Math.ceil((dayDiff + jan4.getDay() + 1) / 7);
+  const date = new Date();
+  const target = new Date(date.valueOf());
+  target.setDate(target.getDate() + 3 - (target.getDay() + 6) % 7);
+  const firstThursday = new Date(target.getFullYear(), 0, 4);
+  return 1 + Math.round(((target - firstThursday) / 86400000 - 3 + (firstThursday.getDay() + 6) % 7) / 7);
 }
 
+// Fonction pour obtenir la plage de dates d'une semaine ISO
 function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
   const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
   const dow = simple.getDay() || 7;
@@ -44,6 +47,8 @@ function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
 }
 
 let planningDataAgent = {};
+let firstSelectedIndex = null; // indice du 1er clic sur créneau
+let lastSelectedIndex = null;  // indice du 2e clic sur créneau
 
 document.addEventListener("DOMContentLoaded", async () => {
   if (!agent || agent === "admin") {
@@ -61,6 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const currentWeek = getCurrentISOWeek();
 
+    // Construire la liste des 8 semaines à partir de la semaine actuelle
     const allWeeks = [];
     for (let i = currentWeek; i < currentWeek + 8; i++) {
       allWeeks.push(i);
@@ -68,6 +74,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const weekSelect = document.getElementById("week-select");
     weekSelect.innerHTML = "";
+
     allWeeks.forEach(week => {
       const option = document.createElement("option");
       option.value = week;
@@ -75,6 +82,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       weekSelect.appendChild(option);
     });
 
+    // Sélection par défaut : semaine actuelle
     weekSelect.value = currentWeek;
 
     updateDisplay(currentWeek);
@@ -94,6 +102,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
 
+    // Enregistrement des créneaux modifiés
     document.getElementById("save-button").addEventListener("click", async () => {
       const week = weekSelect.value;
       const weekKey = `week-${week}`;
@@ -133,17 +142,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// --- NOUVEAU : Pour stocker les deux clics (début et fin) pour la sélection multiple ---
-const selectedRange = {
-  start: null,
-  end: null
-};
-
+// Met à jour l’affichage de la plage de dates et affiche le lundi par défaut
 function updateDisplay(weekNumber) {
   document.getElementById("date-range").textContent = getWeekDateRange(weekNumber);
   showDay('lundi', weekNumber, planningDataAgent);
 }
 
+// Affiche les créneaux d’un jour donné et gère la sélection avancée
 function showDay(day, weekNumber = document.getElementById("week-select").value, planningData = {}) {
   document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
   document.querySelectorAll(".tab").forEach(tab => {
@@ -158,16 +163,13 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
   container.innerHTML = "";
 
   const weekKey = `week-${weekNumber}`;
-  if (!planningData[weekKey]) planningData[weekKey] = {};
-  if (!planningData[weekKey][day]) planningData[weekKey][day] = [];
-  const selectedSlots = planningData[weekKey][day];
+  const selectedSlots = planningData[weekKey]?.[day] || [];
 
-  // Fonction pour convertir un créneau en index
-  function slotIndex(slot) {
-    return horaires.indexOf(slot);
-  }
+  // Pour gérer la sélection par intervalle : on travaille sur indices horaires
+  // Création d’un tableau d’objets { horaire, index }
+  const horairesWithIndex = horaires.map((h, idx) => ({ horaire: h, index: idx }));
 
-  horaires.forEach(horaire => {
+  horairesWithIndex.forEach(({ horaire, index }) => {
     const button = document.createElement("button");
     button.className = "slot-button";
     button.dataset.day = day;
@@ -178,48 +180,21 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
     }
 
     button.addEventListener("click", () => {
-      // Si on a pas de début sélectionné, on le met
-      if (selectedRange.start === null) {
-        selectedRange.start = horaire;
-        // Sélection temporaire du bouton cliqué
-        clearTemporarySelection();
-        button.classList.add("selected");
-      }
-      // Si on a un début et pas encore de fin, on le définit et sélectionne tout entre
-      else if (selectedRange.end === null) {
-        selectedRange.end = horaire;
-
-        const startIdx = slotIndex(selectedRange.start);
-        const endIdx = slotIndex(selectedRange.end);
-
-        // Calculer min et max pour supporter clic inversé (fin avant début)
-        const from = Math.min(startIdx, endIdx);
-        const to = Math.max(startIdx, endIdx);
-
-        // Ajouter tous les créneaux entre start et end (inclus)
-        for (let i = from; i <= to; i++) {
-          const slot = horaires[i];
-          if (!selectedSlots.includes(slot)) {
-            selectedSlots.push(slot);
-          }
-        }
-
-        // Nettoyer la sélection temporaire
-        clearTemporarySelection();
-
-        // Rafraîchir l’affichage des boutons (pour refléter la sélection multiple)
-        refreshButtonsSelection(container, selectedSlots);
-
-        // Réinitialiser la sélection pour la prochaine plage
-        selectedRange.start = null;
-        selectedRange.end = null;
-      }
-      // Si on a déjà start ET end, on recommence une nouvelle sélection (reset)
-      else {
-        selectedRange.start = horaire;
-        selectedRange.end = null;
-        clearTemporarySelection();
-        button.classList.add("selected");
+      // Si aucun premier clic ou si on commence une nouvelle sélection
+      if (firstSelectedIndex === null) {
+        firstSelectedIndex = index;
+        lastSelectedIndex = null;
+        // Sélectionne uniquement ce créneau pour l’instant
+        clearDaySelection(day, weekKey);
+        selectRange(day, weekKey, firstSelectedIndex, firstSelectedIndex);
+      } else if (lastSelectedIndex === null) {
+        lastSelectedIndex = index;
+        // Sélectionner tous les créneaux entre first et last
+        clearDaySelection(day, weekKey);
+        selectRange(day, weekKey, firstSelectedIndex, lastSelectedIndex);
+        // On reset pour permettre une nouvelle sélection
+        firstSelectedIndex = null;
+        lastSelectedIndex = null;
       }
     });
 
@@ -227,25 +202,30 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
   });
 }
 
-// Nettoyer les sélections temporaires (boutons "start" seul sélectionné)
-function clearTemporarySelection() {
-  document.querySelectorAll(".slot-button").forEach(btn => {
-    if (!btn.classList.contains("selected")) {
-      btn.classList.remove("temp-selected");
-    }
+// Vide la sélection des créneaux pour un jour donné dans planningDataAgent et dans l’affichage
+function clearDaySelection(day, weekKey) {
+  if (!planningDataAgent[weekKey]) planningDataAgent[weekKey] = {};
+  planningDataAgent[weekKey][day] = [];
+
+  document.querySelectorAll(`.slot-button[data-day="${day}"]`).forEach(btn => {
+    btn.classList.remove("selected");
   });
 }
 
-// Met à jour les boutons sélectionnés visuellement en fonction de selectedSlots
-function refreshButtonsSelection(container, selectedSlots) {
-  container.querySelectorAll(".slot-button").forEach(btn => {
-    if (selectedSlots.includes(btn.textContent.trim())) {
-      btn.classList.add("selected");
-    }
-  });
-}
+// Sélectionne une plage de créneaux (de startIndex à endIndex inclus) dans planningDataAgent et met à jour l’affichage
+function selectRange(day, weekKey, startIndex, endIndex) {
+  if (!planningDataAgent[weekKey]) planningDataAgent[weekKey] = {};
+  if (!planningDataAgent[weekKey][day]) planningDataAgent[weekKey][day] = [];
 
-function logout() {
-  sessionStorage.removeItem("agent");
-  window.location.href = "index.html";
+  const minIndex = Math.min(startIndex, endIndex);
+  const maxIndex = Math.max(startIndex, endIndex);
+
+  // Mise à jour planningDataAgent
+  planningDataAgent[weekKey][day] = horaires.slice(minIndex, maxIndex + 1);
+
+  // Mise à jour affichage
+  for (let i = minIndex; i <= maxIndex; i++) {
+    const btn = document.querySelector(`.slot-button[data-day="${day}"]:nth-child(${i + 1})`);
+    if (btn) btn.classList.add("selected");
+  }
 }
