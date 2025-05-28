@@ -101,12 +101,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       const weekKey = `week-${week}`;
 
       const currentDay = document.querySelector(".tab.active")?.textContent.toLowerCase();
-      const selectedSlots = Array.from(document.querySelectorAll(`.slot-button[data-day="${currentDay}"].selected`))
-        .map(btn => btn.textContent.trim());
+      if (!currentDay) {
+        alert("Aucun jour sélectionné");
+        return;
+      }
 
+      // Ici on récupère les plages déjà enregistrées dans planningDataAgent
       const existingWeekData = planningDataAgent[weekKey] || {};
       const previousDaySlots = existingWeekData[currentDay] || [];
-      const updatedDaySlots = Array.from(new Set([...previousDaySlots, ...selectedSlots]));
+
+      // Comme selectRange met à jour planningDataAgent directement, on sauvegarde tout ce qu’on a
+      const updatedDaySlots = previousDaySlots;
 
       const updatedWeekData = {
         ...existingWeekData,
