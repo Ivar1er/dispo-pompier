@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Page Agent</title>
+  <link rel="stylesheet" href="css/agent.css">
+</head>
+<body>
+  <div class="agent-container">
+
+    <!-- En-tête agent -->
+    <h2>Bienvenue <span id="agent-name"></span></h2>
+
+    <!-- Semaine + date alignés -->
+    <div class="week-info">
+      <div class="week-selector">
+        <label for="week-select">Semaine :</label>
+        <select id="week-select"></select>
+      </div>
+      <p id="date-range" class="date-range"></p>
+    </div>
+
+    <!-- Lien synthèse -->
+    <div class="top-controls">
+      <a href="synthese.html" id="synthese-btn" class="btn">Voir la Synthèse</a>
+    </div>
+
+    <!-- Onglets jour -->
+    <div class="tabs">
+      <button class="tab active" onclick="showDay('lundi')">Lundi</button>
+      <button class="tab" onclick="showDay('mardi')">Mardi</button>
+      <button class="tab" onclick="showDay('mercredi')">Mercredi</button>
+      <button class="tab" onclick="showDay('jeudi')">Jeudi</button>
+      <button class="tab" onclick="showDay('vendredi')">Vendredi</button>
+      <button class="tab" onclick="showDay('samedi')">Samedi</button>
+      <button class="tab" onclick="showDay('dimanche')">Dimanche</button>
+    </div>
+
+    <!-- Créneaux horaires ici -->
+    <div id="planning-container" class="planning-container"></div>
+
+    <!-- Boutons en bas -->
+    <div class="bottom-actions">
+      <button id="save-button">Enregistrer mes créneaux</button>
+      <button onclick="logout()">Déconnexion</button>
+    </div>
+
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/agent.js"></script>
+</body>
+</html>
