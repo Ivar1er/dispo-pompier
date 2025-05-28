@@ -6,7 +6,6 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-
 app.use(cors());
 app.use(express.json());
 
@@ -15,7 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 console.log('Dossier public:', PUBLIC_DIR);
 app.use(express.static(PUBLIC_DIR));
 
-// Répertoire des fichiers de planning (avec "s")
+// Répertoire des fichiers de planning
 const DATA_DIR = path.join(__dirname, 'plannings');
 fs.mkdir(DATA_DIR, { recursive: true }).catch(console.error);
 
@@ -58,7 +57,7 @@ app.post("/api/login", (req, res) => {
   res.json({ prenom: user.prenom, nom: user.nom });
 });
 
-// Lire le planning d’un agent complet (toutes les semaines)
+// Lire le planning d’un agent
 app.get('/api/planning/:agent', async (req, res) => {
   const agent = req.params.agent.toLowerCase();
   const filePath = path.join(DATA_DIR, `${agent}.json`);
@@ -68,14 +67,14 @@ app.get('/api/planning/:agent', async (req, res) => {
     res.json(JSON.parse(data));
   } catch (err) {
     if (err.code === 'ENOENT') {
-      res.json({});  // Pas de planning existant
+      res.json({});
     } else {
       res.status(500).json({ message: 'Erreur serveur lors de la lecture du planning' });
     }
   }
 });
 
-// Sauvegarde complète du planning d’un agent (toutes les semaines) avec fusion des données existantes
+// Sauvegarder le planning d’un agent
 app.post('/api/planning/:agent', async (req, res) => {
   const agent = req.params.agent.toLowerCase();
   const newPlanningData = req.body;
@@ -87,7 +86,6 @@ app.post('/api/planning/:agent', async (req, res) => {
   const filePath = path.join(DATA_DIR, `${agent}.json`);
 
   try {
-    // Lire planning actuel (ou vide)
     let currentPlanning = {};
     try {
       const data = await fs.readFile(filePath, 'utf8');
@@ -96,10 +94,7 @@ app.post('/api/planning/:agent', async (req, res) => {
       if (err.code !== 'ENOENT') throw err;
     }
 
-    // Fusionner les données (nouveau planning remplace ou ajoute)
     const mergedPlanning = { ...currentPlanning, ...newPlanningData };
-
-    // Écrire planning complet fusionné
     await fs.writeFile(filePath, JSON.stringify(mergedPlanning, null, 2), 'utf8');
 
     res.json({ message: 'Planning enregistré avec succès' });
@@ -109,7 +104,7 @@ app.post('/api/planning/:agent', async (req, res) => {
   }
 });
 
-// Route ADMIN : récupérer tous les plannings
+// Récupérer tous les plannings (admin)
 app.get('/api/planning', async (req, res) => {
   try {
     const files = await fs.readdir(DATA_DIR);
@@ -126,6 +121,19 @@ app.get('/api/planning', async (req, res) => {
     res.json(allPlannings);
   } catch (err) {
     res.status(500).json({ message: 'Erreur lors de la récupération des plannings' });
+  }
+});
+
+// 🔧 ROUTE DE TEST DISK RENDER
+const diskTestPath = '/mnt/storage/test.txt';
+
+app.get('/test-disk', async (req, res) => {
+  try {
+    await fs.writeFile(diskTestPath, 'Test depuis la route /test-disk');
+    const contenu = await fs.readFile(diskTestPath, 'utf8');
+    res.send(`Contenu du disque : ${contenu}`);
+  } catch (err) {
+    res.status(500).send(`Erreur disque : ${err.message}`);
   }
 });
 
