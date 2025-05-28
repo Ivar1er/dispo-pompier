@@ -172,6 +172,7 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
       if (firstSelectedIndex === null) {
         firstSelectedIndex = index;
         lastSelectedIndex = null;
+        // Ajout sans suppression
         selectRange(day, weekKey, firstSelectedIndex, firstSelectedIndex);
       } else if (lastSelectedIndex === null) {
         lastSelectedIndex = index;
@@ -185,17 +186,6 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
   });
 }
 
-// Ne vide plus la sélection automatiquement
-function clearDaySelection(day, weekKey) {
-  if (!planningDataAgent[weekKey]) planningDataAgent[weekKey] = {};
-  planningDataAgent[weekKey][day] = [];
-
-  document.querySelectorAll(`.slot-button[data-day="${day}"]`).forEach(btn => {
-    btn.classList.remove("selected");
-  });
-}
-
-// ✅ Version modifiée : ajout sans suppression
 function selectRange(day, weekKey, startIndex, endIndex) {
   if (!planningDataAgent[weekKey]) planningDataAgent[weekKey] = {};
   if (!planningDataAgent[weekKey][day]) planningDataAgent[weekKey][day] = [];
@@ -205,9 +195,11 @@ function selectRange(day, weekKey, startIndex, endIndex) {
 
   const newSlots = horaires.slice(minIndex, maxIndex + 1);
   const currentSlots = planningDataAgent[weekKey][day];
+  // Fusion des créneaux en évitant les doublons
   const mergedSlots = Array.from(new Set([...currentSlots, ...newSlots]));
   planningDataAgent[weekKey][day] = mergedSlots;
 
+  // Met à jour l’affichage en ajoutant la classe selected aux nouveaux boutons
   for (let i = minIndex; i <= maxIndex; i++) {
     const btn = document.querySelector(`.slot-button[data-day="${day}"]:nth-child(${i + 1})`);
     if (btn) btn.classList.add("selected");
