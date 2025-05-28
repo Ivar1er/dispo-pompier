@@ -172,11 +172,12 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
       if (firstSelectedIndex === null) {
         firstSelectedIndex = index;
         lastSelectedIndex = null;
-        // Ajout sans suppression
+        // Sélection immédiate du 1er créneau (optionnel)
         selectRange(day, weekKey, firstSelectedIndex, firstSelectedIndex);
       } else if (lastSelectedIndex === null) {
         lastSelectedIndex = index;
         selectRange(day, weekKey, firstSelectedIndex, lastSelectedIndex);
+        // Reset pour nouvelle sélection
         firstSelectedIndex = null;
         lastSelectedIndex = null;
       }
@@ -195,11 +196,13 @@ function selectRange(day, weekKey, startIndex, endIndex) {
 
   const newSlots = horaires.slice(minIndex, maxIndex + 1);
   const currentSlots = planningDataAgent[weekKey][day];
-  // Fusion des créneaux en évitant les doublons
+
+  // Fusionner sans doublons
   const mergedSlots = Array.from(new Set([...currentSlots, ...newSlots]));
+
   planningDataAgent[weekKey][day] = mergedSlots;
 
-  // Met à jour l’affichage en ajoutant la classe selected aux nouveaux boutons
+  // Met à jour l’affichage en ajoutant la classe selected aux boutons concernés
   for (let i = minIndex; i <= maxIndex; i++) {
     const btn = document.querySelector(`.slot-button[data-day="${day}"]:nth-child(${i + 1})`);
     if (btn) btn.classList.add("selected");
