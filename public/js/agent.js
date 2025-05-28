@@ -173,6 +173,12 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
     }
 
     button.addEventListener("click", () => {
+      if (button.classList.contains("selected")) {
+        // Si déjà sélectionné, on désélectionne ce créneau
+        button.classList.remove("selected");
+        return;
+      }
+
       if (firstSelectedIndex === null) {
         firstSelectedIndex = index;
         lastSelectedIndex = null;
@@ -193,8 +199,9 @@ function selectRange(day, weekKey, startIndex, endIndex) {
   const minIndex = Math.min(startIndex, endIndex);
   const maxIndex = Math.max(startIndex, endIndex);
 
+  const allButtons = document.querySelectorAll(`.slot-button[data-day="${day}"]`);
   for (let i = minIndex; i <= maxIndex; i++) {
-    const btn = document.querySelector(`.slot-button[data-day="${day}"]:nth-child(${i + 1})`);
+    const btn = allButtons[i];
     if (btn) btn.classList.add("selected");
   }
 }
@@ -203,4 +210,3 @@ function logout() {
   sessionStorage.removeItem("agent");
   window.location.href = "index.html";
 }
-
