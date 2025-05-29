@@ -101,34 +101,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       const weekKey = `week-${week}`;
 
       const currentDay = document.querySelector(".tab.active")?.textContent.toLowerCase();
-      if (!currentDay) {
-        alert("Veuillez sélectionner un jour avant de sauvegarder.");
-        return;
-      }
-
       const selectedSlots = Array.from(document.querySelectorAll(`.slot-button[data-day="${currentDay}"].selected`))
         .map(btn => btn.textContent.trim());
 
       const existingWeekData = planningDataAgent[weekKey] || {};
-      const existingSlots = existingWeekData[currentDay] || [];
 
-      // Fusionne les créneaux sans doublons
-      const mergedSlots = Array.from(new Set([...existingSlots, ...selectedSlots]));
+      // Combine les anciennes plages avec les nouvelles sans doublon
+      const previousSlots = existingWeekData[currentDay] || [];
+      const combinedSlots = Array.from(new Set([...previousSlots, ...selectedSlots]));
 
-      // Supprime les créneaux décochés (qui étaient dans existingSlots mais plus dans selectedSlots)
-      // Donc on prend uniquement ceux qui sont encore sélectionnés dans l'UI
-      // La fusion ci-dessus ajoute les nouveaux, mais pour retirer, on remplace directement par selectedSlots
-      // Donc pour la suppression correcte, on ne doit PAS fusionner, on doit juste remplacer :
-      // mergedSlots === selectedSlots (remplacement complet)
-      // Mais pour garder la fusion lors de l'ajout sans suppression on pourrait faire autrement.
-
-      // En fait, la logique correcte pour permettre ajout + suppression :
-      // On remplace juste par selectedSlots, puisque dans l'UI les slots décochés ne sont pas dans selectedSlots.
-      // Donc on écrase avec selectedSlots.
-
+      // Met à jour uniquement le jour affiché avec la combinaison
       const updatedWeekData = {
         ...existingWeekData,
-        [currentDay]: selectedSlots // Remplacement complet des créneaux du jour avec ceux encore sélectionnés
+        [currentDay]: combinedSlots
       };
 
       const updatedPlanning = {
@@ -147,6 +132,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         planningDataAgent = updatedPlanning;
       } else {
         alert("Erreur lors de l’enregistrement.");
+      }
+    });
+
+    // Gestion du bouton effacer la sélection du jour actif
+    document.getElementById("clear-selection-button").addEventListener("click", () => {
+      const currentWeek = weekSelect.value;
+      const currentDay = document.querySelector(".tab.active")?.textContent.toLowerCase();
+      if (!currentDay) return;
+
+      // Retire la sélection visuelle
+      document.querySelectorAll(`.slot-button.selected[data-day="${currentDay}"]`).forEach(btn => {
+        btn.classList.remove("selected");
+      });
+
+      // Supprime les créneaux du jour dans les données en mémoire
+      const weekKey = `week-${currentWeek}`;
+      if (planningDataAgent[weekKey]) {
+        planningDataAgent[weekKey][currentDay] = [];
       }
     });
 
@@ -177,7 +180,9 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
   const weekKey = `week-${weekNumber}`;
   const selectedSlots = planningData[weekKey]?.[day] || [];
 
-  horaires.forEach((horaire, index) => {
+  const horairesWithIndex = horaires.map((h, idx) => ({ horaire: h, index: idx }));
+
+  horairesWithIndex.forEach(({ horaire, index }) => {
     const button = document.createElement("button");
     button.className = "slot-button";
     button.dataset.day = day;
@@ -188,11 +193,36 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
     }
 
     button.addEventListener("click", () => {
-      button.classList.toggle("selected");
+      if (button.classList.contains("selected")) {
+        button.classList.remove("selected");
+        return;
+      }
+
+      if (firstSelectedIndex === null) {
+        firstSelectedIndex = index;
+        lastSelectedIndex = null;
+        selectRange(day, weekKey, firstSelectedIndex, firstSelectedIndex);
+      } else if (lastSelectedIndex === null) {
+        lastSelectedIndex = index;
+        selectRange(day, weekKey, firstSelectedIndex, lastSelectedIndex);
+        firstSelectedIndex = null;
+        lastSelectedIndex = null;
+      }
     });
 
     container.appendChild(button);
   });
+}
+
+function selectRange(day, weekKey, startIndex, endIndex) {
+  const minIndex = Math.min(startIndex, endIndex);
+  const maxIndex = Math.max(startIndex, endIndex);
+
+  const allButtons = document.querySelectorAll(`.slot-button[data-day="${day}"]`);
+  for (let i = minIndex; i <= maxIndex; i++) {
+    const btn = allButtons[i];
+    if (btn) btn.classList.add("selected");
+  }
 }
 
 function logout() {

@@ -71,6 +71,13 @@ h2 {
   color: white;
 }
 
+#selection-info {
+  margin-top: 10px;
+  font-style: italic;
+  color: #555;
+  text-align: center;
+}
+
 #planning-container {
   margin-bottom: 30px;
   display: flex;

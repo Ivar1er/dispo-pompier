@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Page Agent</title>
-  <link rel="stylesheet" href="css/agent.css">
+  <link rel="stylesheet" href="css/agent.css" />
 </head>
 <body>
   <div class="agent-container">
@@ -36,18 +36,38 @@
       <button class="tab" onclick="showDay('dimanche')">Dimanche</button>
     </div>
 
+    <!-- Info sélection -->
+    <p id="selection-info" style="margin-top:10px; font-style: italic; color: #555;">
+      Sélectionnez vos créneaux avant d’enregistrer.
+    </p>
+
     <!-- Créneaux horaires ici -->
     <div id="planning-container" class="planning-container"></div>
 
     <!-- Boutons en bas -->
-    <div class="bottom-actions">
+    <div class="bottom-actions" style="margin-top:15px;">
       <button id="save-button">Enregistrer mes créneaux</button>
-      <button onclick="logout()">Déconnexion</button>
+      <button id="clear-selection-btn" style="margin-left:10px;">Effacer sélection</button>
+      <button onclick="logout()" style="margin-left:10px;">Déconnexion</button>
     </div>
 
   </div>
 
   <script src="js/data.js"></script>
   <script src="js/agent.js"></script>
+  <script>
+    // Ajout simple pour effacer la sélection temporaire sur le jour affiché
+    document.getElementById('clear-selection-btn').addEventListener('click', () => {
+      const weekKey = `week-${document.getElementById('week-select').value}`;
+      const activeTab = document.querySelector('.tab.active');
+      if (!activeTab) return;
+      const day = activeTab.textContent.toLowerCase();
+
+      if (tempSelection[weekKey]?.[day]) {
+        tempSelection[weekKey][day] = [];
+      }
+      showDay(day, +document.getElementById('week-select').value);
+    });
+  </script>
 </body>
 </html>
