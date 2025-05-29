@@ -58,25 +58,17 @@ app.post("/api/login", (req, res) => {
   res.json({ prenom: user.prenom, nom: user.nom });
 });
 
-// Lire le planning d’un agent (avec prénom et nom)
+// Lire le planning d’un agent
 app.get('/api/planning/:agent', async (req, res) => {
   const agent = req.params.agent.toLowerCase();
   const filePath = path.join(DATA_DIR, `${agent}.json`);
 
   try {
     const data = await fs.readFile(filePath, 'utf8');
-    const planning = JSON.parse(data);
-    const user = USERS[agent] || { prenom: '', nom: '' };
-
-    res.json({
-      prenom: user.prenom,
-      nom: user.nom,
-      planning
-    });
+    res.json(JSON.parse(data));
   } catch (err) {
     if (err.code === 'ENOENT') {
-      const user = USERS[agent] || { prenom: '', nom: '' };
-      res.json({ prenom: user.prenom, nom: user.nom, planning: {} });
+      res.json({});
     } else {
       res.status(500).json({ message: 'Erreur serveur lors de la lecture du planning' });
     }
@@ -103,7 +95,11 @@ app.post('/api/planning/:agent', async (req, res) => {
       if (err.code !== 'ENOENT') throw err;
     }
 
-    const mergedPlanning = { ...currentPlanning, ...newPlanningData };
+    const mergedPlanning = { ...currentPlanning };
+    for (const [jour, creneaux] of Object.entries(newPlanningData)) {
+      mergedPlanning[jour] = Array.isArray(creneaux) ? [...creneaux] : [];
+    }
+
     await fs.writeFile(filePath, JSON.stringify(mergedPlanning, null, 2), 'utf8');
 
     res.json({ message: 'Planning enregistré avec succès' });
