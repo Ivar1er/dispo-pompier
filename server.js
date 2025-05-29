@@ -58,17 +58,25 @@ app.post("/api/login", (req, res) => {
   res.json({ prenom: user.prenom, nom: user.nom });
 });
 
-// Lire le planning d’un agent
+// Lire le planning d’un agent (avec prénom et nom)
 app.get('/api/planning/:agent', async (req, res) => {
   const agent = req.params.agent.toLowerCase();
   const filePath = path.join(DATA_DIR, `${agent}.json`);
 
   try {
     const data = await fs.readFile(filePath, 'utf8');
-    res.json(JSON.parse(data));
+    const planning = JSON.parse(data);
+    const user = USERS[agent] || { prenom: '', nom: '' };
+
+    res.json({
+      prenom: user.prenom,
+      nom: user.nom,
+      planning
+    });
   } catch (err) {
     if (err.code === 'ENOENT') {
-      res.json({});
+      const user = USERS[agent] || { prenom: '', nom: '' };
+      res.json({ prenom: user.prenom, nom: user.nom, planning: {} });
     } else {
       res.status(500).json({ message: 'Erreur serveur lors de la lecture du planning' });
     }

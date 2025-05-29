@@ -43,6 +43,10 @@ function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
   return `du ${format(start)} au ${format(end)}`;
 }
 
+function capitalizeWords(str) {
+  return str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 let planningDataAgent = {};
 let firstSelectedIndex = null;
 let lastSelectedIndex = null;
@@ -54,12 +58,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  document.getElementById("agent-name").textContent = agent;
-
   try {
+    // Récupération des données de planning + infos agent
     const response = await fetch(`/api/planning/${agent}`);
     if (!response.ok) throw new Error(`Erreur HTTP ${response.status}`);
-    planningDataAgent = await response.json();
+    const data = await response.json();
+
+    planningDataAgent = data.planning || data; // selon ta structure
+    const prenom = data.prenom || '';
+    const nom = data.nom || agent; // fallback au nom agent simple
+
+    // Affichage Prénom Nom capitalisé
+    document.getElementById("agent-name").textContent = capitalizeWords(`${prenom} ${nom}`);
 
     const currentWeek = getCurrentISOWeek();
 
@@ -135,22 +145,26 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    // Gestion du bouton effacer la sélection du jour actif
-    document.getElementById("clear-selection-button").addEventListener("click", () => {
+    // Gestion du bouton effacer la dernière plage sélectionnée du jour actif
+    document.getElementById("clear-selection-btn").addEventListener("click", () => {
       const currentWeek = weekSelect.value;
       const currentDay = document.querySelector(".tab.active")?.textContent.toLowerCase();
       if (!currentDay) return;
 
-      // Retire la sélection visuelle
-      document.querySelectorAll(`.slot-button.selected[data-day="${currentDay}"]`).forEach(btn => {
-        btn.classList.remove("selected");
-      });
-
-      // Supprime les créneaux du jour dans les données en mémoire
       const weekKey = `week-${currentWeek}`;
-      if (planningDataAgent[weekKey]) {
-        planningDataAgent[weekKey][currentDay] = [];
-      }
+      if (!planningDataAgent[weekKey]) return;
+
+      const selectedSlots = planningDataAgent[weekKey][currentDay] || [];
+      if (selectedSlots.length === 0) return;
+
+      // Supprime la dernière plage sélectionnée
+      selectedSlots.pop();
+
+      // Met à jour les données
+      planningDataAgent[weekKey][currentDay] = selectedSlots;
+
+      // Met à jour l'affichage
+      showDay(currentDay, currentWeek, planningDataAgent);
     });
 
   } catch (err) {
