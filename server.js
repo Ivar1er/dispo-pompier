@@ -14,8 +14,9 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 console.log('Dossier public:', PUBLIC_DIR);
 app.use(express.static(PUBLIC_DIR));
 
-// Répertoire des fichiers de planning
-const DATA_DIR = path.join(__dirname, 'plannings');
+// ✅ Répertoire persistant Render pour les plannings
+const PERSISTENT_DIR = '/mnt/storage';
+const DATA_DIR = path.join(PERSISTENT_DIR, 'plannings');
 fs.mkdir(DATA_DIR, { recursive: true }).catch(console.error);
 
 // Liste des utilisateurs
@@ -125,7 +126,7 @@ app.get('/api/planning', async (req, res) => {
 });
 
 // 🔧 ROUTE DE TEST DISK RENDER
-const diskTestPath = '/mnt/storage/test.txt';
+const diskTestPath = path.join(PERSISTENT_DIR, 'test.txt');
 
 app.get('/test-disk', async (req, res) => {
   try {

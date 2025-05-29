@@ -101,19 +101,36 @@ document.addEventListener("DOMContentLoaded", async () => {
       const weekKey = `week-${week}`;
 
       const currentDay = document.querySelector(".tab.active")?.textContent.toLowerCase();
+      if (!currentDay) {
+        alert("Veuillez sélectionner un jour avant de sauvegarder.");
+        return;
+      }
+
       const selectedSlots = Array.from(document.querySelectorAll(`.slot-button[data-day="${currentDay}"].selected`))
         .map(btn => btn.textContent.trim());
 
-      // Récupère les données de la semaine actuelle (sans toucher aux autres jours)
       const existingWeekData = planningDataAgent[weekKey] || {};
+      const existingSlots = existingWeekData[currentDay] || [];
 
-      // Met à jour uniquement le jour affiché
+      // Fusionne les créneaux sans doublons
+      const mergedSlots = Array.from(new Set([...existingSlots, ...selectedSlots]));
+
+      // Supprime les créneaux décochés (qui étaient dans existingSlots mais plus dans selectedSlots)
+      // Donc on prend uniquement ceux qui sont encore sélectionnés dans l'UI
+      // La fusion ci-dessus ajoute les nouveaux, mais pour retirer, on remplace directement par selectedSlots
+      // Donc pour la suppression correcte, on ne doit PAS fusionner, on doit juste remplacer :
+      // mergedSlots === selectedSlots (remplacement complet)
+      // Mais pour garder la fusion lors de l'ajout sans suppression on pourrait faire autrement.
+
+      // En fait, la logique correcte pour permettre ajout + suppression :
+      // On remplace juste par selectedSlots, puisque dans l'UI les slots décochés ne sont pas dans selectedSlots.
+      // Donc on écrase avec selectedSlots.
+
       const updatedWeekData = {
         ...existingWeekData,
-        [currentDay]: selectedSlots
+        [currentDay]: selectedSlots // Remplacement complet des créneaux du jour avec ceux encore sélectionnés
       };
 
-      // Mise à jour du planning global
       const updatedPlanning = {
         ...planningDataAgent,
         [weekKey]: updatedWeekData
@@ -160,9 +177,7 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
   const weekKey = `week-${weekNumber}`;
   const selectedSlots = planningData[weekKey]?.[day] || [];
 
-  const horairesWithIndex = horaires.map((h, idx) => ({ horaire: h, index: idx }));
-
-  horairesWithIndex.forEach(({ horaire, index }) => {
+  horaires.forEach((horaire, index) => {
     const button = document.createElement("button");
     button.className = "slot-button";
     button.dataset.day = day;
@@ -173,37 +188,11 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
     }
 
     button.addEventListener("click", () => {
-      if (button.classList.contains("selected")) {
-        // Si déjà sélectionné, on désélectionne ce créneau
-        button.classList.remove("selected");
-        return;
-      }
-
-      if (firstSelectedIndex === null) {
-        firstSelectedIndex = index;
-        lastSelectedIndex = null;
-        selectRange(day, weekKey, firstSelectedIndex, firstSelectedIndex);
-      } else if (lastSelectedIndex === null) {
-        lastSelectedIndex = index;
-        selectRange(day, weekKey, firstSelectedIndex, lastSelectedIndex);
-        firstSelectedIndex = null;
-        lastSelectedIndex = null;
-      }
+      button.classList.toggle("selected");
     });
 
     container.appendChild(button);
   });
-}
-
-function selectRange(day, weekKey, startIndex, endIndex) {
-  const minIndex = Math.min(startIndex, endIndex);
-  const maxIndex = Math.max(startIndex, endIndex);
-
-  const allButtons = document.querySelectorAll(`.slot-button[data-day="${day}"]`);
-  for (let i = minIndex; i <= maxIndex; i++) {
-    const btn = allButtons[i];
-    if (btn) btn.classList.add("selected");
-  }
 }
 
 function logout() {
