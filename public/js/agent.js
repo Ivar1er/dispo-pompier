@@ -73,12 +73,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const currentWeek = getCurrentISOWeek();
 
-    // On crée un select de 8 semaines à partir de la semaine courante
     const allWeeks = [];
     for (let i = currentWeek; i < currentWeek + 8; i++) {
-      let weekNum = i;
-      if (weekNum > 52) weekNum -= 52;
-      allWeeks.push(weekNum);
+      allWeeks.push(i);
     }
 
     const weekSelect = document.getElementById("week-select");
@@ -99,7 +96,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       updateDisplay(selectedWeek);
     });
 
-    // Listener onglets jours
     document.querySelectorAll(".tab").forEach(tab => {
       tab.addEventListener("click", () => {
         const onclickText = tab.getAttribute("onclick") || "";
@@ -110,27 +106,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
 
-    // Sauvegarder le planning
     document.getElementById("save-button").addEventListener("click", async () => {
       const week = weekSelect.value;
       const weekKey = `week-${week}`;
 
       const currentDay = document.querySelector(".tab.active")?.textContent.toLowerCase();
-      if (!currentDay) {
-        alert("Veuillez sélectionner un jour.");
-        return;
-      }
-
       const selectedSlots = Array.from(document.querySelectorAll(`.slot-button[data-day="${currentDay}"].selected`))
         .map(btn => btn.textContent.trim());
 
       const existingWeekData = planningDataAgent[weekKey] || {};
 
-      // Combine anciennes plages et nouvelles sans doublon
+      // Combine les anciennes plages avec les nouvelles sans doublon
       const previousSlots = existingWeekData[currentDay] || [];
       const combinedSlots = Array.from(new Set([...previousSlots, ...selectedSlots]));
 
-      // Met à jour uniquement le jour affiché
+      // Met à jour uniquement le jour affiché avec la combinaison
       const updatedWeekData = {
         ...existingWeekData,
         [currentDay]: combinedSlots
@@ -155,7 +145,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    // Effacer la dernière plage sélectionnée
+    // Gestion du bouton effacer la dernière plage sélectionnée du jour actif
     document.getElementById("clear-selection-btn").addEventListener("click", () => {
       const currentWeek = weekSelect.value;
       const currentDay = document.querySelector(".tab.active")?.textContent.toLowerCase();
@@ -167,10 +157,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       const selectedSlots = planningDataAgent[weekKey][currentDay] || [];
       if (selectedSlots.length === 0) return;
 
+      // Supprime la dernière plage sélectionnée
       selectedSlots.pop();
 
+      // Met à jour les données
       planningDataAgent[weekKey][currentDay] = selectedSlots;
 
+      // Met à jour l'affichage
       showDay(currentDay, currentWeek, planningDataAgent);
     });
 
@@ -186,7 +179,6 @@ function updateDisplay(weekNumber) {
 }
 
 function showDay(day, weekNumber = document.getElementById("week-select").value, planningData = {}) {
-  // Gérer l’onglet actif
   document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
   document.querySelectorAll(".tab").forEach(tab => {
     const onclickText = tab.getAttribute("onclick") || "";
@@ -202,7 +194,9 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
   const weekKey = `week-${weekNumber}`;
   const selectedSlots = planningData[weekKey]?.[day] || [];
 
-  horaires.forEach((horaire, index) => {
+  const horairesWithIndex = horaires.map((h, idx) => ({ horaire: h, index: idx }));
+
+  horairesWithIndex.forEach(({ horaire, index }) => {
     const button = document.createElement("button");
     button.className = "slot-button";
     button.dataset.day = day;

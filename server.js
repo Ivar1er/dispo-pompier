@@ -65,15 +65,10 @@ app.get('/api/planning/:agent', async (req, res) => {
 
   try {
     const data = await fs.readFile(filePath, 'utf8');
-    const parsed = JSON.parse(data);
-    // S'assurer que la structure est bien { prenom, nom, planning }
-    if (!parsed.planning) parsed.planning = {};
-    res.json(parsed);
+    res.json(JSON.parse(data));
   } catch (err) {
     if (err.code === 'ENOENT') {
-      // Retourner une structure vide avec prénom/nom depuis USERS
-      const user = USERS[agent];
-      res.json({ prenom: user?.prenom || '', nom: user?.nom || agent, planning: {} });
+      res.json({});
     } else {
       res.status(500).json({ message: 'Erreur serveur lors de la lecture du planning' });
     }
@@ -92,34 +87,20 @@ app.post('/api/planning/:agent', async (req, res) => {
   const filePath = path.join(DATA_DIR, `${agent}.json`);
 
   try {
-    let currentData = {};
+    let currentPlanning = {};
     try {
       const data = await fs.readFile(filePath, 'utf8');
-      currentData = JSON.parse(data);
+      currentPlanning = JSON.parse(data);
     } catch (err) {
       if (err.code !== 'ENOENT') throw err;
-      // Sinon fichier non existant : démarrer un nouveau
-      const user = USERS[agent];
-      currentData = {
-        prenom: user?.prenom || '',
-        nom: user?.nom || agent,
-        planning: {}
-      };
     }
 
-    // Fusionner semaines et jours
-    currentData.planning = currentData.planning || {};
-
-    for (const [weekKey, days] of Object.entries(newPlanningData)) {
-      if (typeof days !== 'object') continue;
-      currentData.planning[weekKey] = currentData.planning[weekKey] || {};
-
-      for (const [day, slots] of Object.entries(days)) {
-        currentData.planning[weekKey][day] = Array.isArray(slots) ? [...slots] : [];
-      }
+    const mergedPlanning = { ...currentPlanning };
+    for (const [jour, creneaux] of Object.entries(newPlanningData)) {
+      mergedPlanning[jour] = Array.isArray(creneaux) ? [...creneaux] : [];
     }
 
-    await fs.writeFile(filePath, JSON.stringify(currentData, null, 2), 'utf8');
+    await fs.writeFile(filePath, JSON.stringify(mergedPlanning, null, 2), 'utf8');
 
     res.json({ message: 'Planning enregistré avec succès' });
   } catch (err) {
@@ -148,20 +129,18 @@ app.get('/api/planning', async (req, res) => {
   }
 });
 
-// 🔧 ROUTE DE TEST DISK RENDER (dev uniquement)
+// 🔧 ROUTE DE TEST DISK RENDER
 const diskTestPath = path.join(PERSISTENT_DIR, 'test.txt');
 
-if (process.env.NODE_ENV !== 'production') {
-  app.get('/test-disk', async (req, res) => {
-    try {
-      await fs.writeFile(diskTestPath, 'Test depuis la route /test-disk');
-      const contenu = await fs.readFile(diskTestPath, 'utf8');
-      res.send(`Contenu du disque : ${contenu}`);
-    } catch (err) {
-      res.status(500).send(`Erreur disque : ${err.message}`);
-    }
-  });
-}
+app.get('/test-disk', async (req, res) => {
+  try {
+    await fs.writeFile(diskTestPath, 'Test depuis la route /test-disk');
+    const contenu = await fs.readFile(diskTestPath, 'utf8');
+    res.send(`Contenu du disque : ${contenu}`);
+  } catch (err) {
+    res.status(500).send(`Erreur disque : ${err.message}`);
+  }
+});
 
 app.listen(port, () => {
   console.log(`Serveur lancé sur http://localhost:${port}`);
