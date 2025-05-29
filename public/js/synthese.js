@@ -1,7 +1,6 @@
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 const agent = sessionStorage.getItem("agent");
 
-// Calcule la plage de dates du lundi au dimanche d'une semaine ISO donnée
 function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
   const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
   const dow = simple.getDay() || 7;
@@ -34,24 +33,42 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     const response = await fetch(`/api/planning/${agent}`);
     if (!response.ok) throw new Error(`Erreur HTTP ${response.status}`);
-    const planningDataAgent = await response.json();
+    const rawPlanning = await response.json();
 
-    if (!Object.keys(planningDataAgent).length) {
+    if (!Object.keys(rawPlanning).length) {
       alert("Aucun planning trouvé pour cet agent.");
       return;
+    }
+
+    // ✅ Convertit les dates au format semaine ISO + jour
+    const planningByWeek = {};
+    for (const dateStr of Object.keys(rawPlanning)) {
+      const date = new Date(dateStr);
+      if (isNaN(date)) continue;
+
+      const jour = days[date.getDay() - 1] || "dimanche";
+
+      const tempDate = new Date(date.getTime());
+      tempDate.setHours(0, 0, 0, 0);
+      tempDate.setDate(tempDate.getDate() + 3 - (tempDate.getDay() + 6) % 7);
+      const week1 = new Date(tempDate.getFullYear(), 0, 4);
+      const weekNumber = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+
+      const weekKey = `week-${weekNumber}`;
+      if (!planningByWeek[weekKey]) planningByWeek[weekKey] = {};
+      if (!planningByWeek[weekKey][jour]) planningByWeek[weekKey][jour] = [];
+
+      planningByWeek[weekKey][jour].push(...rawPlanning[dateStr]);
     }
 
     const weekSelect = document.getElementById("week-select");
     const dateRange = document.getElementById("date-range");
     const container = document.getElementById("planning-container");
 
-    // Liste des semaines disponibles pour cet agent
-    const weeks = Object.keys(planningDataAgent)
-      .filter(key => key.startsWith("week-"))
+    const weeks = Object.keys(planningByWeek)
       .map(key => +key.split("-")[1])
       .sort((a, b) => a - b);
 
-    // Remplit le <select> avec les semaines
     weekSelect.innerHTML = "";
     weeks.forEach(week => {
       const option = document.createElement("option");
@@ -60,16 +77,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       weekSelect.appendChild(option);
     });
 
-    // Affiche la première semaine par défaut
     if (weeks.length > 0) {
       weekSelect.value = weeks[0];
-      updateDisplay(weeks[0], planningDataAgent);
+      updateDisplay(weeks[0], planningByWeek);
     }
 
-    // Écoute du changement de semaine
     weekSelect.addEventListener("change", () => {
       const selectedWeek = +weekSelect.value;
-      updateDisplay(selectedWeek, planningDataAgent);
+      updateDisplay(selectedWeek, planningByWeek);
     });
 
   } catch (err) {
@@ -78,7 +93,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// Met à jour la synthèse : plage de dates + tableau
 function updateDisplay(weekNumber, planningData) {
   const dateRange = document.getElementById("date-range");
   dateRange.textContent = getWeekDateRange(weekNumber);
@@ -94,7 +108,6 @@ function showWeek(weekNumber, planningData) {
   const table = document.createElement("table");
   table.className = "planning-table";
 
-  // Entête avec horaires
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   headRow.innerHTML = "<th>Jour</th>";
@@ -119,7 +132,6 @@ function showWeek(weekNumber, planningData) {
   thead.appendChild(headRow);
   table.appendChild(thead);
 
-  // Corps avec jours et créneaux
   const tbody = document.createElement("tbody");
 
   for (const day of days) {
