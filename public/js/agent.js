@@ -2,16 +2,24 @@ const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dima
 const agent = sessionStorage.getItem("agent");
 
 const horaires = [];
-for (let h = 7; h < 31; h++) {
-  const hour = h % 24;
-  for (let m = 0; m < 60; m += 15) {
-    const start = `${hour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-    const endM = (m + 15) % 60;
-    const endH = (m + 15 >= 60) ? (hour + 1) % 24 : hour;
-    const end = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
-    horaires.push(`${start} - ${end}`);
-  }
+
+// Génère 48 créneaux de 30 min sur 24h (00:00-00:30, 00:30-01:00, ...)
+for (let i = 0; i < 48; i++) {
+  const hour = Math.floor(i / 2);
+  const minute = (i % 2) * 30;
+
+  const endMinute = (minute + 30) % 60;
+  const endHour = (minute + 30 >= 60) ? (hour + 1) % 24 : hour;
+
+  const start = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+  const end = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+
+  horaires.push(`${start} - ${end}`);
 }
+
+// Décalage pour démarrer à 07:00 au lieu de 00:00
+const startIndex = horaires.findIndex(h => h.startsWith("07:00"));
+const horairesDecales = horaires.slice(startIndex).concat(horaires.slice(0, startIndex));
 
 function getCurrentISOWeek() {
   const date = new Date();
@@ -135,7 +143,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    // Mise à jour du bouton "Effacer sélection" : supprime uniquement la dernière plage sélectionnée du jour actif
     document.getElementById('clear-selection-btn').addEventListener('click', () => {
       const weekKey = `week-${weekSelect.value}`;
       const activeTab = document.querySelector('.tab.active');
@@ -143,10 +150,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const day = activeTab.textContent.toLowerCase();
 
       if (planningDataAgent[weekKey]?.[day]?.length > 0) {
-        // Supprimer uniquement le dernier créneau sélectionné
+        // Supprime seulement le dernier créneau sélectionné
         planningDataAgent[weekKey][day].pop();
-
-        // Réafficher le jour avec les créneaux mis à jour
         showDay(day, +weekSelect.value, planningDataAgent);
       } else {
         alert("Aucun créneau à supprimer.");
@@ -180,9 +185,7 @@ function showDay(day, weekNumber = document.getElementById("week-select").value,
   const weekKey = `week-${weekNumber}`;
   const selectedSlots = planningData[weekKey]?.[day] || [];
 
-  const horairesWithIndex = horaires.map((h, idx) => ({ horaire: h, index: idx }));
-
-  horairesWithIndex.forEach(({ horaire, index }) => {
+  horairesDecales.forEach((horaire, index) => {
     const button = document.createElement("button");
     button.className = "slot-button";
     button.dataset.day = day;
