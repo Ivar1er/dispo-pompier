@@ -153,7 +153,7 @@ function showDay(day) {
         const slotString = `${start} - ${end}`;
         if (slots.includes(slotString)) {
           td.textContent = "X";
-          td.classList.add("marked");
+          td.style.backgroundColor = "#88ff88";
         }
         tr.appendChild(td);
       }

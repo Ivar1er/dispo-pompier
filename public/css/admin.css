@@ -1,4 +1,4 @@
-/* ===== Interface Admin (améliorée tableau) ===== */
+/* ===== Interface Admin ===== */
 
 body {
   font-family: 'Roboto', sans-serif;
@@ -8,6 +8,7 @@ body {
   color: #333;
 }
 
+/* Conteneur principal */
 .admin-container {
   max-width: 1200px;
   margin: 40px auto;
@@ -17,6 +18,7 @@ body {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* Header admin */
 header {
   margin-bottom: 30px;
   display: flex;
@@ -31,6 +33,7 @@ h2 {
   font-weight: 500;
 }
 
+/* Sélecteur de semaine et export PDF */
 .admin-header {
   display: flex;
   justify-content: space-between;
@@ -49,7 +52,9 @@ h2 {
 .week-selector label {
   font-size: 14px;
   color: #333;
+  margin-bottom: 0;
   white-space: nowrap;
+  display: inline-block;
   min-width: 60px;
   text-align: right;
 }
@@ -60,7 +65,7 @@ h2 {
   height: 36px;
   border-radius: 8px;
   border: 1px solid #ddd;
-  background-color: #fff;
+  background-color: #ffffff;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   transition: border-color 0.2s;
 }
@@ -87,6 +92,7 @@ h2 {
   transform: scale(1.05);
 }
 
+/* Onglets de jours */
 .tabs {
   display: flex;
   gap: 20px;
@@ -113,6 +119,7 @@ h2 {
   font-weight: bold;
 }
 
+/* Conteneur tableau */
 .table-container {
   width: 100%;
   overflow-x: auto;
@@ -123,14 +130,13 @@ h2 {
   margin-top: 30px;
 }
 
-/* === Tableau planning === */
+/* Tableau des créneaux */
 .planning-table {
   border-collapse: collapse;
   font-size: 13px;
   table-layout: fixed;
   min-width: 100%;
   width: max-content;
-  user-select: none;
 }
 
 .planning-table th,
@@ -141,53 +147,37 @@ h2 {
   white-space: nowrap;
   background-color: #fff;
   color: #333;
-  vertical-align: middle;
 }
 
 /* En-têtes */
-.planning-table thead th {
+.planning-table th {
   background-color: #f8f8f8;
   font-weight: 600;
   color: #555;
   position: sticky;
   top: 0;
-  z-index: 3;
-  box-shadow: inset 0 -1px 0 #ccc;
-  font-size: 12px;
+  z-index: 2;
 }
 
-/* Colonne agent figée à gauche */
+/* Colonne Nom/Prénom figée à gauche */
 .planning-table th:first-child,
 .planning-table td:first-child {
   position: sticky;
   left: 0;
-  background-color: #fdfdfd;
-  z-index: 4;
+  background-color: #fff;
+  z-index: 3;
   box-shadow: 2px 0 5px rgba(0,0,0,0.05);
   font-weight: 600;
-  text-align: left;
-  padding-left: 16px;
-  min-width: 160px;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* Créneaux marqués */
-.planning-table td {
-  cursor: default;
-  transition: background-color 0.2s;
+/* Coloration des créneaux sélectionnés */
+.slot.selected {
+  background-color: #28a745;
+  color: white;
 }
 
-.planning-table td.marked {
-  background-color: #88ff88;
-  color: #064906;
-  font-weight: 700;
-}
-
-/* Hover sur ligne */
-.planning-table tbody tr:hover {
-  background-color: #f0f7ff;
+.slot.selected:hover {
+  background-color: #218838;
 }
 
 /* Boutons généraux */
@@ -212,6 +202,7 @@ button:hover {
   transform: scale(1.05);
 }
 
+/* Bouton Déconnexion */
 .logout-btn {
   margin-top: 40px;
   padding: 12px 20px;
