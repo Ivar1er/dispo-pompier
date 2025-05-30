@@ -95,11 +95,7 @@ app.post('/api/planning/:agent', async (req, res) => {
       if (err.code !== 'ENOENT') throw err;
     }
 
-    const mergedPlanning = { ...currentPlanning };
-    for (const [jour, creneaux] of Object.entries(newPlanningData)) {
-      mergedPlanning[jour] = Array.isArray(creneaux) ? [...creneaux] : [];
-    }
-
+    const mergedPlanning = { ...currentPlanning, ...newPlanningData };
     await fs.writeFile(filePath, JSON.stringify(mergedPlanning, null, 2), 'utf8');
 
     res.json({ message: 'Planning enregistré avec succès' });
@@ -144,4 +140,4 @@ app.get('/test-disk', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Serveur lancé sur http://localhost:${port}`);
-});
+}); ça correspond ? 

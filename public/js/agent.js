@@ -43,10 +43,6 @@ function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
   return `du ${format(start)} au ${format(end)}`;
 }
 
-function capitalizeWords(str) {
-  return str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
-
 let planningDataAgent = {};
 let firstSelectedIndex = null;
 let lastSelectedIndex = null;
@@ -58,18 +54,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  document.getElementById("agent-name").textContent = agent;
+
   try {
-    // Récupération des données de planning + infos agent
     const response = await fetch(`/api/planning/${agent}`);
     if (!response.ok) throw new Error(`Erreur HTTP ${response.status}`);
-    const data = await response.json();
-
-    planningDataAgent = data.planning || data; // selon ta structure
-    const prenom = data.prenom || '';
-    const nom = data.nom || agent; // fallback au nom agent simple
-
-    // Affichage Prénom Nom capitalisé
-    document.getElementById("agent-name").textContent = capitalizeWords(`${prenom} ${nom}`);
+    planningDataAgent = await response.json();
 
     const currentWeek = getCurrentISOWeek();
 
@@ -145,26 +135,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    // Gestion du bouton effacer la dernière plage sélectionnée du jour actif
-    document.getElementById("clear-selection-btn").addEventListener("click", () => {
-      const currentWeek = weekSelect.value;
-      const currentDay = document.querySelector(".tab.active")?.textContent.toLowerCase();
-      if (!currentDay) return;
+    // Mise à jour du bouton "Effacer sélection" : supprime uniquement la dernière plage sélectionnée du jour actif
+    document.getElementById('clear-selection-btn').addEventListener('click', () => {
+      const weekKey = `week-${weekSelect.value}`;
+      const activeTab = document.querySelector('.tab.active');
+      if (!activeTab) return;
+      const day = activeTab.textContent.toLowerCase();
 
-      const weekKey = `week-${currentWeek}`;
-      if (!planningDataAgent[weekKey]) return;
+      if (planningDataAgent[weekKey]?.[day]?.length > 0) {
+        // Supprimer uniquement le dernier créneau sélectionné
+        planningDataAgent[weekKey][day].pop();
 
-      const selectedSlots = planningDataAgent[weekKey][currentDay] || [];
-      if (selectedSlots.length === 0) return;
-
-      // Supprime la dernière plage sélectionnée
-      selectedSlots.pop();
-
-      // Met à jour les données
-      planningDataAgent[weekKey][currentDay] = selectedSlots;
-
-      // Met à jour l'affichage
-      showDay(currentDay, currentWeek, planningDataAgent);
+        // Réafficher le jour avec les créneaux mis à jour
+        showDay(day, +weekSelect.value, planningDataAgent);
+      } else {
+        alert("Aucun créneau à supprimer.");
+      }
     });
 
   } catch (err) {
