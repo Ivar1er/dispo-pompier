@@ -54,16 +54,9 @@ select {
   color: #444;
 }
 
-/* Planning scrollable horizontal */
-#global-planning {
-  overflow-x: auto;
-  margin-top: 20px;
-  padding-right: 20px;
-  box-sizing: border-box;
-}
+/* -------------------- Synthèse avec barres graduées -------------------- */
 
-/* -------------------- Synthèse avec barres horizontales -------------------- */
-
+/* Conteneur heures (barre du haut) */
 .header-hours {
   display: flex;
   margin-left: 60px; /* espace pour les jours */
@@ -76,8 +69,9 @@ select {
   line-height: 1.2;
 }
 
+/* Heure pleine (7h, 8h, 9h...) */
 .hour-label {
-  flex: 2; /* 2x plus large que demi-heures */
+  flex: 4; /* largeur plus large */
   text-align: center;
   border-right: 1px solid #ccc;
   position: relative;
@@ -90,6 +84,7 @@ select {
   border-right: none;
 }
 
+/* Demi-heure (7h30, 8h30...) */
 .half-hour-label {
   position: absolute;
   top: 100%;
@@ -110,13 +105,14 @@ select {
   font-size: 14px;
 }
 
-/* Nom du jour */
+/* Nom du jour en colonne à gauche */
 .day-label {
   width: 60px;
   font-weight: bold;
   padding-right: 10px;
   color: #333;
   user-select: none;
+  flex-shrink: 0;
 }
 
 /* Barre des créneaux */
@@ -138,6 +134,7 @@ select {
   cursor: default;
   transition: background-color 0.3s;
   box-sizing: border-box;
+  min-width: 20px;
 }
 
 .slot:last-child {
@@ -177,4 +174,3 @@ select {
   background-color: #0056b3;
   transform: translateY(-2px);
 }
-
