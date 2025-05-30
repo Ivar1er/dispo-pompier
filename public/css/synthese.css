@@ -62,22 +62,25 @@ select {
   margin-left: 60px; /* espace pour les jours */
   border-bottom: 2px solid #ccc;
   user-select: none;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #2a7f2a;
   height: 40px;
   line-height: 1.2;
+  gap: 2px;
+  box-sizing: border-box;
 }
 
-/* Chaque marqueur d'heure */
+/* Chaque créneau 30 minutes en barre du haut */
 .hour-mark {
-  flex: 4;
+  flex: 1; /* largeur identique à chaque créneau 30 min */
   text-align: center;
   border-right: 1px solid #ccc;
-  position: relative;
-  padding-top: 6px;
   box-sizing: border-box;
+  padding-top: 6px;
   color: #2a7f2a;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .hour-mark:last-child {
@@ -111,19 +114,17 @@ select {
   overflow: hidden;
   height: 28px;
   box-sizing: border-box;
-  gap: 2px; /* un petit espacement entre créneaux */
 }
 
 /* Chaque créneau 30 min */
 .slot-block {
   flex: 1;
   background-color: #eee;
-  border-radius: 4px;
+  border-right: 1px solid #ddd;
   cursor: default;
   transition: background-color 0.3s;
   box-sizing: border-box;
   min-width: 20px;
-  border: 1px solid transparent;
 }
 
 .slot-block:last-child {
@@ -133,13 +134,6 @@ select {
 /* Créneau sélectionné en vert */
 .slot-block.selected {
   background-color: #4caf50;
-  border-color: #388e3c;
-}
-
-/* Créneau vide en gris clair */
-.slot-block.empty {
-  background-color: #e0e0e0;
-  border-color: #bdbdbd;
 }
 
 /* Survol éventuel */
