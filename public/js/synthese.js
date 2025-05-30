@@ -34,12 +34,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const weekSelect = document.getElementById("week-select");
-    const dateRange = document.getElementById("date-range");
     const container = document.getElementById("planning-container");
 
-    // Ajout bandeau graduations heures
+    // Crée le header des heures (barre du haut)
     const headerHoursDiv = document.createElement("div");
-    headerHoursDiv.id = "header-hours";
+    headerHoursDiv.className = "header-hours";
     container.appendChild(headerHoursDiv);
 
     const weeks = Object.keys(planningDataAgent)
@@ -81,44 +80,65 @@ function showWeek(weekNumber, planningData) {
   const weekKey = `week-${weekNumber}`;
   const container = document.getElementById("planning-container");
 
-  // On garde seulement le header heures, on vide le reste
-  const headerHours = document.getElementById("header-hours");
+  // Récupérer la barre des heures avant de vider le container
+  const headerHours = container.querySelector(".header-hours");
   container.innerHTML = "";
   container.appendChild(headerHours);
 
-  // Créneaux 30 minutes de 7h00 à 7h00 (24h)
+  // Générer tous les créneaux 30 min de 7h00 à 6h30 (lendemain)
   const slots = [];
   for (let h = 7; ; h += 0.5) {
     const hour = Math.floor(h) % 24;
     const min = (h % 1 === 0) ? "00" : "30";
-    const startLabel = `${hour.toString().padStart(2, '0')}:${min}`;
+
     let endH = Math.floor((h + 0.5)) % 24;
     let endMin = ((h + 0.5) % 1 === 0) ? "00" : "30";
-    const endLabel = `${endH.toString().padStart(2, '0')}:${endMin}`;
-    slots.push(`${startLabel} - ${endLabel}`);
-    if (hour === 6 && min === "30") break; // Arrêt à 6h30 (fin créneau 7h00)
+
+    const slotLabel = `${hour.toString().padStart(2, '0')}:${min} - ${endH.toString().padStart(2, '0')}:${endMin}`;
+    slots.push(slotLabel);
+
+    // Stop à 6h30 (fin créneau 7h00)
+    if (hour === 6 && min === "30") break;
   }
 
-  // Affiche bandeau heures avec graduations
-  headerHours.innerHTML = "";
+  // Remplir la barre des heures (header)
+  headerHours.innerHTML = ""; // vider
+
   slots.forEach(slot => {
-    const div = document.createElement("div");
-    div.className = "hour-mark";
+    // Div heure
+    const hourLabel = document.createElement("div");
+    hourLabel.className = "hour-label";
 
     const startHour = slot.split(" - ")[0];
+
+    // Afficher l'heure pleine (ex: 07:00, 08:00) avec label et demi-heure sous
     if (startHour.endsWith(":00")) {
-      div.classList.add("full-hour");
-      div.textContent = startHour;
+      hourLabel.textContent = startHour;
+
+      // Ajouter sous-label demi-heure (ex: 07:30)
+      const halfHour = document.createElement("div");
+      halfHour.className = "half-hour-label";
+      // Heure suivante 30min plus tard
+      let [h, m] = startHour.split(":").map(Number);
+      m += 30;
+      if (m >= 60) {
+        m -= 60;
+        h = (h + 1) % 24;
+      }
+      halfHour.textContent = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+      hourLabel.appendChild(halfHour);
     }
-    headerHours.appendChild(div);
+
+    headerHours.appendChild(hourLabel);
   });
 
-  // Pour chaque jour : créer une ligne avec nom jour + barre de créneaux
+  // Créer la ligne par jour avec barre des créneaux
   days.forEach(day => {
     const dayRow = document.createElement("div");
     dayRow.className = "day-row";
 
-    // Label jour
+    // Label jour à gauche
     const dayLabel = document.createElement("div");
     dayLabel.className = "day-label";
     dayLabel.textContent = day.charAt(0).toUpperCase() + day.slice(1);
@@ -126,17 +146,16 @@ function showWeek(weekNumber, planningData) {
 
     // Barre des créneaux
     const bar = document.createElement("div");
-    bar.className = "time-bar";
+    bar.className = "slots-bar";
 
     const selectedSlots = planningData[weekKey]?.[day] || [];
 
     slots.forEach(slot => {
       const slotDiv = document.createElement("div");
-      slotDiv.className = "slot-block";
+      slotDiv.className = "slot";
+
       if (selectedSlots.includes(slot)) {
         slotDiv.classList.add("selected");
-      } else {
-        slotDiv.classList.add("empty");
       }
       bar.appendChild(slotDiv);
     });
