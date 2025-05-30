@@ -34,13 +34,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const weekSelect = document.getElementById("week-select");
-    const container = document.getElementById("planning-container");
-
-    // Crée le header des heures (barre du haut)
-    const headerHoursDiv = document.createElement("div");
-    headerHoursDiv.className = "header-hours";
-    container.appendChild(headerHoursDiv);
-
     const weeks = Object.keys(planningDataAgent)
       .filter(key => key.startsWith("week-"))
       .map(key => +key.split("-")[1])
@@ -60,8 +53,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     weekSelect.addEventListener("change", () => {
-      const selectedWeek = +weekSelect.value;
-      updateDisplay(selectedWeek, planningDataAgent);
+      updateDisplay(+weekSelect.value, planningDataAgent);
     });
 
   } catch (err) {
@@ -71,96 +63,56 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function updateDisplay(weekNumber, planningData) {
-  const dateRange = document.getElementById("date-range");
-  dateRange.textContent = getWeekDateRange(weekNumber);
+  document.getElementById("date-range").textContent = getWeekDateRange(weekNumber);
   showWeek(weekNumber, planningData);
 }
 
 function showWeek(weekNumber, planningData) {
   const weekKey = `week-${weekNumber}`;
   const container = document.getElementById("planning-container");
+  const header = document.getElementById("header-hours");
 
-  // Récupérer la barre des heures avant de vider le container
-  const headerHours = container.querySelector(".header-hours");
-  container.innerHTML = "";
-  container.appendChild(headerHours);
-
-  // Générer tous les créneaux 30 min de 7h00 à 6h30 (lendemain)
+  // Créneaux 30min de 7h à 6h30 le lendemain (48 slots)
   const slots = [];
-  for (let h = 7; ; h += 0.5) {
-    const hour = Math.floor(h) % 24;
-    const min = (h % 1 === 0) ? "00" : "30";
-
-    let endH = Math.floor((h + 0.5)) % 24;
-    let endMin = ((h + 0.5) % 1 === 0) ? "00" : "30";
-
-    const slotLabel = `${hour.toString().padStart(2, '0')}:${min} - ${endH.toString().padStart(2, '0')}:${endMin}`;
-    slots.push(slotLabel);
-
-    // Stop à 6h30 (fin créneau 7h00)
-    if (hour === 6 && min === "30") break;
+  for (let i = 0; i < 48; i++) {
+    const h = (7 + Math.floor(i / 2)) % 24;
+    const m = i % 2 === 0 ? "00" : "30";
+    const nextH = (h + (m === "30" ? 1 : 0)) % 24;
+    const nextM = m === "00" ? "30" : "00";
+    slots.push(`${String(h).padStart(2, '0')}:${m} - ${String(nextH).padStart(2, '0')}:${nextM}`);
   }
 
-  // Remplir la barre des heures (header)
-  headerHours.innerHTML = ""; // vider
-
+  // Header heures
+  header.innerHTML = `<div class="sticky-day-col"></div>`;
   slots.forEach(slot => {
-    // Div heure
-    const hourLabel = document.createElement("div");
-    hourLabel.className = "hour-label";
-
-    const startHour = slot.split(" - ")[0];
-
-    // Afficher l'heure pleine (ex: 07:00, 08:00) avec label et demi-heure sous
-    if (startHour.endsWith(":00")) {
-      hourLabel.textContent = startHour;
-
-      // Ajouter sous-label demi-heure (ex: 07:30)
-      const halfHour = document.createElement("div");
-      halfHour.className = "half-hour-label";
-      // Heure suivante 30min plus tard
-      let [h, m] = startHour.split(":").map(Number);
-      m += 30;
-      if (m >= 60) {
-        m -= 60;
-        h = (h + 1) % 24;
-      }
-      halfHour.textContent = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-
-      hourLabel.appendChild(halfHour);
-    }
-
-    headerHours.appendChild(hourLabel);
+    const div = document.createElement("div");
+    div.className = "hour-cell";
+    div.textContent = slot.split(" - ")[0];
+    header.appendChild(div);
   });
 
-  // Créer la ligne par jour avec barre des créneaux
+  // Contenu jours + créneaux
+  container.innerHTML = "";
   days.forEach(day => {
-    const dayRow = document.createElement("div");
-    dayRow.className = "day-row";
+    const row = document.createElement("div");
+    row.className = "day-row";
 
-    // Label jour à gauche
     const dayLabel = document.createElement("div");
-    dayLabel.className = "day-label";
+    dayLabel.className = "day-label sticky-day-col";
     dayLabel.textContent = day.charAt(0).toUpperCase() + day.slice(1);
-    dayRow.appendChild(dayLabel);
-
-    // Barre des créneaux
-    const bar = document.createElement("div");
-    bar.className = "slots-bar";
+    row.appendChild(dayLabel);
 
     const selectedSlots = planningData[weekKey]?.[day] || [];
-
     slots.forEach(slot => {
-      const slotDiv = document.createElement("div");
-      slotDiv.className = "slot";
-
+      const div = document.createElement("div");
+      div.className = "slot";
+      div.setAttribute("data-time", slot);
       if (selectedSlots.includes(slot)) {
-        slotDiv.classList.add("selected");
+        div.classList.add("selected");
       }
-      bar.appendChild(slotDiv);
+      row.appendChild(div);
     });
 
-    dayRow.appendChild(bar);
-    container.appendChild(dayRow);
+    container.appendChild(row);
   });
 }
