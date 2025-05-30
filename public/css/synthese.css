@@ -1,4 +1,4 @@
-/* Corps de la page */
+/* Base */
 body {
   font-family: 'Arial', sans-serif;
   margin: 0;
@@ -7,155 +7,123 @@ body {
   color: #333;
 }
 
-/* Conteneur principal */
 .synthese-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px 30px;
+  padding: 20px 25px;
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  box-sizing: border-box;
 }
 
-/* En-tête */
+/* Titre et sélection */
 h1 {
-  font-size: 28px;
-  color: #333;
-  margin-bottom: 30px;
   text-align: center;
+  font-size: 26px;
+  margin-bottom: 25px;
+  color: #333;
 }
 
-/* Conteneur de la sélection semaine + date */
 .week-selection {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
   justify-content: center;
   gap: 15px;
-  margin-bottom: 30px;
-}
-
-label {
-  font-size: 16px;
+  margin-bottom: 20px;
 }
 
 select {
-  font-size: 16px;
   padding: 6px 12px;
   border: 1px solid #ccc;
   border-radius: 6px;
+  font-size: 15px;
 }
 
-/* Date range stylée */
 #date-range {
-  font-weight: bold;
-  font-size: 16px;
-  color: #444;
-}
-
-/* -------------------- Synthèse avec barres graduées -------------------- */
-
-/* Conteneur heures (barre du haut) */
-#header-hours {
-  display: flex;
-  margin-left: 60px; /* espace pour les jours */
-  border-bottom: 2px solid #ccc;
-  user-select: none;
-  font-size: 12px;
-  font-weight: 600;
-  color: #2a7f2a;
-  height: 40px;
-  line-height: 1.2;
-  gap: 2px;
-  box-sizing: border-box;
-}
-
-/* Chaque créneau 30 minutes en barre du haut */
-.hour-mark {
-  flex: 1; /* largeur identique à chaque créneau 30 min */
   text-align: center;
-  border-right: 1px solid #ccc;
-  box-sizing: border-box;
-  padding-top: 6px;
-  color: #2a7f2a;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.hour-mark:last-child {
-  border-right: none;
-}
-
-/* Ligne par jour */
-.day-row {
-  display: flex;
-  align-items: center;
-  margin-top: 10px;
-  font-size: 14px;
-}
-
-/* Nom du jour en colonne à gauche */
-.day-label {
-  width: 60px;
   font-weight: bold;
-  padding-right: 10px;
+  color: #444;
+  font-size: 15px;
+  margin-bottom: 20px;
+}
+
+/* Grille des heures en haut */
+.hour-header {
+  display: grid;
+  grid-template-columns: 60px repeat(48, 1fr);
+  gap: 1px;
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.hour-cell {
+  text-align: center;
+  line-height: 1;
+  padding: 2px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.hour-cell.full-hour {
+  font-weight: bold;
+}
+
+/* Lignes jours */
+.day-row {
+  display: grid;
+  grid-template-columns: 60px repeat(48, 1fr);
+  gap: 1px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+/* Nom du jour */
+.day-label {
+  font-weight: bold;
+  padding-right: 6px;
+  font-size: 14px;
   color: #333;
-  user-select: none;
-  flex-shrink: 0;
+  line-height: 24px;
 }
 
-/* Barre des créneaux */
-.time-bar {
-  display: flex;
-  flex: 1;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  overflow: hidden;
-  height: 28px;
-  box-sizing: border-box;
+/* Créneaux */
+.slot {
+  background-color: #e0e0e0;
+  height: 24px;
+  border-radius: 2px;
+  position: relative;
+  transition: background-color 0.2s;
 }
 
-/* Chaque créneau 30 min */
-.slot-block {
-  flex: 1;
-  background-color: #eee;
-  border-right: 1px solid #ddd;
-  cursor: default;
-  transition: background-color 0.3s;
-  box-sizing: border-box;
-  min-width: 20px;
-}
-
-.slot-block:last-child {
-  border-right: none;
-}
-
-/* Créneau sélectionné en vert */
-.slot-block.selected {
+.slot.selected {
   background-color: #4caf50;
 }
 
-/* Survol éventuel */
-.slot-block:hover {
-  cursor: pointer;
-  filter: brightness(0.9);
+.slot:hover::after {
+  content: attr(data-time);
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 10;
 }
 
 /* Bouton retour */
 .btn-retour {
   display: block;
-  width: fit-content;
   margin: 40px auto 0;
-  padding: 12px 24px;
+  padding: 10px 20px;
   background-color: #007bff;
   color: white;
-  text-decoration: none;
   border: none;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
-  text-align: center;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transition: background-color 0.3s ease, transform 0.2s ease;
 }
