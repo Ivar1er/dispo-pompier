@@ -37,6 +37,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dateRange = document.getElementById("date-range");
     const container = document.getElementById("planning-container");
 
+    // Ajout bandeau graduations heures
+    const headerHoursDiv = document.createElement("div");
+    headerHoursDiv.id = "header-hours";
+    container.appendChild(headerHoursDiv);
+
     const weeks = Object.keys(planningDataAgent)
       .filter(key => key.startsWith("week-"))
       .map(key => +key.split("-")[1])
@@ -75,54 +80,68 @@ function updateDisplay(weekNumber, planningData) {
 function showWeek(weekNumber, planningData) {
   const weekKey = `week-${weekNumber}`;
   const container = document.getElementById("planning-container");
+
+  // On garde seulement le header heures, on vide le reste
+  const headerHours = document.getElementById("header-hours");
   container.innerHTML = "";
+  container.appendChild(headerHours);
 
-  const horaires = [];
-  for (let h = 7; h < 31; h++) {
-    const hour = h % 24;
-    for (let m = 0; m < 60; m += 15) {
-      const start = `${hour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-      const endM = (m + 15) % 60;
-      const endH = (m + 15 >= 60) ? (hour + 1) % 24 : hour;
-      const end = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
-      horaires.push(`${start} - ${end}`);
+  // Créneaux 30 minutes de 7h00 à 7h00 (24h)
+  const slots = [];
+  for (let h = 7; ; h += 0.5) {
+    const hour = Math.floor(h) % 24;
+    const min = (h % 1 === 0) ? "00" : "30";
+    const startLabel = `${hour.toString().padStart(2, '0')}:${min}`;
+    let endH = Math.floor((h + 0.5)) % 24;
+    let endMin = ((h + 0.5) % 1 === 0) ? "00" : "30";
+    const endLabel = `${endH.toString().padStart(2, '0')}:${endMin}`;
+    slots.push(`${startLabel} - ${endLabel}`);
+    if (hour === 6 && min === "30") break; // Arrêt à 6h30 (fin créneau 7h00)
+  }
+
+  // Affiche bandeau heures avec graduations
+  headerHours.innerHTML = "";
+  slots.forEach(slot => {
+    const div = document.createElement("div");
+    div.className = "hour-mark";
+
+    const startHour = slot.split(" - ")[0];
+    if (startHour.endsWith(":00")) {
+      div.classList.add("full-hour");
+      div.textContent = startHour;
     }
-  }
+    headerHours.appendChild(div);
+  });
 
-  const table = document.createElement("table");
-  table.className = "planning-table-vertical";
+  // Pour chaque jour : créer une ligne avec nom jour + barre de créneaux
+  days.forEach(day => {
+    const dayRow = document.createElement("div");
+    dayRow.className = "day-row";
 
-  const thead = document.createElement("thead");
-  const headRow = document.createElement("tr");
-  headRow.innerHTML = "<th>Horaire</th>";
-  for (const day of days) {
-    const th = document.createElement("th");
-    th.textContent = day.charAt(0).toUpperCase() + day.slice(1);
-    headRow.appendChild(th);
-  }
-  thead.appendChild(headRow);
-  table.appendChild(thead);
+    // Label jour
+    const dayLabel = document.createElement("div");
+    dayLabel.className = "day-label";
+    dayLabel.textContent = day.charAt(0).toUpperCase() + day.slice(1);
+    dayRow.appendChild(dayLabel);
 
-  const tbody = document.createElement("tbody");
-  for (const horaire of horaires) {
-    const tr = document.createElement("tr");
-    const tdHoraire = document.createElement("td");
-    tdHoraire.textContent = horaire;
-    tr.appendChild(tdHoraire);
+    // Barre des créneaux
+    const bar = document.createElement("div");
+    bar.className = "time-bar";
 
-    for (const day of days) {
-      const td = document.createElement("td");
-      const slots = planningData[weekKey]?.[day] || [];
-      if (slots.includes(horaire)) {
-        td.classList.add("selected-green");
+    const selectedSlots = planningData[weekKey]?.[day] || [];
+
+    slots.forEach(slot => {
+      const slotDiv = document.createElement("div");
+      slotDiv.className = "slot-block";
+      if (selectedSlots.includes(slot)) {
+        slotDiv.classList.add("selected");
+      } else {
+        slotDiv.classList.add("empty");
       }
-      tr.appendChild(td);
-    }
+      bar.appendChild(slotDiv);
+    });
 
-    tbody.appendChild(tr);
-  }
-
-  table.appendChild(tbody);
-  container.appendChild(table);
+    dayRow.appendChild(bar);
+    container.appendChild(dayRow);
+  });
 }
-
