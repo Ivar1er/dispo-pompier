@@ -57,7 +57,7 @@ select {
 /* -------------------- Synthèse avec barres graduées -------------------- */
 
 /* Conteneur heures (barre du haut) */
-.header-hours {
+#header-hours {
   display: flex;
   margin-left: 60px; /* espace pour les jours */
   border-bottom: 2px solid #ccc;
@@ -69,9 +69,9 @@ select {
   line-height: 1.2;
 }
 
-/* Heure pleine (7h, 8h, 9h...) */
-.hour-label {
-  flex: 4; /* largeur plus large */
+/* Chaque marqueur d'heure */
+.hour-mark {
+  flex: 4;
   text-align: center;
   border-right: 1px solid #ccc;
   position: relative;
@@ -80,21 +80,8 @@ select {
   color: #2a7f2a;
 }
 
-.hour-label:last-child {
+.hour-mark:last-child {
   border-right: none;
-}
-
-/* Demi-heure (7h30, 8h30...) */
-.half-hour-label {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  font-weight: normal;
-  font-size: 11px;
-  color: #999;
-  user-select: none;
-  margin-top: 2px;
 }
 
 /* Ligne par jour */
@@ -116,7 +103,7 @@ select {
 }
 
 /* Barre des créneaux */
-.slots-bar {
+.time-bar {
   display: flex;
   flex: 1;
   border: 1px solid #ddd;
@@ -124,30 +111,39 @@ select {
   overflow: hidden;
   height: 28px;
   box-sizing: border-box;
+  gap: 2px; /* un petit espacement entre créneaux */
 }
 
 /* Chaque créneau 30 min */
-.slot {
+.slot-block {
   flex: 1;
   background-color: #eee;
-  border-right: 1px solid #ddd;
+  border-radius: 4px;
   cursor: default;
   transition: background-color 0.3s;
   box-sizing: border-box;
   min-width: 20px;
+  border: 1px solid transparent;
 }
 
-.slot:last-child {
+.slot-block:last-child {
   border-right: none;
 }
 
 /* Créneau sélectionné en vert */
-.slot.selected {
+.slot-block.selected {
   background-color: #4caf50;
+  border-color: #388e3c;
+}
+
+/* Créneau vide en gris clair */
+.slot-block.empty {
+  background-color: #e0e0e0;
+  border-color: #bdbdbd;
 }
 
 /* Survol éventuel */
-.slot:hover {
+.slot-block:hover {
   cursor: pointer;
   filter: brightness(0.9);
 }
