@@ -1,28 +1,6 @@
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 const agent = sessionStorage.getItem("agent");
 
-function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
-  const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
-  const dow = simple.getDay() || 7;
-  const ISOweekStart = new Date(simple);
-  if (dow <= 4) {
-    ISOweekStart.setDate(simple.getDate() - dow + 1);
-  } else {
-    ISOweekStart.setDate(simple.getDate() + 8 - dow);
-  }
-
-  const start = new Date(ISOweekStart);
-  const end = new Date(ISOweekStart);
-  end.setDate(start.getDate() + 6);
-
-  const format = date => date.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit"
-  });
-
-  return `du ${format(start)} au ${format(end)}`;
-}
-
 document.addEventListener("DOMContentLoaded", async () => {
   if (!agent || agent === "admin") {
     alert("Vous devez être connecté en tant qu’agent.");
@@ -32,43 +10,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     const response = await fetch(`/api/planning/${agent}`);
-    if (!response.ok) throw new Error(`Erreur HTTP ${response.status}`);
-    const rawPlanning = await response.json();
+    const planningData = await response.json();
 
-    if (!Object.keys(rawPlanning).length) {
-      alert("Aucun planning trouvé pour cet agent.");
+    if (!Object.keys(planningData).length) {
+      alert("Aucun planning trouvé.");
       return;
     }
 
-    // ✅ Convertit les dates au format semaine ISO + jour
-    const planningByWeek = {};
-    for (const dateStr of Object.keys(rawPlanning)) {
-      const date = new Date(dateStr);
-      if (isNaN(date)) continue;
-
-      const jour = days[date.getDay() - 1] || "dimanche";
-
-      const tempDate = new Date(date.getTime());
-      tempDate.setHours(0, 0, 0, 0);
-      tempDate.setDate(tempDate.getDate() + 3 - (tempDate.getDay() + 6) % 7);
-      const week1 = new Date(tempDate.getFullYear(), 0, 4);
-      const weekNumber = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-
-      const weekKey = `week-${weekNumber}`;
-      if (!planningByWeek[weekKey]) planningByWeek[weekKey] = {};
-      if (!planningByWeek[weekKey][jour]) planningByWeek[weekKey][jour] = [];
-
-      planningByWeek[weekKey][jour].push(...rawPlanning[dateStr]);
-    }
-
     const weekSelect = document.getElementById("week-select");
-    const dateRange = document.getElementById("date-range");
     const container = document.getElementById("planning-container");
 
-    const weeks = Object.keys(planningByWeek)
+    const weeks = Object.keys(planningData)
+      .filter(key => key.startsWith("week-"))
       .map(key => +key.split("-")[1])
       .sort((a, b) => a - b);
 
+    // Remplit la liste déroulante
     weekSelect.innerHTML = "";
     weeks.forEach(week => {
       const option = document.createElement("option");
@@ -77,58 +34,41 @@ document.addEventListener("DOMContentLoaded", async () => {
       weekSelect.appendChild(option);
     });
 
+    // Affiche la semaine sélectionnée par défaut
     if (weeks.length > 0) {
       weekSelect.value = weeks[0];
-      updateDisplay(weeks[0], planningByWeek);
+      afficherPlanningSemaine(weeks[0], planningData);
     }
 
     weekSelect.addEventListener("change", () => {
       const selectedWeek = +weekSelect.value;
-      updateDisplay(selectedWeek, planningByWeek);
+      afficherPlanningSemaine(selectedWeek, planningData);
     });
 
   } catch (err) {
-    console.error("Erreur lors du chargement :", err);
+    console.error("Erreur lors du chargement du planning :", err);
     alert("Erreur lors du chargement du planning.");
   }
 });
 
-function updateDisplay(weekNumber, planningData) {
-  const dateRange = document.getElementById("date-range");
-  dateRange.textContent = getWeekDateRange(weekNumber);
-
-  showWeek(weekNumber, planningData);
-}
-
-function showWeek(weekNumber, planningData) {
-  const weekKey = `week-${weekNumber}`;
+function afficherPlanningSemaine(weekNumber, planningData) {
   const container = document.getElementById("planning-container");
   container.innerHTML = "";
+
+  const weekKey = `week-${weekNumber}`;
+  const weekPlanning = planningData[weekKey];
+
+  if (!weekPlanning) {
+    container.textContent = "Aucun planning pour cette semaine.";
+    return;
+  }
 
   const table = document.createElement("table");
   table.className = "planning-table";
 
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
-  headRow.innerHTML = "<th>Jour</th>";
-
-  const horaires = [];
-  for (let h = 7; h < 31; h++) {
-    const hour = h % 24;
-    for (let m = 0; m < 60; m += 15) {
-      const start = `${hour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-      const endM = (m + 15) % 60;
-      const endH = (m + 15 >= 60) ? (hour + 1) % 24 : hour;
-      const end = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
-      const label = `${start} - ${end}`;
-      horaires.push(label);
-
-      const th = document.createElement("th");
-      th.textContent = label;
-      headRow.appendChild(th);
-    }
-  }
-
+  headRow.innerHTML = "<th>Jour</th><th>Créneaux</th>";
   thead.appendChild(headRow);
   table.appendChild(thead);
 
@@ -141,16 +81,10 @@ function showWeek(weekNumber, planningData) {
     tdDay.textContent = day.charAt(0).toUpperCase() + day.slice(1);
     tr.appendChild(tdDay);
 
-    const daySlots = planningData[weekKey]?.[day] || [];
-
-    for (const horaire of horaires) {
-      const td = document.createElement("td");
-      td.className = "slot";
-      if (daySlots.includes(horaire)) {
-        td.classList.add("selected");
-      }
-      tr.appendChild(td);
-    }
+    const tdSlots = document.createElement("td");
+    const slots = weekPlanning[day] || [];
+    tdSlots.textContent = slots.join(", ");
+    tr.appendChild(tdSlots);
 
     tbody.appendChild(tr);
   }
