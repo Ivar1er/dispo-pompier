@@ -10,7 +10,8 @@ body {
 
 /* Conteneur principal */
 .admin-container {
-  max-width: 1200px;
+  /* MODIFIÉ: Augmenté le max-width pour une sensation moins "resserrée" */
+  max-width: 1400px; /* Passé de 1200px à 1400px */
   margin: 40px auto;
   padding: 2rem;
   background-color: #fff;
@@ -133,7 +134,8 @@ h2 {
 /* Tableau des créneaux */
 .planning-table {
   border-collapse: collapse;
-  font-size: 13px;
+  /* MODIFIÉ: Réduit la taille de police pour les cellules du tableau pour le rendre moins large */
+  font-size: 12px; /* Réduit de 13px à 12px */
   table-layout: fixed;
   min-width: 100%;
   width: max-content;
@@ -141,7 +143,8 @@ h2 {
 
 .planning-table th,
 .planning-table td {
-  padding: 8px 10px;
+  /* MODIFIÉ: Réduit le padding pour les cellules/en-têtes du tableau pour le rendre moins large */
+  padding: 6px 6px; /* Réduit de 8px 10px à 6px 6px */
   text-align: center;
   border: 1px solid #ddd;
   white-space: nowrap;

@@ -106,18 +106,22 @@ function showDay(day) {
   thAgent.textContent = "Agent";
   headerRow.appendChild(thAgent);
 
+  // MODIFIÉ: Génération des en-têtes de 7h00 à 7h00 le lendemain (24h) par créneaux de 30 minutes
+  // La boucle va de 7 (7h du matin) à 31 (7h du matin le lendemain).
   for (let h = 7; h < 31; h++) {
-    const hour = h % 24;
-    for (let m = 0; m < 60; m += 15) {
-      const start = `${hour.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
-      const endM = (m + 15) % 60;
-      const endH = (m + 15 >= 60) ? (hour + 1) % 24 : hour;
-      const end = `${endH.toString().padStart(2,'0')}:${endM.toString().padStart(2,'0')}`;
+    for (let m = 0; m < 60; m += 30) {
+      const hour = h % 24; // Permet de revenir à 0-23 pour l'affichage après 23h
+      const start = `${hour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      const endM = (m + 30) % 60;
+      const endH = (m + 30 >= 60) ? (h + 1) : h;
+      const displayEndH = endH % 24; // Pour afficher 00h, 01h, etc.
+      const end = `${displayEndH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
       const th = document.createElement("th");
       th.textContent = `${start} - ${end}`;
       headerRow.appendChild(th);
     }
   }
+
   thead.appendChild(headerRow);
   table.appendChild(thead);
 
@@ -140,21 +144,24 @@ function showDay(day) {
     tdAgent.textContent = agentInfos[agent] || agent;
     tr.appendChild(tdAgent);
 
-    // Parcours des créneaux horaires
+    // Parcours des créneaux horaires, harmonisé avec les en-têtes (24h de 7h à 7h)
     for (let h = 7; h < 31; h++) {
       const hour = h % 24;
-      for (let m = 0; m < 60; m += 15) {
+      for (let m = 0; m < 60; m += 30) {
         const start = `${hour.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
-        const endM = (m + 15) % 60;
-        const endH = (m + 15 >= 60) ? (hour + 1) % 24 : hour;
-        const end = `${endH.toString().padStart(2,'0')}:${endM.toString().padStart(2,'0')}`;
-        const td = document.createElement("td");
+        const endM = (m + 30) % 60;
+        const endH = (m + 30 >= 60) ? (h + 1) : h;
+        const displayEndH = endH % 24;
+        const end = `${displayEndH.toString().padStart(2,'0')}:${endM.toString().padStart(2,'0')}`;
 
         const slotString = `${start} - ${end}`;
+        const td = document.createElement("td");
+
         if (slots.includes(slotString)) {
           td.textContent = "X";
           td.style.backgroundColor = "#88ff88";
         }
+
         tr.appendChild(td);
       }
     }
@@ -165,7 +172,9 @@ function showDay(day) {
   if (!foundAny) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
-    td.colSpan = 1 + (24 * 4);
+    // MODIFIÉ: Ajustement du colSpan pour refléter les 24 heures de créneaux de 30 minutes
+    // (24 heures * 2 créneaux/heure = 48 créneaux) + 1 pour la colonne agent = 49
+    td.colSpan = 1 + (24 * 2);
     td.textContent = `Aucun créneau trouvé pour ${day} semaine ${weekKey.split("-")[1]}`;
     tr.appendChild(td);
     tbody.appendChild(tr);
