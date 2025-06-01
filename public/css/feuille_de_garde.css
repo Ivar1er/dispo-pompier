@@ -1,0 +1,406 @@
+/* General body and font styles (keep yours if they are different or more complete) */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f0f2f5;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+}
+
+.roster-wrapper {
+    max-width: 1400px; /* Adjust as needed */
+    margin: 0 auto;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+/* Header Styles (keep as is if you like them) */
+.roster-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 25px;
+    background-color: #ffffff; /* Or a darker shade if it's currently blue */
+    border-bottom: 1px solid #eee;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.back-button {
+    background-color: #e0e0e0;
+    color: #333;
+    padding: 8px 15px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+
+.back-button:hover {
+    background-color: #d0d0d0;
+}
+
+.date-selector input[type="date"] {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+.refresh-button {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background-color: #007bff;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+
+.refresh-button:hover {
+    background-color: #0056b3;
+}
+
+.roster-title {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.nav-arrow {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.nav-arrow svg {
+    color: #555;
+    width: 18px;
+    height: 18px;
+}
+
+.nav-arrow:hover {
+    background-color: #f0f0f0;
+    border-color: #ccc;
+}
+
+/* Time Slot Buttons Container */
+.time-slot-buttons-container {
+    display: flex; /* Arrange buttons in a row */
+    gap: 10px;
+    padding: 20px 25px;
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #eee;
+    overflow-x: auto; /* Allow horizontal scrolling if many slots */
+    white-space: nowrap; /* Prevent wrapping */
+}
+
+.time-slot-button {
+    background-color: #e0e0e0; /* Light gray, similar to your current labels */
+    color: #333;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px; /* Rounded corners */
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 500;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    flex-shrink: 0; /* Prevent buttons from shrinking */
+}
+
+.time-slot-button:hover {
+    background-color: #d0d0d0;
+}
+
+.time-slot-button.active {
+    background-color: #007bff; /* Highlight active slot */
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+}
+
+.add-time-slot-btn {
+    background-color: #28a745; /* Green for add button */
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 500;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+}
+
+.add-time-slot-btn:hover {
+    background-color: #218838;
+}
+
+/* Engine Details Page */
+.engine-details-page {
+    padding: 20px 25px;
+    /* You might want to adjust max-width or set a specific height if needed */
+}
+
+.engine-grid {
+    display: grid;
+    /* Create a responsive grid for 5 engines, similar to your screenshot layout */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Adjust minmax as needed */
+    gap: 20px; /* Space between engine cases */
+}
+
+/* Style for individual engine cases (mimicking your screenshot) */
+.engine-case {
+    background-color: #f8f8f8; /* Light background for the case */
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    cursor: pointer; /* Indicate it's clickable */
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.engine-case:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.engine-case h3 {
+    margin-top: 0;
+    color: #007bff; /* Or a color that matches your image's main vehicle text */
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.engine-case .places-count {
+    background-color: #007bff; /* Blue background for the count */
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px; /* Pill shape */
+    font-size: 0.8em;
+    font-weight: 600;
+    display: inline-block; /* To allow padding and border-radius */
+    margin-bottom: 15px; /* Space between count and details */
+}
+
+.engine-case .personnel-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.engine-case .personnel-list li {
+    padding: 3px 0;
+    font-size: 0.9em;
+    color: #555;
+    border-top: 1px dashed #eee; /* Separator for personnel */
+}
+
+.engine-case .personnel-list li:first-child {
+    border-top: none; /* No top border for the first item */
+}
+
+
+/* Roster Grid (your original content) */
+.roster-grid {
+    padding: 20px 25px;
+    display: grid; /* Assuming it's a grid layout */
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Example: Adjust column size */
+    gap: 20px; /* Gap between grid items */
+}
+
+/* Hide loading message when content is loaded by JS */
+.roster-grid .loading-message {
+    text-align: center;
+    grid-column: 1 / -1; /* Span across all columns */
+    color: #777;
+}
+
+/* For responsiveness (adjust breakpoints as needed) */
+@media (max-width: 768px) {
+    .roster-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .header-right {
+        margin-top: 10px;
+    }
+    .roster-title {
+        text-align: center;
+        width: 100%;
+        margin-top: 10px;
+    }
+    .time-slot-buttons-container {
+        flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+        justify-content: center;
+    }
+    .engine-grid {
+        grid-template-columns: 1fr; /* Stack engines on small screens */
+    }
+}
+
+/* ... (existing CSS from previous response) ... */
+
+/* Add a relative position to the time slot button to position the delete button */
+.time-slot-button {
+    /* ... existing styles ... */
+    position: relative; /* Needed for absolute positioning of delete button */
+    padding-right: 35px; /* Make space for the delete button */
+}
+
+.delete-time-slot-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: #dc3545; /* Red for delete */
+    color: white;
+    border: none;
+    border-radius: 50%; /* Circular button */
+    width: 20px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.8em;
+    cursor: pointer;
+    line-height: 1; /* Adjust text vertical alignment */
+    transition: background-color 0.2s;
+}
+
+.delete-time-slot-btn:hover {
+    background-color: #c82333;
+}
+
+/* Modal/Personnel Assignment styles */
+.personnel-assignment-modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto; /* Centered */
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 80%; /* Could be a fixed width or max-width */
+    max-width: 600px;
+    position: relative;
+}
+
+.close-button {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.personnel-modal-header h3 {
+    margin-top: 0;
+    color: #007bff;
+    font-size: 1.5em;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.personnel-modal-body .post-assignment {
+    margin-bottom: 15px;
+}
+
+.personnel-modal-body label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #555;
+}
+
+.personnel-modal-body select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1em;
+    background-color: #fff;
+    cursor: pointer;
+}
+
+.personnel-modal-body select:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.modal-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.modal-actions .save-personnel-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+.modal-actions .save-personnel-btn:hover {
+    background-color: #218838;
+}
+
+.modal-actions .cancel-personnel-btn {
+    background-color: #6c757d;
+    color: white;
+}
+
+.modal-actions .cancel-personnel-btn:hover {
+    background-color: #5a6268;
+}

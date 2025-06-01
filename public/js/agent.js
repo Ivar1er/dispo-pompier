@@ -1,5 +1,9 @@
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 const agent = sessionStorage.getItem("agent");
+const agentPrenom = sessionStorage.getItem("agentPrenom"); // Récupère le prénom
+const agentNom = sessionStorage.getItem("agentNom");     // Récupère le nom
+
+const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que cette URL est correcte
 
 const horaires = [];
 
@@ -9,18 +13,93 @@ for (let i = 0; i < 48; i++) {
   const minute = (i % 2) * 30;
 
   const endMinute = (minute + 30) % 60;
-  const endHour = (minute + 30 >= 60) ? (hour + 1) % 24 : hour;
+  const endHour = (minute + 30 >= 60) ? (hour + 1) : hour;
+  // Corrige le cas où l'heure de fin est 24:00 (devient 00:00 du jour suivant)
+  const formattedEndHour = endHour % 24;
 
   const start = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-  const end = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+  const end = `${formattedEndHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
 
   horaires.push(`${start} - ${end}`);
 }
 
 // Décalage pour démarrer à 07:00 au lieu de 00:00
 const startIndex = horaires.findIndex(h => h.startsWith("07:00"));
+// S'assurer que le décalage ne crée pas de doublons ou ne manque pas de créneaux
 const horairesDecales = horaires.slice(startIndex).concat(horaires.slice(0, startIndex));
 
+let planningDataAgent = {}; // Contiendra le planning complet chargé de l'API
+let isDragging = false; // Pour la sélection par glissé
+let dragStartIndex = -1; // Index de début de la sélection par glissé
+
+// DOM Elements
+const weekSelect = document.getElementById("week-select");
+const dateRangeDisplay = document.getElementById("date-range");
+const planningContainer = document.getElementById("planning-container");
+const saveButton = document.getElementById("save-button");
+const clearSelectionButton = document.getElementById("clear-selection-btn");
+const logoutButton = document.getElementById("logout-button");
+const loadingSpinner = document.getElementById("loading-spinner");
+const tabButtons = document.querySelectorAll(".tab");
+const agentNameSpan = document.getElementById("agent-name");
+const agentPrenomSpan = document.getElementById("agent-prenom");
+const agentNomSpan = document.getElementById("agent-nom");
+
+
+document.addEventListener("DOMContentLoaded", async () => {
+  if (!agent || agent === "admin") {
+    alert("Vous devez être connecté en tant qu’agent.");
+    window.location.href = "index.html";
+    return;
+  }
+
+  // Afficher le nom et prénom de l'agent
+  agentNameSpan.textContent = `${agentPrenom} ${agentNom}`; // Maintient l'ID existant pour compatibilité
+  agentPrenomSpan.textContent = agentPrenom;
+  agentNomSpan.textContent = agentNom;
+
+
+  await loadAgentPlanning(); // Charge le planning au démarrage
+
+  // Initialiser le sélecteur de semaine
+  const currentWeek = getCurrentISOWeek();
+  const allWeeks = [];
+  for (let i = currentWeek; i < currentWeek + 8; i++) { // Afficher les 8 prochaines semaines
+    allWeeks.push(i);
+  }
+
+  weekSelect.innerHTML = "";
+  allWeeks.forEach(week => {
+    const option = document.createElement("option");
+    option.value = week;
+    option.textContent = `Semaine ${week} (${getWeekDateRange(week)})`;
+    weekSelect.appendChild(option);
+  });
+
+  weekSelect.value = currentWeek; // Sélectionner la semaine actuelle
+  updateDisplay(currentWeek); // Afficher le planning de la semaine actuelle (Lundi)
+
+  // Écouteurs d'événements
+  weekSelect.addEventListener("change", () => {
+    const selectedWeek = +weekSelect.value;
+    updateDisplay(selectedWeek);
+  });
+
+  tabButtons.forEach(tab => {
+    tab.addEventListener("click", (event) => {
+      const day = event.target.dataset.day;
+      const week = +weekSelect.value;
+      showDay(day, week);
+    });
+  });
+
+  saveButton.addEventListener("click", saveAgentPlanning);
+  clearSelectionButton.addEventListener("click", clearCurrentDaySelection);
+  logoutButton.addEventListener("click", logout);
+});
+
+
+// Fonctions utilitaires
 function getCurrentISOWeek() {
   const date = new Date();
   const target = new Date(date.valueOf());
@@ -51,184 +130,220 @@ function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
   return `du ${format(start)} au ${format(end)}`;
 }
 
-let planningDataAgent = {};
-let firstSelectedIndex = null;
-let lastSelectedIndex = null;
-
-document.addEventListener("DOMContentLoaded", async () => {
-  if (!agent || agent === "admin") {
-    alert("Vous devez être connecté en tant qu’agent.");
-    window.location.href = "index.html";
-    return;
-  }
-
-  document.getElementById("agent-name").textContent = agent;
-
+async function loadAgentPlanning() {
+  showLoading(true);
   try {
-    const response = await fetch(`/api/planning/${agent}`);
-    if (!response.ok) throw new Error(`Erreur HTTP ${response.status}`);
-    planningDataAgent = await response.json();
-
-    const currentWeek = getCurrentISOWeek();
-
-    const allWeeks = [];
-    for (let i = currentWeek; i < currentWeek + 8; i++) {
-      allWeeks.push(i);
+    const response = await fetch(`${API_BASE_URL}/api/planning/${agent}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        // Le planning n'existe pas encore pour cet agent, c'est normal
+        planningDataAgent = {};
+      } else {
+        throw new Error(`Erreur HTTP ${response.status}`);
+      }
+    } else {
+      planningDataAgent = await response.json();
     }
-
-    const weekSelect = document.getElementById("week-select");
-    weekSelect.innerHTML = "";
-
-    allWeeks.forEach(week => {
-      const option = document.createElement("option");
-      option.value = week;
-      option.textContent = `Semaine ${week}`;
-      weekSelect.appendChild(option);
-    });
-
-    weekSelect.value = currentWeek;
-    updateDisplay(currentWeek);
-
-    weekSelect.addEventListener("change", () => {
-      const selectedWeek = +weekSelect.value;
-      updateDisplay(selectedWeek);
-    });
-
-    document.querySelectorAll(".tab").forEach(tab => {
-      tab.addEventListener("click", () => {
-        const onclickText = tab.getAttribute("onclick") || "";
-        const match = onclickText.match(/'(\w+)'/);
-        const day = match ? match[1] : 'lundi';
-        const week = +weekSelect.value;
-        showDay(day, week, planningDataAgent);
-      });
-    });
-
-    document.getElementById("save-button").addEventListener("click", async () => {
-      const week = weekSelect.value;
-      const weekKey = `week-${week}`;
-
-      const currentDay = document.querySelector(".tab.active")?.textContent.toLowerCase();
-      const selectedSlots = Array.from(document.querySelectorAll(`.slot-button[data-day="${currentDay}"].selected`))
-        .map(btn => btn.textContent.trim());
-
-      const existingWeekData = planningDataAgent[weekKey] || {};
-
-      // Combine les anciennes plages avec les nouvelles sans doublon
-      const previousSlots = existingWeekData[currentDay] || [];
-      const combinedSlots = Array.from(new Set([...previousSlots, ...selectedSlots]));
-
-      // Met à jour uniquement le jour affiché avec la combinaison
-      const updatedWeekData = {
-        ...existingWeekData,
-        [currentDay]: combinedSlots
-      };
-
-      const updatedPlanning = {
-        ...planningDataAgent,
-        [weekKey]: updatedWeekData
-      };
-
-      const saveResponse = await fetch(`/api/planning/${agent}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedPlanning)
-      });
-
-      if (saveResponse.ok) {
-        alert("Créneaux enregistrés avec succès !");
-        planningDataAgent = updatedPlanning;
-      } else {
-        alert("Erreur lors de l’enregistrement.");
-      }
-    });
-
-    document.getElementById('clear-selection-btn').addEventListener('click', () => {
-      const weekKey = `week-${weekSelect.value}`;
-      const activeTab = document.querySelector('.tab.active');
-      if (!activeTab) return;
-      const day = activeTab.textContent.toLowerCase();
-
-      if (planningDataAgent[weekKey]?.[day]?.length > 0) {
-        // Supprime seulement le dernier créneau sélectionné
-        planningDataAgent[weekKey][day].pop();
-        showDay(day, +weekSelect.value, planningDataAgent);
-      } else {
-        alert("Aucun créneau à supprimer.");
-      }
-    });
-
   } catch (err) {
-    console.error("Erreur lors du chargement :", err);
-    alert("Erreur lors du chargement du planning.");
+    console.error("Erreur lors du chargement du planning :", err);
+    alert("Erreur lors du chargement du planning. Veuillez réessayer.");
+    planningDataAgent = {}; // Initialise un planning vide en cas d'erreur
+  } finally {
+    showLoading(false);
   }
-});
-
-function updateDisplay(weekNumber) {
-  document.getElementById("date-range").textContent = getWeekDateRange(weekNumber);
-  showDay('lundi', weekNumber, planningDataAgent);
 }
 
-function showDay(day, weekNumber = document.getElementById("week-select").value, planningData = {}) {
-  document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-  document.querySelectorAll(".tab").forEach(tab => {
-    const onclickText = tab.getAttribute("onclick") || "";
-    const match = onclickText.match(/'(\w+)'/);
-    if (match && match[1] === day) {
-      tab.classList.add("active");
-    }
-  });
+function updateDisplay(weekNumber) {
+  dateRangeDisplay.textContent = getWeekDateRange(weekNumber);
+  showDay('lundi', weekNumber); // Affiche toujours le Lundi par défaut
+}
 
-  const container = document.getElementById("planning-container");
-  container.innerHTML = "";
+function showDay(day, weekNumber = weekSelect.value) {
+  // Désactiver tous les onglets et activer le bon
+  tabButtons.forEach(tab => tab.classList.remove("active"));
+  document.querySelector(`.tab[data-day="${day}"]`).classList.add("active");
 
+  planningContainer.innerHTML = "";
   const weekKey = `week-${weekNumber}`;
-  const selectedSlots = planningData[weekKey]?.[day] || [];
+  const selectedSlotsForDay = planningDataAgent[weekKey]?.[day] || [];
 
   horairesDecales.forEach((horaire, index) => {
     const button = document.createElement("button");
     button.className = "slot-button";
-    button.dataset.day = day;
+    button.dataset.horaireIndex = index; // Pour la sélection par plage
     button.textContent = horaire;
 
-    if (selectedSlots.includes(horaire)) {
+    if (selectedSlotsForDay.includes(horaire)) {
       button.classList.add("selected");
     }
 
+    // Gestion de la sélection/désélection et de la sélection par glissé
     button.addEventListener("click", () => {
-      if (button.classList.contains("selected")) {
-        button.classList.remove("selected");
-        return;
+      // Si on clique sur un bouton alors qu'on est en train de glisser, on finalise le glissé
+      if (isDragging) {
+        isDragging = false; // Arrête le glissé
+        dragStartIndex = -1; // Réinitialise
+        return; // Le clic a déjà géré la sélection
       }
+      // Sinon, on gère un clic simple pour (dé)sélectionner
+      button.classList.toggle("selected");
+    });
 
-      if (firstSelectedIndex === null) {
-        firstSelectedIndex = index;
-        lastSelectedIndex = null;
-        selectRange(day, weekKey, firstSelectedIndex, firstSelectedIndex);
-      } else if (lastSelectedIndex === null) {
-        lastSelectedIndex = index;
-        selectRange(day, weekKey, firstSelectedIndex, lastSelectedIndex);
-        firstSelectedIndex = null;
-        lastSelectedIndex = null;
+    button.addEventListener("mousedown", (e) => {
+      if (e.button === 0) { // Clic gauche
+        isDragging = true;
+        dragStartIndex = index;
+        button.classList.toggle("selected"); // Toggle l'état du premier élément cliqué
       }
     });
 
-    container.appendChild(button);
+    button.addEventListener("mouseenter", () => {
+      if (isDragging && dragStartIndex !== -1) {
+        // Sélectionne/désélectionne les créneaux entre dragStartIndex et l'index actuel
+        const currentActiveDay = document.querySelector(".tab.active").dataset.day;
+        selectRange(currentActiveDay, dragStartIndex, index);
+      }
+    });
+
+    planningContainer.appendChild(button);
+  });
+
+  // Gère la fin du glissé n'importe où sur le document
+  document.addEventListener("mouseup", () => {
+    isDragging = false;
+    dragStartIndex = -1;
   });
 }
 
-function selectRange(day, weekKey, startIndex, endIndex) {
+function selectRange(day, startIndex, endIndex) {
   const minIndex = Math.min(startIndex, endIndex);
   const maxIndex = Math.max(startIndex, endIndex);
 
-  const allButtons = document.querySelectorAll(`.slot-button[data-day="${day}"]`);
-  for (let i = minIndex; i <= maxIndex; i++) {
+  const allButtons = Array.from(planningContainer.children); // Récupère tous les boutons du jour
+  const initialSelectedState = allButtons[startIndex].classList.contains("selected"); // État initial du premier bouton cliqué
+
+  for (let i = 0; i < allButtons.length; i++) {
     const btn = allButtons[i];
-    if (btn) btn.classList.add("selected");
+    const btnIndex = parseInt(btn.dataset.horaireIndex);
+
+    if (btnIndex >= minIndex && btnIndex <= maxIndex) {
+      if (initialSelectedState) {
+        btn.classList.add("selected");
+      } else {
+        btn.classList.remove("selected");
+      }
+    } else {
+      // Garde l'état des créneaux hors de la sélection par glissé
+      // Si la sélection par glissé est inversée, cela peut poser problème.
+      // Pour une sélection par glissé simple qui toggle un groupe :
+      // On pourrait vouloir que tout le reste reste inchangé, ou soit désélectionné.
+      // Pour l'instant, on laisse l'état existant.
+    }
   }
 }
 
+async function saveAgentPlanning() {
+  showLoading(true, saveButton);
+  saveButton.textContent = "Enregistrement...";
+  clearSelectionButton.disabled = true;
+  logoutButton.disabled = true;
+
+  const week = weekSelect.value;
+  const weekKey = `week-${week}`;
+  const currentDay = document.querySelector(".tab.active").dataset.day;
+
+  // Récupère les créneaux réellement sélectionnés sur la page
+  const selectedSlotsOnPage = Array.from(planningContainer.querySelectorAll(".slot-button.selected"))
+    .map(btn => btn.textContent.trim());
+
+  // Met à jour le planningDataAgent avec la sélection actuelle du jour
+  // Cela remplace les créneaux existants pour ce jour par la nouvelle sélection
+  planningDataAgent = {
+    ...planningDataAgent,
+    [weekKey]: {
+      ...(planningDataAgent[weekKey] || {}),
+      [currentDay]: selectedSlotsOnPage
+    }
+  };
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/planning/${agent}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(planningDataAgent) // Envoie tout le planning mis à jour
+    });
+
+    if (response.ok) {
+      alert("Vos créneaux ont été enregistrés avec succès !");
+      // Recharger le planning après sauvegarde pour s'assurer de la cohérence
+      await loadAgentPlanning();
+      showDay(currentDay, +week); // Réafficher le jour actif
+    } else {
+      const errorData = await response.json();
+      alert(`Erreur lors de l’enregistrement : ${errorData.message || 'Une erreur est survenue.'}`);
+    }
+  } catch (err) {
+    console.error("Erreur lors de l’enregistrement :", err);
+    alert("Impossible d'enregistrer les créneaux. Veuillez vérifier votre connexion.");
+  } finally {
+    showLoading(false, saveButton);
+    saveButton.textContent = "Enregistrer mes créneaux";
+    clearSelectionButton.disabled = false;
+    logoutButton.disabled = false;
+  }
+}
+
+function clearCurrentDaySelection() {
+  const currentDay = document.querySelector(".tab.active").dataset.day;
+  const weekKey = `week-${weekSelect.value}`;
+
+  // Supprime tous les créneaux du jour actuellement sélectionné dans le planningDataAgent
+  if (planningDataAgent[weekKey] && planningDataAgent[weekKey][currentDay]) {
+    planningDataAgent[weekKey][currentDay] = []; // Vide le tableau des créneaux pour ce jour
+  }
+
+  // Réafficher le jour pour refléter la suppression
+  showDay(currentDay, +weekSelect.value);
+
+  // Informer l'utilisateur, mais ne pas enregistrer automatiquement
+  alert("La sélection actuelle a été effacée. N'oubliez pas d'enregistrer vos modifications !");
+}
+
+
 function logout() {
-  sessionStorage.removeItem("agent");
+  sessionStorage.clear(); // Efface toutes les données de session
   window.location.href = "index.html";
 }
+
+function showLoading(isLoading, button = null) {
+  if (isLoading) {
+    loadingSpinner.classList.remove("hidden");
+    if (button) button.disabled = true;
+    saveButton.disabled = true; // Désactiver tous les boutons importants
+    clearSelectionButton.disabled = true;
+    logoutButton.disabled = true;
+    tabButtons.forEach(btn => btn.disabled = true);
+    weekSelect.disabled = true;
+  } else {
+    loadingSpinner.classList.add("hidden");
+    if (button) button.disabled = false;
+    saveButton.disabled = false;
+    clearSelectionButton.disabled = false;
+    logoutButton.disabled = false;
+    tabButtons.forEach(btn => btn.disabled = false);
+    weekSelect.disabled = false;
+  }
+}
+
+// Fonction utilitaire pour éviter l'outline sur les éléments focusables mais non cliquables par défaut
+document.addEventListener('focusin', function(e) {
+  if (e.target.matches('button, select, input, a')) {
+    e.target.classList.add('focused-element');
+  }
+});
+
+document.addEventListener('focusout', function(e) {
+  if (e.target.matches('button, select, input, a')) {
+    e.target.classList.remove('focused-element');
+  }
+});

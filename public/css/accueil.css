@@ -1,66 +1,132 @@
+/* Import de la police Google Fonts Poppins */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+:root {
+  /* Variables de couleurs pour faciliter la modification */
+  --primary-color: #007bff; /* Bleu actuel, on peut le changer */
+  --primary-hover-color: #0056b3;
+  --background-color: #f0f2f5;
+  --card-background: #ffffff;
+  --text-color: #333;
+  --light-gray: #e0e0e0;
+  --dark-gray: #666;
+  --border-radius-large: 12px;
+  --border-radius-small: 8px;
+  --box-shadow-subtle: 0 6px 20px rgba(0, 0, 0, 0.08); /* Ombre plus douce */
+}
+
 body {
-  font-family: Arial, sans-serif;
-  background-color: #f0f2f5;
+  font-family: 'Poppins', sans-serif; /* Utilisation de la nouvelle police */
+  background-color: var(--background-color);
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh; /* Utiliser min-height pour s'adapter au contenu */
   margin: 0;
+  color: var(--text-color);
+  padding: 20px; /* Ajout d'un padding pour les petits écrans */
+  box-sizing: border-box; /* Inclure padding et border dans la taille totale */
 }
 
 .login-container {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  width: 360px;
+  background: var(--card-background);
+  padding: 2.5rem; /* Augmentation du padding pour plus d'espace */
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--box-shadow-subtle);
+  width: 100%; /* Permet une meilleure adaptabilité */
+  max-width: 400px; /* Limite la largeur pour les grands écrans */
   text-align: center;
+  display: flex; /* Utilisation de flexbox pour l'agencement interne */
+  flex-direction: column;
+  align-items: center;
+  gap: 15px; /* Espacement entre les éléments */
 }
 
 .logo {
-  width: 100px;
+  width: 120px; /* Légèrement plus grand */
   height: auto;
   margin-bottom: 20px;
 }
 
+h1 {
+  font-size: 2rem; /* Taille de titre plus moderne */
+  color: var(--primary-color); /* Couleur du titre */
+  margin-bottom: 25px;
+}
+
+.form-group {
+  width: 100%; /* Assure que le groupe prend toute la largeur */
+  text-align: left;
+}
+
 label {
   display: block;
-  text-align: left;
-  margin-top: 10px;
-  font-weight: bold;
+  margin-bottom: 8px; /* Espacement sous le label */
+  font-weight: 600; /* Plus de poids pour le label */
+  color: var(--dark-gray);
+  font-size: 0.95rem;
 }
 
 select,
 input {
   width: 100%;
-  padding: 10px;
-  margin-top: 5px;
-  margin-bottom: 15px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  padding: 12px 15px; /* Padding plus généreux */
+  border: 1px solid var(--light-gray); /* Bordure plus douce */
+  border-radius: var(--border-radius-small);
   box-sizing: border-box;
-  font-size: 14px;
+  font-size: 1rem; /* Taille de police légèrement augmentée */
+  transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Transitions pour les interactions */
+}
+
+select:focus,
+input:focus {
+  outline: none; /* Supprime l'outline par défaut */
+  border-color: var(--primary-color); /* Bordure colorée au focus */
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Ombre douce au focus */
 }
 
 button {
   width: 100%;
-  padding: 12px;
-  background-color: #007bff;
+  padding: 14px; /* Padding plus grand pour le bouton */
+  background-color: var(--primary-color);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--border-radius-small);
   cursor: pointer;
-  font-size: 15px;
-  transition: background-color 0.3s ease;
+  font-size: 1.1rem; /* Taille de police du bouton */
+  font-weight: 600; /* Poids de police plus important */
+  transition: background-color 0.3s ease, transform 0.2s ease; /* Transitions */
+  margin-top: 10px; /* Espacement au-dessus du bouton */
 }
 
 button:hover {
-  background-color: #0056b3;
+  background-color: var(--primary-hover-color);
+  transform: translateY(-2px); /* Effet de léger soulèvement au survol */
+}
+
+button:active {
+  transform: translateY(0); /* Retour à la position normale au clic */
 }
 
 .error {
-  color: red;
+  color: #d9534f; /* Rouge plus doux pour les erreurs */
   font-size: 0.9em;
-  margin-top: 10px;
+  margin-top: 15px; /* Plus d'espace pour le message d'erreur */
+  font-weight: 500;
 }
 
+/* Media Queries pour la réactivité */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 1.5rem;
+    border-radius: 0; /* Pas de bordure arrondie sur très petits écrans pour un look full-width */
+    box-shadow: none; /* Pas d'ombre sur très petits écrans */
+    max-width: 100%; /* S'adapte à la largeur complète */
+    height: 100vh; /* Prend toute la hauteur sur mobile pour centrer verticalement */
+    justify-content: center; /* Centre le contenu verticalement */
+  }
+
+  body {
+    padding: 0; /* Retire le padding du body sur petits écrans */
+  }
+}

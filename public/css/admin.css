@@ -1,228 +1,81 @@
-/* ===== Interface Admin ===== */
+/* admin.css - Pour des ajustements spécifiques ou des surcharges */
 
-body {
-  font-family: 'Roboto', sans-serif;
-  background-color: #f4f7fa;
-  margin: 0;
-  padding: 0;
-  color: #333;
-}
-
-/* Conteneur principal */
-.admin-container {
-  /* MODIFIÉ: Augmenté le max-width pour une sensation moins "resserrée" */
-  max-width: 1400px; /* Passé de 1200px à 1400px */
-  margin: 40px auto;
-  padding: 2rem;
-  background-color: #fff;
-  border-radius: 10px;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Header admin */
-header {
-  margin-bottom: 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-}
-
-h2 {
-  font-size: 24px;
-  color: #444;
-  font-weight: 500;
-}
-
-/* Sélecteur de semaine et export PDF */
-.admin-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 25px;
-}
-
-.week-selector {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-grow: 1;
-}
-
-.week-selector label {
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 0;
-  white-space: nowrap;
-  display: inline-block;
-  min-width: 60px;
-  text-align: right;
-}
-
-#week-selector {
-  padding: 8px 14px;
-  font-size: 14px;
-  height: 36px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-  background-color: #ffffff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  transition: border-color 0.2s;
-}
-
-#week-selector:focus {
-  border-color: #007bff;
-}
-
-#export-pdf {
-  padding: 8px 16px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;
-  align-self: flex-start;
-  margin-top: 2px;
-}
-
-#export-pdf:hover {
-  background-color: #0056b3;
-  transform: scale(1.05);
-}
-
-/* Onglets de jours */
-.tabs {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.tab {
-  padding: 10px 16px;
-  background-color: #f1f1f1;
-  border: none;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: background-color 0.3s;
-  font-size: 14px;
-}
-
-.tab:hover {
-  background-color: #e2e2e2;
-}
-
-.tab.active {
-  background-color: #007bff;
-  color: white;
-  font-weight: bold;
-}
-
-/* Conteneur tableau */
-.table-container {
-  width: 100%;
-  overflow-x: auto;
-  background-color: #fff;
-  padding: 0;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  margin-top: 30px;
-}
-
-/* Tableau des créneaux */
+/* Ajustements pour le tableau du planning global pour s'intégrer au design agent */
 .planning-table {
-  border-collapse: collapse;
-  /* MODIFIÉ: Réduit la taille de police pour les cellules du tableau pour le rendre moins large */
-  font-size: 12px; /* Réduit de 13px à 12px */
-  table-layout: fixed;
-  min-width: 100%;
-  width: max-content;
+    width: 100%; /* Assure que le tableau prend la largeur disponible */
+    border-collapse: collapse;
+    font-size: 0.9rem; /* Adapte la taille de police */
+    table-layout: auto; /* Permet aux colonnes de s'adapter au contenu */
+    background-color: var(--card-background); /* Utilise la couleur de fond de la carte */
+    border-radius: var(--border-radius-medium);
+    overflow: hidden; /* Pour que les bords arrondis s'appliquent bien */
+}
+
+.table-container {
+    overflow-x: auto; /* Permet le défilement horizontal si le tableau est trop large */
+    margin-top: 20px;
+    border: 1px solid var(--light-gray); /* Bordure légère autour du conteneur */
+    border-radius: var(--border-radius-medium);
+    box-shadow: var(--box-shadow-subtle); /* Ombre légère */
 }
 
 .planning-table th,
 .planning-table td {
-  /* MODIFIÉ: Réduit le padding pour les cellules/en-têtes du tableau pour le rendre moins large */
-  padding: 6px 6px; /* Réduit de 8px 10px à 6px 6px */
-  text-align: center;
-  border: 1px solid #ddd;
-  white-space: nowrap;
-  background-color: #fff;
-  color: #333;
+    padding: 10px 8px; /* Ajuste le padding */
+    text-align: center;
+    border: 1px solid var(--light-gray); /* Bordure des cellules */
+    white-space: nowrap; /* Empêche le texte de se casser à la ligne */
+    color: var(--text-color);
 }
 
-/* En-têtes */
 .planning-table th {
-  background-color: #f8f8f8;
-  font-weight: 600;
-  color: #555;
-  position: sticky;
-  top: 0;
-  z-index: 2;
+    background-color: var(--background-color); /* Couleur de fond pour les en-têtes */
+    font-weight: 600;
+    color: var(--dark-gray);
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
 
 /* Colonne Nom/Prénom figée à gauche */
 .planning-table th:first-child,
 .planning-table td:first-child {
-  position: sticky;
-  left: 0;
-  background-color: #fff;
-  z-index: 3;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-  font-weight: 600;
+    position: sticky;
+    left: 0;
+    background-color: var(--card-background); /* Fond blanc pour la colonne figée */
+    z-index: 3;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05); /* Ombre sur le côté droit */
+    font-weight: 600;
+    text-align: left; /* Alignement à gauche pour les noms d'agents */
+    padding-left: 15px; /* Plus de padding pour les noms */
 }
 
-/* Coloration des créneaux sélectionnés */
+/* Créneaux occupés */
 .slot.selected {
-  background-color: #28a745;
-  color: white;
+    background-color: var(--success-color); /* Vert pour sélectionné */
+    color: white;
 }
 
 .slot.selected:hover {
-  background-color: #218838;
+    background-color: #218838; /* Vert plus foncé au survol */
 }
 
-/* Boutons généraux */
-button {
-  padding: 12px 20px;
-  font-size: 14px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;
-  margin-top: 20px;
-  width: 100%;
-  max-width: 280px;
-  margin-left: auto;
-  margin-right: auto;
-}
+/* Spinner de chargement (si vous ne l'avez pas déjà dans agent.css) */
+/* C'est déjà dans agent.css, donc pas besoin ici. */
 
-button:hover {
-  background-color: #0056b3;
-  transform: scale(1.05);
-}
+/* Ajustements des éléments de formulaire pour qu'ils soient cohérents avec agent.css */
+/* Les styles pour #week-select sont déjà bien gérés par agent.css */
+/* Si vous avez des inputs text ou autres, utilisez des classes comme .form-input, .form-select
+   et définissez-les dans agent.css si ce n'est pas déjà fait. */
 
-/* Bouton Déconnexion */
-.logout-btn {
-  margin-top: 40px;
-  padding: 12px 20px;
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  width: 100%;
-  max-width: 280px;
-  margin-left: auto;
-  margin-right: auto;
-  transition: transform 0.3s ease, background-color 0.2s;
-}
-
-.logout-btn:hover {
-  background-color: #c82333;
-  transform: scale(1.05);
+/* Masquer les éléments visuellement mais les garder pour les lecteurs d'écran (Sr-only) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }

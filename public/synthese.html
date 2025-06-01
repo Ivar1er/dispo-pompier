@@ -2,25 +2,32 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Synthèse Hebdomadaire</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Synthèse Hebdomadaire - Sapeur Pompier</title>
   <link rel="stylesheet" href="css/synthese.css" />
-</head>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet"> </head>
 <body>
   <div class="synthese-container">
-    <h1>Synthèse de ma semaine</h1>
+    <h1 class="page-title">Synthèse de mon Planning</h1>
 
     <div class="week-selection">
-      <label for="week-select">Semaine :</label>
+      <label for="week-select" class="sr-only">Sélectionner la semaine</label>
       <select id="week-select"></select>
-      <span id="date-range"></span>
+      <span id="date-range" class="date-range"></span>
+    </div>
+
+    <div id="no-planning-message" class="info-message hidden">
+      <p>Aucun planning n'est disponible pour cet agent pour le moment.</p>
+      <p>Veuillez retourner sur la page Agent pour enregistrer vos créneaux.</p>
     </div>
 
     <div class="planning-wrapper">
       <div class="header-hours" id="header-hours"></div>
-      <div id="planning-container"></div>
+      <div id="planning-container" class="planning-grid-content"></div>
     </div>
 
-    <a href="agent.html" class="btn-retour">← Retour</a>
+    <div id="loading-spinner" class="loading-spinner hidden"></div>
+
+    <a href="agent.html" class="btn btn-secondary btn-return">← Retour à mon planning</a>
   </div>
 
   <script src="js/synthese.js"></script>

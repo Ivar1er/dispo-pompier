@@ -2,41 +2,44 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Espace Admin</title>
-  <link rel="stylesheet" href="css/admin.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Administration - Sapeur Pompier</title>
+  <link rel="stylesheet" href="css/admin.css" /> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="admin-container">
-    <header>
-      <h2>Planning Global - Admin</h2>
+  <div class="agent-container"> <header class="page-header"> <h2 class="welcome-message">Tableau de bord Administrateur</h2>
 
-      <!-- Sélecteur de semaine et bouton d'export -->
-      <div class="admin-header">
-        <div class="week-selector">
-          <label for="week-selector">Semaine :</label>
-          <select id="week-selector"></select>
-        </div>
+      <div class="header-controls">
+        <div class="week-info"> <label for="week-select" class="sr-only">Sélectionner la semaine</label>
+          <select id="week-select"></select>
+          <p id="date-range" class="date-range"></p> </div>
 
-        <button id="export-pdf">📄 Exporter en PDF</button>
+        <button id="export-pdf" class="btn btn-secondary">📄 Exporter en PDF</button>
+        <a href="feuille_de_garde.html" class="btn btn-secondary">Feuille de Garde</a>
       </div>
     </header>
 
-    <!-- Onglets pour la sélection des jours -->
-    <div class="tabs" id="day-tabs">
-      <button class="tab active" data-day="lundi">Lundi</button>
+    <nav class="tabs-navigation"> <button class="tab active" data-day="lundi">Lundi</button>
       <button class="tab" data-day="mardi">Mardi</button>
       <button class="tab" data-day="mercredi">Mercredi</button>
       <button class="tab" data-day="jeudi">Jeudi</button>
       <button class="tab" data-day="vendredi">Vendredi</button>
       <button class="tab" data-day="samedi">Samedi</button>
       <button class="tab" data-day="dimanche">Dimanche</button>
-    </div>
+    </nav>
 
-    <!-- Tableau des créneaux -->
-    <div id="global-planning" class="table-container"></div>
+    <section class="planning-section"> <p id="admin-info" class="info-message">
+        Cliquez sur les créneaux pour les modifier.
+      </p>
 
-    <!-- Bouton de déconnexion -->
-    <button id="logout-btn" class="logout-btn">Déconnexion</button>
+      <div id="global-planning" class="table-container planning-grid">
+          </div>
+
+      <div id="loading-spinner" class="loading-spinner hidden"></div>
+    </section>
+
+    <footer class="bottom-actions"> <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
+    </footer>
   </div>
 
   <script src="js/data.js"></script>

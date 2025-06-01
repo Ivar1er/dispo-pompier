@@ -2,72 +2,55 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Page Agent</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon Planning - Sapeur Pompier</title>
   <link rel="stylesheet" href="css/agent.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="agent-container">
 
-    <!-- En-tête agent -->
-    <h2>Bienvenue <span id="agent-name"></span></h2>
+    <header class="page-header">
+      <h2 class="welcome-message">Bienvenue <span id="agent-prenom"></span> <span id="agent-nom"></span> !</h2>
 
-    <!-- Semaine + date alignés -->
-    <div class="week-info">
-      <div class="week-selector">
-        <label for="week-select">Semaine :</label>
-        <select id="week-select"></select>
+      <div class="header-controls">
+        <div class="week-info">
+          <label for="week-select" class="sr-only">Sélectionner la semaine</label>
+          <select id="week-select"></select>
+          <p id="date-range" class="date-range"></p>
+        </div>
+
+        <a href="synthese.html" id="synthese-btn" class="btn btn-secondary">Voir la Synthèse</a>
       </div>
-      <p id="date-range" class="date-range"></p>
-    </div>
+    </header>
 
-    <!-- Lien synthèse -->
-    <div class="top-controls">
-      <a href="synthese.html" id="synthese-btn" class="btn">Voir la Synthèse</a>
-    </div>
+    <nav class="tabs-navigation">
+      <button class="tab active" data-day="lundi">Lundi</button>
+      <button class="tab" data-day="mardi">Mardi</button>
+      <button class="tab" data-day="mercredi">Mercredi</button>
+      <button class="tab" data-day="jeudi">Jeudi</button>
+      <button class="tab" data-day="vendredi">Vendredi</button>
+      <button class="tab" data-day="samedi">Samedi</button>
+      <button class="tab" data-day="dimanche">Dimanche</button>
+    </nav>
 
-    <!-- Onglets jour -->
-    <div class="tabs">
-      <button class="tab active" onclick="showDay('lundi')">Lundi</button>
-      <button class="tab" onclick="showDay('mardi')">Mardi</button>
-      <button class="tab" onclick="showDay('mercredi')">Mercredi</button>
-      <button class="tab" onclick="showDay('jeudi')">Jeudi</button>
-      <button class="tab" onclick="showDay('vendredi')">Vendredi</button>
-      <button class="tab" onclick="showDay('samedi')">Samedi</button>
-      <button class="tab" onclick="showDay('dimanche')">Dimanche</button>
-    </div>
+    <section class="planning-section">
+      <p id="selection-info" class="info-message">
+        Cliquez sur les créneaux pour les sélectionner, puis cliquez à nouveau pour les désélectionner, ou sélectionnez une plage.
+      </p>
 
-    <!-- Info sélection -->
-    <p id="selection-info" style="margin-top:10px; font-style: italic; color: #555;">
-      Sélectionnez vos créneaux avant d’enregistrer.
-    </p>
+      <div id="planning-container" class="planning-grid"></div>
 
-    <!-- Créneaux horaires ici -->
-    <div id="planning-container" class="planning-container"></div>
+      <div id="loading-spinner" class="loading-spinner hidden"></div>
+    </section>
 
-    <!-- Boutons en bas -->
-    <div class="bottom-actions" style="margin-top:15px;">
-      <button id="save-button">Enregistrer mes créneaux</button>
-      <button id="clear-selection-btn" style="margin-left:10px;">Effacer sélection</button>
-      <button onclick="logout()" style="margin-left:10px;">Déconnexion</button>
-    </div>
-
+    <footer class="bottom-actions">
+      <button id="save-button" class="btn btn-primary">Enregistrer mes créneaux</button>
+      <button id="clear-selection-btn" class="btn btn-tertiary">Effacer la sélection</button>
+      <button id="logout-button" class="btn btn-danger">Déconnexion</button>
+    </footer>
   </div>
 
-  <script src="js/data.js"></script>
-  <script src="js/agent.js"></script>
-  <script>
-    // Ajout simple pour effacer la sélection temporaire sur le jour affiché
-    document.getElementById('clear-selection-btn').addEventListener('click', () => {
-      const weekKey = `week-${document.getElementById('week-select').value}`;
-      const activeTab = document.querySelector('.tab.active');
-      if (!activeTab) return;
-      const day = activeTab.textContent.toLowerCase();
-
-      if (tempSelection[weekKey]?.[day]) {
-        tempSelection[weekKey][day] = [];
-      }
-      showDay(day, +document.getElementById('week-select').value);
-    });
-  </script>
+  <script src="js/data.js"></script> <script src="js/agent.js"></script>
 </body>
 </html>

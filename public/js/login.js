@@ -1,12 +1,22 @@
 const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
 async function login() {
-  const agent = document.getElementById("agent").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const error = document.getElementById("error");
+  const agentSelect = document.getElementById("agent");
+  const agent = agentSelect.value.trim();
+  const passwordInput = document.getElementById("password");
+  const password = passwordInput.value.trim();
+  const errorElement = document.getElementById("error");
+  const loginButton = document.querySelector("button");
+
+  // Réinitialiser les messages d'erreur et désactiver le bouton
+  errorElement.textContent = "";
+  loginButton.disabled = true; // Désactiver le bouton pendant le chargement
+  loginButton.textContent = "Connexion en cours..."; // Changer le texte du bouton
 
   if (!agent || !password) {
-    error.textContent = "Veuillez remplir tous les champs.";
+    errorElement.textContent = "Veuillez remplir tous les champs.";
+    loginButton.disabled = false; // Réactiver le bouton
+    loginButton.textContent = "Se connecter"; // Rétablir le texte du bouton
     return;
   }
 
@@ -20,8 +30,8 @@ async function login() {
     const data = await response.json();
 
     if (!response.ok) {
-      error.textContent = data.message || "Erreur lors de la connexion.";
-      return;
+      errorElement.textContent = data.message || "Erreur lors de la connexion.";
+      return; // Ne pas réactiver le bouton ici car il sera réactivé dans le finally
     }
 
     sessionStorage.setItem("agent", agent);
@@ -35,7 +45,12 @@ async function login() {
     }
   } catch (err) {
     console.error("Erreur lors de la connexion :", err);
-    error.textContent = "Impossible de se connecter au serveur.";
+    errorElement.textContent = "Impossible de se connecter au serveur. Veuillez vérifier votre connexion.";
+  } finally {
+    // S'assure que le bouton est toujours réactivé et son texte rétabli,
+    // même en cas d'erreur ou de succès.
+    loginButton.disabled = false;
+    loginButton.textContent = "Se connecter";
   }
 }
 
