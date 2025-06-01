@@ -4,22 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Administration - Sapeur Pompier</title>
-  <link rel="stylesheet" href="css/admin.css" /> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="agent-container"> <header class="page-header"> <h2 class="welcome-message">Tableau de bord Administrateur</h2>
+  <div class="agent-container"> <header class="page-header">
+      <h2 class="welcome-message">Tableau de bord Administrateur</h2>
 
       <div class="header-controls">
-        <div class="week-info"> <label for="week-select" class="sr-only">Sélectionner la semaine</label>
-          <select id="week-select"></select>
-          <p id="date-range" class="date-range"></p> </div>
+        <div class="week-info">
+          <label for="week-select" class="sr-only">Sélectionner la semaine</label>
+          <select id="week-select"></select> <p id="date-range" class="date-range"></p> </div>
 
         <button id="export-pdf" class="btn btn-secondary">📄 Exporter en PDF</button>
         <a href="feuille_de_garde.html" class="btn btn-secondary">Feuille de Garde</a>
       </div>
     </header>
 
-    <nav class="tabs-navigation"> <button class="tab active" data-day="lundi">Lundi</button>
+    <nav class="tabs-navigation">
+      <button class="tab active" data-day="lundi">Lundi</button>
       <button class="tab" data-day="mardi">Mardi</button>
       <button class="tab" data-day="mercredi">Mercredi</button>
       <button class="tab" data-day="jeudi">Jeudi</button>
@@ -28,8 +31,9 @@
       <button class="tab" data-day="dimanche">Dimanche</button>
     </nav>
 
-    <section class="planning-section"> <p id="admin-info" class="info-message">
-        Cliquez sur les créneaux pour les modifier.
+    <section class="planning-section">
+      <p id="admin-info" class="info-message">
+        Vue du planning global des agents.
       </p>
 
       <div id="global-planning" class="table-container planning-grid">
@@ -38,11 +42,11 @@
       <div id="loading-spinner" class="loading-spinner hidden"></div>
     </section>
 
-    <footer class="bottom-actions"> <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
+    <footer class="bottom-actions">
+      <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
     </footer>
   </div>
 
-  <script src="js/data.js"></script>
   <script src="js/admin.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

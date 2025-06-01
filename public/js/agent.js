@@ -1,7 +1,7 @@
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 const agent = sessionStorage.getItem("agent");
-const agentPrenom = sessionStorage.getItem("agentPrenom"); // Récupère le prénom
-const agentNom = sessionStorage.getItem("agentNom");     // Récupère le nom
+const agentPrenom = sessionStorage.getItem("agentPrenom");
+const agentNom = sessionStorage.getItem("agentNom");
 
 const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que cette URL est correcte
 
@@ -41,7 +41,6 @@ const clearSelectionButton = document.getElementById("clear-selection-btn");
 const logoutButton = document.getElementById("logout-button");
 const loadingSpinner = document.getElementById("loading-spinner");
 const tabButtons = document.querySelectorAll(".tab");
-const agentNameSpan = document.getElementById("agent-name");
 const agentPrenomSpan = document.getElementById("agent-prenom");
 const agentNomSpan = document.getElementById("agent-nom");
 
@@ -54,9 +53,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Afficher le nom et prénom de l'agent
-  agentNameSpan.textContent = `${agentPrenom} ${agentNom}`; // Maintient l'ID existant pour compatibilité
-  agentPrenomSpan.textContent = agentPrenom;
-  agentNomSpan.textContent = agentNom;
+  if (agentPrenomSpan) agentPrenomSpan.textContent = agentPrenom;
+  if (agentNomSpan) agentNomSpan.textContent = agentNom;
 
 
   await loadAgentPlanning(); // Charge le planning au démarrage
@@ -68,34 +66,40 @@ document.addEventListener("DOMContentLoaded", async () => {
     allWeeks.push(i);
   }
 
-  weekSelect.innerHTML = "";
-  allWeeks.forEach(week => {
-    const option = document.createElement("option");
-    option.value = week;
-    option.textContent = `Semaine ${week} (${getWeekDateRange(week)})`;
-    weekSelect.appendChild(option);
-  });
+  if (weekSelect) {
+    weekSelect.innerHTML = "";
+    allWeeks.forEach(week => {
+      const option = document.createElement("option");
+      option.value = week;
+      option.textContent = `Semaine ${week} (${getWeekDateRange(week)})`;
+      weekSelect.appendChild(option);
+    });
+    weekSelect.value = currentWeek; // Sélectionner la semaine actuelle
+  }
 
-  weekSelect.value = currentWeek; // Sélectionner la semaine actuelle
   updateDisplay(currentWeek); // Afficher le planning de la semaine actuelle (Lundi)
 
   // Écouteurs d'événements
-  weekSelect.addEventListener("change", () => {
-    const selectedWeek = +weekSelect.value;
-    updateDisplay(selectedWeek);
-  });
-
-  tabButtons.forEach(tab => {
-    tab.addEventListener("click", (event) => {
-      const day = event.target.dataset.day;
-      const week = +weekSelect.value;
-      showDay(day, week);
+  if (weekSelect) {
+    weekSelect.addEventListener("change", () => {
+      const selectedWeek = +weekSelect.value;
+      updateDisplay(selectedWeek);
     });
-  });
+  }
 
-  saveButton.addEventListener("click", saveAgentPlanning);
-  clearSelectionButton.addEventListener("click", clearCurrentDaySelection);
-  logoutButton.addEventListener("click", logout);
+  if (tabButtons.length > 0) {
+    tabButtons.forEach(tab => {
+      tab.addEventListener("click", (event) => {
+        const day = event.target.dataset.day;
+        const week = +weekSelect.value;
+        showDay(day, week);
+      });
+    });
+  }
+
+  if (saveButton) saveButton.addEventListener("click", saveAgentPlanning);
+  if (clearSelectionButton) clearSelectionButton.addEventListener("click", clearCurrentDaySelection);
+  if (logoutButton) logoutButton.addEventListener("click", logout);
 });
 
 
@@ -154,16 +158,27 @@ async function loadAgentPlanning() {
 }
 
 function updateDisplay(weekNumber) {
-  dateRangeDisplay.textContent = getWeekDateRange(weekNumber);
+  if (dateRangeDisplay) {
+    dateRangeDisplay.textContent = getWeekDateRange(weekNumber);
+  }
   showDay('lundi', weekNumber); // Affiche toujours le Lundi par défaut
 }
 
 function showDay(day, weekNumber = weekSelect.value) {
   // Désactiver tous les onglets et activer le bon
   tabButtons.forEach(tab => tab.classList.remove("active"));
-  document.querySelector(`.tab[data-day="${day}"]`).classList.add("active");
+  const activeTab = document.querySelector(`.tab[data-day="${day}"]`);
+  if (activeTab) {
+    activeTab.classList.add("active");
+  }
 
-  planningContainer.innerHTML = "";
+  if (planningContainer) {
+    planningContainer.innerHTML = "";
+  } else {
+    return; // Arrête l'exécution si le conteneur n'est pas là
+  }
+
+
   const weekKey = `week-${weekNumber}`;
   const selectedSlotsForDay = planningDataAgent[weekKey]?.[day] || [];
 
@@ -209,10 +224,16 @@ function showDay(day, weekNumber = weekSelect.value) {
   });
 
   // Gère la fin du glissé n'importe où sur le document
-  document.addEventListener("mouseup", () => {
+  document.removeEventListener("mouseup", handleMouseUp); // Éviter les écouteurs multiples
+  document.addEventListener("mouseup", handleMouseUp);
+}
+
+// Fonction séparée pour le handleMouseUp pour pouvoir le remove/add
+function handleMouseUp() {
+  if (isDragging) {
     isDragging = false;
     dragStartIndex = -1;
-  });
+  }
 }
 
 function selectRange(day, startIndex, endIndex) {
@@ -220,7 +241,12 @@ function selectRange(day, startIndex, endIndex) {
   const maxIndex = Math.max(startIndex, endIndex);
 
   const allButtons = Array.from(planningContainer.children); // Récupère tous les boutons du jour
+  if (startIndex < 0 || startIndex >= allButtons.length) {
+      // startIndex invalide, ne peut pas déterminer l'état initial.
+      return;
+  }
   const initialSelectedState = allButtons[startIndex].classList.contains("selected"); // État initial du premier bouton cliqué
+
 
   for (let i = 0; i < allButtons.length; i++) {
     const btn = allButtons[i];
@@ -232,12 +258,6 @@ function selectRange(day, startIndex, endIndex) {
       } else {
         btn.classList.remove("selected");
       }
-    } else {
-      // Garde l'état des créneaux hors de la sélection par glissé
-      // Si la sélection par glissé est inversée, cela peut poser problème.
-      // Pour une sélection par glissé simple qui toggle un groupe :
-      // On pourrait vouloir que tout le reste reste inchangé, ou soit désélectionné.
-      // Pour l'instant, on laisse l'état existant.
     }
   }
 }
@@ -245,8 +265,6 @@ function selectRange(day, startIndex, endIndex) {
 async function saveAgentPlanning() {
   showLoading(true, saveButton);
   saveButton.textContent = "Enregistrement...";
-  clearSelectionButton.disabled = true;
-  logoutButton.disabled = true;
 
   const week = weekSelect.value;
   const weekKey = `week-${week}`;
@@ -257,7 +275,6 @@ async function saveAgentPlanning() {
     .map(btn => btn.textContent.trim());
 
   // Met à jour le planningDataAgent avec la sélection actuelle du jour
-  // Cela remplace les créneaux existants pour ce jour par la nouvelle sélection
   planningDataAgent = {
     ...planningDataAgent,
     [weekKey]: {
@@ -288,8 +305,6 @@ async function saveAgentPlanning() {
   } finally {
     showLoading(false, saveButton);
     saveButton.textContent = "Enregistrer mes créneaux";
-    clearSelectionButton.disabled = false;
-    logoutButton.disabled = false;
   }
 }
 
@@ -317,21 +332,21 @@ function logout() {
 
 function showLoading(isLoading, button = null) {
   if (isLoading) {
-    loadingSpinner.classList.remove("hidden");
+    if (loadingSpinner) loadingSpinner.classList.remove("hidden");
     if (button) button.disabled = true;
-    saveButton.disabled = true; // Désactiver tous les boutons importants
-    clearSelectionButton.disabled = true;
-    logoutButton.disabled = true;
+    if (saveButton) saveButton.disabled = true;
+    if (clearSelectionButton) clearSelectionButton.disabled = true;
+    if (logoutButton) logoutButton.disabled = true;
     tabButtons.forEach(btn => btn.disabled = true);
-    weekSelect.disabled = true;
+    if (weekSelect) weekSelect.disabled = true;
   } else {
-    loadingSpinner.classList.add("hidden");
+    if (loadingSpinner) loadingSpinner.classList.add("hidden");
     if (button) button.disabled = false;
-    saveButton.disabled = false;
-    clearSelectionButton.disabled = false;
-    logoutButton.disabled = false;
+    if (saveButton) saveButton.disabled = false;
+    if (clearSelectionButton) clearSelectionButton.disabled = false;
+    if (logoutButton) logoutButton.disabled = false;
     tabButtons.forEach(btn => btn.disabled = false);
-    weekSelect.disabled = false;
+    if (weekSelect) weekSelect.disabled = false;
   }
 }
 

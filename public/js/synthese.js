@@ -4,7 +4,7 @@ const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que c
 
 // DOM Elements
 const weekSelect = document.getElementById("week-select");
-const dateRangeDisplay = document.getElementById("date-range");
+// const dateRangeDisplay = document.getElementById("date-range"); // Supprimé car l'élément est retiré du HTML
 const planningContainer = document.getElementById("planning-container");
 const headerHours = document.getElementById("header-hours");
 const noPlanningMessage = document.getElementById("no-planning-message");
@@ -37,13 +37,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const response = await fetch(`${API_BASE_URL}/api/planning/${agent}`);
     if (!response.ok) {
         if (response.status === 404) {
-            // Aucun planning trouvé, ce n'est pas une erreur critique ici
             noPlanningMessage.classList.remove("hidden");
-            planningContainer.innerHTML = ""; // Vider le planning
-            headerHours.innerHTML = ""; // Vider l'en-tête d'heures
-            weekSelect.innerHTML = "<option value=''>Aucune semaine</option>"; // Vider le sélecteur
-            weekSelect.disabled = true; // Désactiver le sélecteur
-            dateRangeDisplay.textContent = "";
+            planningContainer.innerHTML = "";
+            headerHours.innerHTML = "";
+            weekSelect.innerHTML = "<option value=''>Aucune semaine</option>";
+            weekSelect.disabled = true;
+            // dateRangeDisplay.textContent = ""; // Supprimé
             return;
         }
         throw new Error(`Erreur HTTP ${response.status}`);
@@ -56,11 +55,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       headerHours.innerHTML = "";
       weekSelect.innerHTML = "<option value=''>Aucune semaine</option>";
       weekSelect.disabled = true;
-      dateRangeDisplay.textContent = "";
+      // dateRangeDisplay.textContent = ""; // Supprimé
       return;
     } else {
-        noPlanningMessage.classList.add("hidden"); // Cache le message si planning trouvé
-        weekSelect.disabled = false; // Réactive le sélecteur
+        noPlanningMessage.classList.add("hidden");
+        weekSelect.disabled = false;
     }
 
     const weeks = Object.keys(planningDataAgent)
@@ -88,14 +87,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (err) {
     console.error("Erreur lors du chargement :", err);
     alert("Erreur lors du chargement du planning. Veuillez réessayer.");
-    noPlanningMessage.classList.remove("hidden"); // Affiche le message d'erreur générique
+    noPlanningMessage.classList.remove("hidden");
   } finally {
     showLoading(false);
   }
 });
 
 function updateDisplay(weekNumber, planningData) {
-  dateRangeDisplay.textContent = getWeekDateRange(weekNumber);
+  // dateRangeDisplay.textContent = getWeekDateRange(weekNumber); // Supprimé
   showWeek(weekNumber, planningData);
 }
 
@@ -114,7 +113,7 @@ function showWeek(weekNumber, planningData) {
     allSlots.push(`${String(h).padStart(2, '0')}:${m} - ${String(nextH).padStart(2, '0')}:${nextM}`);
   }
 
-  // Header heures (affiche seulement les heures pleines, chaque cellule couvre 2 créneaux)
+  // Header heures (affiche seulement les heures pleines, chaque cellule couvre 2 créneaux de 30min)
   header.innerHTML = `<div class="day-label sticky-day-col"></div>`; // Colonne vide pour alignement
   for (let i = 0; i < 24; i++) { // 24 heures complètes
     const hour = (7 + i) % 24; // De 7h à 6h (le lendemain)
@@ -124,16 +123,15 @@ function showWeek(weekNumber, planningData) {
     div.style.gridColumn = `span 2`; // Chaque cellule d'heure couvre 2 colonnes de créneaux (30min * 2 = 1h)
     header.appendChild(div);
   }
-  // Ajuste la template-columns pour le header et les lignes de jour
-  header.style.gridTemplateColumns = `100px repeat(24, 2fr)`; // 100px pour le label jour, puis 24 colonnes qui couvrent 2 créneaux
+  // Suppression de cette ligne: header.style.gridTemplateColumns = `100px repeat(24, 2fr)`;
+  // La définition de la grille sera gérée uniquement par le CSS pour la cohérence des colonnes (48 * 1fr)
 
   // Contenu jours + créneaux
   container.innerHTML = "";
   days.forEach(day => {
     const row = document.createElement("div");
     row.className = "day-row";
-    // Ajuste la template-columns pour les lignes de jour
-    row.style.gridTemplateColumns = `100px repeat(48, 1fr)`; // Retour à 48 colonnes pour les slots individuels
+    // row.style.gridTemplateColumns = `100px repeat(48, 1fr)`; // Cette ligne n'est pas nécessaire, déjà dans CSS
 
     const dayLabel = document.createElement("div");
     dayLabel.className = "day-label sticky-day-col";

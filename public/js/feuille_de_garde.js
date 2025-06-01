@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Stockage des données ---
     // Cet objet contiendra toutes nos données de feuille de garde, indexées par date (AAAA-MM-JJ).
-    // Chaque date aura ses propres créneaux horaires et les engins/personnels qui leur sont associés.
+    // Chaque date aura ses propres créneaux horaires et les engins/personnel qui leur sont associés.
     let appData = {};
 
     // Liste du personnel disponible avec leurs qualifications détaillées
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: '6', name: 'CORDEL Camilla', qualifications: ['CA_VSAV','COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'] },
         { id: '7', name: 'BOUDET Sébastien', qualifications: ['CA_VSAV','COD2','COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'] },
         { id: '8', name: 'BOULME Grégoire', qualifications: ['CA_VSAV', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'] },
-        { id: '9', name: 'JUSTICE Quentin', qualifications: ['CA_VSAV', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'] },
+        { id: '9', name: 'JUSTICE Quentin', qualifications: [ 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'] },
         { id: '10', name: 'SCHAEFFER Caroline', qualifications: ['COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'] },
         { id: '11', name: 'MARECHAL Nicolas', qualifications: ['COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'] },
         { id: '12', name: 'NORMAND Stéphane', qualifications: ['COD2','COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'] },
@@ -394,23 +394,90 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /**
+     * Vérifie si un personnel donné est déjà affecté à une autre position DANS LE MÊME ENGIN.
+     * @param {string} personnelId - L'ID du personnel à vérifier.
+     * @param {object} newAssignments - L'objet des nouvelles affectations proposées pour l'engin actuel.
+     * @param {string} currentRole - Le rôle actuellement en cours d'affectation dans la modale.
+     * @returns {object|null} Un objet { role, personnelName } si un doublon est trouvé dans l'engin, sinon null.
+     */
+    function isPersonnelAlreadyAssignedInEngine(personnelId, newAssignments, currentRole) {
+        if (personnelId === 'none') {
+            return null; // 'Non assigné' ne cause pas de doublon
+        }
+
+        for (const roleInEngine in newAssignments) {
+            if (newAssignments.hasOwnProperty(roleInEngine)) {
+                // Si le personnel est trouvé dans une AUTRE position de CET ENGIN
+                if (newAssignments[roleInEngine] === personnelId && roleInEngine !== currentRole) {
+                    const personName = availablePersonnel.find(p => p.id === personnelId)?.name || 'Inconnu';
+                    return { role: roleInEngine, personnelName: personName };
+                }
+            }
+        }
+        return null; // Aucun doublon trouvé dans cet engin
+    }
+
     // Sauvegarde les affectations de personnel depuis la modale
     function savePersonnelAssignments() {
         if (!currentEditingEngineContext) return;
 
-        const { dateKey, slotId, engineType } = currentEditingEngineContext;
+        const { dateKey, slotId, engineType: editingEngineType } = currentEditingEngineContext;
         const slotData = appData[dateKey].timeSlots[slotId];
-        const engineData = slotData.engines[engineType];
+        const engineData = slotData.engines[editingEngineType]; // L'engin actuellement en cours d'édition
 
+        // Crée un objet temporaire pour les nouvelles affectations,
+        // pour pouvoir vérifier les doublons avant de modifier les données réelles
+        const newAssignments = {};
         const selects = personnelAssignmentModal.querySelectorAll('.personnel-modal-body select');
         selects.forEach(select => {
             const role = select.dataset.role;
             const selectedPersonId = select.value;
-            engineData.personnel[role] = selectedPersonId;
+            newAssignments[role] = selectedPersonId;
         });
 
+        let hasConflict = false;
+        let conflictDetails = null;
+
+        // --- Vérification des doublons DANS L'ENGIN ACTUEL ---
+        // On itère sur les NOUVELLES affectations que l'utilisateur propose pour CET ENGIN.
+        for (const roleBeingAssigned in newAssignments) {
+            const personnelId = newAssignments[roleBeingAssigned];
+            
+            // Si l'agent n'est pas "Non assigné", on vérifie s'il est déjà ailleurs DANS CET ENGIN
+            if (personnelId !== 'none') {
+                const conflict = isPersonnelAlreadyAssignedInEngine(
+                    personnelId, 
+                    newAssignments, // On passe l'objet des nouvelles affectations de l'engin
+                    roleBeingAssigned // Le rôle actuel en cours d'affectation
+                );
+
+                if (conflict) {
+                    hasConflict = true;
+                    conflictDetails = {
+                        personName: conflict.personnelName,
+                        conflictingRole: conflict.role // Le rôle où le conflit existe dans le même engin
+                    };
+                    break; // Un seul conflit suffit pour annuler la sauvegarde
+                }
+            }
+        }
+
+        if (hasConflict) {
+            const conflictPersonName = conflictDetails.personName;
+            const conflictingRole = conflictDetails.conflictingRole;
+
+            alert(`Conflit d'affectation pour l'engin ${editingEngineType} : ${conflictPersonName} est déjà assigné à la position "${conflictingRole}" dans cet engin. Veuillez le désassigner de cette position avant de le placer ailleurs dans le même engin.`);
+            return; // Annule la sauvegarde
+        }
+
+        // Si aucune conflit, on applique les nouvelles affectations
+        for (const role in newAssignments) {
+            engineData.personnel[role] = newAssignments[role];
+        }
+
         saveAppData(); // Sauvegarde toutes les données de l'application après les modifications
-        console.log(`Personnel sauvegardé pour ${engineType} dans le créneau ${slotId} le ${dateKey} :`, engineData.personnel);
+        console.log(`Personnel sauvegardé pour ${editingEngineType} dans le créneau ${slotId} le ${dateKey} :`, engineData.personnel);
 
         personnelAssignmentModal.style.display = 'none';
         // Réaffiche la page des engins pour refléter les modifications pour le créneau actuel

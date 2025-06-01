@@ -90,11 +90,11 @@ body {
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
 }
 
-.date-range {
+/* .date-range {  // Supprimé car l'élément est retiré du HTML
   font-weight: 600;
   color: var(--dark-gray);
   font-size: 1rem;
-}
+} */
 
 /* --- Message d'information (pas de planning) --- */
 .info-message {
@@ -146,10 +146,9 @@ body {
 .header-hours, .planning-grid-content .day-row {
   display: grid;
   /* La première colonne pour le jour est fixe (100px), les 48 autres sont égales */
-  grid-template-columns: 100px repeat(48, 1fr);
+  grid-template-columns: 100px repeat(48, 1fr); /* 48 colonnes de 1fr pour les créneaux de 30min */
   gap: 1px; /* Petits espaces entre les cellules */
   min-width: 2400px; /* Largeur minimale pour que les 48 créneaux soient visibles */
-  /* Ajustez cette valeur si vos créneaux horaires doivent être plus larges */
 }
 
 .header-hours {
@@ -161,13 +160,18 @@ body {
 }
 
 .hour-cell {
-  font-size: 0.75rem; /* Taille de police réduite */
+  font-size: 0.8rem; /* Augmenté légèrement pour éviter le wrap */
   text-align: center;
   padding: 4px 0;
   color: var(--dark-gray);
   font-weight: 500;
   border-right: 1px solid #eee;
-  /* Pour masquer les bordures verticales entre les cellules de 30min si on n'affiche que les heures pleines */
+  /* Laissez grid-column: span 2; dans le JS pour chaque cellule d'heure */
+  /* Utilisez align-items: center pour centrer le texte verticalement si la hauteur de ligne varie */
+  display: flex; /* Utiliser flexbox pour centrer le texte */
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap; /* Empêche le texte de passer à la ligne */
 }
 .hour-cell:last-child {
   border-right: none;
@@ -331,7 +335,7 @@ body {
     gap: 10px;
   }
 
-  #week-select, .date-range {
+  #week-select {
     font-size: 0.9rem;
   }
 
@@ -341,7 +345,7 @@ body {
   }
 
   .hour-cell {
-    font-size: 0.7rem;
+    font-size: 0.75rem; /* Ajusté pour éviter le wrap */
   }
 
   .day-label {
@@ -380,9 +384,9 @@ body {
     text-align: center;
   }
 
-  .date-range {
+  /* .date-range { // Supprimé
     font-size: 0.85rem;
-  }
+  } */
 
   /* Pour les très petits écrans, on pourrait rendre les créneaux encore plus étroits ou envisager une autre vue */
   .header-hours, .planning-grid-content .day-row {
@@ -390,7 +394,7 @@ body {
   }
 
   .hour-cell {
-    font-size: 0.65rem;
+    font-size: 0.7rem; /* Ajusté */
   }
 
   .day-label {

@@ -1,74 +1,325 @@
 /* admin.css - Pour des ajustements spécifiques ou des surcharges */
 
-/* Ajustements pour le tableau du planning global pour s'intégrer au design agent */
+/* Variables de couleurs et de design pour la cohérence - À AJUSTER SELON VOS VARIABLES GLOBALES */
+/* Si ces variables sont déjà définies dans un fichier CSS commun (ex: global.css), vous pouvez les supprimer d'ici. */
+:root {
+  --primary-color: #007bff; /* Bleu principal */
+  --primary-hover-color: #0056b3;
+  --secondary-color: #6c757d; /* Gris pour actions secondaires */
+  --secondary-hover-color: #5a6268;
+  --success-color: #28a745; /* Vert pour créneaux sélectionnés */
+  --danger-color: #dc3545; /* Rouge pour bouton déconnexion */
+
+  --occupied-slot-color: var(--primary-color); /* Bleu pour un créneau occupé */
+  --free-slot-color: #e0e0e0; /* Couleur pour un créneau libre (non disponible/vide) */
+
+  --background-color: #f0f2f5; /* Fond clair */
+  --card-background: #ffffff; /* Fond des conteneurs */
+  --text-color: #333;
+  --light-gray: #e0e0e0;
+  --medium-gray: #bbb;
+  --dark-gray: #666;
+
+  --border-radius-large: 12px;
+  --border-radius-medium: 8px;
+  --border-radius-small: 6px;
+
+  --box-shadow-subtle: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+/* Conteneur principal de l'admin (anciennement .agent-container) */
+.agent-container { /* Conserver le nom si vous le souhaitez, sinon renommer en .admin-container */
+  max-width: 1400px; /* Plus large pour accueillir le tableau */
+  width: 100%;
+  margin: 0 auto;
+  background: var(--card-background);
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--box-shadow-subtle);
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap; /* Pour la réactivité */
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.welcome-message {
+  font-size: 2rem;
+  color: var(--primary-color);
+  margin: 0;
+}
+
+.header-controls {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.week-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#week-select { /* ID corrigé */
+  padding: 8px 12px;
+  border: 1px solid var(--light-gray);
+  border-radius: var(--border-radius-small);
+  font-size: 0.95rem;
+  background-color: #f8f8f8;
+  cursor: pointer;
+}
+
+#date-range {
+  font-weight: 600;
+  color: var(--dark-gray);
+  font-size: 0.95rem;
+}
+
+/* Styles des onglets de jour */
+.tabs-navigation {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  background-color: #f8f8f8;
+  border-radius: var(--border-radius-medium);
+  padding: 5px;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tab {
+  padding: 8px 15px;
+  border: none;
+  background-color: transparent;
+  color: var(--dark-gray);
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--border-radius-small);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  white-space: nowrap; /* Empêche les noms de jours de se casser */
+}
+
+.tab:hover {
+  background-color: var(--light-gray);
+}
+
+.tab.active {
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: 600;
+}
+
+.tab:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+
+/* Message d'information */
+.info-message {
+  text-align: center;
+  padding: 15px;
+  background-color: #e9f7ef;
+  border: 1px solid #cce5da;
+  border-radius: var(--border-radius-medium);
+  color: #155724;
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+}
+
+/* Conteneur du tableau */
+.table-container {
+    overflow-x: auto; /* Permet le défilement horizontal si le tableau est trop large */
+    margin-top: 20px;
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius-medium);
+    box-shadow: var(--box-shadow-subtle);
+}
+
+/* Tableau du planning */
 .planning-table {
-    width: 100%; /* Assure que le tableau prend la largeur disponible */
+    width: 100%;
     border-collapse: collapse;
-    font-size: 0.9rem; /* Adapte la taille de police */
-    table-layout: auto; /* Permet aux colonnes de s'adapter au contenu */
-    background-color: var(--card-background); /* Utilise la couleur de fond de la carte */
+    font-size: 0.85rem; /* Ajusté pour les nombreuses colonnes */
+    table-layout: fixed; /* TRÈS IMPORTANT: Force les colonnes à avoir une largeur fixe */
+    background-color: var(--card-background);
     border-radius: var(--border-radius-medium);
     overflow: hidden; /* Pour que les bords arrondis s'appliquent bien */
 }
 
-.table-container {
-    overflow-x: auto; /* Permet le défilement horizontal si le tableau est trop large */
-    margin-top: 20px;
-    border: 1px solid var(--light-gray); /* Bordure légère autour du conteneur */
-    border-radius: var(--border-radius-medium);
-    box-shadow: var(--box-shadow-subtle); /* Ombre légère */
-}
-
 .planning-table th,
 .planning-table td {
-    padding: 10px 8px; /* Ajuste le padding */
+    padding: 8px 4px; /* Padding réduit pour les cellules */
     text-align: center;
-    border: 1px solid var(--light-gray); /* Bordure des cellules */
+    border: 1px solid var(--light-gray);
     white-space: nowrap; /* Empêche le texte de se casser à la ligne */
     color: var(--text-color);
+    box-sizing: border-box; /* S'assurer que padding et border sont inclus dans la largeur */
 }
 
 .planning-table th {
-    background-color: var(--background-color); /* Couleur de fond pour les en-têtes */
+    background-color: var(--background-color);
     font-weight: 600;
     color: var(--dark-gray);
     position: sticky;
     top: 0;
     z-index: 2;
+    font-size: 0.75rem; /* Taille de police pour les heures, à ajuster si nécessaire */
+    text-overflow: ellipsis; /* Ajouté pour couper le texte si trop long */
+    overflow: hidden; /* Nécessaire avec text-overflow */
 }
 
-/* Colonne Nom/Prénom figée à gauche */
+/* Fixer la largeur de la première colonne (Agent) */
 .planning-table th:first-child,
 .planning-table td:first-child {
     position: sticky;
     left: 0;
-    background-color: var(--card-background); /* Fond blanc pour la colonne figée */
+    background-color: var(--card-background);
     z-index: 3;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.05); /* Ombre sur le côté droit */
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
     font-weight: 600;
-    text-align: left; /* Alignement à gauche pour les noms d'agents */
-    padding-left: 15px; /* Plus de padding pour les noms */
+    text-align: left;
+    padding-left: 15px;
+    min-width: 150px; /* Largeur minimale pour le nom de l'agent */
+    width: 150px; /* Largeur fixe */
 }
 
-/* Créneaux occupés */
-.slot.selected {
-    background-color: var(--success-color); /* Vert pour sélectionné */
+/* Style des créneaux (cellules de données) */
+.planning-table td.slot-cell {
+    height: 25px; /* Hauteur fixe pour les cellules de créneaux */
+    background-color: var(--free-slot-color); /* Couleur pour créneau libre */
+    cursor: default;
+    width: 25px; /* Largeur fixe pour chaque créneau de 30min */
+    min-width: 25px; /* Assure que la cellule ne se rétracte pas trop */
+    position: relative; /* TRÈS IMPORTANT: pour que le ::after soit positionné par rapport à la cellule */
+}
+
+/* Créneau occupé */
+.planning-table td.slot-cell.occupied {
+    background-color: var(--occupied-slot-color); /* Bleu principal pour occupé */
     color: white;
+    cursor: help; /* Change le curseur pour indiquer qu'il y a une info */
 }
 
-.slot.selected:hover {
-    background-color: #218838; /* Vert plus foncé au survol */
+/* Tooltip pour l'heure au survol d'un créneau occupé */
+.planning-table td.slot-cell.occupied:hover::after {
+  content: attr(data-time); /* Affiche le contenu de l'attribut data-time */
+  position: absolute;
+  top: -28px; /* Positionne le tooltip au-dessus de la cellule */
+  left: 50%;
+  transform: translateX(-50%); /* Centre horizontalement le tooltip */
+  background: var(--dark-gray); /* Fond du tooltip */
+  color: white; /* Texte blanc */
+  font-size: 0.7rem; /* Taille de police du tooltip */
+  padding: 4px 8px;
+  border-radius: var(--border-radius-small);
+  white-space: nowrap; /* Empêche le texte du tooltip de passer à la ligne */
+  z-index: 10; /* Assure que le tooltip est au-dessus des autres éléments */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Ombre pour le tooltip */
 }
 
-/* Spinner de chargement (si vous ne l'avez pas déjà dans agent.css) */
-/* C'est déjà dans agent.css, donc pas besoin ici. */
 
-/* Ajustements des éléments de formulaire pour qu'ils soient cohérents avec agent.css */
-/* Les styles pour #week-select sont déjà bien gérés par agent.css */
-/* Si vous avez des inputs text ou autres, utilisez des classes comme .form-input, .form-select
-   et définissez-les dans agent.css si ce n'est pas déjà fait. */
+/* Boutons génériques */
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--border-radius-medium);
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+  text-align: center;
+}
 
-/* Masquer les éléments visuellement mais les garder pour les lecteurs d'écran (Sr-only) */
+.btn-secondary {
+  background-color: var(--secondary-color);
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: var(--secondary-hover-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.2);
+}
+
+.btn-danger {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled,
+.btn.disabled { /* Style pour les boutons désactivés par JS ou la classe disabled */
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none; /* Empêche les événements de clic */
+}
+
+
+/* Footer et bouton de déconnexion */
+.bottom-actions {
+  display: flex;
+  justify-content: flex-end; /* Aligne le bouton à droite */
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--light-gray);
+}
+
+
+/* Spinner de chargement */
+.loading-spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}
+
+.loading-spinner.hidden {
+  display: none;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Styles pour les lecteurs d'écran */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -78,4 +329,90 @@
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
+}
+
+
+/* Media Queries pour la réactivité */
+@media (max-width: 1024px) {
+  .agent-container {
+    padding: 20px;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .header-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+  .week-info {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: 15px;
+  }
+  .agent-container {
+    padding: 15px;
+  }
+  .welcome-message {
+    font-size: 1.8rem;
+  }
+  .tabs-navigation {
+    justify-content: flex-start;
+    overflow-x: auto; /* Permet le défilement des onglets si trop nombreux */
+    -webkit-overflow-scrolling: touch; /* Améliore le défilement sur mobile */
+  }
+  .tabs-navigation::-webkit-scrollbar {
+    height: 4px;
+  }
+  .tabs-navigation::-webkit-scrollbar-thumb {
+    background: var(--light-gray);
+    border-radius: 5px;
+  }
+
+  .planning-table th,
+  .planning-table td {
+      padding: 6px 2px;
+      font-size: 0.8rem; /* Encore plus petit pour les heures */
+  }
+  .planning-table th:first-child,
+  .planning-table td:first-child {
+      min-width: 120px;
+      width: 120px;
+      padding-left: 10px;
+  }
+  .planning-table td.slot-cell {
+      width: 20px; /* Réduire la largeur des slots sur petit écran */
+      min-width: 20px;
+      height: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 10px;
+  }
+  .agent-container {
+    padding: 10px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .welcome-message {
+    font-size: 1.5rem;
+  }
+  .tabs-navigation {
+      padding: 3px;
+  }
+  .tab {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+  }
 }
