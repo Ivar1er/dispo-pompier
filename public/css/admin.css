@@ -1,5 +1,8 @@
 /* admin.css - Pour des ajustements spécifiques ou des surcharges */
 
+/* Import de la police Google Fonts Poppins */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
 /* Variables de couleurs et de design pour la cohérence - À AJUSTER SELON VOS VARIABLES GLOBALES */
 /* Si ces variables sont déjà définies dans un fichier CSS commun (ex: global.css), vous pouvez les supprimer d'ici. */
 :root {
@@ -25,6 +28,15 @@
   --border-radius-small: 6px;
 
   --box-shadow-subtle: 0 6px 20px rgba(0, 0, 0, 0.08);
+
+  /* NOUVELLES VARIABLES POUR LES COULEURS DE LIGNE ALTERNÉES */
+  --row-even-background: #fdfdfd; /* Très léger blanc-gris */
+  --row-odd-background: #f9f9f9; /* Un peu plus gris */
+  /* MODIFICATION : Couleur de bordure de ligne plus prononcée */
+  --row-border-color: #d1d1d1; /* Ancien: #dcdcdc. Nouveau: plus visible */
+  /* NOUVELLE VARIABLE POUR L'EFFET HOVER SUR LA LIGNE */
+  --row-hover-background: #e6f7ff; /* Un bleu très clair pour le survol */
+  --row-hover-border-color: #a3d9ff; /* Bordure plus marquée au survol */
 }
 
 body {
@@ -151,32 +163,29 @@ body {
 
 /* Conteneur du tableau */
 .table-container {
-    overflow-x: auto; /* Permet le défilement horizontal si le tableau est trop large */
+    overflow-x: auto;
     margin-top: 20px;
-    border: 1px solid var(--light-gray);
+    border: 1px solid var(--light-gray); /* Bordure générale du conteneur du tableau */
     border-radius: var(--border-radius-medium);
     box-shadow: var(--box-shadow-subtle);
+    background-color: var(--card-background); /* Fond du conteneur du tableau */
 }
 
 /* Tableau du planning */
 .planning-table {
     width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem; /* Ajusté pour les nombreuses colonnes */
+    border-collapse: collapse; /* TRÈS IMPORTANT: fusionne les bordures des cellules */
+    font-size: 0.85rem;
     table-layout: fixed; /* TRÈS IMPORTANT: Force les colonnes à avoir une largeur fixe */
-    background-color: var(--card-background);
-    border-radius: var(--border-radius-medium);
-    overflow: hidden; /* Pour que les bords arrondis s'appliquent bien */
 }
 
 .planning-table th,
 .planning-table td {
-    padding: 8px 4px; /* Padding réduit pour les cellules */
+    padding: 8px 4px;
     text-align: center;
-    border: 1px solid var(--light-gray);
-    white-space: nowrap; /* Empêche le texte de se casser à la ligne */
+    white-space: nowrap;
     color: var(--text-color);
-    box-sizing: border-box; /* S'assurer que padding et border sont inclus dans la largeur */
+    box-sizing: border-box;
 }
 
 .planning-table th {
@@ -186,9 +195,11 @@ body {
     position: sticky;
     top: 0;
     z-index: 2;
-    font-size: 0.75rem; /* Taille de police pour les heures, à ajuster si nécessaire */
-    text-overflow: ellipsis; /* Ajouté pour couper le texte si trop long */
-    overflow: hidden; /* Nécessaire avec text-overflow */
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    /* AJOUT : Bordure inférieure pour l'en-tête */
+    border-bottom: 1px solid var(--row-border-color);
 }
 
 /* Fixer la largeur de la première colonne (Agent) */
@@ -196,48 +207,107 @@ body {
 .planning-table td:first-child {
     position: sticky;
     left: 0;
-    background-color: var(--card-background);
     z-index: 3;
     box-shadow: 2px 0 5px rgba(0,0,0,0.05);
     font-weight: 600;
     text-align: left;
     padding-left: 15px;
-    min-width: 150px; /* Largeur minimale pour le nom de l'agent */
-    width: 150px; /* Largeur fixe */
+    min-width: 150px;
+    width: 150px;
+    /* AJOUT : Bordure droite pour la colonne sticky */
+    border-right: 1px solid var(--row-border-color);
+    /* MODIFICATION : Couleur de texte plus foncée pour le nom de l'agent */
+    color: var(--text-color); /* Assure une bonne visibilité */
 }
+
+/* NOUVEAUX STYLES POUR L'AMÉLIORATION DE LA VISIBILITÉ DES LIGNES */
+
+/* Base pour les lignes du tableau */
+.planning-table tbody tr {
+    /* AJOUT : Bordure inférieure plus marquée pour chaque ligne */
+    border-bottom: 1px solid var(--row-border-color);
+    transition: background-color 0.3s ease, border-color 0.3s ease; /* Transition douce pour le hover */
+}
+
+/* S'assurer que la dernière ligne n'a pas de bordure en bas pour la propreté visuelle */
+.planning-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+/* Alternance des couleurs de fond pour les lignes */
+.planning-table tbody tr:nth-child(even) {
+    background-color: var(--row-even-background); /* Très léger blanc-gris */
+}
+
+.planning-table tbody tr:nth-child(odd) {
+    background-color: var(--row-odd-background); /* Un peu plus gris */
+}
+
+/* Effet au survol de la ligne entière (tr) */
+.planning-table tbody tr:hover {
+    background-color: var(--row-hover-background); /* Bleu très clair au survol */
+    border-color: var(--row-hover-border-color); /* Bordure bleue plus marquée au survol */
+}
+
+/* S'assurer que les cellules ont un background transparent pour laisser voir la couleur de la ligne */
+.planning-table td {
+    background-color: transparent; /* Permet aux couleurs de ligne d'être visibles */
+    border: none; /* Supprime les bordures individuelles des cellules pour une ligne continue */
+    /* Bordure droite très fine pour les séparations verticales des slots */
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+}
+.planning-table td:last-child {
+    border-right: none; /* Pas de bordure sur le dernier slot d'une ligne */
+}
+
+/* Réappliquer la couleur de fond alternée et l'effet hover à la première colonne sticky */
+.planning-table tbody tr:nth-child(even) td:first-child {
+    background-color: var(--row-even-background);
+}
+.planning-table tbody tr:nth-child(odd) td:first-child {
+    background-color: var(--row-odd-background);
+}
+.planning-table tbody tr:hover td:first-child {
+    background-color: var(--row-hover-background); /* La première colonne sticky suit le hover de la ligne */
+}
+/* La première colonne sticky a déjà sa bordure droite définie plus haut */
+/* Et la bordure du bas est gérée par la ligne (tr) */
+
 
 /* Style des créneaux (cellules de données) */
 .planning-table td.slot-cell {
-    height: 25px; /* Hauteur fixe pour les cellules de créneaux */
+    height: 25px;
     background-color: var(--free-slot-color); /* Couleur pour créneau libre */
     cursor: default;
     width: 25px; /* Largeur fixe pour chaque créneau de 30min */
-    min-width: 25px; /* Assure que la cellule ne se rétracte pas trop */
-    position: relative; /* TRÈS IMPORTANT: pour que le ::after soit positionné par rapport à la cellule */
+    min-width: 25px;
+    position: relative;
+    /* La bordure droite est gérée par .planning-table td */
 }
+
 
 /* Créneau occupé */
 .planning-table td.slot-cell.occupied {
     background-color: var(--occupied-slot-color); /* Bleu principal pour occupé */
     color: white;
-    cursor: help; /* Change le curseur pour indiquer qu'il y a une info */
+    cursor: help;
 }
 
 /* Tooltip pour l'heure au survol d'un créneau occupé */
 .planning-table td.slot-cell.occupied:hover::after {
-  content: attr(data-time); /* Affiche le contenu de l'attribut data-time */
+  content: attr(data-time);
   position: absolute;
-  top: -28px; /* Positionne le tooltip au-dessus de la cellule */
+  top: -28px;
   left: 50%;
-  transform: translateX(-50%); /* Centre horizontalement le tooltip */
-  background: var(--dark-gray); /* Fond du tooltip */
-  color: white; /* Texte blanc */
-  font-size: 0.7rem; /* Taille de police du tooltip */
+  transform: translateX(-50%);
+  background: var(--dark-gray);
+  color: white;
+  font-size: 0.7rem;
   padding: 4px 8px;
   border-radius: var(--border-radius-small);
-  white-space: nowrap; /* Empêche le texte du tooltip de passer à la ligne */
-  z-index: 10; /* Assure que le tooltip est au-dessus des autres éléments */
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Ombre pour le tooltip */
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
 
@@ -282,17 +352,17 @@ body {
 }
 
 .btn:disabled,
-.btn.disabled { /* Style pour les boutons désactivés par JS ou la classe disabled */
+.btn.disabled {
     opacity: 0.6;
     cursor: not-allowed;
-    pointer-events: none; /* Empêche les événements de clic */
+    pointer-events: none;
 }
 
 
 /* Footer et bouton de déconnexion */
 .bottom-actions {
   display: flex;
-  justify-content: flex-end; /* Aligne le bouton à droite */
+  justify-content: flex-end;
   margin-top: 30px;
   padding-top: 20px;
   border-top: 1px solid var(--light-gray);
@@ -367,8 +437,8 @@ body {
   }
   .tabs-navigation {
     justify-content: flex-start;
-    overflow-x: auto; /* Permet le défilement des onglets si trop nombreux */
-    -webkit-overflow-scrolling: touch; /* Améliore le défilement sur mobile */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .tabs-navigation::-webkit-scrollbar {
     height: 4px;
@@ -381,7 +451,7 @@ body {
   .planning-table th,
   .planning-table td {
       padding: 6px 2px;
-      font-size: 0.8rem; /* Encore plus petit pour les heures */
+      font-size: 0.8rem;
   }
   .planning-table th:first-child,
   .planning-table td:first-child {
@@ -390,7 +460,7 @@ body {
       padding-left: 10px;
   }
   .planning-table td.slot-cell {
-      width: 20px; /* Réduire la largeur des slots sur petit écran */
+      width: 20px;
       min-width: 20px;
       height: 20px;
   }
@@ -414,5 +484,17 @@ body {
   .tab {
       padding: 6px 10px;
       font-size: 0.8rem;
+  }
+
+  .planning-table th:first-child,
+  .planning-table td:first-child {
+      min-width: 100px;
+      width: 100px;
+      padding-left: 8px;
+  }
+  .planning-table td.slot-cell {
+      width: 18px;
+      min-width: 18px;
+      height: 18px;
   }
 }

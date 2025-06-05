@@ -34,7 +34,7 @@ const agentInfos = {
 
 // DOM Elements
 const weekSelect = document.getElementById("week-select");
-const dateRangeDisplay = document.getElementById("date-range");
+// const dateRangeDisplay = document.getElementById("date-range"); // COMMENTÉ/SUPPRIMÉ : Cet élément n'est plus nécessaire
 const planningContainer = document.getElementById("global-planning");
 const loadingSpinner = document.getElementById("loading-spinner");
 const tabButtons = document.querySelectorAll(".tab");
@@ -72,6 +72,7 @@ function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
   return `du ${format(start)} au ${format(end)}`;
 }
 
+// MODIFICATION ICI : Intégration des dates dans le texte des options du sélecteur de semaine
 function updateWeekSelector(availableWeeks) {
   weekSelect.innerHTML = "";
   const sorted = Array.from(availableWeeks).sort((a, b) => {
@@ -80,7 +81,9 @@ function updateWeekSelector(availableWeeks) {
   sorted.forEach(weekKey => {
     const opt = document.createElement("option");
     opt.value = weekKey;
-    opt.textContent = `Semaine ${weekKey.split("-")[1]}`;
+    const weekNum = parseInt(weekKey.split("-")[1]);
+    const dateRange = getWeekDateRange(weekNum); // Récupère la chaîne de dates
+    opt.textContent = `Semaine ${weekNum} (${dateRange})`; // Intègre la chaîne de dates dans le texte de l'option
     weekSelect.appendChild(opt);
   });
 
@@ -120,9 +123,7 @@ async function loadPlanning() {
 
 // Nouvelle fonction pour gérer la mise à jour de l'affichage (date et planning)
 function updateDisplay(weekNumber, planningData) {
-  if (dateRangeDisplay) {
-    dateRangeDisplay.textContent = getWeekDateRange(weekNumber);
-  }
+  // LIGNE SUPPRIMÉE/COMMENTÉE : dateRangeDisplay.textContent = getWeekDateRange(weekNumber);
   showDay(currentDay);
 }
 

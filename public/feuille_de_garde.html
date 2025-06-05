@@ -37,7 +37,31 @@
                 <button id="add-time-slot-btn" class="add-time-slot-btn">+</button>
             </div>
 
+            <!-- Nouvelle section pour la gestion du personnel et des agents d'astreinte -->
+            <div class="personnel-management-section">
+                <div class="available-personnel-container">
+                    <h2>Personnel Disponible</h2>
+                    <div id="available-personnel-list" class="available-personnel-list">
+                        <!-- Les éléments du personnel seront rendus ici par JS -->
+                    </div>
+                </div>
+
+                <div class="on-duty-agents-container">
+                    <h2>Agents d'astreinte</h2>
+                    <p class="on-duty-info">Seuls les agents glissés ici seront utilisés pour la génération automatique et l'affectation manuelle.</p>
+                    <div id="on-duty-agents-grid" class="on-duty-agents-grid">
+                        <!-- Les 10 cases d'astreinte seront rendues ici par JS -->
+                    </div>
+                </div>
+            </div>
+
             <div id="engine-details-page" class="engine-details-page" style="display: none;">
+                <div class="engine-details-header">
+                    <button id="back-to-roster-btn" class="back-to-roster-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                        Retour à la feuille de garde
+                    </button>
+                </div>
                 <div class="engine-grid">
                     </div>
             </div>
