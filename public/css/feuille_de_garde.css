@@ -1,731 +1,731 @@
 /* Styles généraux du corps et de la police */
 body {
-    font-family: 'Inter', sans-serif; /* Police de caractères Inter, avec une police sans-serif de secours */
-    background-color: #f0f2f5; /* Couleur de fond légère pour le corps */
-    margin: 0; /* Supprime les marges par défaut du corps */
-    padding: 20px; /* Ajoute un rembourrage autour du contenu */
-    color: #333; /* Couleur de texte par défaut */
+font-family: 'Inter', sans-serif; /* Police de caractères Inter, avec une police sans-serif de secours */
+background-color: #f0f2f5; /* Couleur de fond légère pour le corps */
+margin: 0; /* Supprime les marges par défaut du corps */
+padding: 20px; /* Ajoute un rembourrage autour du contenu */
+color: #333; /* Couleur de texte par défaut */
 }
 
 /* Conteneur principal de la feuille de garde */
 .roster-wrapper {
-    max-width: 1400px; /* Largeur maximale, ajustable si nécessaire */
-    margin: 0 auto; /* Centre le conteneur horizontalement */
-    background-color: #fff; /* Fond blanc pour le conteneur */
-    border-radius: 8px; /* Bords arrondis */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Ombre douce */
-    overflow: hidden; /* Masque le contenu qui dépasse les bords arrondis */
+max-width: 1400px; /* Largeur maximale, ajustable si nécessaire */
+margin: 0 auto; /* Centre le conteneur horizontalement */
+background-color: #fff; /* Fond blanc pour le conteneur */
+border-radius: 8px; /* Bords arrondis */
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Ombre douce */
+overflow: hidden; /* Masque le contenu qui dépasse les bords arrondis */
 }
 
 /* Styles de l'en-tête */
 .roster-header {
-    display: flex; /* Utilise Flexbox pour aligner les éléments */
-    justify-content: space-between; /* Espace les éléments à chaque extrémité */
-    align-items: center; /* Centre les éléments verticalement */
-    padding: 15px 25px; /* Rembourrage intérieur */
-    background-color: #ffffff; /* Fond blanc pour l'en-tête */
-    border-bottom: 1px solid #eee; /* Ligne de séparation inférieure */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03); /* Ombre légère en bas */
+display: flex; /* Utilise Flexbox pour aligner les éléments */
+justify-content: space-between; /* Espace les éléments à chaque extrémité */
+align-items: center; /* Centre les éléments verticalement */
+padding: 15px 25px; /* Rembourrage intérieur */
+background-color: #ffffff; /* Fond blanc pour l'en-tête */
+border-bottom: 1px solid #eee; /* Ligne de séparation inférieure */
+box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03); /* Ombre légère en bas */
 }
 
 /* Conteneurs pour les éléments gauche et droit de l'en-tête */
 .header-left, .header-right {
-    display: flex; /* Utilise Flexbox */
-    align-items: center; /* Centre les éléments verticalement */
-    gap: 15px; /* Espacement entre les éléments */
+display: flex; /* Utilise Flexbox */
+align-items: center; /* Centre les éléments verticalement */
+gap: 15px; /* Espacement entre les éléments */
 }
 
 /* Bouton de retour */
 .back-button {
-    background-color: #e0e0e0; /* Fond gris clair */
-    color: #333; /* Couleur du texte */
-    padding: 8px 15px; /* Rembourrage */
-    border-radius: 5px; /* Bords arrondis */
-    text-decoration: none; /* Pas de soulignement */
-    font-size: 0.9em; /* Taille de police légèrement plus petite */
-    transition: background-color 0.2s; /* Transition douce pour le survol */
+background-color: #e0e0e0; /* Fond gris clair */
+color: #333; /* Couleur du texte */
+padding: 8px 15px; /* Rembourrage */
+border-radius: 5px; /* Bords arrondis */
+text-decoration: none; /* Pas de soulignement */
+font-size: 0.9em; /* Taille de police légèrement plus petite */
+transition: background-color 0.2s; /* Transition douce pour le survol */
 }
 
 .back-button:hover {
-    background-color: #d0d0d0; /* Changement de couleur au survol */
+background-color: #d0d0d0; /* Changement de couleur au survol */
 }
 
 /* Sélecteur de date */
 .date-selector input[type="date"] {
-    padding: 8px 10px; /* Rembourrage */
-    border: 1px solid #ddd; /* Bordure fine */
-    border-radius: 5px; /* Bords arrondis */
-    font-size: 1em; /* Taille de police standard */
+padding: 8px 10px; /* Rembourrage */
+border: 1px solid #ddd; /* Bordure fine */
+border-radius: 5px; /* Bords arrondis */
+font-size: 1em; /* Taille de police standard */
 }
 
 /* Bouton d'actualisation */
 .refresh-button {
-    display: flex; /* Utilise Flexbox */
-    align-items: center; /* Centre les éléments verticalement */
-    gap: 5px; /* Espacement entre l'icône et le texte */
-    background-color: #007bff; /* Fond bleu */
-    color: white; /* Texte blanc */
-    padding: 8px 15px; /* Rembourrage */
-    border: none; /* Pas de bordure */
-    border-radius: 5px; /* Bords arrondis */
-    cursor: pointer; /* Curseur pointeur au survol */
-    font-size: 0.9em; /* Taille de police légèrement plus petite */
-    transition: background-color 0.2s; /* Transition douce */
+display: flex; /* Utilise Flexbox */
+align-items: center; /* Centre les éléments verticalement */
+gap: 5px; /* Espacement entre l'icône et le texte */
+background-color: #007bff; /* Fond bleu */
+color: white; /* Texte blanc */
+padding: 8px 15px; /* Rembourrage */
+border: none; /* Pas de bordure */
+border-radius: 5px; /* Bords arrondis */
+cursor: pointer; /* Curseur pointeur au survol */
+font-size: 0.9em; /* Taille de police légèrement plus petite */
+transition: background-color 0.2s; /* Transition douce */
 }
 
 .refresh-button:hover {
-    background-color: #0056b3; /* Changement de couleur au survol */
+background-color: #0056b3; /* Changement de couleur au survol */
 }
 
 /* Titre de la feuille de garde */
 .roster-title {
-    font-size: 1.5em; /* Taille de police plus grande */
-    font-weight: 600; /* Gras */
-    color: #333; /* Couleur du texte */
-    margin: 0; /* Supprime les marges par défaut */
+font-size: 1.5em; /* Taille de police plus grande */
+font-weight: 600; /* Gras */
+color: #333; /* Couleur du texte */
+margin: 0; /* Supprime les marges par défaut */
 }
 
 /* Flèches de navigation (jour précédent/suivant) */
 .nav-arrow {
-    background: none; /* Pas de fond */
-    border: 1px solid #ddd; /* Bordure fine */
-    border-radius: 50%; /* Forme circulaire */
-    width: 30px; /* Largeur fixe */
-    height: 30px; /* Hauteur fixe */
-    display: flex; /* Utilise Flexbox */
-    justify-content: center; /* Centre le contenu horizontalement */
-    align-items: center; /* Centre le contenu verticalement */
-    cursor: pointer; /* Curseur pointeur au survol */
-    transition: background-color 0.2s, border-color 0.2s; /* Transitions douces */
+background: none; /* Pas de fond */
+border: 1px solid #ddd; /* Bordure fine */
+border-radius: 50%; /* Forme circulaire */
+width: 30px; /* Largeur fixe */
+height: 30px; /* Hauteur fixe */
+display: flex; /* Utilise Flexbox */
+justify-content: center; /* Centre le contenu horizontalement */
+align-items: center; /* Centre le contenu verticalement */
+cursor: pointer; /* Curseur pointeur au survol */
+transition: background-color 0.2s, border-color 0.2s; /* Transitions douces */
 }
 
 .nav-arrow svg {
-    color: #555; /* Couleur de l'icône SVG */
-    width: 18px; /* Largeur de l'icône */
-    height: 18px; /* Hauteur de l'icône */
+color: #555; /* Couleur de l'icône SVG */
+width: 18px; /* Largeur de l'icône */
+height: 18px; /* Hauteur de l'icône */
 }
 
 .nav-arrow:hover {
-    background-color: #f0f0f0; /* Changement de fond au survol */
-    border-color: #ccc; /* Changement de couleur de bordure au survol */
+background-color: #f0f0f0; /* Changement de fond au survol */
+border-color: #ccc; /* Changement de couleur de bordure au survol */
 }
 
 /* Conteneur des boutons de créneaux horaires */
 .time-slot-buttons-container {
-    display: flex; /* Organise les boutons en ligne */
-    gap: 10px; /* Espacement entre les boutons */
-    padding: 20px 25px; /* Rembourrage */
-    background-color: #f9f9f9; /* Fond légèrement gris */
-    border-bottom: 1px solid #eee; /* Ligne de séparation inférieure */
-    overflow-x: auto; /* Permet le défilement horizontal si de nombreux créneaux */
-    white-space: nowrap; /* Empêche les boutons de passer à la ligne */
+display: flex; /* Organise les boutons en ligne */
+gap: 10px; /* Espacement entre les boutons */
+padding: 20px 25px; /* Rembourrage */
+background-color: #f9f9f9; /* Fond légèrement gris */
+border-bottom: 1px solid #eee; /* Ligne de séparation inférieure */
+overflow-x: auto; /* Permet le défilement horizontal si de nombreux créneaux */
+white-space: nowrap; /* Empêche les boutons de passer à la ligne */
 }
 
 /* Bouton de créneau horaire */
 .time-slot-button {
-    background-color: #e0e0e0; /* Gris clair */
-    color: #333; /* Couleur du texte */
-    padding: 10px 20px; /* Rembourrage */
-    border: none; /* Pas de bordure */
-    border-radius: 8px; /* Bords arrondis */
-    cursor: pointer; /* Curseur pointeur */
-    font-size: 1em; /* Taille de police standard */
-    font-weight: 500; /* Poids de police moyen */
-    transition: background-color 0.2s, box-shadow 0.2s; /* Transitions douces */
-    flex-shrink: 0; /* Empêche les boutons de rétrécir */
-    position: relative; /* Nécessaire pour positionner le bouton de suppression */
-    padding-right: 35px; /* Crée de l'espace pour le bouton de suppression */
+background-color: #e0e0e0; /* Gris clair */
+color: #333; /* Couleur du texte */
+padding: 10px 20px; /* Rembourrage */
+border: none; /* Pas de bordure */
+border-radius: 8px; /* Bords arrondis */
+cursor: pointer; /* Curseur pointeur */
+font-size: 1em; /* Taille de police standard */
+font-weight: 500; /* Poids de police moyen */
+transition: background-color 0.2s, box-shadow 0.2s; /* Transitions douces */
+flex-shrink: 0; /* Empêche les boutons de rétrécir */
+position: relative; /* Nécessaire pour positionner le bouton de suppression */
+padding-right: 35px; /* Crée de l'espace pour le bouton de suppression */
 }
 
 .time-slot-button:hover {
-    background-color: #d0d0d0; /* Changement de fond au survol */
+background-color: #d0d0d0; /* Changement de fond au survol */
 }
 
 /* Bouton de créneau horaire actif */
 .time-slot-button.active {
-    background-color: #007bff; /* Fond bleu pour le créneau actif */
-    color: white; /* Texte blanc */
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2); /* Ombre pour mettre en évidence */
+background-color: #007bff; /* Fond bleu pour le créneau actif */
+color: white; /* Texte blanc */
+box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2); /* Ombre pour mettre en évidence */
 }
 
 /* Bouton d'ajout de créneau horaire */
 .add-time-slot-btn {
-    background-color: #28a745; /* Vert pour le bouton d'ajout */
-    color: white; /* Texte blanc */
-    padding: 10px 20px; /* Rembourrage */
-    border: none; /* Pas de bordure */
-    border-radius: 8px; /* Bords arrondis */
-    cursor: pointer; /* Curseur pointeur */
-    font-size: 1em; /* Taille de police standard */
-    font-weight: 500; /* Poids de police moyen */
-    transition: background-color 0.2s; /* Transition douce */
-    flex-shrink: 0; /* Empêche le bouton de rétrécir */
+background-color: #28a745; /* Vert pour le bouton d'ajout */
+color: white; /* Texte blanc */
+padding: 10px 20px; /* Rembourrage */
+border: none; /* Pas de bordure */
+border-radius: 8px; /* Bords arrondis */
+cursor: pointer; /* Curseur pointeur */
+font-size: 1em; /* Taille de police standard */
+font-weight: 500; /* Poids de police moyen */
+transition: background-color 0.2s; /* Transition douce */
+flex-shrink: 0; /* Empêche le bouton de rétrécir */
 }
 
 .add-time-slot-btn:hover {
-    background-color: #218838; /* Changement de fond au survol */
+background-color: #218838; /* Changement de fond au survol */
 }
 
 /* Bouton de suppression de créneau horaire */
 .delete-time-slot-btn {
-    position: absolute; /* Positionnement absolu par rapport au bouton parent */
-    top: 5px; /* Décalage depuis le haut */
-    right: 5px; /* Décalage depuis la droite */
-    background-color: #dc3545; /* Rouge pour la suppression */
-    color: white; /* Texte blanc */
-    border: none; /* Pas de bordure */
-    border-radius: 50%; /* Bouton circulaire */
-    width: 20px; /* Largeur fixe */
-    height: 20px; /* Hauteur fixe */
-    display: flex; /* Utilise Flexbox */
-    justify-content: center; /* Centre le contenu horizontalement */
-    align-items: center; /* Centre le contenu verticalement */
-    font-size: 0.8em; /* Taille de police légèrement plus petite */
-    cursor: pointer; /* Curseur pointeur */
-    line-height: 1; /* Ajuste l'alignement vertical du texte */
-    transition: background-color 0.2s; /* Transition douce */
+position: absolute; /* Positionnement absolu par rapport au bouton parent */
+top: 5px; /* Décalage depuis le haut */
+right: 5px; /* Décalage depuis la droite */
+background-color: #dc3545; /* Rouge pour la suppression */
+color: white; /* Texte blanc */
+border: none; /* Pas de bordure */
+border-radius: 50%; /* Bouton circulaire */
+width: 20px; /* Largeur fixe */
+height: 20px; /* Hauteur fixe */
+display: flex; /* Utilise Flexbox */
+justify-content: center; /* Centre le contenu horizontalement */
+align-items: center; /* Centre le contenu verticalement */
+font-size: 0.8em; /* Taille de police légèrement plus petite */
+cursor: pointer; /* Curseur pointeur */
+line-height: 1; /* Ajuste l'alignement vertical du texte */
+transition: background-color 0.2s; /* Transition douce */
 }
 
 .delete-time-slot-btn:hover {
-    background-color: #c82333; /* Changement de fond au survol */
+background-color: #c82333; /* Changement de fond au survol */
 }
 
 /* Page des détails des engins */
 .engine-details-page {
-    padding: 20px 25px; /* Rembourrage */
-    /* Vous pourriez vouloir ajuster la largeur maximale ou définir une hauteur spécifique si nécessaire */
+padding: 20px 25px; /* Rembourrage */
+/* Vous pourriez vouloir ajuster la largeur maximale ou définir une hauteur spécifique si nécessaire */
 }
 
 /* Grille des engins */
 .engine-grid {
-    display: grid; /* Crée une grille */
-    /* Crée une grille responsive pour 5 engins, similaire à la mise en page de votre capture d'écran */
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Ajuste minmax si nécessaire */
-    gap: 20px; /* Espacement entre les "cases" d'engin */
+display: grid; /* Crée une grille */
+/* Crée une grille responsive pour 5 engins, similaire à la mise en page de votre capture d'écran */
+grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Ajuste minmax si nécessaire */
+gap: 20px; /* Espacement entre les "cases" d'engin */
 }
 
 /* Style pour chaque "case" d'engin (imitant votre capture d'écran) */
 .engine-case {
-    background-color: #f8f8f8; /* Fond clair pour la case */
-    border: 1px solid #e0e0e0; /* Bordure fine */
-    border-radius: 8px; /* Bords arrondis */
-    padding: 15px; /* Rembourrage */
-    text-align: center; /* Centre le texte */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Ombre douce */
-    cursor: pointer; /* Indique qu'il est cliquable */
-    transition: transform 0.2s, box-shadow 0.2s; /* Transitions douces */
+background-color: #f8f8f8; /* Fond clair pour la case */
+border: 1px solid #e0e0e0; /* Bordure fine */
+border-radius: 8px; /* Bords arrondis */
+padding: 15px; /* Rembourrage */
+text-align: center; /* Centre le texte */
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Ombre douce */
+cursor: pointer; /* Indique qu'il est cliquable */
+transition: transform 0.2s, box-shadow 0.2s; /* Transitions douces */
 }
 
 .engine-case:hover {
-    transform: translateY(-3px); /* Effet de léger soulèvement au survol */
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Ombre plus prononcée au survol */
+transform: translateY(-3px); /* Effet de léger soulèvement au survol */
+box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Ombre plus prononcée au survol */
 }
 
 .engine-case h3 {
-    margin-top: 0; /* Supprime la marge supérieure par défaut */
-    color: #007bff; /* Couleur bleue */
-    font-size: 1.2em; /* Taille de police */
-    font-weight: 600; /* Gras */
-    margin-bottom: 5px; /* Marge inférieure */
+margin-top: 0; /* Supprime la marge supérieure par défaut */
+color: #007bff; /* Couleur bleue */
+font-size: 1.2em; /* Taille de police */
+font-weight: 600; /* Gras */
+margin-bottom: 5px; /* Marge inférieure */
 }
 
 .engine-case .places-count {
-    background-color: #007bff; /* Fond bleu pour le compteur */
-    color: white; /* Texte blanc */
-    padding: 3px 8px; /* Rembourrage */
-    border-radius: 12px; /* Forme de pilule */
-    font-size: 0.8em; /* Taille de police plus petite */
-    font-weight: 600; /* Gras */
-    display: inline-block; /* Permet le rembourrage et le border-radius */
-    margin-bottom: 15px; /* Espacement entre le compteur et les détails */
+background-color: #007bff; /* Fond bleu pour le compteur */
+color: white; /* Texte blanc */
+padding: 3px 8px; /* Rembourrage */
+border-radius: 12px; /* Forme de pilule */
+font-size: 0.8em; /* Taille de police plus petite */
+font-weight: 600; /* Gras */
+display: inline-block; /* Permet le rembourrage et le border-radius */
+margin-bottom: 15px; /* Espacement entre le compteur et les détails */
 }
 
 .engine-case .personnel-list {
-    list-style: none; /* Supprime les puces de liste */
-    padding: 0; /* Supprime le rembourrage par défaut */
-    margin: 0; /* Supprime les marges par défaut */
+list-style: none; /* Supprime les puces de liste */
+padding: 0; /* Supprime le rembourrage par défaut */
+margin: 0; /* Supprime les marges par défaut */
 }
 
 .engine-case .personnel-list li {
-    padding: 3px 0; /* Rembourrage vertical */
-    font-size: 0.9em; /* Taille de police légèrement plus petite */
-    color: #555; /* Couleur de texte plus claire */
-    border-top: 1px dashed #eee; /* Séparateur en pointillés pour le personnel */
+padding: 3px 0; /* Rembourrage vertical */
+font-size: 0.9em; /* Taille de police légèrement plus petite */
+color: #555; /* Couleur de texte plus claire */
+border-top: 1px dashed #eee; /* Séparateur en pointillés pour le personnel */
 }
 
 .engine-case .personnel-list li:first-child {
-    border-top: none; /* Pas de bordure supérieure pour le premier élément */
+border-top: none; /* Pas de bordure supérieure pour le premier élément */
 }
 
 /* Grille de la feuille de garde (votre contenu original) */
 .roster-grid {
-    padding: 20px 25px; /* Rembourrage */
-    display: grid; /* Supposons qu'il s'agit d'une mise en page en grille */
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Exemple : Ajuste la taille des colonnes */
-    gap: 20px; /* Espacement entre les éléments de la grille */
+padding: 20px 25px; /* Rembourrage */
+display: grid; /* Supposons qu'il s'agit d'une mise en page en grille */
+grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Exemple : Ajuste la taille des colonnes */
+gap: 20px; /* Espacement entre les éléments de la grille */
 }
 
 /* Masque le message de chargement lorsque le contenu est chargé par JS */
 .roster-grid .loading-message {
-    text-align: center; /* Centre le texte */
-    grid-column: 1 / -1; /* S'étend sur toutes les colonnes */
-    color: #777; /* Couleur de texte grise */
+text-align: center; /* Centre le texte */
+grid-column: 1 / -1; /* S'étend sur toutes les colonnes */
+color: #777; /* Couleur de texte grise */
 }
 
 /* Styles pour le nouveau bouton de retour */
 .back-to-roster-btn {
-    background-color: #6c757d; /* Couleur grise */
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.95em;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: background-color 0.2s ease, transform 0.1s ease;
-    margin-bottom: 20px; /* Espace sous le bouton */
+background-color: #6c757d; /* Couleur grise */
+color: white;
+padding: 10px 15px;
+border: none;
+border-radius: 8px;
+cursor: pointer;
+font-size: 0.95em;
+font-weight: 500;
+display: flex;
+align-items: center;
+gap: 5px;
+transition: background-color 0.2s ease, transform 0.1s ease;
+margin-bottom: 20px; /* Espace sous le bouton */
 }
 
 .back-to-roster-btn:hover {
-    background-color: #5a6268;
-    transform: translateY(-1px);
+background-color: #5a6268;
+transform: translateY(-1px);
 }
 
 /* Un peu de style pour l'en-tête de la page des détails des engins pour positionner le bouton */
 .engine-details-header {
-    display: flex;
-    justify-content: flex-start; /* Aligne le bouton à gauche */
-    width: 100%;
-    margin-bottom: 15px; /* Espace entre le bouton et la grille des engins */
+display: flex;
+justify-content: flex-start; /* Aligne le bouton à gauche */
+width: 100%;
+margin-bottom: 15px; /* Espace entre le bouton et la grille des engins */
 }
 
 
 /* --- Nouveaux styles pour la gestion du personnel et le drag-and-drop --- */
 
 .personnel-management-section {
-    display: flex;
-    flex-wrap: wrap; /* Permet aux colonnes de passer à la ligne sur les petits écrans */
-    gap: 20px;
-    padding: 20px 25px;
-    border-bottom: 1px solid #eee;
-    background-color: #f9f9f9;
+display: flex;
+flex-wrap: wrap; /* Permet aux colonnes de passer à la ligne sur les petits écrans */
+gap: 20px;
+padding: 20px 25px;
+border-bottom: 1px solid #eee;
+background-color: #f9f9f9;
 }
 
 .available-personnel-container,
 .on-duty-agents-container {
-    flex: 1; /* Prend l'espace disponible */
-    min-width: 280px; /* Largeur minimale pour éviter un trop grand rétrécissement */
-    background-color: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    padding: 15px;
+flex: 1; /* Prend l'espace disponible */
+min-width: 280px; /* Largeur minimale pour éviter un trop grand rétrécissement */
+background-color: #fff;
+border: 1px solid #e0e0e0;
+border-radius: 8px;
+box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+padding: 15px;
 }
 
 .personnel-management-section h2 {
-    margin-top: 0;
-    color: #007bff;
-    font-size: 1.3em;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-    margin-bottom: 15px;
+margin-top: 0;
+color: #007bff;
+font-size: 1.3em;
+border-bottom: 1px solid #eee;
+padding-bottom: 10px;
+margin-bottom: 15px;
 }
 
 .available-personnel-list {
-    max-height: 300px; /* Hauteur fixe avec défilement */
-    overflow-y: auto;
-    padding-right: 5px; /* Espace pour la barre de défilement */
+max-height: 300px; /* Hauteur fixe avec défilement */
+overflow-y: auto;
+padding-right: 5px; /* Espace pour la barre de défilement */
 }
 
 .available-personnel-item {
-    background-color: #e9ecef; /* Gris clair */
-    border: 1px solid #dee2e6;
-    border-radius: 5px;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    cursor: grab; /* Curseur pour indiquer le glisser */
-    font-size: 0.95em;
-    transition: background-color 0.2s, transform 0.1s;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+background-color: #e9ecef; /* Gris clair */
+border: 1px solid #dee2e6;
+border-radius: 5px;
+padding: 8px 12px;
+margin-bottom: 8px;
+cursor: grab; /* Curseur pour indiquer le glisser */
+font-size: 0.95em;
+transition: background-color 0.2s, transform 0.1s;
+display: flex;
+justify-content: space-between;
+align-items: center;
 }
 
 .available-personnel-item:hover {
-    background-color: #d8e0e7;
-    transform: translateY(-1px);
+background-color: #d8e0e7;
+transform: translateY(-1px);
 }
 
 .available-personnel-item.dragging {
-    opacity: 0.5; /* Réduit l'opacité pendant le glisser */
+opacity: 0.5; /* Réduit l'opacité pendant le glisser */
 }
 
 .on-duty-agents-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* 2 colonnes par défaut, ajustables */
-    gap: 10px;
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* 2 colonnes par défaut, ajustables */
+gap: 10px;
 }
 
 .on-duty-slot {
-    background-color: #f0f8ff; /* Bleu très clair */
-    border: 1px dashed #a7d9ff; /* Bordure en pointillés */
-    border-radius: 8px;
-    min-height: 50px; /* Hauteur minimale pour les cases vides */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
-    text-align: center;
-    font-size: 0.9em;
-    color: #6c757d; /* Texte gris */
-    transition: background-color 0.2s, border-color 0.2s;
-    position: relative; /* Pour le bouton de suppression */
+background-color: #f0f8ff; /* Bleu très clair */
+border: 1px dashed #a7d9ff; /* Bordure en pointillés */
+border-radius: 8px;
+min-height: 50px; /* Hauteur minimale pour les cases vides */
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+padding: 10px;
+text-align: center;
+font-size: 0.9em;
+color: #6c757d; /* Texte gris */
+transition: background-color 0.2s, border-color 0.2s;
+position: relative; /* Pour le bouton de suppression */
 }
 
 .on-duty-slot.drag-over {
-    background-color: #d0e9ff; /* Changement de couleur au survol lors du glisser */
-    border-color: #007bff;
+background-color: #d0e9ff; /* Changement de couleur au survol lors du glisser */
+border-color: #007bff;
 }
 
 .on-duty-slot.filled {
-    background-color: #e6ffe6; /* Vert clair pour les cases remplies */
-    border: 1px solid #28a745; /* Bordure verte */
-    color: #333;
-    font-weight: 500;
+background-color: #e6ffe6; /* Vert clair pour les cases remplies */
+border: 1px solid #28a745; /* Bordure verte */
+color: #333;
+font-weight: 500;
 }
 
 .on-duty-slot .remove-agent-btn {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 0.8em;
-    cursor: pointer;
-    line-height: 1;
-    transition: background-color 0.2s;
-    visibility: hidden; /* Caché par défaut */
-    opacity: 0;
-    pointer-events: none; /* Empêche le clic quand caché */
+position: absolute;
+top: 5px;
+right: 5px;
+background-color: #dc3545;
+color: white;
+border: none;
+border-radius: 50%;
+width: 20px;
+height: 20px;
+display: flex;
+justify-content: center;
+align-items: center;
+font-size: 0.8em;
+cursor: pointer;
+line-height: 1;
+transition: background-color 0.2s;
+visibility: hidden; /* Caché par défaut */
+opacity: 0;
+pointer-events: none; /* Empêche le clic quand caché */
 }
 
 .on-duty-slot.filled .remove-agent-btn {
-    visibility: visible; /* Visible quand la case est remplie */
-    opacity: 1;
-    pointer-events: auto;
+visibility: visible; /* Visible quand la case est remplie */
+opacity: 1;
+pointer-events: auto;
 }
 
 .on-duty-slot .remove-agent-btn:hover {
-    background-color: #c82333;
+background-color: #c82333;
 }
 
 
 /* Styles pour les modales d'alerte/confirmation/prompt personnalisées */
 .custom-modal {
-    display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 2000; /* Sit on top */
-    left: 0;
-    top: 0;
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
-    justify-content: center;
-    align-items: center;
-    font-family: 'Inter', sans-serif;
+display: none; /* Hidden by default */
+position: fixed; /* Stay in place */
+z-index: 2000; /* Sit on top */
+left: 0;
+top: 0;
+width: 100%; /* Full width */
+height: 100%; /* Full height */
+overflow: auto; /* Enable scroll if needed */
+background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+justify-content: center;
+align-items: center;
+font-family: 'Inter', sans-serif;
 }
 
 .custom-modal .modal-content {
-    background-color: #fefefe;
-    margin: auto;
-    padding: 25px 30px;
-    border-radius: 12px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    width: 80%;
-    max-width: 400px;
-    text-align: center;
-    animation: fadeIn 0.3s ease-out;
+background-color: #fefefe;
+margin: auto;
+padding: 25px 30px;
+border-radius: 12px;
+box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+width: 80%;
+max-width: 400px;
+text-align: center;
+animation: fadeIn 0.3s ease-out;
 }
 
 .custom-modal h3 {
-    color: #333;
-    font-size: 1.6em;
-    margin-bottom: 15px;
-    font-weight: 600;
+color: #333;
+font-size: 1.6em;
+margin-bottom: 15px;
+font-weight: 600;
 }
 
 .custom-modal p {
-    color: #555;
-    font-size: 1.1em;
-    margin-bottom: 25px;
-    line-height: 1.5;
+color: #555;
+font-size: 1.1em;
+margin-bottom: 25px;
+line-height: 1.5;
 }
 
 .custom-modal .modal-input {
-    width: calc(100% - 20px);
-    padding: 10px;
-    margin-bottom: 20px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 1em;
-    box-sizing: border-box;
+width: calc(100% - 20px);
+padding: 10px;
+margin-bottom: 20px;
+border: 1px solid #ddd;
+border-radius: 8px;
+font-size: 1em;
+box-sizing: border-box;
 }
 
 .custom-modal .modal-actions {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 0; /* Override default modal-actions margin-top */
-    border-top: none; /* Override default modal-actions border-top */
-    padding-top: 0;
+display: flex;
+justify-content: center;
+gap: 15px;
+margin-top: 0; /* Override default modal-actions margin-top */
+border-top: none; /* Override default modal-actions border-top */
+padding-top: 0;
 }
 
 .custom-modal .modal-ok-btn,
 .custom-modal .modal-cancel-btn {
-    padding: 10px 25px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1.1em;
-    font-weight: 600;
-    transition: background-color 0.2s ease, transform 0.1s ease;
+padding: 10px 25px;
+border: none;
+border-radius: 8px;
+cursor: pointer;
+font-size: 1.1em;
+font-weight: 600;
+transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
 .custom-modal .modal-ok-btn {
-    background-color: #28a745; /* Green for OK */
-    color: white;
+background-color: #28a745; /* Green for OK */
+color: white;
 }
 
 .custom-modal .modal-ok-btn:hover {
-    background-color: #218838;
-    transform: translateY(-1px);
+background-color: #218838;
+transform: translateY(-1px);
 }
 
 .custom-modal .modal-cancel-btn {
-    background-color: #dc3545; /* Red for Cancel */
-    color: white;
+background-color: #dc3545; /* Red for Cancel */
+color: white;
 }
 
 .custom-modal .modal-cancel-btn:hover {
-    background-color: #c82333;
-    transform: translateY(-1px);
+background-color: #c82333;
+transform: translateY(-1px);
 }
 
 /* Animation pour l'apparition des modales */
 @keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+from { opacity: 0; transform: scale(0.95); }
+to { opacity: 1; transform: scale(1); }
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .personnel-assignment-modal .modal-content,
-    .custom-modal .modal-content {
-        width: 95%;
-        padding: 20px;
-    }
+.personnel-assignment-modal .modal-content,
+.custom-modal .modal-content {
+width: 95%;
+padding: 20px;
+}
 
-    .personnel-modal-header h3 {
-        font-size: 1.5em;
-    }
+.personnel-modal-header h3 {
+font-size: 1.5em;
+}
 
-    .post-assignment {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
+.post-assignment {
+flex-direction: column;
+align-items: flex-start;
+gap: 8px;
+}
 
-    .post-assignment label {
-        min-width: auto;
-    }
+.post-assignment label {
+min-width: auto;
+}
 
-    .modal-actions {
-        flex-direction: column;
-        gap: 8px;
-    }
+.modal-actions {
+flex-direction: column;
+gap: 8px;
+}
 
-    .modal-actions button {
-        width: 100%;
-    }
+.modal-actions button {
+width: 100%;
+}
 
-    .personnel-management-section {
-        flex-direction: column; /* Empile les sections sur mobile */
-    }
+.personnel-management-section {
+flex-direction: column; /* Empile les sections sur mobile */
+}
 }
 
 /* Styles pour le panneau d'affectation manuel (la modale) */
 .personnel-assignment-modal {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000; /* Assure que la modale est au-dessus du reste */
+position: fixed;
+inset: 0;
+background-color: rgba(0, 0, 0, 0.5);
+display: flex;
+align-items: center;
+justify-content: center;
+z-index: 1000; /* Assure que la modale est au-dessus du reste */
 }
 
 .personnel-assignment-modal .modal-content {
-    background-color: #ffffff;
-    padding: 24px;
-    border-radius: 8px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); /* Ombre adoucie */
-    max-width: 480px;
-    width: 100%;
-    margin-left: 1rem;
-    margin-right: 1rem;
-    position: relative;
-    max-height: 90vh; /* Ajuster selon vos besoins */
-    overflow-y: auto;
+background-color: #ffffff;
+padding: 24px;
+border-radius: 8px;
+box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); /* Ombre adoucie */
+max-width: 480px;
+width: 100%;
+margin-left: 1rem;
+margin-right: 1rem;
+position: relative;
+max-height: 90vh; /* Ajuster selon vos besoins */
+overflow-y: auto;
 }
 
 .personnel-assignment-modal .close-button {
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    color: #6b7280;
-    font-size: 28px; /* Taille ajustée */
-    cursor: pointer;
-    transition: color 0.2s ease-in-out;
+position: absolute;
+top: 8px;
+right: 12px;
+color: #6b7280;
+font-size: 28px; /* Taille ajustée */
+cursor: pointer;
+transition: color 0.2s ease-in-out;
 }
 
 .personnel-assignment-modal .close-button:hover {
-    color: #1f2937;
+color: #1f2937;
 }
 
 .personnel-modal-header {
-    border-bottom: 1px solid #e5e7eb;
-    padding-bottom: 12px;
-    margin-bottom: 16px;
+border-bottom: 1px solid #e5e7eb;
+padding-bottom: 12px;
+margin-bottom: 16px;
 }
 
 .personnel-modal-header h3 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #007bff; /* Couleur ajustée pour coller aux titres d'engin */
-    margin: 0;
+font-size: 20px;
+font-weight: 600;
+color: #007bff; /* Couleur ajustée pour coller aux titres d'engin */
+margin: 0;
 }
 
 .personnel-modal-body {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
+display: grid;
+grid-template-columns: 1fr;
+gap: 16px;
+margin-bottom: 16px;
 }
 
 .post-assignment {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+display: flex;
+flex-direction: column;
+gap: 4px;
 }
 
 .post-assignment label {
-    font-size: 14px;
-    font-weight: 500;
-    color: #374151;
+font-size: 14px;
+font-weight: 500;
+color: #374151;
 }
 
 /* Styles pour le nouveau contrôle personnalisé avec les flèches */
 .custom-select-wrapper {
-    display: flex;
-    align-items: stretch; /* S'assure que les enfants remplissent la hauteur */
-    border: 1px solid #ddd; /* Bordure cohérente */
-    border-radius: 8px; /* Bords arrondis cohérents */
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Ombre douce */
-    overflow: hidden;
-    width: 100%;
+display: flex;
+align-items: stretch; /* S'assure que les enfants remplissent la hauteur */
+border: 1px solid #ddd; /* Bordure cohérente */
+border-radius: 8px; /* Bords arrondis cohérents */
+box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Ombre douce */
+overflow: hidden;
+width: 100%;
 }
 
 .custom-select-display {
-    flex-grow: 1;
-    padding: 8px 12px;
-    font-size: 1em;
-    color: #333; /* Couleur de texte cohérente */
-    background-color: #f8f8f8; /* Fond légèrement gris */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex; /* Pour centrer verticalement le texte */
-    align-items: center;
-    border-right: 1px solid #ddd; /* Bordure de séparation */
+flex-grow: 1;
+padding: 8px 12px;
+font-size: 1em;
+color: #333; /* Couleur de texte cohérente */
+background-color: #f8f8f8; /* Fond légèrement gris */
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+display: flex; /* Pour centrer verticalement le texte */
+align-items: center;
+border-right: 1px solid #ddd; /* Bordure de séparation */
 }
 
 .custom-select-arrows {
-    display: flex;
-    flex-direction: column;
-    width: 35px; /* Largeur fixe pour la colonne des flèches */
-    flex-shrink: 0; /* Empêche les flèches de rétrécir */
+display: flex;
+flex-direction: column;
+width: 35px; /* Largeur fixe pour la colonne des flèches */
+flex-shrink: 0; /* Empêche les flèches de rétrécir */
 }
 
 .custom-select-arrow {
-    background-color: #e0e0e0; /* Couleur de fond cohérente */
-    color: #555; /* Couleur de flèche cohérente */
-    border: none;
-    padding: 0; /* Pas de padding pour laisser flex-grow gérer la taille */
-    flex-grow: 1; /* Chaque flèche prend la moitié de la hauteur disponible */
-    cursor: pointer;
-    font-size: 0.8em; /* Taille de flèche plus petite */
-    transition: background-color 0.2s ease, color 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1; /* Ajuste la hauteur de ligne pour centrer le caractère */
+background-color: #e0e0e0; /* Couleur de fond cohérente */
+color: #555; /* Couleur de flèche cohérente */
+border: none;
+padding: 0; /* Pas de padding pour laisser flex-grow gérer la taille */
+flex-grow: 1; /* Chaque flèche prend la moitié de la hauteur disponible */
+cursor: pointer;
+font-size: 0.8em; /* Taille de flèche plus petite */
+transition: background-color 0.2s ease, color 0.2s ease;
+display: flex;
+align-items: center;
+justify-content: center;
+line-height: 1; /* Ajuste la hauteur de ligne pour centrer le caractère */
 }
 
 .custom-select-arrow.up {
-    border-bottom: 1px solid #ddd; /* Bordure de séparation entre les flèches */
+border-bottom: 1px solid #ddd; /* Bordure de séparation entre les flèches */
 }
 
 .custom-select-arrow:hover {
-    background-color: #d0d0d0; /* Couleur de survol cohérente */
-    color: #333; /* Couleur de texte au survol cohérente */
+background-color: #d0d0d0; /* Couleur de survol cohérente */
+color: #333; /* Couleur de texte au survol cohérente */
 }
 
 .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    padding-top: 16px;
-    border-top: 1px solid #e5e7eb;
+display: flex;
+justify-content: flex-end;
+gap: 12px;
+padding-top: 16px;
+border-top: 1px solid #e5e7eb;
 }
 
 .modal-actions .save-personnel-btn {
-    background-color: #007bff; /* Couleur de fond cohérente */
-    color: white;
-    padding: 10px 20px; /* Padding cohérent */
-    border-radius: 8px; /* Bordures arrondies cohérentes */
-    transition: background-color 0.2s ease, box-shadow 0.2s ease; /* Transitions cohérentes */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Ombre cohérente */
-    font-weight: 500; /* Poids de police cohérent */
+background-color: #007bff; /* Couleur de fond cohérente */
+color: white;
+padding: 10px 20px; /* Padding cohérent */
+border-radius: 8px; /* Bordures arrondies cohérentes */
+transition: background-color 0.2s ease, box-shadow 0.2s ease; /* Transitions cohérentes */
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Ombre cohérente */
+font-weight: 500; /* Poids de police cohérent */
 }
 
 .modal-actions .save-personnel-btn:hover {
-    background-color: #0056b3; /* Couleur de survol cohérente */
+background-color: #0056b3; /* Couleur de survol cohérente */
 }
 
 .modal-actions .cancel-personnel-btn {
-    background-color: #e0e0e0; /* Couleur de fond cohérente */
-    color: #333; /* Couleur de texte cohérente */
-    padding: 10px 20px; /* Padding cohérent */
-    border-radius: 8px; /* Bordures arrondies cohérentes */
-    transition: background-color 0.2s ease, box-shadow 0.2s ease; /* Transitions cohérentes */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Ombre cohérente */
-    font-weight: 500; /* Poids de police cohérent */
+background-color: #e0e0e0; /* Couleur de fond cohérente */
+color: #333; /* Couleur de texte cohérente */
+padding: 10px 20px; /* Padding cohérent */
+border-radius: 8px; /* Bordures arrondies cohérentes */
+transition: background-color 0.2s ease, box-shadow 0.2s ease; /* Transitions cohérentes */
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Ombre cohérente */
+font-weight: 500; /* Poids de police cohérent */
 }
 
 .modal-actions .cancel-personnel-btn:hover {
-    background-color: #d0d0d0; /* Couleur de survol cohérente */
+background-color: #d0d0d0; /* Couleur de survol cohérente */
 }
 
 /* Styles pour les modales d'alerte/confirmation/prompt personnalisées (déjà présentes) */
@@ -733,36 +733,36 @@ body {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .personnel-assignment-modal .modal-content,
-    .custom-modal .modal-content {
-        width: 95%;
-        padding: 20px;
-    }
+.personnel-assignment-modal .modal-content,
+.custom-modal .modal-content {
+width: 95%;
+padding: 20px;
+}
 
-    .personnel-modal-header h3 {
-        font-size: 1.5em;
-    }
+.personnel-modal-header h3 {
+font-size: 1.5em;
+}
 
-    .post-assignment {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
+.post-assignment {
+flex-direction: column;
+align-items: flex-start;
+gap: 8px;
+}
 
-    .post-assignment label {
-        min-width: auto;
-    }
+.post-assignment label {
+min-width: auto;
+}
 
-    .modal-actions {
-        flex-direction: column;
-        gap: 8px;
-    }
+.modal-actions {
+flex-direction: column;
+gap: 8px;
+}
 
-    .modal-actions button {
-        width: 100%;
-    }
+.modal-actions button {
+width: 100%;
+}
 
-    .personnel-management-section {
-        flex-direction: column; /* Empile les sections sur mobile */
-    }
+.personnel-management-section {
+flex-direction: column; /* Empile les sections sur mobile */
+}
 }

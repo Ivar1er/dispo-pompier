@@ -16,16 +16,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const availablePersonnelList = document.getElementById('available-personnel-list');
     const onDutyAgentsGrid = document.getElementById('on-duty-agents-grid');
 
-    let currentDisplayedDate = new Date(); // Représente la date actuellement affichée
+    // Date affichée : par défaut la date actuelle
+    let currentDisplayedDate = new Date();
+    // Pour tester sur une date spécifique (ex: 6 juin 2025), décommentez la ligne ci-dessous et commentez celle au-dessus :
+    // let currentDisplayedDate = new Date('2025-06-06T00:00:00');
+
     let timeSlotCounter = 0; // Pour assurer des IDs uniques pour les nouveaux créneaux
 
     // Clé pour le stockage local (localStorage)
     const LOCAL_STORAGE_KEY = 'feuilleDeGardeData';
 
+    // URL de base de votre API (à remplacer par l'URL réelle de votre backend)
+    const API_BASE_URL = "https://dispo-pompier.onrender.com"; 
+
     // --- Stockage des données ---
-    // Cet objet contiendra toutes nos données de feuille de garde, indexées par date (AAAA-MM-JJ).
+    // appData contiendra toutes nos données de feuille de garde, indexées par date (AAAA-MM-JJ).
     // Chaque date aura ses propres créneaux horaires et les engins/personnel qui leur sont associés.
-    let appData = {};
+    // personnelAvailabilities contiendra les disponibilités réelles chargées depuis l'API.
+    let appData = {
+        personnelAvailabilities: {} // Cette partie sera remplie par l'API
+    };
 
     // Définition des priorités de grade pour l'affectation automatique
     const gradePriority = {
@@ -37,30 +47,20 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Définition des préférences de grade pour chaque rôle
-    // L'ordre des grades dans chaque tableau indique la préférence (le premier est le plus préféré)
     const roleGradePreferences = {
-        // Postes d'équipier à conducteur (privilégier les Sapeurs et Caporaux)
-        'EQ': ['SAP','CAP', 'CAUE', 'CATE'],
-        'COD0': ['CAP','SAP', 'CAUE', 'CATE'], // Conducteur VSAV
-        'EQ1_FPT': ['CAP','SAP', 'CAUE', 'CATE'],
-        'EQ2_FPT': ['SAP','CAP','CAUE', 'CATE'],
-        'EQ1_FDF1': ['CAP','SAP', 'CAUE', 'CATE'],
-        'EQ2_FDF1': ['SAP','CAP', 'CAUE', 'CATE'],
-
-        // CA VSAV (privilégier les CAUE et CATE)
-        'CA_VSAV': ['CAUE', 'CATE', 'CAP', 'SAP'], // Ajout de CAP et SAP pour le cas où il n'y a pas de CAUE/CATE
-
-        // CA FPT (privilégier les CATE)
-        'CA_FPT': ['CATE', 'CAUE', 'CAP', 'SAP'], // Ajout de CAUE, CAP, SAP pour le cas où il n'y a pas de CATE
-
-        // Autres conducteurs
-        'COD1': ['SAP','CAP', 'CAUE', 'CATE'], // Conducteur FPT
-        'COD2': ['SAP','CAP', 'CAUE', 'CATE'], // Conducteur CCF
-
-        // Autres CA (privilégier les CATE et CAUE)
+        'EQ': ['SAP', 'CAP', 'CAUE', 'CATE'],
+        'COD0': ['CAP', 'SAP', 'CAUE', 'CATE'], // Conducteur VSAV
+        'EQ1_FPT': ['CAP', 'SAP', 'CAUE', 'CATE'],
+        'EQ2_FPT': ['SAP', 'CAP', 'CAUE', 'CATE'],
+        'EQ1_FDF1': ['CAP', 'SAP', 'CAUE', 'CATE'],
+        'EQ2_FDF1': ['SAP', 'CAP', 'CAUE', 'CATE'],
+        'CA_VSAV': ['CAUE', 'CATE', 'CAP', 'SAP'],
+        'CA_FPT': ['CATE', 'CAUE', 'CAP', 'SAP'],
+        'COD1': ['SAP', 'CAP', 'CAUE', 'CATE'], // Conducteur FPT
+        'COD2': ['SAP', 'CAP', 'CAUE', 'CATE'], // Conducteur CCF
         'CA_FDF2': ['CATE', 'CAUE', 'CAP', 'SAP'],
-        'CA_VTU': ['CAUE', 'CATE', 'CAP','SAP'],
-        'CA_VPMA': ['CAUE', 'CATE', 'CAP','SAP']
+        'CA_VTU': ['CAUE', 'CATE', 'CAP', 'SAP'],
+        'CA_VPMA': ['CAUE', 'CATE', 'CAP', 'SAP']
     };
 
     // Définition de la priorité des types de rôles pour le tri (plus petit = plus prioritaire)
@@ -78,36 +78,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'unknown';
     }
 
-    // Liste du personnel disponible avec leurs qualifications et leur grade
+    // Liste du personnel disponible avec leurs qualifications et leur grade (cette liste est fixe côté client)
     const availablePersonnel = [
         // CATE (Chef d'Agrès Tout Engin)
-        { id: '1', name: 'BRUNEAU Mathieu', qualifications: ['CA_FPT','CA_VSAV','CA_VTU','CA_VPMA', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CATE' },
-        { id: '2', name: 'VATINEL Sébastien', qualifications: ['CA_FDF2','CA_FPT','CA_VSAV','CA_VTU','CA_VPMA','COD2','COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CATE' },
-        { id: '3', name: 'LE LANN Philippe', qualifications: ['CA_FPT','CA_VSAV','CA_VTU','CA_VPMA','COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CATE' },
-        { id: '4', name: 'TULEU Kévin', qualifications: ['CA_FPT','CA_VSAV','CA_VTU','CA_VPMA', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ'], grade: 'CATE' },
-        { id: '5', name: 'GESBERT Jonathan', qualifications: ['CA_FDF2','CA_FPT','CA_VSAV','CA_VTU','CA_VPMA','COD2','COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CATE' },
-        
+        { id: 'bruneau', name: 'BRUNEAU Mathieu', qualifications: ['CA_FPT', 'CA_VSAV', 'CA_VTU', 'CA_VPMA', 'COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CATE' },
+        { id: 'vatinel', name: 'VATINEL Sébastien', qualifications: ['CA_FDF2', 'CA_FPT', 'CA_VSAV', 'CA_VTU', 'CA_VPMA', 'COD2', 'COD1', 'COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CATE' },
+        { id: 'lelann', name: 'LE LANN Philippe', qualifications: ['CA_FPT', 'CA_VSAV', 'CA_VTU', 'CA_VPMA', 'COD1', 'COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CATE' },
+        { id: 'tuleu', name: 'TULEU Kévin', qualifications: ['CA_FPT', 'CA_VSAV', 'CA_VTU', 'CA_VPMA', 'COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ'], grade: 'CATE' },
+        { id: 'gesbert', name: 'GESBERT Jonathan', qualifications: ['CA_FDF2', 'CA_FPT', 'CA_VSAV', 'CA_VTU', 'CA_VPMA', 'COD2', 'COD1', 'COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CATE' },
+
         // CAUE (Chef d'Agrès Un Engin)
-        { id: '6', name: 'CORDEL Camilla', qualifications: ['CA_VSAV','CA_VTU','CA_VPMA','COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CAUE' },
-        { id: '7', name: 'BOUDET Sébastien', qualifications: ['CA_VSAV','CA_VTU','CA_VPMA','COD2','COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CAUE' },
-        { id: '8', name: 'BOULME Grégoire', qualifications: ['CA_VSAV','CA_VTU','CA_VPMA', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CAUE' },
-        
+        { id: 'cordel', name: 'CORDEL Camilla', qualifications: ['CA_VSAV', 'CA_VTU', 'CA_VPMA', 'COD1', 'COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CAUE' },
+        { id: 'boudet', name: 'BOUDET Sébastien', qualifications: ['CA_VSAV', 'CA_VTU', 'CA_VPMA', 'COD2', 'COD1', 'COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CAUE' },
+        { id: 'boulmé', name: 'BOULME Grégoire', qualifications: ['CA_VSAV', 'CA_VTU', 'CA_VPMA', 'COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CAUE' },
+
         // CAP (Caporal)
-        { id: '11', name: 'MARECHAL Nicolas', qualifications: ['COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CAP' },
-        { id: '12', name: 'NORMAND Stéphane', qualifications: ['COD2','COD1', 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CAP' },
-        { id: '9', name: 'JUSTICE Quentin', qualifications: [ 'COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CAP' },
-        { id: '10', name: 'SCHAEFFER Caroline', qualifications: ['COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CAP' },
-        { id: '13', name: 'VENIANT Mathis', qualifications: ['COD0','EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'CAP' },
+        { id: 'marechal', name: 'MARECHAL Nicolas', qualifications: ['COD1', 'COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CAP' },
+        { id: 'normand', name: 'NORMAND Stéphane', qualifications: ['COD2', 'COD1', 'COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CAP' },
+        { id: 'justice', name: 'JUSTICE Quentin', qualifications: ['COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CAP' },
+        { id: 'schaeffer', name: 'SCHAEFFER Caroline', qualifications: ['COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CAP' },
+        { id: 'veniant', name: 'VENIANT Mathis', qualifications: ['COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'CAP' },
 
         // SAP (Sapeur 1 & 2)
-        { id: '14', name: 'LOISEL Charlotte', qualifications: ['COD0','EQ1_FPT', 'EQ2_FPT','EQ'], grade: 'SAP' },
-        { id: '15', name: 'MAILLY Lucile', qualifications: ['EQ1_FPT', 'EQ2_FPT','EQ'], grade: 'SAP' },
-        { id: '16', name: 'SAVIGNY Victoria', qualifications: ['EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'SAP' },
-        { id: '17', name: 'TINSEAU Clément', qualifications: ['EQ1_FPT', 'EQ2_FPT','EQ1_FDF1', 'EQ2_FDF1','EQ'], grade: 'SAP' },
-        { id: '18', name: 'BOULET Aurélie', qualifications: ['COD0','EQ1_FPT', 'EQ2_FPT','EQ'], grade: 'SAP' },
-        { id: '19', name: 'MARLIN Lilian', qualifications: ['EQ1_FPT', 'EQ2_FPT','EQ'], grade: 'SAP' },
-        { id: '20', name: 'CHARENTON Marilou', qualifications: ['COD0','EQ1_FPT', 'EQ2_FPT','EQ'], grade: 'SAP' },
-        { id: '21', name: 'HEREDIA Jules', qualifications: ['EQ'], grade: 'SAP' },
+        { id: 'loisel', name: 'LOISEL Charlotte', qualifications: ['COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ'], grade: 'SAP' },
+        { id: 'mailly', name: 'MAILLY Lucile', qualifications: ['EQ1_FPT', 'EQ2_FPT', 'EQ'], grade: 'SAP' },
+        { id: 'savigny', name: 'SAVIGNY Victoria', qualifications: ['EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'SAP' },
+        { id: 'tinseau', name: 'TINSEAU Clément', qualifications: ['EQ1_FPT', 'EQ2_FPT', 'EQ1_FDF1', 'EQ2_FDF1', 'EQ'], grade: 'SAP' },
+        { id: 'boulet', name: 'BOULET Aurélie', qualifications: ['COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ'], grade: 'SAP' },
+        { id: 'marlin', name: 'MARLIN Lilian', qualifications: ['EQ1_FPT', 'EQ2_FPT', 'EQ'], grade: 'SAP' },
+        { id: 'charenton', name: 'CHARENTON Marilou', qualifications: ['COD0', 'EQ1_FPT', 'EQ2_FPT', 'EQ'], grade: 'SAP' },
+        { id: 'hérédia', name: 'HEREDIA Jules', qualifications: ['EQ'], grade: 'SAP' },
         { id: 'none', name: 'Non assigné', qualifications: [], grade: 'none' } // Option pour un emplacement vide
     ];
 
@@ -180,31 +180,153 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sauvegarde les données de l'application dans le localStorage
     function saveAppData() {
         try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(appData));
-            console.log('Données sauvegardées dans localStorage.');
+            // Ne pas sauvegarder personnelAvailabilities dans le localStorage, car cela vient de l'API
+            const appDataToSave = { ...appData };
+            delete appDataToSave.personnelAvailabilities;
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(appDataToSave));
+            console.log('Données de la feuille de garde sauvegardées dans localStorage.');
         } catch (e) {
             console.error('Erreur lors de la sauvegarde des données dans localStorage :', e);
         }
     }
 
-    // Charge les données de l'application depuis le localStorage
-    function loadAppData() {
+    // Charge les données de l'application depuis le localStorage et l'API
+    async function loadAppData() {
         try {
             const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (storedData) {
                 appData = JSON.parse(storedData);
-                console.log('Données chargées depuis localStorage.');
+                console.log('Données de la feuille de garde chargées depuis localStorage.');
             } else {
                 appData = {}; // Initialise vide si aucune donnée trouvée
-                // Initialise les créneaux par défaut pour la date actuelle si c'est la première exécution
+            }
+
+            // Assure l'initialisation de personnelAvailabilities (sera rempli par l'API)
+            appData.personnelAvailabilities = {};
+
+            // Initialise les créneaux par défaut pour la date actuelle si c'est la première exécution pour cette date
+            if (!appData[formatDate(currentDisplayedDate)] || Object.keys(appData[formatDate(currentDisplayedDate)].timeSlots).length === 0) {
                 initializeDefaultTimeSlotsForDate(formatDate(currentDisplayedDate));
             }
+
+            // Charge les disponibilités des agents depuis l'API
+            await loadAllPersonnelAvailabilities();
+
         } catch (e) {
-            console.error('Erreur lors du chargement des données depuis localStorage :', e);
-            appData = {}; // Revient à vide si l'analyse échoue
+            console.error('Erreur lors du chargement des données depuis localStorage ou API :', e);
+            appData = {}; // Revient à vide si l'analyse ou le chargement API échoue
+            appData.personnelAvailabilities = {}; // Assure l'initialisation
             initializeDefaultTimeSlotsForDate(formatDate(currentDisplayedDate));
         }
     }
+
+    // Fonction pour récupérer les disponibilités de tous les agents depuis l'API
+    async function loadAllPersonnelAvailabilities() {
+        console.log("Tentative de chargement des disponibilités de tous les agents depuis l'API...");
+        try {
+            // Premièrement, essayer de récupérer la liste de tous les agents.
+            // Adaptez cette URL si votre API a une route différente pour lister les agents.
+            const agentsResponse = await fetch(`${API_BASE_URL}/api/agents`);
+            if (!agentsResponse.ok) {
+                console.warn(`Impossible de récupérer la liste des agents (${agentsResponse.status}). Fallback sur la liste locale.`);
+                // Si la route /api/agents n'existe pas, ou renvoie une erreur, nous pourrions
+                // potentiellement ignorer cette étape et ne compter que sur les IDs fixes de `availablePersonnel`
+                // pour ensuite faire des appels individuels si une route globale n'existe pas.
+                // Pour l'instant, on se base sur availablePersonnel si la liste des agents échoue.
+            }
+
+            let agentsToFetch = [];
+            if (agentsResponse.ok) {
+                const fetchedAgents = await agentsResponse.json();
+                agentsToFetch = fetchedAgents.map(agent => agent.id); // Supposons que l'API renvoie des objets avec un `id`
+            } else {
+                // Fallback: Si la récupération de la liste des agents échoue, utilisez la liste `availablePersonnel` locale.
+                agentsToFetch = availablePersonnel.filter(p => p.id !== 'none').map(p => p.id);
+            }
+
+            const allAvailabilities = {};
+
+            // Deuxièmement, récupérer le planning de chaque agent
+            for (const agentId of agentsToFetch) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`);
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            console.log(`Planning non trouvé pour l'agent ${agentId}.`);
+                            continue; // Agent sans planning, passer au suivant
+                        }
+                        throw new Error(`Erreur HTTP ${response.status} pour l'agent ${agentId}`);
+                    }
+                    const agentPlanning = await response.json();
+                    // console.log(`Planning reçu pour l'agent ${agentId}:`, agentPlanning);
+
+                    // Transformer les données du format agent.js au format feuille_de_garde.js
+                    // Format agent.js: planningDataAgent = { "week-XX": { "jour": ["07:00 - 14:00", ...] } }
+                    // Format cible: appData.personnelAvailabilities = { "personId": {"YYYY-MM-DD": [{"start": "HH:MM", "end": "HH:MM"}, ...] } }
+
+                    for (const weekKey in agentPlanning) {
+                        const weekNumber = parseInt(weekKey.replace('week-', ''));
+                        // **** MODIFICATION ICI ****
+                        // Utilise l'année de la date actuellement affichée pour la cohérence
+                        const year = currentDisplayedDate.getFullYear();
+
+                        for (const dayOfWeek in agentPlanning[weekKey]) {
+                            const date = getDateFromWeekAndDay(year, weekNumber, dayOfWeek);
+                            if (!date) continue; // Si la date ne peut pas être calculée
+
+                            const dateKey = formatDate(date);
+                            const rawSlots = agentPlanning[weekKey][dayOfWeek];
+
+                            if (!allAvailabilities[agentId]) {
+                                allAvailabilities[agentId] = {};
+                            }
+                            if (!allAvailabilities[agentId][dateKey]) {
+                                allAvailabilities[agentId][dateKey] = [];
+                            }
+
+                            rawSlots.forEach(slotRange => {
+                                const [start, end] = slotRange.split(' - ').map(s => s.trim());
+                                allAvailabilities[agentId][dateKey].push({ start, end });
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Erreur lors du chargement du planning de l'agent ${agentId} :`, err);
+                }
+            }
+            appData.personnelAvailabilities = allAvailabilities;
+            console.log("Toutes les disponibilités du personnel chargées et transformées :", appData.personnelAvailabilities);
+            // Une fois toutes les disponibilités chargées, rafraîchir le personnel disponible
+            renderAvailablePersonnel();
+
+        } catch (err) {
+            console.error("Erreur générale lors du chargement des disponibilités de tous les agents :", err);
+        }
+    }
+
+    // Fonction utilitaire pour obtenir une date à partir d'un numéro de semaine ISO et d'un jour de la semaine
+    // (Cette fonction est copiée de agent.js pour assurer la cohérence)
+    function getDateFromWeekAndDay(year, weekNumber, dayName) {
+        const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
+        const dow = simple.getDay() || 7;
+        const ISOweekStart = new Date(simple);
+        if (dow <= 4) {
+            ISOweekStart.setDate(simple.getDate() - dow + 1);
+        } else {
+            ISOweekStart.setDate(simple.getDate() + 8 - dow);
+        }
+
+        const daysMap = {
+            'lundi': 0, 'mardi': 1, 'mercredi': 2, 'jeudi': 3, 'vendredi': 4, 'samedi': 5, 'dimanche': 6
+        };
+        const dayOffset = daysMap[dayName];
+        if (dayOffset === undefined) return null;
+
+        const targetDate = new Date(ISOweekStart);
+        targetDate.setDate(ISOweekStart.getDate() + dayOffset);
+        return targetDate;
+    }
+
 
     // --- Fonctions utilitaires ---
 
@@ -222,11 +344,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return hours * 60 + minutes;
     }
 
-    // Formater des minutes en chaîne "HH:MM"
-    function formatMinutesToTime(totalMinutes) {
-        const hours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    // Formate les minutes depuis minuit en chaîne "HH:MM"
+    function formatMinutesToTime(minutes) {
+        const hours = Math.floor(minutes / 60) % 24; // % 24 pour gérer les heures > 24 (ex: 25h -> 1h)
+        const mins = minutes % 60;
+        return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
     }
 
     // Met à jour l'affichage de la date et re-rend les éléments associés
@@ -246,6 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAvailablePersonnel(); // Met à jour la liste du personnel disponible
         renderOnDutyAgentsGrid(); // Met à jour la grille des agents d'astreinte
         showMainRosterGrid(); // Toujours revenir à la grille principale lors du changement de date
+        console.log('Date actuelle affichée:', dateKey);
     }
 
     // Fonction pour simuler le chargement des données de la feuille de garde
@@ -258,7 +381,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 rosterGrid.innerHTML = `
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Feuille de garde du centre BEAUNE pour le ${formatDate(date)}</h2>
                     <p class="text-gray-600">Sélectionnez un créneau horaire ci-dessus pour voir les engins détaillés et assigner le personnel.</p>
-                    
                 `;
             }
         }, 300); // Simule un chargement de 0.3 seconde
@@ -270,11 +392,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.time-slot-button').forEach(btn => btn.remove());
 
         const currentSlots = appData[dateKey].timeSlots;
-        // Trie les créneaux par leur plage horaire (tri de chaînes simple pour les plages horaires)
         // Correction : Pour un tri fiable, il faut parser les heures de début.
         const sortedSlotIds = Object.keys(currentSlots).sort((a, b) => {
             const timeA = parseTimeToMinutes(currentSlots[a].range.split(' - ')[0]);
-            const timeB = parseTimeToMinutes(currentSlots[b].range.split('(')[0]); // Correction pour le tri des plages horaires
+            const timeB = parseTimeToMinutes(currentSlots[b].range.split(' - ')[0]);
             return timeA - timeB;
         });
 
@@ -286,6 +407,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Crée un bouton de créneau horaire avec la capacité de suppression
     function createTimeSlotButton(slotId, initialTimeRange = '00:00 - 00:00', isActive = false) {
+        const dateKey = formatDate(currentDisplayedDate); // Récupère la dateKey ici pour la création initiale ou l'update
+
+        // Si le créneau existe déjà, ne le crée pas de nouveau dans le DOM, juste le mettre à jour si c'est 'active'
+        const existingButton = document.querySelector(`[data-slot-id="${slotId}"]`);
+        if (existingButton) {
+            existingButton.textContent = initialTimeRange;
+            // Ré-ajouter le bouton de suppression si nécessaire
+            if (!existingButton.querySelector('.delete-time-slot-btn')) {
+                const deleteBtn = document.createElement('span');
+                deleteBtn.classList.add('delete-time-slot-btn', 'ml-2', 'text-red-500', 'hover:text-red-700', 'font-bold', 'cursor-pointer', 'text-lg');
+                deleteBtn.innerHTML = '&times;';
+                deleteBtn.title = 'Supprimer le créneau';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showConfirmationModal(`Êtes-vous sûr de vouloir supprimer le créneau "${button.textContent.replace('×', '').trim()}" ?`, () => {
+                        deleteTimeSlot(slotId, button);
+                    });
+                });
+                existingButton.appendChild(deleteBtn);
+            }
+            if (isActive) {
+                document.querySelectorAll('.time-slot-button').forEach(btn => btn.classList.remove('active', 'bg-blue-500', 'text-white', 'border-blue-500'));
+                existingButton.classList.add('active', 'bg-blue-500', 'text-white', 'border-blue-500');
+            }
+            // Met à jour la structure de données si ce n'est pas un nouveau créneau
+            if (appData[dateKey] && appData[dateKey].timeSlots[slotId]) {
+                appData[dateKey].timeSlots[slotId].range = initialTimeRange;
+                saveAppData();
+            }
+            return; // Sortir, car le bouton a été mis à jour
+        }
+
         const button = document.createElement('button');
         button.classList.add('time-slot-button', 'px-4', 'py-2', 'rounded-md', 'border', 'border-gray-300', 'bg-white', 'hover:bg-gray-100', 'flex', 'items-center', 'justify-between', 'space-x-2', 'shadow-sm', 'transition-all', 'duration-200', 'ease-in-out');
         if (isActive) {
@@ -320,76 +473,97 @@ document.addEventListener('DOMContentLoaded', () => {
             displayEnginesForSlot(formatDate(currentDisplayedDate), slotId);
         });
 
-        // Double-clic pour modifier la plage horaire
+        // Double-clic pour modifier la plage horaire (utilise la nouvelle modale)
         button.addEventListener('dblclick', () => {
-            const currentText = button.textContent.replace('×', '').trim(); // Supprime 'x' pour le prompt
-            // Utilisation d'une modale de prompt personnalisée au lieu de prompt()
-            showPromptModal('Modifier la plage horaire (ex: 08:00 - 12:00) :', currentText, (newTime) => {
-                if (newTime && newTime.trim() !== '') {
-                    const newTimeTrimmed = newTime.trim();
-                    const timeParts = newTimeTrimmed.split(' - ');
-                    
-                    if (timeParts.length === 2 && timeParts[0].match(/^\d{2}:\d{2}$/) && timeParts[1].match(/^\d{2}:\d{2}$/)) {
-                        button.textContent = newTimeTrimmed;
-                        button.appendChild(deleteBtn); // Ré-ajoute le bouton de suppression après la mise à jour du texte
-                        
-                        const dateKey = formatDate(currentDisplayedDate);
-                        if (appData[dateKey] && appData[dateKey].timeSlots[slotId]) {
-                            appData[dateKey].timeSlots[slotId].range = newTimeTrimmed;
-                            saveAppData(); // Sauvegarde les modifications
+            const currentRange = button.textContent.replace('×', '').trim();
+            const [currentStart, currentEnd] = currentRange.split(' - ');
 
-                            // --- Nouvelle logique d'ajout de créneau automatique ---
-                            // S'applique si c'est le créneau initial 'slot_0700_0700' qui est modifié
-                            // OU si c'est le dernier créneau actuellement affiché, pour assurer la continuité
-                            const sortedSlotIds = Object.keys(appData[dateKey].timeSlots).sort((a, b) => {
-                                const rangeA = appData[dateKey].timeSlots[a].range.split(' - ')[0];
-                                const rangeB = appData[dateKey].timeSlots[b].range.split(' - ')[0];
-                                return parseTimeToMinutes(rangeA) - parseTimeToMinutes(rangeB);
-                            });
-                            
-                            const isLastSlot = sortedSlotIds[sortedSlotIds.length - 1] === slotId;
+            showTimeRangePromptModal(currentStart, currentEnd, (newStart, newEnd) => {
+                if (newStart && newEnd) { // Si l'utilisateur n'a pas annulé
+                    const dateKey = formatDate(currentDisplayedDate);
+                    const newTimeRange = `${newStart} - ${newEnd}`;
 
-                            // On vérifie aussi si le créneau "07:00 - 07:00" est présent, car c'est le point de départ
-                            // de la journée "feuille de garde".
-                            // Si l'heure de fin du créneau modifié est AVANT 07:00 (par exemple 00:00-06:00),
-                            // alors le suivant est bien 06:00-07:00.
-                            // Si l'heure de fin du créneau modifié est APRÈS 07:00 (par exemple 07:00-12:00),
-                            // alors le suivant est 12:00-07:00.
-                            const nextSlotEndTime = '07:00'; // Toujours 07:00 comme fin du cycle de 24h
+                    // Logique pour la création automatique du créneau suivant
+                    const oldEndMinutes = parseTimeToMinutes(currentEnd); // L'heure de fin du créneau AVANT modification
+                    let newEndMinutes = parseTimeToMinutes(newEnd);   // La nouvelle heure de fin du créneau
+                    let newStartMinutes = parseTimeToMinutes(newStart);
 
-                            // Vérifie si un créneau avec cette plage existe déjà pour éviter les doublons
-                            const newSlotRange = `${timeParts[1]} - ${nextSlotEndTime}`; // Utilise l'heure de fin du créneau modifié comme début du suivant
-                            let exists = false;
-                            for (const existingSlotId in appData[dateKey].timeSlots) {
-                                if (appData[dateKey].timeSlots[existingSlotId].range === newSlotRange) {
-                                    exists = true;
-                                    break;
-                                }
-                            }
-
-                            if (!exists) {
-                                const newSlotId = `slot_${Date.now()}_auto`; // ID unique pour le créneau auto-généré
-                                createTimeSlotButton(newSlotId, newSlotRange);
-                                // Le nouveau créneau est automatiquement sauvegardé dans createTimeSlotButton
-                                console.log(`Nouveau créneau ajouté automatiquement : ${newSlotRange}`);
-                            } else {
-                                console.log(`Un créneau similaire (${newSlotRange}) existe déjà. Pas de nouvel ajout.`);
-                                // Si un créneau similaire existe, on peut vouloir le rendre actif ou faire quelque chose
-                                // Par exemple, on pourrait trouver le bouton correspondant et le rendre actif
-                                const existingButton = document.querySelector(`[data-slot-id="${existingSlotId}"]`);
-                                if (existingButton) {
-                                    document.querySelectorAll('.time-slot-button').forEach(btn => btn.classList.remove('active'));
-                                    existingButton.classList.add('active');
-                                    displayEnginesForSlot(formatDate(currentDisplayedDate), existingSlotId);
-                                }
-                            }
-                            // Après avoir potentiellement ajouté un créneau, rafraîchir l'affichage des boutons
-                            renderTimeSlotButtons(dateKey);
-                        }
-                    } else {
-                        // Utilisation d'une modale d'alerte personnalisée au lieu de alert()
-                        showAlertModal('Format de plage horaire invalide. Utilisez "HH:MM - HH:MM".');
+                    // Ajuster pour les créneaux qui traversent minuit
+                    if (newEndMinutes <= newStartMinutes) {
+                        newEndMinutes += 24 * 60; // Ajouter 24 heures pour le calcul
                     }
+                    if (oldEndMinutes <= parseTimeToMinutes(currentStart)) { // Si l'ancienne fin traversait minuit
+                        // On doit la "normaliser" pour la comparaison
+                        // On va juste considérer qu'une fin à 07:00 représente 07:00 du lendemain
+                        // donc 07:00 (420) + 24*60 (1440) = 1860 minutes.
+                        // On utilise cette valeur comme point de référence pour "la fin de la journée"
+                    }
+
+                    // Mettre à jour le créneau actuel
+                    if (appData[dateKey] && appData[dateKey].timeSlots[slotId]) {
+                        appData[dateKey].timeSlots[slotId].range = newTimeRange;
+                    }
+
+                    // Calcul de l'heure de fin théorique de la journée (07:00 le lendemain)
+                    // Cette valeur est constante pour la "fin de journée" sur votre feuille de garde.
+                    const endOfDayRefMinutes = parseTimeToMinutes('07:00') + (24 * 60);
+
+                    // Calcul de la nouvelle heure de fin effective pour le créneau modifié
+                    // Si newEnd est 07:00 et newStart est 17:00, newEnd effective est 07:00 le lendemain
+                    let actualNewEndMinutes = parseTimeToMinutes(newEnd);
+                    if (actualNewEndMinutes <= parseTimeToMinutes(newStart)) {
+                         actualNewEndMinutes += 24 * 60;
+                    }
+
+                    // Condition pour créer le créneau suivant :
+                    // Si la nouvelle heure de fin du créneau actuel n'atteint pas l'heure de fin de la journée (07:00 le lendemain)
+                    // ET si la nouvelle heure de fin est après l'heure de début du créneau actuel.
+                    if (actualNewEndMinutes < endOfDayRefMinutes && newEndMinutes > newStartMinutes) {
+                        const nextSlotStartMinutes = parseTimeToMinutes(newEnd);
+                        const nextSlotEndMinutes = parseTimeToMinutes('07:00'); // La fin est toujours 07:00 le lendemain
+
+                        const nextSlotStartTime = formatMinutesToTime(nextSlotStartMinutes);
+                        const nextSlotEndTime = formatMinutesToTime(nextSlotEndMinutes);
+
+                        const nextSlotRange = `${nextSlotStartTime} - ${nextSlotEndTime}`;
+                        // Générer un ID unique, s'assurant qu'il n'entre pas en collision avec les IDs existants
+                        // En ajoutant Date.now() à la fin, on s'assure d'une unicité très forte.
+                        const nextSlotId = `slot_${nextSlotStartTime.replace(':', '')}_${nextSlotEndTime.replace(':', '')}_${Date.now()}`;
+
+                        // Vérifier si un créneau avec cette nouvelle plage existe déjà, pour éviter les doublons
+                        let existingNextSlotFound = false;
+                        for (const existingId in appData[dateKey].timeSlots) {
+                            if (appData[dateKey].timeSlots[existingId].range === nextSlotRange) {
+                                existingNextSlotFound = true;
+                                break;
+                            }
+                        }
+
+                        if (!existingNextSlotFound) {
+                             // Trouver un créneau existant qui commencerait EXACTEMENT à la nouvelle heure de fin.
+                            const existingSlotStartingAtNewEnd = Object.keys(appData[dateKey].timeSlots).find(id =>
+                                appData[dateKey].timeSlots[id].range.split(' - ')[0] === nextSlotStartTime
+                            );
+
+                            if (existingSlotStartingAtNewEnd) {
+                                // Mettre à jour la plage horaire du créneau existant
+                                appData[dateKey].timeSlots[existingSlotStartingAtNewEnd].range = nextSlotRange;
+                            } else {
+                                // Créer un tout nouveau créneau
+                                appData[dateKey].timeSlots[nextSlotId] = {
+                                    range: nextSlotRange,
+                                    engines: {} // Initialise vide
+                                };
+                                ['FPT', 'CCF', 'VSAV', 'VTU', 'VPMA'].forEach(engineType => {
+                                    appData[dateKey].timeSlots[nextSlotId].engines[engineType] = createEmptyEngineAssignment(engineType);
+                                });
+                            }
+                        }
+                    }
+
+                    saveAppData();
+                    renderTimeSlotButtons(dateKey); // Rafraîchit tous les boutons pour inclure le nouveau/modifié et trier
+                    renderAvailablePersonnel(); // Importanrt : les créneaux affectent les disponibilités
                 }
             });
         });
@@ -398,15 +572,15 @@ document.addEventListener('DOMContentLoaded', () => {
         timeSlotButtonsContainer.insertBefore(button, addTimeSlotBtn);
 
         // Ajoute à notre structure de données interne pour la date actuelle si c'est un nouveau créneau
-        const dateKey = formatDate(currentDisplayedDate);
-        if (!appData[dateKey].timeSlots[slotId]) {
-            appData[dateKey].timeSlots[slotId] = {
+        const dateKeyForSave = formatDate(currentDisplayedDate);
+        if (!appData[dateKeyForSave].timeSlots[slotId]) {
+            appData[dateKeyForSave].timeSlots[slotId] = {
                 range: initialTimeRange,
                 engines: {} // Commence sans aucun engin assigné
             };
             // Initialise la structure des engins par default pour ce nouveau créneau
             ['FPT', 'CCF', 'VSAV', 'VTU', 'VPMA'].forEach(engineType => {
-                appData[dateKey].timeSlots[slotId].engines[engineType] = createEmptyEngineAssignment(engineType);
+                appData[dateKeyForSave].timeSlots[slotId].engines[engineType] = createEmptyEngineAssignment(engineType);
             });
             saveAppData(); // Sauvegarde la création initiale
         }
@@ -425,15 +599,45 @@ document.addEventListener('DOMContentLoaded', () => {
             if (engineDetailsPage.style.display === 'block' && currentEditingEngineContext && currentEditingEngineContext.slotId === slotId) {
                 showMainRosterGrid();
             }
+            // Après suppression, il faut rafraîchir la liste du personnel disponible
+            // car les créneaux affichés ont changé, ce qui peut affecter les disponibilités.
+            renderAvailablePersonnel();
             console.log(`Le créneau horaire ${slotId} a été supprimé pour la date ${dateKey}.`);
+        }
+    }
+
+    // Initialise les créneaux horaires par défaut pour une date donnée
+    function initializeDefaultTimeSlotsForDate(dateKey) {
+        if (!appData[dateKey]) {
+            appData[dateKey] = { timeSlots: {}, onDutyAgents: Array(10).fill('none') };
+        }
+        // Initialise avec les créneaux de base 07:00 - 14:00, 14:00 - 17:00, 17:00 - 07:00
+        if (Object.keys(appData[dateKey].timeSlots).length === 0) {
+            console.log(`Initialisation des créneaux par défaut pour la date ${dateKey}.`);
+            const defaultSlots = [
+                { id: `slot_0700_1400_${Date.now()}`, range: '07:00 - 14:00' },
+                { id: `slot_1400_1700_${Date.now()+1}`, range: '14:00 - 17:00' },
+                { id: `slot_1700_0700_${Date.now()+2}`, range: '17:00 - 07:00' } // Créneau qui traverse minuit
+            ];
+
+            defaultSlots.forEach(slot => {
+                appData[dateKey].timeSlots[slot.id] = {
+                    range: slot.range,
+                    engines: {}
+                };
+                ['FPT', 'CCF', 'VSAV', 'VTU', 'VPMA'].forEach(engineType => {
+                    appData[dateKey].timeSlots[slot.id].engines[engineType] = createEmptyEngineAssignment(engineType);
+                });
+            });
+            saveAppData(); // Sauvegarde les créneaux par défaut
         }
     }
 
     // Fonction pour afficher les engins spécifiques et leur personnel affecté pour un créneau horaire sélectionné
     function displayEnginesForSlot(dateKey, slotId) {
         rosterGrid.style.display = 'none'; // Cache la grille principale
-        // Cache la section de gestion du personnel et des agents d'astreinte quand on est sur les détails d'engin
-        document.querySelector('.personnel-management-section').style.display = 'none'; 
+        // Garde la section de gestion du personnel et des agents d'astreinte visible
+        document.querySelector('.personnel-management-section').style.display = 'flex';
         engineDetailsPage.style.display = 'block'; // Affiche la page des détails de l'engin
         engineGrid.innerHTML = ''; // Efface les engins précédents
 
@@ -450,7 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const engineName = engineType; // Utilise le type comme nom générique pour l'instant
             let engineDetails = slotData.engines[engineType]; // Utilise engineType directement
 
-            // Si ce type d'engin n'est pas encore explicitement défini pour ce créneau, l'initialise
+            // Si ce type d'engin n'est pas explicitement défini pour ce créneau, l'initialise
             if (!engineDetails) {
                 engineDetails = createEmptyEngineAssignment(engineType);
                 // Stocke ces données initialisées
@@ -508,7 +712,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // C'est la source du personnel pour les sélecteurs de la modale.
         const onDutyPersonnel = appData[dateKey].onDutyAgents
             .map(id => availablePersonnel.find(p => p.id === id))
-            .filter(p => p !== undefined); // Filtre les IDs 'none' ou non trouvés
+            .filter(p => p !== undefined && p.id !== 'none'); // Filtre les IDs 'none' ou non trouvés
+
+        // Ajout de l'option 'Non assigné' pour la sélection de personnel
+        const personnelForModalSelect = [{ id: 'none', name: 'Non assigné', qualifications: [], grade: 'none' }].concat(onDutyPersonnel);
 
         roles.forEach(role => {
             const assignmentDiv = document.createElement('div');
@@ -520,15 +727,8 @@ document.addEventListener('DOMContentLoaded', () => {
             selectElement.dataset.role = role;
             selectElement.classList.add('mt-1', 'block', 'w-full', 'pl-3', 'pr-10', 'py-2', 'text-base', 'border-gray-300', 'focus:outline-none', 'focus:ring-blue-500', 'focus:border-blue-500', 'sm:text-sm', 'rounded-md', 'shadow-sm');
 
-
-            // Ajoute l'option 'Non assigné' en premier
-            const defaultOption = document.createElement('option');
-            defaultOption.value = 'none';
-            defaultOption.textContent = 'Non assigné';
-            selectElement.appendChild(defaultOption);
-
             // Remplit le sélecteur avec le personnel d'astreinte éligible pour ce rôle
-            onDutyPersonnel.filter(p => p.qualifications.includes(role) || p.id === 'none').forEach(person => {
+            personnelForModalSelect.filter(p => p.qualifications.includes(role) || p.id === 'none').forEach(person => {
                 const option = document.createElement('option');
                 option.value = person.id;
                 option.textContent = person.name;
@@ -547,27 +747,22 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Vérifie si un personnel donné est déjà affecté à une autre position DANS LE MÊME ENGIN.
      * @param {string} personnelId - L'ID du personnel à vérifier.
-     * @param {object} newAssignments - L'objet des nouvelles affectations proposées pour l'engin actuel.
-     * @param {string} currentRole - Le rôle actuellement en cours d'affectation dans la modale.
-     * @returns {object|null} Un objet { role, personnelName } si un doublon est trouvé dans l'engin, sinon null.
+     * @param {Object} currentEngineAssignments - L'objet des affectations actuelles pour l'engin (clé: rôle, valeur: ID du personnel).
+     * @param {string} roleBeingAssigned - Le rôle actuellement en cours d'affectation (pour l'exclure de la vérification).
+     * @returns {Object|null} Un objet { role, personnelName } si un conflit est trouvé, sinon null.
      */
-    function isPersonnelAlreadyAssignedInEngine(personnelId, newAssignments, currentRole) {
+    function isPersonnelAlreadyAssignedInEngine(personnelId, currentEngineAssignments, roleBeingAssigned) {
         if (personnelId === 'none') {
-            return null; // 'Non assigné' ne cause pas de doublon
+            return null; // 'none' (Non assigné) ne cause jamais de conflit.
         }
 
-        // Cette fonction est maintenue pour la vérification des doublons *au sein du même engin*.
-        // Elle empêche un utilisateur d'affecter la même personne à deux postes différents sur le même FPT, par exemple.
-        for (const roleInEngine in newAssignments) {
-            if (newAssignments.hasOwnProperty(roleInEngine)) {
-                // Si le personnel est trouvé dans une AUTRE position de CET ENGIN
-                if (newAssignments[roleInEngine] === personnelId && roleInEngine !== currentRole) {
-                    const personName = availablePersonnel.find(p => p.id === personnelId)?.name || 'Inconnu';
-                    return { role: roleInEngine, personnelName: personName };
-                }
+        for (const role in currentEngineAssignments) {
+            if (role !== roleBeingAssigned && currentEngineAssignments[role] === personnelId) {
+                const person = availablePersonnel.find(p => p.id === personnelId);
+                return { role: role, personnelName: person ? person.name : 'Personnel inconnu' };
             }
         }
-        return null; // Aucun doublon trouvé dans cet engin
+        return null;
     }
 
     // Sauvegarde les affectations de personnel depuis la modale
@@ -595,21 +790,21 @@ document.addEventListener('DOMContentLoaded', () => {
         // Cette vérification empêche une personne d'être affectée à deux postes *sur le même engin*.
         for (const roleBeingAssigned in newAssignments) {
             const personnelId = newAssignments[roleBeingAssigned];
-            
+
             if (personnelId !== 'none') {
                 const conflict = isPersonnelAlreadyAssignedInEngine(
-                    personnelId, 
-                    newAssignments, 
-                    roleBeingAssigned 
+                    personnelId,
+                    newAssignments,
+                    roleBeingAssigned
                 );
 
                 if (conflict) {
                     hasConflict = true;
                     conflictDetails = {
                         personName: conflict.personnelName,
-                        conflictingRole: conflict.role 
+                        conflictingRole: conflict.conflictingRole
                     };
-                    break; 
+                    break;
                 }
             }
         }
@@ -619,7 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const conflictingRole = conflictDetails.conflictingRole;
 
             showAlertModal(`Conflit d'affectation pour l'engin ${editingEngineType} : ${conflictPersonName} est déjà assigné à la position "${conflictingRole}" dans cet engin. Veuillez le désassigner de cette position avant de le placer ailleurs dans le même engin.`);
-            return; 
+            return;
         }
 
         // Si aucune conflit, on applique les nouvelles affectations
@@ -627,7 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
             engineData.personnel[role] = newAssignments[role];
         }
 
-        saveAppData(); 
+        saveAppData();
         console.log(`Personnel sauvegardé pour ${editingEngineType} dans le créneau ${slotId} le ${dateKey} :`, engineData.personnel);
 
         personnelAssignmentModal.style.display = 'none';
@@ -640,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showMainRosterGrid() {
         engineDetailsPage.style.display = 'none';
         // Affiche la section de gestion du personnel et des agents d'astreinte
-        document.querySelector('.personnel-management-section').style.display = 'flex'; 
+        document.querySelector('.personnel-management-section').style.display = 'flex';
         rosterGrid.style.display = 'grid'; // Ou 'block' selon son affichage par default
         // Supprime la classe active de tous les boutons de créneau horaire
         document.querySelectorAll('.time-slot-button').forEach(btn => btn.classList.remove('active'));
@@ -648,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Fonctions des modales personnalisées (remplacement de alert/confirm/prompt) ---
-    function createModal(id, title, message, type, callback) {
+    function createModal(id, title, message, type, callback, defaultValue = null) {
         let modal = document.getElementById(id);
         if (!modal) {
             modal = document.createElement('div');
@@ -656,13 +851,32 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.classList.add('custom-modal', 'fixed', 'inset-0', 'bg-gray-600', 'bg-opacity-50', 'flex', 'items-center', 'justify-center', 'z-50', 'hidden');
             document.body.appendChild(modal);
         }
+
+        let inputHtml = '';
+        if (type === 'prompt') {
+            inputHtml = `<input type="text" id="prompt-input" class="modal-input mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">`;
+        } else if (type === 'timeRangePrompt') {
+            inputHtml = `
+                <div class="flex space-x-2 mb-4">
+                    <div class="flex-1">
+                        <label for="start-time-input" class="block text-sm font-medium text-gray-700">Heure de début:</label>
+                        <input type="time" id="start-time-input" class="modal-input mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div class="flex-1">
+                        <label for="end-time-input" class="block text-sm font-medium text-gray-700">Heure de fin:</label>
+                        <input type="time" id="end-time-input" class="modal-input mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                </div>
+            `;
+        }
+
         modal.innerHTML = `
             <div class="modal-content bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 text-center">
                 <h3 class="text-xl font-semibold text-gray-800 mb-3">${title}</h3>
                 <p class="text-gray-700 mb-4">${message}</p>
-                ${type === 'prompt' ? '<input type="text" id="prompt-input" class="modal-input mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">' : ''}
+                ${inputHtml}
                 <div class="modal-actions flex justify-center space-x-3 pt-4">
-                    ${type === 'confirm' || type === 'prompt' ? '<button class="modal-cancel-btn bg-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-400 transition duration-200 ease-in-out shadow-md">Annuler</button>' : ''}
+                    ${type === 'confirm' || type === 'prompt' || type === 'timeRangePrompt' ? '<button class="modal-cancel-btn bg-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-400 transition duration-200 ease-in-out shadow-md">Annuler</button>' : ''}
                     <button class="modal-ok-btn bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 ease-in-out shadow-md">OK</button>
                 </div>
             </div>
@@ -672,12 +886,32 @@ document.addEventListener('DOMContentLoaded', () => {
         const okBtn = modal.querySelector('.modal-ok-btn');
         const cancelBtn = modal.querySelector('.modal-cancel-btn');
         const promptInput = modal.querySelector('#prompt-input');
+        const startTimeInput = modal.querySelector('#start-time-input');
+        const endTimeInput = modal.querySelector('#end-time-input');
+
+        if (promptInput && defaultValue) {
+            promptInput.value = defaultValue;
+            promptInput.focus();
+        } else if (startTimeInput && endTimeInput && defaultValue) { // defaultValue est un array [start, end]
+            startTimeInput.value = defaultValue[0];
+            endTimeInput.value = defaultValue[1];
+            startTimeInput.focus();
+        }
 
         okBtn.onclick = () => {
             modal.style.display = 'none';
             if (callback) {
                 if (type === 'prompt') {
                     callback(promptInput.value);
+                } else if (type === 'timeRangePrompt') {
+                    // Validation simple pour s'assurer que les champs ne sont pas vides
+                    if (startTimeInput.value && endTimeInput.value) {
+                        callback(startTimeInput.value, endTimeInput.value);
+                    } else {
+                        showAlertModal("Veuillez saisir une heure de début et une heure de fin valides.");
+                        // Réafficher la modale pour corriger
+                        modal.style.display = 'flex';
+                    }
                 } else {
                     callback(true);
                 }
@@ -689,15 +923,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 modal.style.display = 'none';
                 if (callback && type === 'confirm') {
                     callback(false);
-                } else if (callback && type === 'prompt') {
-                    callback(null); // Return null if prompt is cancelled
+                } else if (callback && (type === 'prompt' || type === 'timeRangePrompt')) {
+                    callback(null, null); // Return null for both start and end if cancelled
                 }
             };
-        }
-
-        if (promptInput) {
-            promptInput.value = message.split(':')[1]?.trim() || ''; // Pre-fill for prompt
-            promptInput.focus();
         }
     }
 
@@ -710,8 +939,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showPromptModal(message, defaultValue, callback) {
-        createModal('prompt-modal', 'Saisie requise', message, 'prompt', callback);
-        document.getElementById('prompt-input').value = defaultValue;
+        createModal('prompt-modal', 'Saisie requise', message, 'prompt', callback, defaultValue);
+    }
+
+    // Nouvelle fonction pour la modale de plage horaire
+    function showTimeRangePromptModal(currentStart, currentEnd, callback) {
+        createModal('time-range-prompt-modal', 'Modifier la plage horaire', 'Saisissez les nouvelles heures de début et de fin:', 'timeRangePrompt', callback, [currentStart, currentEnd]);
     }
 
     // --- Fonctions de rendu et de gestion du personnel disponible / agents d'astreinte ---
@@ -725,18 +958,103 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Fonction utilitaire pour vérifier si deux plages horaires se chevauchent
+    // Les plages sont au format { start: "HH:MM", end: "HH:MM" }
+    function doTimeRangesOverlap(range1, range2) {
+        const start1 = parseTimeToMinutes(range1.start);
+        let end1 = parseTimeToMinutes(range1.end);
+        const start2 = parseTimeToMinutes(range2.start);
+        let end2 = parseTimeToMinutes(range2.end);
+
+        // Ajuster les heures de fin si elles sont "le lendemain" (inférieures à l'heure de début)
+        // La logique est que si end <= start, cela signifie que le créneau traverse minuit.
+        if (end1 <= start1) {
+            end1 += 24 * 60; // Ajouter 24 heures en minutes
+        }
+        if (end2 <= start2) {
+            end2 += 24 * 60;
+        }
+
+        // Les plages se chevauchent si (Début1 < Fin2) ET (Fin1 > Début2)
+        const overlaps = start1 < end2 && end1 > start2;
+        // console.log(`Overlap check: R1(${range1.start}-${range1.end} normalized to ${start1}-${end1}) vs R2(${range2.start}-${range2.end} normalized to ${start2}-${end2}) -> Result: ${overlaps}`);
+        return overlaps;
+    }
+
     // Rend la liste du personnel disponible
     function renderAvailablePersonnel() {
         availablePersonnelList.innerHTML = ''; // Vide la liste existante
         const dateKey = formatDate(currentDisplayedDate);
-        const onDutyAgents = appData[dateKey].onDutyAgents || []; // Assure que c'est un tableau
+        const onDutyAgents = appData[dateKey]?.onDutyAgents || []; // Assure que c'est un tableau
 
-        // Filtre le personnel disponible qui n'est PAS déjà dans le tableau des agents d'astreinte
-        const personnelNotOnDuty = availablePersonnel.filter(p => 
-            p.id !== 'none' && !onDutyAgents.includes(p.id)
-        );
-        
-        const sortedPersonnel = sortPersonnelByGrade(personnelNotOnDuty);
+        // Récupérer les créneaux horaires de la feuille de garde pour le jour actuel
+        const rosterTimeSlots = Object.values(appData[dateKey]?.timeSlots || {}).map(slot => {
+            const [start, end] = slot.range.split(' - ');
+            return { start, end };
+        });
+
+        // Si aucun créneau horaire n'est défini pour le jour, aucun agent n'est "disponible" selon cette logique
+        if (rosterTimeSlots.length === 0) {
+            const noPersonnelMessage = document.createElement('p');
+            noPersonnelMessage.classList.add('text-gray-500', 'text-center', 'py-4', 'px-2', 'text-sm');
+            noPersonnelMessage.textContent = "Aucun créneau horaire défini pour ce jour. Aucun agent disponible à afficher.";
+            availablePersonnelList.appendChild(noPersonnelMessage);
+            console.log(`Aucun créneau horaire pour ${dateKey}, aucun personnel disponible.`);
+            return;
+        }
+        // console.log(`Créneaux de la feuille de garde pour ${dateKey}:`, rosterTimeSlots);
+
+        // Récupérer les disponibilités détaillées pour la date actuelle
+        const personnelAvailabilitiesForDate = appData.personnelAvailabilities || {};
+        // console.log(`Toutes les disponibilités du personnel (appData.personnelAvailabilities):`, personnelAvailabilitiesForDate);
+
+
+        const personnelToShow = availablePersonnel.filter(person => {
+            // Exclure l'option 'Non assigné'
+            if (person.id === 'none') return false;
+
+            // Exclure le personnel déjà d'astreinte
+            if (onDutyAgents.includes(person.id)) {
+                console.log(`Agent ${person.name} (${person.id}) : Déjà d'astreinte, exclu.`);
+                return false;
+            }
+
+            // Vérifier les disponibilités de l'agent pour cette date
+            const agentDailyAvailabilities = personnelAvailabilitiesForDate[person.id]?.[dateKey];
+            
+            // Nouveaux logs pour le débogage
+            console.log(`--- Débogage de la disponibilité pour ${person.name} (${person.id}) ---`);
+            console.log(`Clé de la date de la feuille de garde: ${dateKey}`);
+            console.log(`Disponibilités brutes de l'agent pour ${dateKey}:`, agentDailyAvailabilities);
+            console.log(`Créneaux horaires de la feuille de garde:`, rosterTimeSlots);
+            console.log(`Est-il déjà d'astreinte?: ${onDutyAgents.includes(person.id)}`);
+            console.log(`Est-ce un tableau de dispo et a-t-il une longueur?: ${Array.isArray(agentDailyAvailabilities) && agentDailyAvailabilities.length > 0}`);
+
+            if (!Array.isArray(agentDailyAvailabilities) || agentDailyAvailabilities.length === 0) {
+                console.log(`Agent ${person.name} (${person.id}) n'est pas disponible: Pas de disponibilités quotidiennes ou tableau vide.`);
+                return false;
+            }
+
+            let isAvailableForRoster = false;
+            for (const rosterSlot of rosterTimeSlots) {
+                for (const agentAvailability of agentDailyAvailabilities) {
+                    const overlaps = doTimeRangesOverlap(rosterSlot, agentAvailability);
+                    console.log(`  Comparaison du créneau de la feuille de garde (${rosterSlot.start}-${rosterSlot.end}) avec la disponibilité de l'agent (${agentAvailability.start}-${agentAvailability.end}) -> Chevauchement: ${overlaps}`);
+                    if (overlaps) {
+                        isAvailableForRoster = true;
+                        break; // Un seul chevauchement suffit pour marquer l'agent comme disponible
+                    }
+                }
+                if (isAvailableForRoster) {
+                    console.log(`Agent ${person.name} (${person.id}) EST disponible pour au moins un créneau de la feuille de garde.`);
+                    break;
+                }
+            }
+            console.log(`Disponibilité finale pour ${person.name} (${person.id}) pour la date de la feuille de garde ${dateKey}: ${isAvailableForRoster}`);
+            return isAvailableForRoster;
+        });
+
+        const sortedPersonnel = sortPersonnelByGrade(personnelToShow);
 
         sortedPersonnel.forEach(person => {
             const personDiv = document.createElement('div');
@@ -758,6 +1076,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             availablePersonnelList.appendChild(personDiv);
         });
+
+        if (sortedPersonnel.length === 0 && rosterTimeSlots.length > 0) {
+            const noPersonnelMessage = document.createElement('p');
+            noPersonnelMessage.classList.add('text-gray-500', 'text-center', 'py-4', 'px-2', 'text-sm');
+            noPersonnelMessage.textContent = "Aucun agent disponible pendant les créneaux horaires de ce jour ou déjà d'astreinte.";
+            availablePersonnelList.appendChild(noPersonnelMessage);
+        }
     }
 
     // Rend la grille des agents d'astreinte
@@ -904,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Gérer les grades non trouvés en les mettant à la fin
                 const finalGradeA = gradeAIndex === -1 ? Infinity : gradeAIndex;
-                const finalGradeB = gradeBIndex === -1 ? Infinity : gradeBIndex;
+                const finalGradeB = gradeBIndex === -1 ? Infinity : gradeBIndex; // Correction: 'BBindex' -> 'Bindex'
 
                 return finalGradeA - finalGradeB;
             });
@@ -925,46 +1250,13 @@ document.addEventListener('DOMContentLoaded', () => {
             .map(id => availablePersonnel.find(p => p.id === id))
             .filter(p => p !== undefined);
 
-        // Collecte tous les rôles vides pour tous les engins de ce créneau
-        let emptyRolesToFillGlobally = [];
-        ['FPT', 'CCF', 'VSAV', 'VTU', 'VPMA'].forEach(engineType => {
-            const engineAssignment = slotData.engines[engineType];
-            const roles = engineRoles[engineType] || [];
-
-            roles.forEach(role => {
-                if (engineAssignment.personnel[role] === 'none') {
-                    emptyRolesToFillGlobally.push({
-                        engineType: engineType,
-                        role: role,
-                        roleTypePriority: roleTypePriority[getRoleType(role)] || Infinity
-                    });
-                }
-            });
-        });
-
-        // Trie les rôles vides globalement:
-        // 1. Par le nombre de candidats qualifiés (moins de candidats = plus prioritaire) - calculé à chaque fois
-        // 2. Puis par la priorité du type de rôle (CA > COD > EQ)
-        emptyRolesToFillGlobally.sort((a, b) => {
-            // Calculer le nombre de candidats qualifiés au moment du tri pour la pertinence
-            const qualifiedCountA = getQualifiedPersonnelForRole(a.role, currentOnDutyPersonnel).length;
-            const qualifiedCountB = getQualifiedPersonnelForRole(b.role, currentOnDutyPersonnel).length;
-
-            if (qualifiedCountA !== qualifiedCountB) {
-                return qualifiedCountA - qualifiedCountB;
-            }
-            return a.roleTypePriority - b.roleTypePriority;
-        });
-
-        // Maintenant, assigner le personnel en parcourant les rôles triés
-        // et en s'assurant qu'un agent n'occupe qu'un poste par engin.
-        // On va réitérer sur les engins pour s'assurer de la contrainte "un agent par engin".
+        // Maintenant, assigner le personnel en parcourant les engins et leurs rôles
         ['FPT', 'CCF', 'VSAV', 'VTU', 'VPMA'].forEach(engineType => {
             const engineAssignment = slotData.engines[engineType];
             const rolesForThisEngine = engineRoles[engineType] || [];
-            
+
             // Set pour suivre les agents déjà affectés DANS CET ENGIN pour ce créneau
-            const personnelAssignedInThisEngine = new Set(); 
+            const personnelAssignedInThisEngine = new Set();
 
             // Pré-remplir avec les affectations manuelles existantes pour cet engin
             rolesForThisEngine.forEach(role => {
@@ -974,15 +1266,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Filtrer les rôles vides qui appartiennent à CET ENGIN et les trier par priorité de rôle
-            let emptyRolesForCurrentEngine = emptyRolesToFillGlobally.filter(roleInfo => 
-                roleInfo.engineType === engineType && engineAssignment.personnel[roleInfo.role] === 'none'
-            ).sort((a, b) => a.roleTypePriority - b.roleTypePriority); // Tri par type de rôle pour les postes de cet engin
+            // Trier les rôles pour cet engin par priorité de rôle
+            const sortedRolesForEngine = [...rolesForThisEngine].sort((a, b) => {
+                const typeA = roleTypePriority[getRoleType(a)] || Infinity;
+                const typeB = roleTypePriority[getRoleType(b)] || Infinity;
+                return typeA - typeB;
+            });
 
-            emptyRolesForCurrentEngine.forEach(roleInfo => {
-                const role = roleInfo.role;
-
-                // Si le poste a été rempli manuellement ou par une affectation précédente, on passe
+            sortedRolesForEngine.forEach(role => {
+                // Si le poste est déjà rempli (manuellement ou auto précédemment), on passe
                 if (engineAssignment.personnel[role] !== 'none') {
                     return;
                 }
@@ -990,7 +1282,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let assignedPersonId = 'none';
 
                 // Filtrer le personnel qui est d'astreinte ET qui n'est PAS déjà affecté à un autre poste DANS CET ENGIN
-                const availableCandidatesForThisRole = currentOnDutyPersonnel.filter(p => 
+                const availableCandidatesForThisRole = currentOnDutyPersonnel.filter(p =>
                     !personnelAssignedInThisEngine.has(p.id)
                 );
 
@@ -999,14 +1291,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (qualifiedAndAvailableCandidates.length > 0) {
                     const bestGradePriorityValue = gradePriority[qualifiedAndAvailableCandidates[0].grade];
-                    
+
                     // Filtrer les candidats pour ne garder que ceux qui ont ce meilleur grade
                     const topCandidates = qualifiedAndAvailableCandidates.filter(c => gradePriority[c.grade] === bestGradePriorityValue);
 
                     // Si plusieurs candidats ont le même meilleur grade, choisir aléatoirement
                     const randomIndex = Math.floor(Math.random() * topCandidates.length);
                     assignedPersonId = topCandidates[randomIndex].id;
-                    
+
                     // Marquer cette personne comme affectée DANS CET ENGIN pour ce créneau
                     personnelAssignedInThisEngine.add(assignedPersonId);
                 }
@@ -1025,59 +1317,54 @@ document.addEventListener('DOMContentLoaded', () => {
         // S'assurer que la structure de données existe pour la date
         if (!appData[dateKey]) {
             appData[dateKey] = { timeSlots: {}, onDutyAgents: Array(10).fill('none') };
-            initializeDefaultTimeSlotsForDate(dateKey); // Initialiser les créneaux par default si aucun n'existe
+            initializeDefaultTimeSlotsForDate(dateKey); // S'assurer que les créneaux sont là
         }
 
-        const currentSlots = appData[dateKey].timeSlots;
+        const currentDayTimeSlots = appData[dateKey].timeSlots;
 
-        // Trier les créneaux pour garantir un ordre de traitement cohérent (par heure de début)
-        const sortedSlotIds = Object.keys(currentSlots).sort((a, b) => {
-            const timeA = parseTimeToMinutes(currentSlots[a].range.split(' - ')[0]);
-            const timeB = parseTimeToMinutes(currentSlots[b].range.split(' - ')[0]);
-            return timeA - timeB;
-        });
-
-        // Pour chaque créneau horaire, assigner le personnel
-        sortedSlotIds.forEach(slotId => {
+        // Parcourir tous les créneaux horaires de la journée et assigner le personnel pour chacun
+        for (const slotId in currentDayTimeSlots) {
             assignPersonnelToSlot(dateKey, slotId);
-        });
+        }
 
-        saveAppData(); // Sauvegarder toutes les modifications
-        console.log('Feuille de garde générée automatiquement pour le', dateKey);
-
-        // Après la génération, afficher le premier créneau horaire ou la grille principale
-        if (sortedSlotIds.length > 0) {
-            // Trouver le créneau actif, ou par default le premier
-            const activeSlotButton = document.querySelector('.time-slot-button.active');
-            let slotToDisplay = sortedSlotIds[0]; // Par default, le premier créneau
-
-            if (activeSlotButton) {
-                slotToDisplay = activeSlotButton.dataset.slotId;
-            }
-
-            displayEnginesForSlot(dateKey, slotToDisplay);
-            // S'assurer que le bon bouton est actif après la régénération
-            document.querySelectorAll('.time-slot-button').forEach(btn => btn.classList.remove('active'));
-            const newActiveButton = document.querySelector(`[data-slot-id="${slotToDisplay}"]`);
-            if (newActiveButton) {
-                newActiveButton.classList.add('active');
-            }
-
+        saveAppData(); // Sauvegarde toutes les modifications après la génération automatique
+        // Rafraîchit l'affichage de la feuille de garde
+        if (engineDetailsPage.style.display === 'block' && currentEditingEngineContext) {
+            displayEnginesForSlot(currentEditingEngineContext.dateKey, currentEditingEngineContext.slotId);
         } else {
             showMainRosterGrid();
         }
+        showAlertModal("La feuille de garde a été générée automatiquement !");
     }
 
 
-    // --- Écouteurs d'événements ---
+    // --- Événements et initialisation globale ---
 
-    // Sélecteur de date
-    rosterDateInput.addEventListener('change', (event) => {
-        currentDisplayedDate = new Date(event.target.value);
-        updateDateDisplay(); // Cela re-rendra également les boutons et affichera la grille principale
+    // Bouton "Ajouter un créneau"
+    addTimeSlotBtn.addEventListener('click', () => {
+        showTimeRangePromptModal('07:00', '07:00', (newStart, newEnd) => {
+            if (newStart && newEnd) {
+                const dateKey = formatDate(currentDisplayedDate);
+                const newSlotId = `slot_${newStart.replace(':', '')}_${newEnd.replace(':', '')}_${Date.now()}`;
+                const newTimeRange = `${newStart} - ${newEnd}`;
+                createTimeSlotButton(newSlotId, newTimeRange, true);
+                displayEnginesForSlot(dateKey, newSlotId); // Affiche directement la page des engins pour ce nouveau créneau
+                renderAvailablePersonnel(); // Importanrt : les créneaux affectent les disponibilités
+            }
+        });
     });
 
-    // Boutons de navigation (jour précédent/suivant)
+    // Bouton "Retour à la feuille de garde"
+    backToRosterBtn.addEventListener('click', () => {
+        showMainRosterGrid();
+    });
+
+    // Navigation par date
+    rosterDateInput.addEventListener('change', (e) => {
+        currentDisplayedDate = new Date(e.target.value);
+        updateDateDisplay();
+    });
+
     prevDayButton.addEventListener('click', () => {
         currentDisplayedDate.setDate(currentDisplayedDate.getDate() - 1);
         updateDateDisplay();
@@ -1088,51 +1375,18 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDateDisplay();
     });
 
-    // Bouton "Générer auto" (anciennement "Actualiser")
-    // Renommer le bouton dans le DOM
-    refreshButton.textContent = 'Générer auto';
-    refreshButton.classList.add('px-4', 'py-2', 'bg-green-600', 'text-white', 'rounded-md', 'hover:bg-green-700', 'transition', 'duration-200', 'ease-in-out', 'shadow-md');
+    // Bouton "Générer automatiquement"
     refreshButton.addEventListener('click', () => {
-        generateAutomaticRoster(formatDate(currentDisplayedDate));
+        showConfirmationModal("Voulez-vous générer automatiquement la feuille de garde pour la journée ? Les postes vides seront remplis.", (confirmed) => {
+            if (confirmed) {
+                generateAutomaticRoster(formatDate(currentDisplayedDate));
+            }
+        });
     });
 
-    // Bouton Ajouter un nouveau créneau horaire
-    addTimeSlotBtn.classList.add('px-4', 'py-2', 'bg-gray-200', 'text-gray-800', 'rounded-md', 'hover:bg-gray-300', 'transition', 'duration-200', 'ease-in-out', 'shadow-sm');
-    addTimeSlotBtn.addEventListener('click', () => {
-        timeSlotCounter++;
-        const newSlotId = `slot_${Date.now()}`; // ID unique basé sur le timestamp
-        createTimeSlotButton(newSlotId, '00:00 - 00:00', true); // Créer un nouveau bouton actif
-        displayEnginesForSlot(formatDate(currentDisplayedDate), newSlotId); // Afficher directement les engins pour ce nouveau créneau
-    });
-
-    // Nouveau bouton de retour à la feuille de garde principale
-    backToRosterBtn.classList.add('px-4', 'py-2', 'bg-gray-500', 'text-white', 'rounded-md', 'hover:bg-gray-600', 'transition', 'duration-200', 'ease-in-out', 'shadow-md', 'inline-flex', 'items-center', 'space-x-2');
-    backToRosterBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H16a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
-        </svg>
-        <span>Retour à la feuille de garde</span>
-    `;
-    backToRosterBtn.addEventListener('click', () => {
-        showMainRosterGrid();
-    });
-
-    // Fonction pour initialiser les créneaux horaires par default pour une nouvelle date
-    function initializeDefaultTimeSlotsForDate(dateKey) {
-        if (!appData[dateKey] || Object.keys(appData[dateKey].timeSlots).length === 0) {
-            console.log(`Initialisation des créneaux par défaut pour la date ${dateKey}.`);
-            appData[dateKey] = {
-                timeSlots: {},
-                onDutyAgents: Array(10).fill('none') // Assure l'initialisation des agents d'astreinte
-            };
-            // Créneaux horaires par default
-            createTimeSlotButton('slot_0700_0700', '07:00 - 07:00'); // Créneau initial pour la journée
-            saveAppData();
-        }
-    }
-
-    // --- Initialisation de l'application ---
+    // --- Initialisation au chargement de la page ---
+    // Les disponibilités sont chargées via loadAllPersonnelAvailabilities() dans loadAppData()
+    loadAppData(); // Charge les données existantes ou initialise appData
     createPersonnelAssignmentModal(); // Crée la modale une fois au chargement
-    loadAppData(); // Charge les données au démarrage
-    updateDateDisplay(); // Affiche la date actuelle et charge les créneaux
+    updateDateDisplay(); // Affiche la date et rend les éléments initiaux (créneaux, personnel, astreinte)
 });
