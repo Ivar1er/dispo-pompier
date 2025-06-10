@@ -1,17 +1,14 @@
-/* admin.css - Pour des ajustements spécifiques ou des surcharges */
-
 /* Import de la police Google Fonts Poppins */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
 
-/* Variables de couleurs et de design pour la cohérence - À AJUSTER SELON VOS VARIABLES GLOBALES */
-/* Si ces variables sont déjà définies dans un fichier CSS commun (ex: global.css), vous pouvez les supprimer d'ici. */
+/* Variables de couleurs et de design pour la cohérence */
 :root {
   --primary-color: #007bff; /* Bleu principal */
   --primary-hover-color: #0056b3;
   --secondary-color: #6c757d; /* Gris pour actions secondaires */
   --secondary-hover-color: #5a6268;
-  --success-color: #28a745; /* Vert pour créneaux sélectionnés */
-  --danger-color: #dc3545; /* Rouge pour bouton déconnexion */
+  --success-color: #28a745; /* Vert pour créneaux sélectionnés / messages de succès */
+  --danger-color: #dc3545; /* Rouge pour bouton déconnexion / messages d'erreur */
 
   --occupied-slot-color: var(--primary-color); /* Bleu pour un créneau occupé */
   --free-slot-color: #e0e0e0; /* Couleur pour un créneau libre (non disponible/vide) */
@@ -29,14 +26,11 @@
 
   --box-shadow-subtle: 0 6px 20px rgba(0, 0, 0, 0.08);
 
-  /* NOUVELLES VARIABLES POUR LES COULEURS DE LIGNE ALTERNÉES */
-  --row-even-background: #fdfdfd; /* Très léger blanc-gris */
-  --row-odd-background: #f9f9f9; /* Un peu plus gris */
-  /* MODIFICATION : Couleur de bordure de ligne plus prononcée */
-  --row-border-color: #d1d1d1; /* Ancien: #dcdcdc. Nouveau: plus visible */
-  /* NOUVELLE VARIABLE POUR L'EFFET HOVER SUR LA LIGNE */
-  --row-hover-background: #e6f7ff; /* Un bleu très clair pour le survol */
-  --row-hover-border-color: #a3d9ff; /* Bordure plus marquée au survol */
+  --row-even-background: #fdfdfd;
+  --row-odd-background: #f9f9f9;
+  --row-border-color: #d1d1d1;
+  --row-hover-background: #e6f7ff;
+  --row-hover-border-color: #a3d9ff;
 }
 
 body {
@@ -52,9 +46,8 @@ body {
   box-sizing: border-box;
 }
 
-/* Conteneur principal de l'admin (anciennement .agent-container) */
-.agent-container { /* Conserver le nom si vous le souhaitez, sinon renommer en .admin-container */
-  max-width: 1400px; /* Plus large pour accueillir le tableau */
+.agent-container {
+  max-width: 1400px;
   width: 100%;
   margin: 0 auto;
   background: var(--card-background);
@@ -70,7 +63,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap; /* Pour la réactivité */
+  flex-wrap: wrap;
   gap: 15px;
   margin-bottom: 20px;
 }
@@ -94,7 +87,7 @@ body {
   gap: 10px;
 }
 
-#week-select { /* ID corrigé */
+#week-select {
   padding: 8px 12px;
   border: 1px solid var(--light-gray);
   border-radius: var(--border-radius-small);
@@ -103,13 +96,59 @@ body {
   cursor: pointer;
 }
 
+/* #date-range est désormais vide ou masqué, vous pouvez le supprimer du HTML si vous le souhaitez */
 #date-range {
-  font-weight: 600;
-  color: var(--dark-gray);
-  font-size: 0.95rem;
+  display: none; /* Cache explicitement l'élément si vous ne le supprimez pas du HTML */
 }
 
-/* Styles des onglets de jour */
+/* --- NOUVEAUX STYLES POUR LA NAVIGATION PRINCIPALE (ONGLETS) --- */
+.main-tabs-navigation {
+  display: flex;
+  justify-content: flex-start; /* Aligne les onglets à gauche */
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--light-gray); /* Ligne sous les onglets */
+  flex-wrap: wrap;
+  gap: 5px; /* Espace entre les boutons d'onglet */
+}
+
+.main-tab {
+  padding: 12px 20px;
+  border: none;
+  background-color: transparent;
+  color: var(--dark-gray);
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent; /* Bordure pour l'effet actif */
+  transition: all 0.3s ease;
+  font-size: 1.1rem;
+}
+
+.main-tab:hover {
+  color: var(--primary-color);
+  border-bottom-color: rgba(0, 123, 255, 0.5); /* Effet survol */
+}
+
+.main-tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.main-tab:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Contenu des onglets principaux */
+.main-tab-content {
+  display: none; /* Masqué par défaut, affiché par JS */
+}
+
+.main-tab-content.active {
+  display: block; /* Affiche l'onglet actif */
+}
+
+
+/* Styles des onglets de jour (pour le planning global) */
 .tabs-navigation {
   display: flex;
   justify-content: center;
@@ -130,7 +169,7 @@ body {
   cursor: pointer;
   border-radius: var(--border-radius-small);
   transition: background-color 0.3s ease, color 0.3s ease;
-  white-space: nowrap; /* Empêche les noms de jours de se casser */
+  white-space: nowrap;
 }
 
 .tab:hover {
@@ -165,18 +204,18 @@ body {
 .table-container {
     overflow-x: auto;
     margin-top: 20px;
-    border: 1px solid var(--light-gray); /* Bordure générale du conteneur du tableau */
+    border: 1px solid var(--light-gray);
     border-radius: var(--border-radius-medium);
     box-shadow: var(--box-shadow-subtle);
-    background-color: var(--card-background); /* Fond du conteneur du tableau */
+    background-color: var(--card-background);
 }
 
 /* Tableau du planning */
 .planning-table {
     width: 100%;
-    border-collapse: collapse; /* TRÈS IMPORTANT: fusionne les bordures des cellules */
+    border-collapse: collapse;
     font-size: 0.85rem;
-    table-layout: fixed; /* TRÈS IMPORTANT: Force les colonnes à avoir une largeur fixe */
+    table-layout: fixed;
 }
 
 .planning-table th,
@@ -198,7 +237,6 @@ body {
     font-size: 0.75rem;
     text-overflow: ellipsis;
     overflow: hidden;
-    /* AJOUT : Bordure inférieure pour l'en-tête */
     border-bottom: 1px solid var(--row-border-color);
 }
 
@@ -214,53 +252,41 @@ body {
     padding-left: 15px;
     min-width: 150px;
     width: 150px;
-    /* AJOUT : Bordure droite pour la colonne sticky */
     border-right: 1px solid var(--row-border-color);
-    /* MODIFICATION : Couleur de texte plus foncée pour le nom de l'agent */
-    color: var(--text-color); /* Assure une bonne visibilité */
+    color: var(--text-color);
 }
 
-/* NOUVEAUX STYLES POUR L'AMÉLIORATION DE LA VISIBILITÉ DES LIGNES */
-
-/* Base pour les lignes du tableau */
 .planning-table tbody tr {
-    /* AJOUT : Bordure inférieure plus marquée pour chaque ligne */
     border-bottom: 1px solid var(--row-border-color);
-    transition: background-color 0.3s ease, border-color 0.3s ease; /* Transition douce pour le hover */
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
-/* S'assurer que la dernière ligne n'a pas de bordure en bas pour la propreté visuelle */
 .planning-table tbody tr:last-child {
     border-bottom: none;
 }
 
-/* Alternance des couleurs de fond pour les lignes */
 .planning-table tbody tr:nth-child(even) {
-    background-color: var(--row-even-background); /* Très léger blanc-gris */
+    background-color: var(--row-even-background);
 }
 
 .planning-table tbody tr:nth-child(odd) {
-    background-color: var(--row-odd-background); /* Un peu plus gris */
+    background-color: var(--row-odd-background);
 }
 
-/* Effet au survol de la ligne entière (tr) */
 .planning-table tbody tr:hover {
-    background-color: var(--row-hover-background); /* Bleu très clair au survol */
-    border-color: var(--row-hover-border-color); /* Bordure bleue plus marquée au survol */
+    background-color: var(--row-hover-background);
+    border-color: var(--row-hover-border-color);
 }
 
-/* S'assurer que les cellules ont un background transparent pour laisser voir la couleur de la ligne */
 .planning-table td {
-    background-color: transparent; /* Permet aux couleurs de ligne d'être visibles */
-    border: none; /* Supprime les bordures individuelles des cellules pour une ligne continue */
-    /* Bordure droite très fine pour les séparations verticales des slots */
+    background-color: transparent;
+    border: none;
     border-right: 1px solid rgba(0, 0, 0, 0.05);
 }
 .planning-table td:last-child {
-    border-right: none; /* Pas de bordure sur le dernier slot d'une ligne */
+    border-right: none;
 }
 
-/* Réappliquer la couleur de fond alternée et l'effet hover à la première colonne sticky */
 .planning-table tbody tr:nth-child(even) td:first-child {
     background-color: var(--row-even-background);
 }
@@ -268,32 +294,24 @@ body {
     background-color: var(--row-odd-background);
 }
 .planning-table tbody tr:hover td:first-child {
-    background-color: var(--row-hover-background); /* La première colonne sticky suit le hover de la ligne */
+    background-color: var(--row-hover-background);
 }
-/* La première colonne sticky a déjà sa bordure droite définie plus haut */
-/* Et la bordure du bas est gérée par la ligne (tr) */
 
-
-/* Style des créneaux (cellules de données) */
 .planning-table td.slot-cell {
     height: 25px;
-    background-color: var(--free-slot-color); /* Couleur pour créneau libre */
+    background-color: var(--free-slot-color);
     cursor: default;
-    width: 25px; /* Largeur fixe pour chaque créneau de 30min */
+    width: 25px;
     min-width: 25px;
     position: relative;
-    /* La bordure droite est gérée par .planning-table td */
 }
 
-
-/* Créneau occupé */
 .planning-table td.slot-cell.occupied {
-    background-color: var(--occupied-slot-color); /* Bleu principal pour occupé */
+    background-color: var(--occupied-slot-color);
     color: white;
     cursor: help;
 }
 
-/* Tooltip pour l'heure au survol d'un créneau occupé */
 .planning-table td.slot-cell.occupied:hover::after {
   content: attr(data-time);
   position: absolute;
@@ -325,6 +343,18 @@ body {
   text-align: center;
 }
 
+/* NOUVEAU: Bouton Primaire (pour Ajouter, Mettre à jour) */
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+.btn-primary:hover {
+    background-color: var(--primary-hover-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
+}
+
+
 .btn-secondary {
   background-color: var(--secondary-color);
   color: white;
@@ -352,7 +382,8 @@ body {
 }
 
 .btn:disabled,
-.btn.disabled {
+.btn.disabled,
+.btn.disabled-link { /* Nouvelle classe pour désactiver les liens */
     opacity: 0.6;
     cursor: not-allowed;
     pointer-events: none;
@@ -401,6 +432,211 @@ body {
   border: 0;
 }
 
+/* --- STYLES POUR LA GESTION DES AGENTS (SECTIONS ET FORMULAIRES) --- */
+#add-agent-section, #list-agents-section {
+    background-color: var(--card-background);
+    padding: 25px;
+    border-radius: var(--border-radius-medium);
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+#add-agent-section h3, #list-agents-section h3 {
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--light-gray);
+    padding-bottom: 10px;
+}
+
+form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--dark-gray);
+}
+
+form input[type="text"],
+form input[type="password"] {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid var(--medium-gray);
+    border-radius: var(--border-radius-small);
+    font-size: 1rem;
+    box-sizing: border-box; /* Inclure padding et border dans la largeur */
+}
+
+/* Styles pour les messages de feedback */
+p#addAgentMessage, p#editAgentMessage, p#listAgentsMessage, p#qualificationsMessage {
+    margin-top: 15px;
+    padding: 10px 15px;
+    border-radius: var(--border-radius-small);
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+p#addAgentMessage[style*="green"], p#editAgentMessage[style*="green"] {
+    background-color: #e6ffe6;
+    border: 1px solid #a4e6a4;
+    color: #3c763d;
+}
+
+p#addAgentMessage[style*="red"], p#editAgentMessage[style*="red"], p#listAgentsMessage[style*="red"], p#qualificationsMessage[style*="red"] {
+    background-color: #ffe6e6;
+    border: 1px solid #e6a4a4;
+    color: #a94442;
+}
+
+p#addAgentMessage[style*="blue"], p#editAgentMessage[style*="blue"], p#listAgentsMessage[style*="blue"] {
+    background-color: #e0f2f7;
+    border: 1px solid #b3e0ed;
+    color: #2196f3;
+}
+
+
+/* Styles pour le tableau de liste des agents */
+#list-agents-section table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+#list-agents-section th, #list-agents-section td {
+    border: 1px solid var(--light-gray);
+    padding: 12px;
+    text-align: left;
+    font-size: 0.9rem;
+}
+
+#list-agents-section th {
+    background-color: var(--background-color);
+    font-weight: 600;
+    color: var(--dark-gray);
+}
+
+#list-agents-section tbody tr:nth-child(even) {
+    background-color: var(--row-even-background);
+}
+
+#list-agents-section tbody tr:nth-child(odd) {
+    background-color: var(--row-odd-background);
+}
+
+#list-agents-section tbody tr:hover {
+    background-color: var(--row-hover-background);
+}
+
+/* Styles des boutons Modifier/Supprimer dans le tableau */
+#list-agents-section .btn-secondary,
+#list-agents-section .btn-danger {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    border-radius: var(--border-radius-small);
+    margin-right: 5px;
+}
+
+/* --- STYLES DE LA MODALE --- */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000; /* Assurez-vous qu'elle est au-dessus de tout */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6); /* Fond semi-transparent foncé */
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.modal-content {
+    background-color: var(--card-background);
+    margin: auto; /* Centre la modale verticalement et horizontalement */
+    padding: 30px;
+    border-radius: var(--border-radius-large);
+    width: 90%;
+    max-width: 600px;
+    box-shadow: var(--box-shadow-subtle);
+    position: relative;
+    animation: fadeIn 0.3s ease-out; /* Animation à l'ouverture */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.close-button {
+    color: var(--dark-gray);
+    float: right;
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    transition: color 0.2s ease;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: var(--danger-color);
+}
+
+.modal-content h3 {
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 1.6rem;
+    border-bottom: 1px solid var(--light-gray);
+    padding-bottom: 10px;
+}
+
+.modal-content h4 {
+    color: var(--text-color);
+    margin-top: 20px;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+}
+
+/* --- STYLES POUR LES QUALIFICATIONS DANS LA MODALE --- */
+#qualificationsCheckboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius-small);
+    background-color: #fcfcfc;
+}
+
+.qualification-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qualification-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary-color); /* Couleur de la case à cocher */
+}
+
+.qualification-item label {
+    margin-bottom: 0; /* Réinitialise le margin-bottom du label de formulaire */
+    font-weight: normal;
+    color: var(--text-color);
+    cursor: pointer;
+}
+
 
 /* Media Queries pour la réactivité */
 @media (max-width: 1024px) {
@@ -423,6 +659,10 @@ body {
   .btn {
     width: 100%;
   }
+  .main-tab {
+    font-size: 1rem;
+    padding: 10px 15px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -435,17 +675,23 @@ body {
   .welcome-message {
     font-size: 1.8rem;
   }
-  .tabs-navigation {
+  .main-tabs-navigation, .tabs-navigation {
     justify-content: flex-start;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px; /* Espace pour le scrollbar */
   }
+  .main-tabs-navigation::-webkit-scrollbar,
   .tabs-navigation::-webkit-scrollbar {
     height: 4px;
   }
+  .main-tabs-navigation::-webkit-scrollbar-thumb,
   .tabs-navigation::-webkit-scrollbar-thumb {
     background: var(--light-gray);
     border-radius: 5px;
+  }
+  .main-tab {
+    min-width: fit-content; /* Pour éviter que les onglets ne se réduisent trop */
   }
 
   .planning-table th,
@@ -464,6 +710,15 @@ body {
       min-width: 20px;
       height: 20px;
   }
+
+  .modal-content {
+      padding: 20px;
+  }
+  .close-button {
+      font-size: 28px;
+      top: 5px;
+      right: 10px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -478,8 +733,9 @@ body {
   .welcome-message {
     font-size: 1.5rem;
   }
-  .tabs-navigation {
-      padding: 3px;
+  .main-tab {
+      padding: 8px 12px;
+      font-size: 0.9rem;
   }
   .tab {
       padding: 6px 10px;
@@ -496,5 +752,25 @@ body {
       width: 18px;
       min-width: 18px;
       height: 18px;
+  }
+
+  #add-agent-section h3, #list-agents-section h3, .modal-content h3 {
+      font-size: 1.3rem;
+  }
+
+  form input[type="text"],
+  form input[type="password"] {
+      font-size: 0.9rem;
+      padding: 8px;
+  }
+
+  .btn {
+      padding: 8px 15px;
+      font-size: 0.85rem;
+  }
+  
+  .qualification-item {
+      gap: 5px;
+      font-size: 0.9rem;
   }
 }

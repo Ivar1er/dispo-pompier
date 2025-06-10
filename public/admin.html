@@ -8,43 +8,131 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="agent-container"> <header class="page-header">
+  <div class="agent-container">
+    <header class="page-header">
       <h2 class="welcome-message">Tableau de bord Administrateur</h2>
 
       <div class="header-controls">
-        <div class="week-info">
+        <!-- Ces contrôles (semaine, export, feuille de garde) seront affichés uniquement
+             quand l'onglet "Planning Global" est actif. Leur visibilité sera gérée par JS. -->
+        <div class="week-info" id="planning-controls">
           <label for="week-select" class="sr-only">Sélectionner la semaine</label>
-          <select id="week-select"></select> <p id="date-range" class="date-range"></p> </div>
-
-        <button id="export-pdf" class="btn btn-secondary">📄 Exporter en PDF</button>
-        <a href="feuille_de_garde.html" class="btn btn-secondary">Feuille de Garde</a>
+          <select id="week-select"></select>
+          <p id="date-range"></p>
+          <button id="export-pdf" class="btn btn-secondary">📄 Exporter en PDF</button>
+          <a href="feuille_de_garde.html" class="btn btn-secondary">Feuille de Garde</a>
+        </div>
       </div>
     </header>
 
-    <nav class="tabs-navigation">
-      <button class="tab active" data-day="lundi">Lundi</button>
-      <button class="tab" data-day="mardi">Mardi</button>
-      <button class="tab" data-day="mercredi">Mercredi</button>
-      <button class="tab" data-day="jeudi">Jeudi</button>
-      <button class="tab" data-day="vendredi">Vendredi</button>
-      <button class="tab" data-day="samedi">Samedi</button>
-      <button class="tab" data-day="dimanche">Dimanche</button>
+    <!-- NOUVEAU : Navigation principale entre les vues (Planning Global et Gestion des Agents) -->
+    <nav class="main-tabs-navigation">
+      <button class="main-tab active" data-main-tab="global-planning-view">Planning Global</button>
+      <button class="main-tab" data-main-tab="agent-management-view">Gestion des Agents</button>
     </nav>
 
-    <section class="planning-section">
-      <p id="admin-info" class="info-message">
-        Vue du planning global des agents.
-      </p>
+    <!-- NOUVEAU : Conteneur pour la vue du Planning Global -->
+    <div id="global-planning-view" class="main-tab-content active">
+      <nav class="tabs-navigation">
+        <button class="tab active" data-day="lundi">Lundi</button>
+        <button class="tab" data-day="mardi">Mardi</button>
+        <button class="tab" data-day="mercredi">Mercredi</button>
+        <button class="tab" data-day="jeudi">Jeudi</button>
+        <button class="tab" data-day="vendredi">Vendredi</button>
+        <button class="tab" data-day="samedi">Samedi</button>
+        <button class="tab" data-day="dimanche">Dimanche</button>
+      </nav>
 
-      <div id="global-planning" class="table-container planning-grid">
-          </div>
+      <section class="planning-section">
+        <p id="admin-info" class="info-message">
+          Vue du planning global des agents.
+        </p>
 
-      <div id="loading-spinner" class="loading-spinner hidden"></div>
-    </section>
+        <div id="global-planning" class="table-container planning-grid">
+            <!-- Le planning global sera généré ici par JS -->
+        </div>
+
+        <div id="loading-spinner" class="loading-spinner hidden"></div>
+      </section>
+    </div>
+
+    <!-- NOUVEAU : Conteneur pour la vue de Gestion des Agents -->
+    <div id="agent-management-view" class="main-tab-content">
+        <section id="add-agent-section">
+            <h3>Ajouter un Nouvel Agent</h3>
+            <form id="addAgentForm">
+                <label for="newAgentId">Identifiant (utilisé pour la connexion, ex: dupont) :</label>
+                <input type="text" id="newAgentId" required><br><br>
+
+                <label for="newAgentNom">Nom :</label>
+                <input type="text" id="newAgentNom" required><br><br>
+
+                <label for="newAgentPrenom">Prénom :</label>
+                <input type="text" id="newAgentPrenom" required><br><br>
+
+                <label for="newAgentPassword">Mot de passe :</label>
+                <input type="password" id="newAgentPassword" required><br><br>
+
+                <button type="submit" class="btn btn-primary">Ajouter l'Agent</button>
+            </form>
+            <p id="addAgentMessage"></p>
+        </section>
+
+        <hr>
+
+        <section id="list-agents-section">
+            <h3>Liste des Agents</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identifiant</th>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="agentsTableBody">
+                    <tr><td colspan="4">Chargement des agents...</td></tr>
+                </tbody>
+            </table>
+            <p id="listAgentsMessage"></p>
+        </section>
+    </div>
 
     <footer class="bottom-actions">
       <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
     </footer>
+  </div>
+
+  <!-- Modale de modification d'agent et de qualifications -->
+  <div id="editAgentModal" class="modal" style="display: none;">
+      <div class="modal-content">
+          <span class="close-button">&times;</span>
+          <h3>Modifier l'Agent et les Qualifications</h3>
+          <form id="editAgentForm">
+              <input type="hidden" id="editAgentId">
+
+              <label for="editAgentNom">Nom :</label>
+              <input type="text" id="editAgentNom" required><br><br>
+
+              <label for="editAgentPrenom">Prénom :</label>
+              <input type="text" id="editAgentPrenom" required><br><br>
+
+              <label for="editAgentNewPassword">Nouveau mot de passe (laisser vide pour ne pas modifier) :</label>
+              <input type="password" id="editAgentNewPassword"><br><br>
+
+              <h4>Qualifications de l'Agent :</h4>
+              <div id="qualificationsCheckboxes">
+                  <!-- Les cases à cocher des qualifications seront chargées ici par JavaScript -->
+                  Chargement des qualifications...
+              </div>
+              <p id="qualificationsMessage" style="color: red;"></p>
+              <br>
+
+              <button type="submit" class="btn btn-primary">Mettre à jour l'Agent</button>
+          </form>
+          <p id="editAgentMessage"></p>
+      </div>
   </div>
 
   <script src="js/admin.js"></script>
