@@ -1,5 +1,5 @@
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-const agent = sessionStorage.getItem("agent");
+// const agent = sessionStorage.getItem("agent"); // L'identifiant de l'agent est maintenant géré par la vérification de rôle
 const agentPrenom = sessionStorage.getItem("agentPrenom");
 const agentNom = sessionStorage.getItem("agentNom");
 
@@ -23,311 +23,314 @@ for (let i = 0; i < 48; i++) {
   horaires.push(`${start} - ${end}`);
 }
 
-// Décalage pour démarrer à 07:00 au lieu de 00:00
-const startIndex = horaires.findIndex(h => h.startsWith("07:00"));
-// S'assurer que le décalage ne crée pas de doublons ou ne manque pas de créneaux
-const horairesDecales = horaires.slice(startIndex).concat(horaires.slice(0, startIndex));
+// Décalage pour démarrer à 00:00 sur le tableau, et non 00:30
+const decalage = Math.floor(horaires.length / 2); // Décalage de 12 heures (24 * 0.5)
 
-let planningDataAgent = {}; // Contiendra le planning complet chargé de l'API
-let isDragging = false; // Pour la sélection par glissé
-let dragStartIndex = -1; // Index de début de la sélection par glissé
-
-// DOM Elements
-const weekSelect = document.getElementById("week-select");
-const dateRangeDisplay = document.getElementById("date-range");
-const planningContainer = document.getElementById("planning-container");
-const saveButton = document.getElementById("save-button");
-const clearSelectionButton = document.getElementById("clear-selection-btn");
-const logoutButton = document.getElementById("logout-button");
-const loadingSpinner = document.getElementById("loading-spinner");
-const tabButtons = document.querySelectorAll(".tab");
-const agentPrenomSpan = document.getElementById("agent-prenom");
-const agentNomSpan = document.getElementById("agent-nom");
+// Définitions des éléments du DOM
+const planningTableBody = document.getElementById("planningTableBody");
+const weekSelect = document.getElementById("weekSelect");
+const saveButton = document.getElementById("savePlanning");
+const clearSelectionButton = document.getElementById("clearSelection");
+const logoutButton = document.getElementById("logoutButton");
+const loadingSpinner = document.getElementById("loadingSpinner");
+const welcomeMessage = document.getElementById("welcomeMessage");
+const tabButtons = document.querySelectorAll('.tab-button');
+const tabContents = document.querySelectorAll('.tab-content');
 
 
 document.addEventListener("DOMContentLoaded", async () => {
-  if (!agent || agent === "admin") {
-    alert("Vous devez être connecté en tant qu’agent.");
-    window.location.href = "index.html";
-    return;
+  // **Vérification du rôle de l'utilisateur au chargement de la page**
+  const userRole = sessionStorage.getItem("userRole");
+  const agent = sessionStorage.getItem("agent"); // L'identifiant 'agent' est toujours nécessaire pour les requêtes de planning
+
+  // Vérifie si un rôle est défini et si ce rôle est bien 'agent'
+  if (!userRole || userRole !== "agent" || !agent) {
+    alert("Accès non autorisé. Vous devez être connecté en tant qu’agent.");
+    sessionStorage.clear(); // Nettoie la session en cas d'accès non autorisé
+    window.location.href = "index.html"; // Redirige vers la page de connexion
+    return; // Arrête l'exécution du script
   }
 
-  // Afficher le nom et prénom de l'agent
-  if (agentPrenomSpan) agentPrenomSpan.textContent = agentPrenom;
-  if (agentNomSpan) agentNomSpan.textContent = agentNom;
-
-
-  await loadAgentPlanning(); // Charge le planning au démarrage
-
-  // Initialiser le sélecteur de semaine
-  const currentWeek = getCurrentISOWeek();
-  const allWeeks = [];
-  for (let i = currentWeek; i < currentWeek + 8; i++) { // Afficher les 8 prochaines semaines
-    allWeeks.push(i);
+  // Si l'utilisateur est bien un agent, continuer le chargement normal de la page
+  if (welcomeMessage && agentPrenom && agentNom) {
+    welcomeMessage.textContent = `Bienvenue, ${agentPrenom} ${agentNom} !`;
   }
 
-  if (weekSelect) {
-    weekSelect.innerHTML = "";
-    allWeeks.forEach(week => {
-      const option = document.createElement("option");
-      option.value = week;
-      option.textContent = `Semaine ${week} (${getWeekDateRange(week)})`;
-      weekSelect.appendChild(option);
-    });
-    weekSelect.value = currentWeek; // Sélectionner la semaine actuelle
-  }
+  generateWeekOptions(); // Génère les options pour la sélection de la semaine
+  // Sélectionne la semaine actuelle par défaut
+  const currentWeek = getWeekNumber(new Date());
+  weekSelect.value = currentWeek;
 
-  updateDisplay(currentWeek); // Afficher le planning de la semaine actuelle (Lundi)
+  // Charge le planning pour la semaine sélectionnée et l'agent connecté
+  await loadPlanning(agent, currentWeek);
 
   // Écouteurs d'événements
   if (weekSelect) {
-    weekSelect.addEventListener("change", () => {
-      const selectedWeek = +weekSelect.value;
-      updateDisplay(selectedWeek);
+    weekSelect.addEventListener("change", async () => {
+      showLoading(true);
+      await loadPlanning(agent, weekSelect.value);
+      showLoading(false);
     });
   }
+  if (saveButton) {
+    saveButton.addEventListener("click", savePlanning);
+  }
+  if (clearSelectionButton) {
+    clearSelectionButton.addEventListener("click", clearSelectedCells);
+  }
+  if (logoutButton) {
+    logoutButton.addEventListener("click", logout);
+  }
+  // Initialise le tableau des jours et les rend cliquables pour la sélection des plages
+  generatePlanningTable();
 
+  // Initialisation des onglets
   if (tabButtons.length > 0) {
-    tabButtons.forEach(tab => {
-      tab.addEventListener("click", (event) => {
-        const day = event.target.dataset.day;
-        const week = +weekSelect.value;
-        showDay(day, week);
+    tabButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const targetTabId = button.dataset.tab;
+        openTab(targetTabId);
       });
     });
+    // Ouvre le premier onglet par défaut
+    openTab(tabButtons[0].dataset.tab);
   }
 
-  if (saveButton) saveButton.addEventListener("click", saveAgentPlanning);
-  if (clearSelectionButton) clearSelectionButton.addEventListener("click", clearCurrentDaySelection);
-  if (logoutButton) logoutButton.addEventListener("click", logout);
+  // Initialise le comportement de sélection des cellules
+  initCellSelection();
+
+  showLoading(false);
 });
 
 
-// Fonctions utilitaires
-function getCurrentISOWeek() {
-  const date = new Date();
-  const target = new Date(date.valueOf());
-  target.setDate(target.getDate() + 3 - (target.getDay() + 6) % 7);
-  const firstThursday = new Date(target.getFullYear(), 0, 4);
-  return 1 + Math.round(((target - firstThursday) / 86400000 - 3 + (firstThursday.getDay() + 6) % 7) / 7);
-}
-
-function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
-  const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
-  const dow = simple.getDay() || 7;
-  const ISOweekStart = new Date(simple);
-  if (dow <= 4) {
-    ISOweekStart.setDate(simple.getDate() - dow + 1);
-  } else {
-    ISOweekStart.setDate(simple.getDate() + 8 - dow);
-  }
-
-  const start = new Date(ISOweekStart);
-  const end = new Date(ISOweekStart);
-  end.setDate(start.getDate() + 6);
-
-  const format = date => date.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit"
+// Fonction pour basculer les onglets
+function openTab(tabId) {
+  tabContents.forEach(tab => {
+    tab.classList.remove('active');
+  });
+  tabButtons.forEach(button => {
+    button.classList.remove('active');
   });
 
-  return `du ${format(start)} au ${format(end)}`;
+  document.getElementById(tabId).classList.add('active');
+  document.querySelector(`.tab-button[data-tab="${tabId}"]`).classList.add('active');
 }
 
-async function loadAgentPlanning() {
+// Fonction pour générer les options de semaine (actuelle + 5 prochaines)
+function generateWeekOptions() {
+  const select = document.getElementById("weekSelect");
+  select.innerHTML = ""; // Vide les options existantes
+
+  const today = new Date();
+  const currentWeek = getWeekNumber(today);
+
+  for (let i = 0; i < 6; i++) {
+    const weekNum = (currentWeek + i - 1) % 52 + 1; // Ajuste pour les 52 semaines de l'année
+    const option = document.createElement("option");
+    option.value = weekNum;
+    option.textContent = `Semaine ${weekNum}`;
+    select.appendChild(option);
+  }
+}
+
+// Fonction pour obtenir le numéro de semaine ISO
+function getWeekNumber(d) {
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return weekNo;
+}
+
+
+// Fonction pour générer le tableau de planning
+function generatePlanningTable() {
+  if (!planningTableBody) return; // S'assurer que l'élément existe
+
+  planningTableBody.innerHTML = ""; // Vider le tableau existant
+
+  // Créer l'en-tête du tableau des horaires
+  const headerRow = planningTableBody.insertRow();
+  headerRow.insertCell().textContent = "Heure"; // Cellule vide pour le coin
+
+  days.forEach(day => {
+    const th = document.createElement("th");
+    th.textContent = day.charAt(0).toUpperCase() + day.slice(1); // Majuscule à la première lettre
+    headerRow.appendChild(th);
+  });
+
+  // Créer les lignes pour chaque créneau horaire
+  horaires.forEach(timeSlot => {
+    const row = planningTableBody.insertRow();
+    const timeCell = row.insertCell();
+    timeCell.textContent = timeSlot;
+    timeCell.classList.add("time-slot-header"); // Style l'en-tête de l'heure
+
+    days.forEach(day => {
+      const cell = row.insertCell();
+      cell.dataset.day = day;
+      cell.dataset.time = timeSlot;
+      cell.classList.add("planning-cell"); // Ajoute une classe pour le styling et la sélection
+    });
+  });
+}
+
+// Variables pour la sélection par glisser-déposer
+let isSelecting = false;
+let startCell = null;
+
+function initCellSelection() {
+  if (!planningTableBody) return;
+
+  planningTableBody.addEventListener('mousedown', (e) => {
+    if (e.target.classList.contains('planning-cell')) {
+      isSelecting = true;
+      startCell = e.target;
+      // Commence la sélection : si la cellule était sélectionnée, on la désélectionne, sinon on la sélectionne
+      if (startCell.classList.contains('selected')) {
+        startCell.classList.remove('selected');
+      } else {
+        startCell.classList.add('selected');
+      }
+      e.preventDefault(); // Empêche la sélection de texte
+    }
+  });
+
+  planningTableBody.addEventListener('mouseover', (e) => {
+    if (isSelecting && e.target.classList.contains('planning-cell')) {
+      // Pour une sélection simple, on active/désactive la cellule sur survol
+      // Si on veut une sélection par "zone", il faudrait un algorithme plus complexe ici
+      // Pour l'instant, on se contente de toggle individuellement.
+      // Ou bien, si l'objectif est de "remplir" une zone, il faut gérer ça.
+      // Pour l'instant, je vais laisser un comportement simple de toggle.
+      // Pour un vrai "glisser-déposer" de sélection de zone, il faudrait :
+      // 1. Détecter la cellule de départ (startCell).
+      // 2. Détecter la cellule actuelle survolée (e.target).
+      // 3. Calculer toutes les cellules entre startCell et e.target (dans une grille).
+      // 4. Appliquer la classe 'selected' à toutes ces cellules.
+      // 5. Enlever la classe 'selected' des cellules qui ne sont plus dans la zone.
+      // C'est un peu plus complexe, pour cette démo, on reste sur du simple click/toggle.
+      // Si vous voulez le drag-selection de zone, dites-le moi, et je pourrai l'ajouter.
+
+      // Version simplifiée: Bascule l'état de la cellule survolée si on est en mode sélection
+       if (e.target !== startCell) { // Évite de re-toggle la cellule de départ
+           e.target.classList.toggle('selected');
+       }
+    }
+  });
+
+  planningTableBody.addEventListener('mouseup', () => {
+    isSelecting = false;
+    startCell = null;
+  });
+
+  // Empêcher la sélection de texte lors du glisser-déposer
+  planningTableBody.addEventListener('selectstart', (e) => {
+    if (isSelecting) {
+      e.preventDefault();
+    }
+  });
+}
+
+
+// Charge le planning de l'agent pour la semaine sélectionnée
+async function loadPlanning(agentId, weekNumber) {
   showLoading(true);
   try {
-    const response = await fetch(`${API_BASE_URL}/api/planning/${agent}`);
+    const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}?week=${weekNumber}`);
+    const data = await response.json();
+
     if (!response.ok) {
-      if (response.status === 404) {
-        // Le planning n'existe pas encore pour cet agent, c'est normal
-        planningDataAgent = {};
-      } else {
-        throw new Error(`Erreur HTTP ${response.status}`);
-      }
-    } else {
-      planningDataAgent = await response.json();
+      throw new Error(data.message || 'Erreur lors du chargement du planning.');
     }
-  } catch (err) {
-    console.error("Erreur lors du chargement du planning :", err);
-    alert("Erreur lors du chargement du planning. Veuillez réessayer.");
-    planningDataAgent = {}; // Initialise un planning vide en cas d'erreur
-  } finally {
+
+    // Réinitialiser toutes les cellules
+    document.querySelectorAll('.planning-cell').forEach(cell => {
+      cell.classList.remove('selected', 'available'); // Supprime aussi 'available' si vous utilisez une autre classe
+    });
+
+    // Appliquer le planning chargé
+    if (data[weekNumber]) {
+      const weekPlanning = data[weekNumber];
+      days.forEach(day => {
+        if (weekPlanning[day]) {
+          weekPlanning[day].forEach(timeSlot => {
+            const cell = document.querySelector(`.planning-cell[data-day="${day}"][data-time="${timeSlot}"]`);
+            if (cell) {
+              cell.classList.add('selected'); // Marque la cellule comme sélectionnée
+            }
+          });
+        }
+      });
+    }
+    // Assurer que le spinner est caché après le chargement
+    showLoading(false);
+  } catch (error) {
+    console.error('Erreur de chargement du planning:', error);
+    alert(`Erreur lors du chargement du planning : ${error.message}`);
     showLoading(false);
   }
 }
 
-function updateDisplay(weekNumber) {
-  if (dateRangeDisplay) {
-    dateRangeDisplay.textContent = getWeekDateRange(weekNumber);
-  }
-  showDay('lundi', weekNumber); // Affiche toujours le Lundi par défaut
-}
+// Sauvegarde le planning actuel
+async function savePlanning() {
+  const agentId = sessionStorage.getItem("agent");
+  const weekNumber = weekSelect.value;
+  const currentPlanning = {};
 
-function showDay(day, weekNumber = weekSelect.value) {
-  // Désactiver tous les onglets et activer le bon
-  tabButtons.forEach(tab => tab.classList.remove("active"));
-  const activeTab = document.querySelector(`.tab[data-day="${day}"]`);
-  if (activeTab) {
-    activeTab.classList.add("active");
-  }
-
-  if (planningContainer) {
-    planningContainer.innerHTML = "";
-  } else {
-    return; // Arrête l'exécution si le conteneur n'est pas là
-  }
-
-
-  const weekKey = `week-${weekNumber}`;
-  const selectedSlotsForDay = planningDataAgent[weekKey]?.[day] || [];
-
-  horairesDecales.forEach((horaire, index) => {
-    const button = document.createElement("button");
-    button.className = "slot-button";
-    button.dataset.horaireIndex = index; // Pour la sélection par plage
-    button.textContent = horaire;
-
-    if (selectedSlotsForDay.includes(horaire)) {
-      button.classList.add("selected");
+  document.querySelectorAll('.planning-cell.selected').forEach(cell => {
+    const day = cell.dataset.day;
+    const time = cell.dataset.time;
+    if (!currentPlanning[day]) {
+      currentPlanning[day] = [];
     }
-
-    // Gestion de la sélection/désélection et de la sélection par glissé
-    button.addEventListener("click", () => {
-      // Si on clique sur un bouton alors qu'on est en train de glisser, on finalise le glissé
-      if (isDragging) {
-        isDragging = false; // Arrête le glissé
-        dragStartIndex = -1; // Réinitialise
-        return; // Le clic a déjà géré la sélection
-      }
-      // Sinon, on gère un clic simple pour (dé)sélectionner
-      button.classList.toggle("selected");
-    });
-
-    button.addEventListener("mousedown", (e) => {
-      if (e.button === 0) { // Clic gauche
-        isDragging = true;
-        dragStartIndex = index;
-        button.classList.toggle("selected"); // Toggle l'état du premier élément cliqué
-      }
-    });
-
-    button.addEventListener("mouseenter", () => {
-      if (isDragging && dragStartIndex !== -1) {
-        // Sélectionne/désélectionne les créneaux entre dragStartIndex et l'index actuel
-        const currentActiveDay = document.querySelector(".tab.active").dataset.day;
-        selectRange(currentActiveDay, dragStartIndex, index);
-      }
-    });
-
-    planningContainer.appendChild(button);
+    currentPlanning[day].push(time);
   });
 
-  // Gère la fin du glissé n'importe où sur le document
-  document.removeEventListener("mouseup", handleMouseUp); // Éviter les écouteurs multiples
-  document.addEventListener("mouseup", handleMouseUp);
-}
-
-// Fonction séparée pour le handleMouseUp pour pouvoir le remove/add
-function handleMouseUp() {
-  if (isDragging) {
-    isDragging = false;
-    dragStartIndex = -1;
-  }
-}
-
-function selectRange(day, startIndex, endIndex) {
-  const minIndex = Math.min(startIndex, endIndex);
-  const maxIndex = Math.max(startIndex, endIndex);
-
-  const allButtons = Array.from(planningContainer.children); // Récupère tous les boutons du jour
-  if (startIndex < 0 || startIndex >= allButtons.length) {
-      // startIndex invalide, ne peut pas déterminer l'état initial.
-      return;
-  }
-  const initialSelectedState = allButtons[startIndex].classList.contains("selected"); // État initial du premier bouton cliqué
-
-
-  for (let i = 0; i < allButtons.length; i++) {
-    const btn = allButtons[i];
-    const btnIndex = parseInt(btn.dataset.horaireIndex);
-
-    if (btnIndex >= minIndex && btnIndex <= maxIndex) {
-      if (initialSelectedState) {
-        btn.classList.add("selected");
-      } else {
-        btn.classList.remove("selected");
-      }
-    }
-  }
-}
-
-async function saveAgentPlanning() {
-  showLoading(true, saveButton);
-  saveButton.textContent = "Enregistrement...";
-
-  const week = weekSelect.value;
-  const weekKey = `week-${week}`;
-  const currentDay = document.querySelector(".tab.active").dataset.day;
-
-  // Récupère les créneaux réellement sélectionnés sur la page
-  const selectedSlotsOnPage = Array.from(planningContainer.querySelectorAll(".slot-button.selected"))
-    .map(btn => btn.textContent.trim());
-
-  // Met à jour le planningDataAgent avec la sélection actuelle du jour
-  planningDataAgent = {
-    ...planningDataAgent,
-    [weekKey]: {
-      ...(planningDataAgent[weekKey] || {}),
-      [currentDay]: selectedSlotsOnPage
-    }
+  const dataToSend = {
+    [weekNumber]: currentPlanning // Englobe le planning dans l'objet de la semaine
   };
 
+  showLoading(true, saveButton);
   try {
-    const response = await fetch(`${API_BASE_URL}/api/planning/${agent}`, {
+    const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(planningDataAgent) // Envoie tout le planning mis à jour
+      body: JSON.stringify(dataToSend),
     });
 
+    const data = await response.json();
+
     if (response.ok) {
-      alert("Vos créneaux ont été enregistrés avec succès !");
-      // Recharger le planning après sauvegarde pour s'assurer de la cohérence
-      await loadAgentPlanning();
-      showDay(currentDay, +week); // Réafficher le jour actif
+      alert("Planning enregistré avec succès !");
     } else {
-      const errorData = await response.json();
-      alert(`Erreur lors de l’enregistrement : ${errorData.message || 'Une erreur est survenue.'}`);
+      throw new Error(data.message || "Erreur lors de l'enregistrement.");
     }
-  } catch (err) {
-    console.error("Erreur lors de l’enregistrement :", err);
-    alert("Impossible d'enregistrer les créneaux. Veuillez vérifier votre connexion.");
-  } finally {
     showLoading(false, saveButton);
-    saveButton.textContent = "Enregistrer mes créneaux";
+  } catch (err) {
+    console.error("Erreur lors de l'enregistrement du planning :", err);
+    alert(`Erreur lors de l'enregistrement du planning : ${err.message}`);
+    showLoading(false, saveButton);
   }
 }
 
-function clearCurrentDaySelection() {
-  const currentDay = document.querySelector(".tab.active").dataset.day;
-  const weekKey = `week-${weekSelect.value}`;
-
-  // Supprime tous les créneaux du jour actuellement sélectionné dans le planningDataAgent
-  if (planningDataAgent[weekKey] && planningDataAgent[weekKey][currentDay]) {
-    planningDataAgent[weekKey][currentDay] = []; // Vide le tableau des créneaux pour ce jour
-  }
-
-  // Réafficher le jour pour refléter la suppression
-  showDay(currentDay, +weekSelect.value);
-
-  // Informer l'utilisateur, mais ne pas enregistrer automatiquement
+// Efface toutes les sélections de cellules sur le planning affiché
+function clearSelectedCells() {
+  document.querySelectorAll('.planning-cell.selected').forEach(cell => {
+    cell.classList.remove('selected');
+  });
   alert("La sélection actuelle a été effacée. N'oubliez pas d'enregistrer vos modifications !");
 }
 
 
 function logout() {
-  sessionStorage.clear(); // Efface toutes les données de session
-  window.location.href = "index.html";
+  // Optionnel: Appeler un endpoint de déconnexion côté serveur si vous utilisez des sessions ou JWT
+  // fetch(`${API_BASE_URL}/api/logout`, { method: 'POST' })
+  //   .then(res => res.json())
+  //   .finally(() => {
+        sessionStorage.clear(); // Efface toutes les données de session
+        window.location.href = "index.html";
+  //   });
 }
 
 function showLoading(isLoading, button = null) {
