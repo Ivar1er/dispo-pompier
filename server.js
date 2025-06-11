@@ -204,7 +204,7 @@ app.post('/api/planning/:agent', async (req, res) => {
     res.json({ message: 'Planning saved successfully' });
   } catch (err) {
     console.error('Error saving planning:', err);
-    res.status(500).json({ message: 'Server error when saving planning' });
+    res.status(500).json({ message: 'Server error when saving planning.' });
   }
 });
 
@@ -450,7 +450,7 @@ app.delete('/api/qualifications/:id', authorizeAdmin, async (req, res) => {
 app.get('/api/roster-config/:dateKey', async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. Attenduबद्दल-MM-DD.' });
     }
     const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
     try {
@@ -471,7 +471,7 @@ app.get('/api/roster-config/:dateKey', async (req, res) => {
 app.post('/api/roster-config/:dateKey', authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. Attenduबद्दल-MM-DD.' });
     }
     const { timeSlots, onDutyAgents } = req.body;
     if (!timeSlots || !onDutyAgents) {
@@ -492,7 +492,7 @@ app.post('/api/roster-config/:dateKey', authorizeAdmin, async (req, res) => {
 app.get('/api/daily-roster/:dateKey', async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. Attenduबद्दल-MM-DD.' });
     }
     const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
     try {
@@ -513,7 +513,7 @@ app.get('/api/daily-roster/:dateKey', async (req, res) => {
 app.post('/api/daily-roster/:dateKey', authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. Attenduबद्दल-MM-DD.' });
     }
     const { roster } = req.body;
     if (!roster) {

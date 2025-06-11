@@ -1,4 +1,3 @@
-// public/js/feuille_de_garde.js
 const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
 // Créneaux horaires de 07:00 à 07:00 le lendemain
@@ -41,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Vérification du rôle administrateur
     const userRole = sessionStorage.getItem("userRole");
     if (!userRole || userRole !== "admin") {
-        alert("Accès non autorisé. Vous devez être administrateur.");
+        showAlertModal("Accès non autorisé. Vous devez être administrateur.");
         sessionStorage.clear();
         window.location.href = "index.html";
         return;
@@ -241,26 +240,42 @@ let appData = {
 // Charge les données de l'application depuis l'API (feuille de garde, agents d'astreinte, disponibilités)
 async function loadInitialData() {
     showLoading(true);
+    console.log("Starting loadInitialData...");
+    const dateKey = formatDateToYYYYMMDD(currentRosterDate);
     try {
+        console.log("1. Fetching all agents...");
         await fetchAllAgents(); // Charge tous les agents
-        const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-        await loadRosterConfig(dateKey); // Charge agents d'astreinte et créneaux pour la date
-        await loadDailyRoster(dateKey); // Charge les affectations aux engins pour la date
-        await loadAllPersonnelAvailabilities(); // Charge les plannings de tous les agents pour le filtrage
-        
-        // Initialise les créneaux par défaut pour la date actuelle si c'est la première exécution pour cette date
+
+        console.log("2. Loading roster config for date:", dateKey);
+        // Tente de charger la config, si 404, ça ne lève pas d'erreur, ça initialise appData[dateKey] vide
+        await loadRosterConfig(dateKey); 
+
+        // Si la config n'a pas été trouvée (404), elle est initialisée vide dans loadRosterConfig
+        // On initialise les créneaux par défaut ici SI appData[dateKey] n'a pas de créneaux
         if (!appData[dateKey] || Object.keys(appData[dateKey].timeSlots || {}).length === 0) {
+            console.log("No existing time slots found for", dateKey, ". Initializing default slots.");
             initializeDefaultTimeSlotsForDate(dateKey);
+        } else {
+             console.log("Existing time slots found for", dateKey, ":", appData[dateKey].timeSlots);
         }
 
+        console.log("3. Loading daily roster for date:", dateKey);
+        await loadDailyRoster(dateKey); // Charge les affectations aux engins pour la date
+
+        console.log("4. Loading all personnel availabilities...");
+        await loadAllPersonnelAvailabilities(); // Charge les plannings de tous les agents pour le filtrage
+        
+        console.log("5. Rendering UI elements...");
         renderTimeSlotButtons(dateKey); // Rend les boutons de créneaux
         renderOnDutyAgentsGrid(); // Affiche les agents d'astreinte
         renderAvailablePersonnel(); // Affiche le personnel disponible (filtré)
         renderRosterGrid(); // Affiche la grille principale
         
+        console.log("loadInitialData finished successfully.");
+
     } catch (error) {
         console.error("Erreur lors du chargement initial des données :", error);
-        alert("Erreur lors du chargement initial des données. Veuillez recharger la page.");
+        showAlertModal("Erreur lors du chargement initial des données. Veuillez recharger la page et vérifier les logs du serveur.");
     } finally {
         showLoading(false);
     }
@@ -279,7 +294,9 @@ async function fetchAllAgents() {
         console.log("Tous les agents chargés :", allAgents);
     } catch (error) {
         console.error("Erreur fetchAllAgents :", error);
-        allAgents = [];
+        allAgents = []; // Assurez-vous que allAgents est vide en cas d'erreur
+        // Pas d'alerte ici car l'erreur est gérée globalement par loadInitialData
+        throw error; // Propager l'erreur pour que loadInitialData puisse la capturer
     }
 }
 
@@ -288,9 +305,8 @@ async function loadRosterConfig(dateKey) {
     // Validation ajoutée pour la robustesse
     if (!dateKey || typeof dateKey !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         console.error(`Invalid dateKey provided to loadRosterConfig: ${dateKey}`);
-        alert("Erreur: Date invalide pour le chargement de la configuration.");
-        showLoading(false); // S'assurer que le spinner est caché en cas d'erreur
-        return; // Empêche l'appel fetch avec une dateKey invalide
+        showAlertModal("Erreur: Date invalide pour le chargement de la configuration.");
+        throw new Error("Invalid DateKey"); // Propager l'erreur
     }
 
     try {
@@ -314,17 +330,31 @@ async function loadRosterConfig(dateKey) {
         console.log(`Configuration de la feuille de garde chargée pour ${dateKey} :`, appData[dateKey]);
     } catch (error) {
         console.error("Erreur loadRosterConfig :", error);
-        alert(`Erreur lors du chargement de la configuration : ${error.message || error}`);
+        // Ne pas alerter ici, car c'est une erreur de "pas trouvé", ce qui est géré.
+        // Propager l'erreur pour que loadInitialData puisse la capturer
+        throw error;
     }
 }
 
 // Sauvegarder la configuration de la feuille (créneaux et agents d'astreinte)
 async function saveRosterConfig(dateKey) {
+    if (!dateKey || typeof dateKey !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+        console.error(`Invalid dateKey provided to saveRosterConfig: ${dateKey}`);
+        showAlertModal("Erreur: Date invalide pour la sauvegarde de la configuration.");
+        return;
+    }
+    // Assurez-vous que les données pour la dateKey existent avant de sauvegarder
+    if (!appData[dateKey]) {
+        console.warn(`No appData[${dateKey}] to save. Skipping saveRosterConfig.`);
+        return;
+    }
+
     try {
         const configToSave = {
             timeSlots: appData[dateKey].timeSlots,
             onDutyAgents: appData[dateKey].onDutyAgents
         };
+        console.log(`Saving roster config for ${dateKey}:`, configToSave);
         const response = await fetch(`${API_BASE_URL}/api/roster-config/${dateKey}`, {
             method: 'POST',
             headers: {
@@ -340,7 +370,7 @@ async function saveRosterConfig(dateKey) {
         console.log("Configuration de la feuille de garde sauvegardée :", data.message);
     } catch (error) {
         console.error("Erreur saveRosterConfig :", error);
-        alert(`Erreur lors de la sauvegarde de la configuration : ${error.message}`);
+        showAlertModal(`Erreur lors de la sauvegarde de la configuration : ${error.message}`);
     }
 }
 
@@ -349,9 +379,8 @@ async function loadDailyRoster(dateKey) {
     // Validation ajoutée pour la robustesse
     if (!dateKey || typeof dateKey !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         console.error(`Invalid dateKey provided to loadDailyRoster: ${dateKey}`);
-        alert("Erreur: Date invalide pour le chargement de la feuille de garde d'affectation.");
-        showLoading(false); // S'assurer que le spinner est caché en cas d'erreur
-        return; // Empêche l'appel fetch avec une dateKey invalide
+        showAlertModal("Erreur: Date invalide pour le chargement de la feuille de garde d'affectation.");
+        throw new Error("Invalid DateKey"); // Propager l'erreur
     }
 
     try {
@@ -375,18 +404,38 @@ async function loadDailyRoster(dateKey) {
             }
         } else {
             // Assurez-vous d'intégrer les affectations chargées dans appData[dateKey].timeSlots[slotId].engines
-            if (appData[dateKey]) {
+            if (appData[dateKey] && appData[dateKey].timeSlots) {
                 for (const slotId in data.roster) {
                     if (appData[dateKey].timeSlots[slotId]) {
-                        appData[dateKey].timeSlots[slotId].engines = data.roster[slotId].engines;
+                        // S'assurer que la structure engines existe avant d'assigner
+                        appData[dateKey].timeSlots[slotId].engines = data.roster[slotId].engines || {};
+                    } else {
+                        // Si un créneau existe dans les données du serveur mais pas dans la config locale,
+                        // il doit être ajouté pour éviter la perte de données lors de la sauvegarde.
+                        // Cependant, cela peut indiquer une désynchronisation des données, il faudrait un mécanisme de fusion plus robuste.
+                        // Pour l'instant, on se contente de l'ajouter si la config n'existe pas.
+                        appData[dateKey].timeSlots[slotId] = {
+                            range: data.roster[slotId].range || '00:00 - 00:00', // Tenter de récupérer la plage si disponible
+                            engines: data.roster[slotId].engines || {}
+                        };
+                        console.warn(`Roster data for slot ${slotId} found on server but not in local config. Adding to local config.`);
                     }
                 }
+            } else if (appData[dateKey]) { // Si appData[dateKey] existe mais pas timeSlots (cela ne devrait pas arriver après loadRosterConfig)
+                 appData[dateKey].timeSlots = {};
+                 for (const slotId in data.roster) {
+                     appData[dateKey].timeSlots[slotId] = {
+                         range: data.roster[slotId].range || '00:00 - 00:00',
+                         engines: data.roster[slotId].engines || {}
+                     };
+                 }
+                 console.warn("appData[dateKey].timeSlots was not initialized before loading daily roster.");
             }
         }
         console.log(`Feuille de garde d'affectation chargée pour ${dateKey} :`, appData[dateKey]);
     } catch (error) {
         console.error("Erreur loadDailyRoster :", error);
-        alert(`Erreur lors du chargement de la feuille de garde d'affectation : ${error.message || error}`);
+        showAlertModal(`Erreur lors du chargement de la feuille de garde d'affectation : ${error.message || error}`);
         // En cas d'erreur, assurez-vous que les engins sont initialisés vides
         if (appData[dateKey] && appData[dateKey].timeSlots) {
             for (const slotId in appData[dateKey].timeSlots) {
@@ -395,11 +444,23 @@ async function loadDailyRoster(dateKey) {
                 }
             }
         }
+        throw error; // Propager l'erreur
     }
 }
 
 // Sauvegarder la feuille de garde complète
 async function saveDailyRoster(dateKey) {
+    if (!dateKey || typeof dateKey !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+        console.error(`Invalid dateKey provided to saveDailyRoster: ${dateKey}`);
+        showAlertModal("Erreur: Date invalide pour la sauvegarde de la feuille de garde.");
+        return;
+    }
+    // Assurez-vous que les données pour la dateKey existent avant de sauvegarder
+    if (!appData[dateKey]) {
+        console.warn(`No appData[${dateKey}] to save. Skipping saveDailyRoster.`);
+        return;
+    }
+
     try {
         // Préparer les données d'affectation des engins à sauvegarder
         const rosterToSave = {};
@@ -408,7 +469,7 @@ async function saveDailyRoster(dateKey) {
                 rosterToSave[slotId] = { engines: appData[dateKey].timeSlots[slotId].engines };
             }
         }
-
+        console.log(`Saving daily roster for ${dateKey}:`, rosterToSave);
         const response = await fetch(`${API_BASE_URL}/api/daily-roster/${dateKey}`, {
             method: 'POST',
             headers: {
@@ -422,10 +483,10 @@ async function saveDailyRoster(dateKey) {
             throw new Error(data.message || "Erreur lors de la sauvegarde de la feuille de garde.");
         }
         console.log("Feuille de garde sauvegardée :", data.message);
-        alert("Feuille de garde enregistrée avec succès !");
+        showAlertModal("Feuille de garde enregistrée avec succès !");
     } catch (error) {
         console.error("Erreur saveDailyRoster :", error);
-        alert(`Erreur lors de la sauvegarde de la feuille de garde : ${error.message}`);
+        showAlertModal(`Erreur lors de la sauvegarde de la feuille de garde : ${error.message}`);
     }
 }
 
@@ -436,8 +497,7 @@ async function loadAllPersonnelAvailabilities() {
     try {
         const agentsResponse = await fetch(`${API_BASE_URL}/api/admin/agents`, { headers: { 'X-User-Role': 'admin' } });
         if (!agentsResponse.ok) {
-            console.warn(`Impossible de récupérer la liste des agents (${agentsResponse.status}).`);
-            return; // Arrête si on ne peut pas avoir la liste des agents
+            throw new Error(data.message || `Impossible de récupérer la liste des agents (${agentsResponse.status}).`);
         }
         const fetchedAgents = await agentsResponse.json();
         const agentsToFetchPlanning = fetchedAgents.map(agent => agent.id);
@@ -492,6 +552,7 @@ async function loadAllPersonnelAvailabilities() {
 
     } catch (err) {
         console.error("Erreur générale lors du chargement des disponibilités de tous les agents :", err);
+        throw err; // Propager l'erreur pour que loadInitialData puisse la capturer
     }
 }
 
@@ -500,6 +561,10 @@ async function loadAllPersonnelAvailabilities() {
 
 // Formate une date au format AAAA-MM-JJ
 function formatDateToYYYYMMDD(date) {
+    if (!(date instanceof Date) || isNaN(date)) {
+        console.error("Invalid Date object passed to formatDateToYYYYMMDD:", date);
+        return "InvalidDate"; // Retourne une chaîne invalide pour faciliter le débogage
+    }
     const d = new Date(date);
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0'); // Les mois sont indexés de 0
@@ -526,24 +591,54 @@ async function updateDateDisplay() {
     const dateKey = formatDateToYYYYMMDD(currentRosterDate);
     rosterDateInput.value = dateKey; // Met à jour l'input date
 
+    console.log("Updating display for date:", dateKey);
     // Recharger la configuration et la feuille de garde pour la nouvelle date
-    await loadRosterConfig(dateKey);
-    await loadDailyRoster(dateKey);
-    // Les disponibilités de tous les agents sont déjà chargées par loadAllPersonnelAvailabilities()
+    try {
+        await loadRosterConfig(dateKey);
+        // Assurez-vous que les créneaux par défaut sont là si la config était vide
+        if (!appData[dateKey] || Object.keys(appData[dateKey].timeSlots || {}).length === 0) {
+            console.log("No slots after loading config for", dateKey, ". Initializing default.");
+            initializeDefaultTimeSlotsForDate(dateKey);
+        }
+        await loadDailyRoster(dateKey);
+        await loadAllPersonnelAvailabilities(); // Recharger les dispo car la date a changé
 
-    // Rend les éléments pour la nouvelle date
-    renderTimeSlotButtons(dateKey);
-    renderOnDutyAgentsGrid();
-    renderAvailablePersonnel(); // Le filtrage sera fait ici
-    showMainRosterGrid(); // Toujours revenir à la grille principale lors du changement de date
-    console.log('Date actuelle affichée:', dateKey);
-    showLoading(false);
+        renderTimeSlotButtons(dateKey);
+        renderOnDutyAgentsGrid();
+        renderAvailablePersonnel(); // Le filtrage sera fait ici
+        showMainRosterGrid(); // Toujours revenir à la grille principale lors du changement de date
+        console.log('Date display updated successfully for:', dateKey);
+    } catch (error) {
+        console.error("Error in updateDateDisplay:", error);
+        showAlertModal(`Erreur lors de la mise à jour de l'affichage de la date : ${error.message || error}. Vérifiez les logs.`);
+    } finally {
+        showLoading(false);
+    }
 }
 
 // Rend les boutons de créneaux horaires pour la date actuelle
 function renderTimeSlotButtons(dateKey) {
-    // Supprime les boutons existants (sauf le bouton d'ajout)
-    document.querySelectorAll('.time-slot-button').forEach(btn => btn.remove());
+    const timeSlotButtonsContainer = document.getElementById('time-slot-buttons-container');
+    timeSlotButtonsContainer.innerHTML = ''; // Vide le conteneur existant (sauf le bouton d'ajout qui est réinséré)
+
+    const addTimeSlotBtn = document.createElement('button'); // Recrée le bouton '+'
+    addTimeSlotBtn.id = 'add-time-slot-btn';
+    addTimeSlotBtn.classList.add('px-4', 'py-2', 'rounded-full', 'bg-green-500', 'text-white', 'hover:bg-green-600', 'transition-colors', 'duration-200', 'ease-in-out', 'text-2xl', 'font-bold', 'shadow-md');
+    addTimeSlotBtn.textContent = '+';
+    addTimeSlotBtn.title = 'Ajouter un nouveau créneau horaire';
+    addTimeSlotBtn.addEventListener('click', () => {
+        showTimeRangePromptModal('07:00', '07:00', (newStart, newEnd) => {
+            if (newStart && newEnd) {
+                const newSlotId = `slot_${newStart.replace(':', '')}_${newEnd.replace(':', '')}_${Date.now()}`;
+                const newTimeRange = `${newStart} - ${newEnd}`;
+                createTimeSlotButton(newSlotId, newTimeRange, true);
+                displayEnginesForSlot(dateKey, newSlotId); // Affiche directement la page des engins pour ce nouveau créneau
+                renderAvailablePersonnel(); // Important : les créneaux affectent les disponibilités
+            }
+        });
+    });
+    timeSlotButtonsContainer.appendChild(addTimeSlotBtn);
+
 
     const currentSlots = appData[dateKey]?.timeSlots || {};
     const sortedSlotIds = Object.keys(currentSlots).sort((a, b) => {
@@ -554,42 +649,51 @@ function renderTimeSlotButtons(dateKey) {
 
     sortedSlotIds.forEach(slotId => {
         const slot = currentSlots[slotId];
-        createTimeSlotButton(slotId, slot.range, false); // Aucun créneau n'est actif initialement
+        // Insère le nouveau bouton avant le bouton '+'
+        createTimeSlotButton(slotId, slot.range, false, true); // Le 4ème paramètre indique qu'on l'insère, pas qu'on le crée
     });
 }
 
 // Crée un bouton de créneau horaire avec la capacité de suppression
-function createTimeSlotButton(slotId, initialTimeRange = '00:00 - 00:00', isActive = false) {
+function createTimeSlotButton(slotId, initialTimeRange = '00:00 - 00:00', isActive = false, prepend = false) {
     const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+    const timeSlotButtonsContainer = document.getElementById('time-slot-buttons-container');
+
 
     // Si le créneau existe déjà, ne le crée pas de nouveau dans le DOM, juste le mettre à jour si c'est 'active'
-    const existingButton = document.querySelector(`[data-slot-id="${slotId}"]`);
+    const existingButton = timeSlotButtonsContainer.querySelector(`[data-slot-id="${slotId}"]`);
     if (existingButton) {
-        existingButton.textContent = initialTimeRange;
-        // Ré-ajouter le bouton de suppression si nécessaire
-        if (!existingButton.querySelector('.delete-time-slot-btn')) {
-            const deleteBtn = document.createElement('span');
+        existingButton.textContent = initialTimeRange; // Met à jour le texte
+        // Conserver ou recréer le bouton de suppression si nécessaire
+        let deleteBtn = existingButton.querySelector('.delete-time-slot-btn');
+        if (!deleteBtn) {
+            deleteBtn = document.createElement('span');
             deleteBtn.classList.add('delete-time-slot-btn', 'ml-2', 'text-red-500', 'hover:text-red-700', 'font-bold', 'cursor-pointer', 'text-lg');
             deleteBtn.innerHTML = '&times;';
             deleteBtn.title = 'Supprimer le créneau';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                showConfirmationModal(`Êtes-vous sûr de vouloir supprimer le créneau "${button.textContent.replace('×', '').trim()}" ?`, () => {
-                    deleteTimeSlot(slotId, button);
+                showConfirmationModal(`Êtes-vous sûr de vouloir supprimer le créneau "${existingButton.textContent.replace('×', '').trim()}" ?`, () => {
+                    deleteTimeSlot(slotId, existingButton);
                 });
             });
             existingButton.appendChild(deleteBtn);
         }
+        // Gérer la classe active
+        document.querySelectorAll('.time-slot-button').forEach(btn => btn.classList.remove('active', 'bg-blue-500', 'text-white', 'border-blue-500'));
         if (isActive) {
-            document.querySelectorAll('.time-slot-button').forEach(btn => btn.classList.remove('active', 'bg-blue-500', 'text-white', 'border-blue-500'));
             existingButton.classList.add('active', 'bg-blue-500', 'text-white', 'border-blue-500');
+        } else {
+            existingButton.classList.remove('active', 'bg-blue-500', 'text-white', 'border-blue-500');
+            existingButton.classList.add('text-gray-700', 'bg-white', 'hover:bg-gray-100', 'border-gray-300');
         }
-        // Met à jour la structure de données si ce n'est pas un nouveau créneau
+        // Met à jour la structure de données
         if (appData[dateKey] && appData[dateKey].timeSlots[slotId]) {
             appData[dateKey].timeSlots[slotId].range = initialTimeRange;
-            saveRosterConfig(dateKey); // Sauvegarde après modification
         }
-        return; // Sortir, car le bouton a été mis à jour
+        // Pas besoin de sauvegarder ici si c'est juste un rafraîchissement DOM.
+        // La sauvegarde est faite après la modification réelle de la plage (double-clic)
+        return;
     }
 
     const button = document.createElement('button');
@@ -609,7 +713,6 @@ function createTimeSlotButton(slotId, initialTimeRange = '00:00 - 00:00', isActi
     deleteBtn.title = 'Supprimer le créneau';
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation(); // Empêche le clic du bouton de créneau horaire lors de la suppression
-        // Utilisation d'une modale personnalisée au lieu de confirm()
         showConfirmationModal(`Êtes-vous sûr de vouloir supprimer le créneau "${button.textContent.replace('×', '').trim()}" ?`, () => {
             deleteTimeSlot(slotId, button);
         });
@@ -635,7 +738,6 @@ function createTimeSlotButton(slotId, initialTimeRange = '00:00 - 00:00', isActi
             if (newStart && newEnd) { // Si l'utilisateur n'a pas annulé
                 const newTimeRange = `${newStart} - ${newEnd}`;
 
-                // Logique pour la création automatique du créneau suivant
                 let newStartMinutes = parseTimeToMinutes(newStart);
                 let actualNewEndMinutes = parseTimeToMinutes(newEnd);
 
@@ -660,7 +762,7 @@ function createTimeSlotButton(slotId, initialTimeRange = '00:00 - 00:00', isActi
                     const rawNextSlotEndTimeMinutes = parseTimeToMinutes('07:00'); 
 
                     const nextSlotStartTime = formatMinutesToTime(nextSlotStartMinutes);
-                    const formattedNextSlotEndTime = formatMinutesToTime(rawNextSlotEndTimeMinutes); // Utilisation d'un nouveau nom de variable pour éviter le conflit
+                    const formattedNextSlotEndTime = formatMinutesToTime(rawNextSlotEndTimeMinutes);
 
                     const nextSlotRange = `${nextSlotStartTime} - ${formattedNextSlotEndTime}`; 
                     const nextSlotId = `slot_${nextSlotStartTime.replace(':', '')}_${formattedNextSlotEndTime.replace(':', '')}_${Date.now()}`;
@@ -698,8 +800,17 @@ function createTimeSlotButton(slotId, initialTimeRange = '00:00 - 00:00', isActi
         });
     });
 
-    // Insère le nouveau bouton avant le bouton '+'
-    timeSlotButtonsContainer.insertBefore(button, addTimeSlotBtn);
+    if (prepend) { // Si on veut l'ajouter avant le bouton '+'
+         const addBtn = timeSlotButtonsContainer.querySelector('#add-time-slot-btn');
+         if (addBtn) {
+             timeSlotButtonsContainer.insertBefore(button, addBtn);
+         } else {
+             timeSlotButtonsContainer.appendChild(button); // Fallback si le bouton '+' n'est pas trouvé
+         }
+    } else {
+        timeSlotButtonsContainer.appendChild(button);
+    }
+
 
     // Ajoute à notre structure de données interne pour la date actuelle si c'est un nouveau créneau
     const dateKeyForSave = formatDateToYYYYMMDD(currentRosterDate);
@@ -928,7 +1039,7 @@ async function savePersonnelAssignments() {
             if (conflict) {
                 hasConflict = true;
                 conflictDetails = {
-                    personName: conflict.personnelName,
+                    personName: conflict.personName,
                     conflictingRole: conflict.conflictingRole
                 };
                 break;
@@ -1415,7 +1526,7 @@ async function handleDropOnDuty(e) {
 async function removeAgentFromOnDuty(slotIndex) {
     const dateKey = formatDateToYYYYMMDD(currentRosterDate);
     const agentIdToRemove = appData[dateKey].onDutyAgents[slotIndex];
-    const agentName = allAgents.find(p => p.id === agentIdToRemove)?.name || 'cet agent';
+    const agentName = allAgents.find(p => p.id === agentIdToRemove)?.nom || 'cet agent'; // Correction : utiliser nom, pas name
 
     showConfirmationModal(`Êtes-vous sûr de vouloir retirer ${agentName} de la case ${slotIndex + 1} ? Cela désaffectera aussi l'agent des engins si assigné.`, async (confirmed) => {
         if (confirmed) {
@@ -1706,16 +1817,5 @@ function showLoading(isLoading) {
 
 // --- Événements et initialisation globale ---
 
-// Bouton "Ajouter un créneau"
-addTimeSlotBtn.addEventListener('click', () => {
-    showTimeRangePromptModal('07:00', '07:00', (newStart, newEnd) => {
-        if (newStart && newEnd) {
-            const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-            const newSlotId = `slot_${newStart.replace(':', '')}_${newEnd.replace(':', '')}_${Date.now()}`;
-            const newTimeRange = `${newStart} - ${newEnd}`;
-            createTimeSlotButton(newSlotId, newTimeRange, true);
-            displayEnginesForSlot(dateKey, newSlotId); // Affiche directement la page des engins pour ce nouveau créneau
-            renderAvailablePersonnel(); // Important : les créneaux affectent les disponibilités
-        }
-    });
-});
+// Bouton "Ajouter un créneau" est maintenant géré dans renderTimeSlotButtons pour s'assurer qu'il est toujours présent
+// après un re-rendu complet.
