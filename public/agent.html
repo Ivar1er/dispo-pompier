@@ -11,19 +11,26 @@
   <div class="agent-container">
 
     <header class="page-header">
+      <!-- Mise à jour pour les spans nom/prénom et suppression de l'ID welcomeMessage de la balise h2 -->
       <h2 class="welcome-message">Bienvenue <span id="agent-prenom"></span> <span id="agent-nom"></span> !</h2>
+
+      <!-- NOUVEAU : Affichage des qualifications de l'agent -->
+      <p id="agentQualificationsDisplay" class="qualifications-display-message"></p>
 
       <div class="header-controls">
         <div class="week-info">
+          <!-- ID du sélecteur de semaine mis à jour -->
           <label for="week-select" class="sr-only">Sélectionner la semaine</label>
           <select id="week-select"></select>
         </div>
 
+        <!-- ID du bouton "Voir la Synthèse" mis à jour -->
         <a href="synthese.html" id="synthese-btn" class="btn btn-secondary">Voir la Synthèse</a>
       </div>
     </header>
 
     <nav class="tabs-navigation">
+      <!-- Classes et attributs des boutons d'onglet mis à jour -->
       <button class="tab active" data-day="lundi">Lundi</button>
       <button class="tab" data-day="mardi">Mardi</button>
       <button class="tab" data-day="mercredi">Mercredi</button>
@@ -34,18 +41,21 @@
     </nav>
 
     <section class="planning-section">
+      <!-- ID du message d'info mis à jour -->
       <p id="selection-info" class="info-message">
         Cliquez sur le premier créneau et glisez la souris jusqu'au dernier. Plusieurs plages de créneaux possibles.
       </p>
 
+      <!-- Conteneur du planning mis à jour (le tableau sera généré entièrement ici par JS) -->
       <div id="planning-container" class="planning-grid"></div>
 
       <div id="loading-spinner" class="loading-spinner hidden"></div>
     </section>
 
     <footer class="bottom-actions">
+      <!-- IDs des boutons d'action mis à jour -->
       <button id="save-button" class="btn btn-primary">Enregistrer mes créneaux</button>
-      <button id="clear-selection-btn" class="btn btn-tertiary">Effacer la sélection</button>
+      <button id="clear-selection-btn" class="btn btn-secondary">Effacer la sélection</button>
       <button id="logout-button" class="btn btn-danger">Déconnexion</button>
     </footer>
   </div>

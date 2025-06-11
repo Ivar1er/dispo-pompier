@@ -1,5 +1,5 @@
-const express = require("express");
-const cors = require("cors");
+const express = require('express');
+const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 const bcrypt = require('bcryptjs'); // Importation de bcryptjs
@@ -22,7 +22,11 @@ const PERSISTENT_DIR = '/mnt/storage'; // Assurez-vous que ce répertoire est pe
 
 const DATA_DIR = path.join(PERSISTENT_DIR, 'plannings');
 const USERS_FILE_PATH = path.join(PERSISTENT_DIR, 'users.json');
-const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json'); // Nouveau chemin pour les qualifications
+const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json');
+
+// Nouveaux chemins pour la persistance de la feuille de garde
+const ROSTER_CONFIG_DIR = path.join(PERSISTENT_DIR, 'roster_configs');
+const DAILY_ROSTER_DIR = path.join(PERSISTENT_DIR, 'daily_rosters');
 
 let USERS = {}; // L'objet USERS sera chargé depuis le fichier
 let AVAILABLE_QUALIFICATIONS = []; // La liste des qualifications disponibles sera chargée depuis le fichier
@@ -102,9 +106,17 @@ async function saveQualifications() {
   }
 }
 
+// Fonction pour s'assurer que les dossiers de la feuille de garde existent
+async function initializeRosterFolders() {
+    await fs.mkdir(ROSTER_CONFIG_DIR, { recursive: true }).catch(console.error);
+    await fs.mkdir(DAILY_ROSTER_DIR, { recursive: true }).catch(console.error);
+    console.log('Roster data folders initialized.');
+}
+
 // Initialisation au démarrage du serveur
 (async () => {
   await fs.mkdir(DATA_DIR, { recursive: true }).catch(console.error); // Creates the plannings folder
+  await initializeRosterFolders(); // Initialize new roster folders
   await loadUsers(); // Loads users at server startup
   await loadQualifications(); // Loads qualifications at server startup
 })();
@@ -154,7 +166,7 @@ app.get('/api/planning/:agent', async (req, res) => {
     res.json(JSON.parse(data));
   } catch (err) {
     if (err.code === 'ENOENT') {
-      res.json({});
+      res.json({}); // Return empty object if planning not found
     } else {
       console.error('Error reading planning:', err);
       res.status(500).json({ message: 'Server error when reading planning' });
@@ -179,7 +191,11 @@ app.post('/api/planning/:agent', async (req, res) => {
       const data = await fs.readFile(filePath, 'utf8');
       currentPlanning = JSON.parse(data);
     } catch (err) {
-      if (err.code !== 'ENOENT') throw err;
+      if (err.code !== 'ENOENT') {
+          // Si l'erreur n'est pas "fichier non trouvé", la propager
+          throw err;
+      }
+      // Si c'est "fichier non trouvé", currentPlanning reste {}
     }
 
     const mergedPlanning = { ...currentPlanning, ...newPlanningData };
@@ -192,10 +208,11 @@ app.post('/api/planning/:agent', async (req, res) => {
   }
 });
 
-// Get all plannings (admin)
+// GET /api/planning (This route is problematic if intended for all plannings due to `agent` param ambiguity)
+// It is recommended to use specific routes or modify the frontend to call `/api/planning/:agent` for each agent.
+// For now, if your frontend *does* call this to get all plannings, this existing route should work.
+// I'm keeping it as is since it's already in your provided server.js
 app.get('/api/planning', async (req, res) => {
-  // This route is not protected by authorizeAdmin.
-  // If it is intended only for the admin, it should be.
   try {
     const files = await fs.readdir(DATA_DIR);
     const allPlannings = {};
@@ -218,10 +235,10 @@ app.get('/api/planning', async (req, res) => {
 // --- Administration routes for agent management ---
 // All these routes are protected by the authorizeAdmin middleware
 
-// GET /api/admin/agents - Get all agents (excluding admin)
+// GET /api/admin/agents - Get all agents (excluding admin) - UNIQUE DEFINITION
 app.get('/api/admin/agents', authorizeAdmin, (req, res) => {
     const agentsList = Object.keys(USERS)
-        .filter(key => USERS[key].role === 'agent') // List only users with 'agent' role
+        .filter(key => USERS[key].role === 'agent' || USERS[key].role === 'admin') // Include admin for dropdown/list purposes if needed
         .map(key => ({
             id: key, // Use the key from the USERS object as a unique identifier
             nom: USERS[key].nom,
@@ -426,6 +443,92 @@ app.delete('/api/qualifications/:id', authorizeAdmin, async (req, res) => {
     }
 });
 
+// --- NOUVELLES ROUTES POUR LA FEUILLE DE GARDE (AJOUTÉES) ---
+
+// GET /api/roster-config/:dateKey
+// Récupère la configuration (créneaux, agents d'astreinte) pour une date
+app.get('/api/roster-config/:dateKey', async (req, res) => {
+    const dateKey = req.params.dateKey;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+    }
+    const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
+    try {
+        const data = await fs.readFile(filePath, 'utf8');
+        res.json(JSON.parse(data));
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            res.status(404).json({ message: 'Configuration de feuille de garde non trouvée pour cette date.' });
+        } else {
+            console.error(`Error reading roster config for ${dateKey}:`, err);
+            res.status(500).json({ message: 'Server error when reading roster config.' });
+        }
+    }
+});
+
+// POST /api/roster-config/:dateKey
+// Sauvegarde ou met à jour la configuration pour une date
+app.post('/api/roster-config/:dateKey', authorizeAdmin, async (req, res) => {
+    const dateKey = req.params.dateKey;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+    }
+    const { timeSlots, onDutyAgents } = req.body;
+    if (!timeSlots || !onDutyAgents) {
+        return res.status(400).json({ message: 'Données de configuration manquantes (timeSlots ou onDutyAgents).' });
+    }
+    const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
+    try {
+        await fs.writeFile(filePath, JSON.stringify({ timeSlots, onDutyAgents }, null, 2), 'utf8');
+        res.status(200).json({ message: 'Configuration de feuille de garde sauvegardée avec succès.' });
+    } catch (error) {
+        console.error(`Error saving roster config for ${dateKey}:`, error);
+        res.status(500).json({ message: 'Server error when saving roster config.' });
+    }
+});
+
+// GET /api/daily-roster/:dateKey
+// Récupère les affectations d'engins pour une date spécifique
+app.get('/api/daily-roster/:dateKey', async (req, res) => {
+    const dateKey = req.params.dateKey;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+    }
+    const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
+    try {
+        const data = await fs.readFile(filePath, 'utf8');
+        res.json(JSON.parse(data));
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            res.status(404).json({ message: 'Feuille de garde d\'affectation non trouvée pour cette date.' });
+        } else {
+            console.error(`Error reading daily roster for ${dateKey}:`, err);
+            res.status(500).json({ message: 'Server error when reading daily roster.' });
+        }
+    }
+});
+
+// POST /api/daily-roster/:dateKey
+// Sauvegarde ou met à jour les affectations d'engins pour une date spécifique
+app.post('/api/daily-roster/:dateKey', authorizeAdmin, async (req, res) => {
+    const dateKey = req.params.dateKey;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+    }
+    const { roster } = req.body;
+    if (!roster) {
+        return res.status(400).json({ message: 'Données de feuille de garde manquantes (roster).' });
+    }
+    const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
+    try {
+        await fs.writeFile(filePath, JSON.stringify({ roster }, null, 2), 'utf8'); // Stocke l'objet roster complet
+        res.status(200).json({ message: 'Feuille de garde d\'affectation sauvegardée avec succès.' });
+    } catch (error) {
+        console.error(`Error saving daily roster for ${dateKey}:`, error);
+        res.status(500).json({ message: 'Server error when saving daily roster.' });
+    }
+});
+
 
 // 🔧 ROUTE DE TEST DISK RENDER (à conserver pour la vérification de persistance sur Render)
 const diskTestPath = path.join(PERSISTENT_DIR, 'test.txt');
@@ -443,3 +546,103 @@ app.get('/test-disk', async (req, res) => {
 app.listen(port, () => {
   console.log(`Server launched on http://localhost:${port}`);
 });
+
+// --- Fonctions utilitaires (à inclure si elles ne sont pas déjà définies ailleurs) ---
+// (Ces fonctions sont normalement utilisées dans le frontend, mais si elles sont nécessaires
+// pour la logique de démarrage côté serveur, elles doivent être ici)
+
+// Fonction pour obtenir le numéro de semaine ISO 8601
+function getWeekNumber(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return weekNo;
+}
+
+// Fonction pour obtenir le nom du jour en français
+function getDayName(date) {
+    const days = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+    return days[date.getDay()];
+}
+
+// Fonction pour formater la date en YYYY-MM-DD
+function formatDateToYYYYMMDD(date) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// --- Initialisation de données de feuille de garde pour les tests ---
+// Cette fonction ne s'exécutera que si les fichiers n'existent pas déjà.
+// Elle est utile pour un premier démarrage ou après un nettoyage des données persistantes.
+async function initializeSampleRosterDataForTesting() {
+    const today = new Date();
+    const sampleDateKey = formatDateToYYYYMMDD(today);
+
+    const rosterConfigFile = path.join(ROSTER_CONFIG_DIR, `${sampleDateKey}.json`);
+    const dailyRosterFile = path.join(DAILY_ROSTER_DIR, `${sampleDateKey}.json`);
+
+    try {
+        await fs.access(rosterConfigFile); // Vérifie si le fichier existe
+        console.log(`Roster config file for ${sampleDateKey} already exists. Skipping sample data initialization.`);
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            console.log(`Initializing sample roster config for ${sampleDateKey}.`);
+            const defaultRosterConfig = {
+                timeSlots: {
+                    'slot_0700_1400_default': { range: '07:00 - 14:00', engines: {} },
+                    'slot_1400_1700_default': { range: '14:00 - 17:00', engines: {} },
+                    'slot_1700_0700_default': { range: '17:00 - 07:00', engines: {} }
+                },
+                onDutyAgents: ['bruneau', 'vatinel', 'none', 'none', 'none', 'none', 'none', 'none', 'none', 'none']
+            };
+            // Initialise les engins vides pour les créneaux par défaut
+            for (const slotId in defaultRosterConfig.timeSlots) {
+                ['FPT', 'CCF', 'VSAV', 'VTU', 'VPMA'].forEach(engineType => {
+                    defaultRosterConfig.timeSlots[slotId].engines[engineType] = { personnel: {} }; // Structure de base
+                    const roles = {
+                        'FPT': ['CA_FPT', 'COD1', 'EQ1_FPT', 'EQ2_FPT'],
+                        'CCF': ['CA_FDF2', 'COD2', 'EQ1_FDF1', 'EQ2_FDF1'],
+                        'VSAV': ['CA_VSAV', 'COD0', 'EQ'],
+                        'VTU': ['CA_VTU', 'COD0', 'EQ'],
+                        'VPMA': ['CA_VPMA', 'COD0', 'EQ'],
+                    };
+                    (roles[engineType] || []).forEach(role => {
+                        defaultRosterConfig.timeSlots[slotId].engines[engineType].personnel[role] = 'none';
+                    });
+                });
+            }
+            await fs.writeFile(rosterConfigFile, JSON.stringify(defaultRosterConfig, null, 2), 'utf8');
+        } else {
+            console.error(`Error checking/initializing roster config file:`, err);
+        }
+    }
+
+    try {
+        await fs.access(dailyRosterFile); // Vérifie si le fichier existe
+        console.log(`Daily roster file for ${sampleDateKey} already exists. Skipping sample data initialization.`);
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            console.log(`Initializing empty daily roster for ${sampleDateKey}.`);
+            const emptyDailyRoster = {
+                roster: {} // Initialiser vide, sera rempli par le frontend ou la génération auto
+            };
+            await fs.writeFile(dailyRosterFile, JSON.stringify(emptyDailyRoster, null, 2), 'utf8');
+        } else {
+            console.error(`Error checking/initializing daily roster file:`, err);
+        }
+    }
+}
+
+// Appeler la fonction d'initialisation des données de test au démarrage du serveur
+// après que les dossiers persistants aient été créés.
+(async () => {
+    await fs.mkdir(DATA_DIR, { recursive: true }).catch(console.error);
+    await initializeRosterFolders();
+    await loadUsers();
+    await loadQualifications();
+    await initializeSampleRosterDataForTesting(); // Appel de la fonction d'initialisation des données de test
+})();
