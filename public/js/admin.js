@@ -21,6 +21,7 @@ const adminInfo = document.getElementById("admin-info");
 
 // --- DOM Elements pour la vue "Gestion des Agents" ---
 const addAgentForm = document.getElementById('addAgentForm');
+const newAgentQualificationsCheckboxes = document.getElementById('newAgentQualificationsCheckboxes'); // Nouveau: pour le formulaire d'ajout
 const addAgentMessage = document.getElementById('addAgentMessage');
 const agentsTableBody = document.getElementById('agentsTableBody');
 const listAgentsMessage = document.getElementById('listAgentsMessage');
@@ -34,8 +35,8 @@ const editAgentNom = document.getElementById('editAgentNom');
 const editAgentPrenom = document.getElementById('editAgentPrenom');
 const editAgentNewPassword = document.getElementById('editAgentNewPassword');
 const editAgentMessage = document.getElementById('editAgentMessage');
-const qualificationsCheckboxesDiv = document.getElementById('qualificationsCheckboxes');
-const qualificationsMessage = document.getElementById('qualificationsMessage');
+const qualificationsCheckboxesDiv = document.getElementById('qualificationsCheckboxes'); // Pour la modale de modification
+const qualificationsMessage = document.getElementById('qualificationsMessage'); // Pour la modale de modification
 
 // --- Global DOM Elements ---
 const loadingSpinner = document.getElementById("loading-spinner");
@@ -71,6 +72,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Initialisation des fonctionnalités par défaut de la page ---
     // Charger la liste des qualifications disponibles en premier
     await loadAvailableQualifications();
+    // Rendre les checkboxes pour le formulaire d'ajout d'agent après le chargement des qualifications
+    renderNewAgentQualificationsCheckboxes();
 
     // Ouvrir l'onglet "Planning Global" par défaut au chargement
     await openMainTab('global-planning-view'); // Attendre que le planning soit chargé avant d'afficher
@@ -459,12 +462,14 @@ async function exportPdf() {
 }
 
 
-// --- Fonctions de gestion des qualifications (Backend) ---
+// --- Fonctions de gestion des qualifications (Frontend) ---
 
 // Fonction pour charger la liste de toutes les qualifications possibles depuis le serveur
 async function loadAvailableQualifications() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/qualifications`); // Nouvelle API pour les qualifications
+        const response = await fetch(`${API_BASE_URL}/api/qualifications`, {
+            headers: { 'X-User-Role': 'admin' } // Assurez-vous que le backend protège cette route
+        });
         const data = await response.json();
         if (!response.ok) {
             throw new Error(data.message || 'Erreur lors du chargement des qualifications disponibles.');
@@ -473,36 +478,80 @@ async function loadAvailableQualifications() {
         console.log('Qualifications disponibles chargées:', availableQualifications);
     } catch (error) {
         console.error('Erreur de chargement des qualifications:', error);
-        qualificationsMessage.textContent = `Erreur de chargement des qualifications: ${error.message}`;
-        qualificationsMessage.style.color = 'red';
+        if (qualificationsMessage) { // S'assurer que l'élément existe avant de le manipuler
+            qualificationsMessage.textContent = `Erreur de chargement des qualifications: ${error.message}`;
+            qualificationsMessage.style.color = 'red';
+        }
     }
 }
 
-// Fonction pour générer les cases à cocher des qualifications dans la modale
-function renderQualificationsCheckboxes(agentQualifications = []) {
-    qualificationsCheckboxesDiv.innerHTML = '';
+// Fonction pour générer les cases à cocher des qualifications pour le formulaire d'ajout
+function renderNewAgentQualificationsCheckboxes() {
+    if (!newAgentQualificationsCheckboxes) return; // S'assurer que l'élément DOM existe
+
+    newAgentQualificationsCheckboxes.innerHTML = '';
     if (availableQualifications.length === 0) {
-        qualificationsCheckboxesDiv.textContent = 'Aucune qualification disponible. Ajoutez-en d\'abord.';
+        newAgentQualificationsCheckboxes.textContent = 'Aucune qualification disponible. Ajoutez-en d\'abord via la gestion des qualifications (si implémenté).';
         return;
     }
 
     availableQualifications.forEach(qualification => {
         const checkboxContainer = document.createElement('div');
-        checkboxContainer.classList.add('qualification-item'); // Pour le styling
+        checkboxContainer.classList.add('flex', 'items-center'); // Tailwind classes for alignment
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.id = `qual-${qualification.id}`;
+        checkbox.id = `new-qual-${qualification.id}`; // ID unique pour le formulaire d'ajout
         checkbox.value = qualification.id;
-        checkbox.checked = agentQualifications.includes(qualification.id);
+        checkbox.classList.add('form-checkbox', 'h-4', 'w-4', 'text-blue-600', 'rounded', 'border-gray-300', 'focus:ring-blue-500'); // Tailwind for checkbox styling
 
         const label = document.createElement('label');
-        label.htmlFor = `qual-${qualification.id}`;
+        label.htmlFor = `new-qual-${qualification.id}`;
         label.textContent = qualification.name;
+        label.classList.add('ml-2', 'text-gray-700', 'text-sm');
+
+        checkboxContainer.appendChild(checkbox);
+        checkboxContainer.appendChild(label);
+        newAgentQualificationsCheckboxes.appendChild(checkboxContainer);
+    });
+}
+
+
+// Fonction pour générer les cases à cocher des qualifications dans la modale de modification
+function renderQualificationsCheckboxes(agentQualifications = []) {
+    if (!qualificationsCheckboxesDiv) return; // S'assurer que l'élément DOM existe
+
+    qualificationsCheckboxesDiv.innerHTML = '';
+    if (availableQualifications.length === 0) {
+        qualificationsCheckboxesDiv.textContent = 'Aucune qualification disponible.';
+        if (qualificationsMessage) {
+             qualificationsMessage.textContent = 'Veuillez ajouter des qualifications via l\'administration.';
+             qualificationsMessage.style.color = 'orange';
+        }
+        return;
+    }
+
+    availableQualifications.forEach(qualification => {
+        const checkboxContainer = document.createElement('div');
+        checkboxContainer.classList.add('flex', 'items-center'); // Tailwind classes for alignment
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `edit-qual-${qualification.id}`; // ID unique pour la modale d'édition
+        checkbox.value = qualification.id;
+        checkbox.checked = agentQualifications.includes(qualification.id);
+        checkbox.classList.add('form-checkbox', 'h-4', 'w-4', 'text-blue-600', 'rounded', 'border-gray-300', 'focus:ring-blue-500'); // Tailwind for checkbox styling
+
+        const label = document.createElement('label');
+        label.htmlFor = `edit-qual-${qualification.id}`;
+        label.textContent = qualification.name;
+        label.classList.add('ml-2', 'text-gray-700', 'text-sm');
 
         checkboxContainer.appendChild(checkbox);
         checkboxContainer.appendChild(label);
         qualificationsCheckboxesDiv.appendChild(checkboxContainer);
     });
+    if (qualificationsMessage) {
+        qualificationsMessage.textContent = ''; // Clear message if qualifications are loaded
+    }
 }
 
 
@@ -529,10 +578,19 @@ async function loadAgents() {
         } else {
             data.forEach(agent => {
                 const row = agentsTableBody.insertRow();
+                // Afficher les qualifications dans la table (optionnel, pour l'admin)
+                const qualNames = (agent.qualifications || [])
+                                    .map(id => {
+                                        const qual = availableQualifications.find(q => q.id === id);
+                                        return qual ? qual.name : id; // Affiche le nom ou l'ID si non trouvé
+                                    })
+                                    .join(', ');
+
                 row.innerHTML = `
                     <td>${agent.id}</td>
                     <td>${agent.nom}</td>
                     <td>${agent.prenom}</td>
+                    <td>${qualNames}</td> <!-- Nouvelle colonne pour les qualifications -->
                     <td>
                         <button class="edit-btn btn-secondary" data-id="${agent.id}" data-nom="${agent.nom}" data-prenom="${agent.prenom}" data-qualifications='${JSON.stringify(agent.qualifications || [])}'>Modifier</button>
                         <button class="delete-btn btn-danger" data-id="${agent.id}">Supprimer</button>
@@ -545,7 +603,7 @@ async function loadAgents() {
         console.error('Erreur de chargement des agents:', error);
         listAgentsMessage.textContent = `Erreur : ${error.message}`;
         listAgentsMessage.style.color = 'red';
-        agentsTableBody.innerHTML = '<tr><td colspan="4">Impossible de charger la liste des agents.</td></tr>';
+        agentsTableBody.innerHTML = '<tr><td colspan="5">Impossible de charger la liste des agents.</td></tr>'; // Colspan ajusté
     }
 }
 
@@ -555,6 +613,10 @@ async function handleAddAgent(event) {
     const nom = document.getElementById('newAgentNom').value.trim();
     const prenom = document.getElementById('newAgentPrenom').value.trim();
     const password = document.getElementById('newAgentPassword').value.trim();
+
+    // Récupérer les qualifications sélectionnées pour le nouvel agent
+    const selectedQualifications = Array.from(newAgentQualificationsCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
+                                       .map(checkbox => checkbox.value);
 
     addAgentMessage.textContent = 'Ajout en cours...';
     addAgentMessage.style.color = 'blue';
@@ -566,7 +628,7 @@ async function handleAddAgent(event) {
                 'Content-Type': 'application/json',
                 'X-User-Role': 'admin' // Temporaire
             },
-            body: JSON.stringify({ id, nom, prenom, password })
+            body: JSON.stringify({ id, nom, prenom, password, qualifications: selectedQualifications }) // Envoyer les qualifications
         });
         const data = await response.json();
 
@@ -574,10 +636,9 @@ async function handleAddAgent(event) {
             addAgentMessage.textContent = data.message;
             addAgentMessage.style.color = 'green';
             addAgentForm.reset();
-            loadAgents();
-            // Recharger la liste des agents pour la page de connexion
-            // Il faudrait un mécanisme de rechargement intelligent ou un websocket
-            // ou juste une note à l'admin de rafraîchir la page de connexion.
+            // Réinitialiser les checkboxes après l'ajout
+            newAgentQualificationsCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            loadAgents(); // Recharger la liste
         } else {
             addAgentMessage.textContent = `Erreur : ${data.message}`;
             addAgentMessage.style.color = 'red';
