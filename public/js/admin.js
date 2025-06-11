@@ -22,25 +22,44 @@ const adminInfo = document.getElementById("admin-info");
 
 // --- DOM Elements pour la vue "Gestion des Agents" ---
 const addAgentForm = document.getElementById('addAgentForm');
-const newAgentGradesCheckboxes = document.getElementById('newAgentGradesCheckboxes');
-const newAgentFonctionsCheckboxes = document.getElementById('newAgentFonctionsCheckboxes'); 
+const newAgentIdInput = document.getElementById('newAgentId');
+const newAgentNomInput = document.getElementById('newAgentNom');
+const newAgentPrenomInput = document.getElementById('newAgentPrenom');
+const newAgentPasswordInput = document.getElementById('newAgentPassword');
 const addAgentMessage = document.getElementById('addAgentMessage');
 const agentsTableBody = document.getElementById('agentsTableBody');
 const listAgentsMessage = document.getElementById('listAgentsMessage');
-
-// --- DOM Elements pour la Modale de modification d'agent ---
 const editAgentModal = document.getElementById('editAgentModal');
-const closeButton = editAgentModal.querySelector('.close-button');
+const closeAgentButton = editAgentModal ? editAgentModal.querySelector('.close-button') : null;
 const editAgentForm = document.getElementById('editAgentForm');
 const editAgentId = document.getElementById('editAgentId');
 const editAgentNom = document.getElementById('editAgentNom');
 const editAgentPrenom = document.getElementById('editAgentPrenom');
-const editAgentNewPassword = document.getElementById('editAgentNewPassword');
+const editAgentPassword = document.getElementById('editAgentPassword');
 const editAgentMessage = document.getElementById('editAgentMessage');
+const newAgentGradesCheckboxes = document.getElementById('newAgentGradesCheckboxes');
+const newAgentFonctionsCheckboxes = document.getElementById('newAgentFonctionsCheckboxes');
 const gradesCheckboxesDiv = document.getElementById('gradesCheckboxes');
-const fonctionsCheckboxesDiv = document.getElementById('fonctionsCheckboxes'); 
+const fonctionsCheckboxesDiv = document.getElementById('fonctionsCheckboxes');
 const gradesMessage = document.getElementById('gradesMessage');
-const fonctionsMessage = document.getElementById('fonctionsMessage'); 
+const fonctionsMessage = document.getElementById('fonctionsMessage');
+
+// --- DOM Elements pour la vue "Gestion des Qualifications" ---
+// SUPPRIMÉ : Toutes les références aux éléments DOM pour la gestion des qualifications.
+// const addQualificationForm = document.getElementById('addQualificationForm');
+// const addQualificationMessage = document.getElementById('addQualificationMessage');
+// const qualificationsTableBody = document.getElementById('qualificationsTableBody');
+// const listQualificationsMessage = document.getElementById('listQualificationsMessage');
+// const editQualificationModal = document.getElementById('editQualificationModal');
+// const closeQualButton = editQualificationModal ? editQualificationModal.querySelector('.close-button') : null;
+// const editQualificationForm = document.getElementById('editQualificationForm');
+// const editQualId = document.getElementById('editQualId');
+// const editQualName = document.getElementById('editQualName');
+// const editQualMessage = document.getElementById('editQualMessage');
+// SUPPRIMÉ : Références aux checkboxes de qualification dans la gestion des agents
+// const newAgentQualificationsCheckboxes = document.getElementById('newAgentQualificationsCheckboxes');
+// const qualificationsCheckboxesDiv = document.getElementById('qualificationsCheckboxes');
+// const qualificationsMessage = document.getElementById('qualificationsMessage');
 
 
 // --- DOM Elements pour la vue "Gestion des Grades" ---
@@ -56,1164 +75,33 @@ const editGradeName = document.getElementById('editGradeName');
 const editGradeMessage = document.getElementById('editGradeMessage');
 
 // --- DOM Elements pour la vue "Gestion des Fonctions" ---
-const addFonctionForm = document.getElementById('addFonctionForm'); 
-const addFonctionMessage = document.getElementById('addFonctionMessage'); 
-const fonctionsTableBody = document.getElementById('fonctionsTableBody'); 
-const listFonctionsMessage = document.getElementById('listFonctionsMessage'); 
-const editFonctionModal = document.getElementById('editFonctionModal'); 
-const closeFonctionButton = editFonctionModal ? editFonctionModal.querySelector('.close-button') : null; 
-const editFonctionForm = document.getElementById('editFonctionForm'); 
-const editFonctionId = document.getElementById('editFonctionId'); 
-const editFonctionName = document.getElementById('editFonctionName'); 
-const editFonctionMessage = document.getElementById('editFonctionMessage'); 
+const addFonctionForm = document.getElementById('addFonctionForm');
+const addFonctionMessage = document.getElementById('addFonctionMessage');
+const fonctionsTableBody = document.getElementById('fonctionsTableBody');
+const listFonctionsMessage = document.getElementById('listFonctionsMessage');
+const editFonctionModal = document.getElementById('editFonctionModal');
+const closeFonctionButton = editFonctionModal ? editFonctionModal.querySelector('.close-button') : null;
+const editFonctionForm = document.getElementById('editFonctionForm');
+const editFonctionId = document.getElementById('editFonctionId');
+const editFonctionName = document.getElementById('editFonctionName');
+const editFonctionMessage = document.getElementById('editFonctionMessage');
 
-// --- Global DOM Elements ---
-const loadingSpinner = document.getElementById("loading-spinner");
-const logoutButton = document.getElementById("logout-btn");
+// --- Variables pour le planning ---
+let selectedAbsences = {}; // {agentId: {day: [slots]}}
+let selectedGrades = {};
+let selectedFonctions = {};
 
-
-document.addEventListener("DOMContentLoaded", async () => {
-    // **Vérification du rôle administrateur au chargement de la page**
-    const userRole = sessionStorage.getItem("userRole");
-    if (!userRole || userRole !== "admin") {
-        console.error("Accès non autorisé. Vous devez être administrateur.");
-        sessionStorage.clear();
-        window.location.href = "index.html";
-        return;
-    }
-
-    // --- Initialisation des onglets principaux ---
-    mainTabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const targetTabId = button.dataset.mainTab;
-            openMainTab(targetTabId);
-        });
-    });
-
-    // --- Initialisation des onglets de jour pour le planning global ---
-    tabButtons.forEach(tab => {
-        tab.addEventListener("click", () => {
-            const day = tab.dataset.day;
-            showDay(day);
-        });
-    });
-
-    // --- Initialisation des fonctionnalités par défaut de la page ---
-    // Charger la liste des grades et fonctions disponibles en premier
-    await loadAvailableGrades();
-    await loadAvailableFonctions(); 
-
-    // Rendre les checkboxes pour le formulaire d'ajout d'agent après le chargement des données
-    renderNewAgentGradesCheckboxes();
-    renderNewAgentFonctionsCheckboxes(); 
-
-    // Ouvrir l'onglet "Planning Global" par défaut au chargement
-    await openMainTab('global-planning-view'); // Attendre que le planning soit chargé avant d'afficher
-
-
-    // --- Écouteurs d'événements pour les contrôles du planning global ---
-    if (weekSelect) {
-        weekSelect.addEventListener("change", async () => {
-            currentWeek = parseInt(weekSelect.value.split('-')[1]); // Mise à jour de currentWeek
-            await loadPlanningAndDisplay(); // Recharger et afficher le planning
-        });
-    }
-    if (document.getElementById("export-pdf")) {
-        document.getElementById("export-pdf").addEventListener("click", exportPdf);
-    }
-
-    // --- Écouteurs d'événements pour la vue "Gestion des Agents" ---
-    if (addAgentForm) {
-        addAgentForm.addEventListener('submit', handleAddAgent);
-    }
-    if (agentsTableBody) {
-        agentsTableBody.addEventListener('click', handleAgentActions);
-    }
-
-    // --- Écouteurs d'événements pour la Modale de modification d'agent ---
-    if (closeButton) {
-        closeButton.addEventListener('click', () => {
-            editAgentModal.style.display = 'none';
-        });
-    }
-    window.addEventListener('click', (event) => {
-        if (event.target == editAgentModal) {
-            editAgentModal.style.display = 'none';
-        }
-    });
-    if (editAgentForm) {
-        editAgentForm.addEventListener('submit', handleEditAgent);
-    }
-
-    // --- Écouteurs d'événements pour la vue "Gestion des Grades" ---
-    if (addGradeForm) {
-        addGradeForm.addEventListener('submit', handleAddGrade);
-    }
-    if (gradesTableBody) {
-        gradesTableBody.addEventListener('click', handleGradeActions);
-    }
-    if (closeGradeButton) {
-        closeGradeButton.addEventListener('click', () => {
-            editGradeModal.style.display = 'none';
-        });
-    }
-    if (editGradeForm) {
-        editGradeForm.addEventListener('submit', handleEditGrade);
-    }
-
-    // --- Écouteurs d'événements pour la vue "Gestion des Fonctions" ---
-    if (addFonctionForm) { 
-        addFonctionForm.addEventListener('submit', handleAddFonction); 
-    }
-    if (fonctionsTableBody) { 
-        fonctionsTableBody.addEventListener('click', handleFonctionActions); 
-    }
-    if (closeFonctionButton) { 
-        closeFonctionButton.addEventListener('click', () => { 
-            editFonctionModal.style.display = 'none'; 
-        });
-    }
-    if (editFonctionForm) { 
-        editFonctionForm.addEventListener('submit', handleEditFonction); 
-    }
-
-
-    // --- Écouteur pour la déconnexion ---
-    if (logoutButton) {
-        logoutButton.addEventListener("click", logout);
-    }
-});
-
-
-// --- Fonctions de gestion des onglets principaux (Planning Global / Gestion Agents / Gestion Grades / Gestion Fonctions) ---
-async function openMainTab(tabId) {
-    mainTabContents.forEach(tab => {
-        tab.classList.remove('active');
-    });
-    mainTabButtons.forEach(button => {
-        button.classList.remove('active');
-    });
-
-    document.getElementById(tabId).classList.add('active');
-    document.querySelector(`.main-tab[data-main-tab="${tabId}"]`).classList.add('active');
-
-    // Gérer la visibilité des contrôles spécifiques au planning
-    if (tabId === 'global-planning-view') {
-        planningControls.style.display = 'flex'; // Affiche les contrôles
-        await loadPlanningAndDisplay(); // Recharger le planning si on revient sur cet onglet
-    } else {
-        planningControls.style.display = 'none'; // Cache les contrôles
-        if (tabId === 'agent-management-view') {
-            await loadAgents(); // Recharger la liste des agents quand on va sur cet onglet
-        } else if (tabId === 'grade-management-view') {
-            await loadGradesList();
-        } else if (tabId === 'fonction-management-view') { 
-            await loadFonctionsList(); 
-        }
-    }
+// Fonction utilitaire pour afficher les messages
+function showMessage(element, message, isError = false) {
+    element.textContent = message;
+    element.style.color = isError ? 'red' : 'green';
 }
 
-
-// --- Fonctions Utilitaire pour les dates et semaines ---
-function getCurrentWeek(date = new Date()) {
-    const target = new Date(date.valueOf());
-    target.setDate(target.getDate() + 3 - (target.getDay() + 6) % 7);
-    const firstThursday = new Date(target.getFullYear(), 0, 4);
-    const weekNum = 1 + Math.round(((target - firstThursday) / 86400000 - 3 + (firstThursday.getDay() + 6) % 7) / 7);
-    return weekNum;
-}
-
-function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
-    const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
-    const dow = simple.getDay() || 7;
-    const ISOweekStart = new Date(simple);
-    if (dow <= 4) {
-        ISOweekStart.setDate(simple.getDate() - dow + 1);
-    } else {
-        ISOweekStart.setDate(simple.getDate() + 8 - dow);
-    }
-
-    const start = new Date(ISOweekStart);
-    const end = new Date(ISOweekStart);
-    end.setDate(start.getDate() + 6);
-
-    const format = date => date.toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "2-digit"
-    });
-
-    return `du ${format(start)} au ${format(end)}`;
-}
-
-function getMondayOfWeek(weekNum, year) {
-    const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
-    const dow = simple.getDay();
-    if (dow <= 4) simple.setDate(simple.getDate() - dow + 1);
-    else simple.setDate(simple.getDate() + 8 - dow);
-    return simple;
-}
-
-// --- Fonctions de gestion du Planning Global ---
-
-// Charge les plannings et met à jour l'affichage de la semaine
-async function loadPlanningAndDisplay() {
-    showLoading(true);
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/planning`);
-        if (!res.ok) {
-            if (res.status === 404) {
-                console.warn("Aucun planning global trouvé (404), initialisation à vide.");
-                planningData = {};
-            } else {
-                throw new Error(`Erreur chargement planning global: HTTP ${res.status}`);
-            }
-        }
-        planningData = await res.json() || {};
-
-        // Récupérer la liste des agents depuis l'API pour un mapping dynamique
-        const agentsResponse = await fetch(`${API_BASE_URL}/api/admin/agents`, {
-            headers: { 'X-User-Role': 'admin' } // Toujours envoyer ce header pour la démo
-        });
-        const agentsData = await agentsResponse.json();
-        agentDisplayInfos = {};
-        agentsData.forEach(agent => {
-            agentDisplayInfos[agent.id] = { nom: agent.nom, prenom: agent.prenom };
-        });
-
-        const allWeeksSet = new Set();
-        for (const agentKey in planningData) {
-            // Filtrer les agents qui ne sont pas dans agentDisplayInfos (ex: admin)
-            if (!agentDisplayInfos[agentKey]) continue;
-            const weeks = Object.keys(planningData[agentKey]);
-            weeks.forEach(w => allWeeksSet.add(w));
-        }
-
-        if (allWeeksSet.size === 0) {
-            allWeeksSet.add(`week-${getCurrentWeek()}`);
-        }
-
-        updateWeekSelector(allWeeksSet); // Met à jour le sélecteur de semaine
-        showDay(currentDay); // Affiche le planning pour le jour actuel
-
-    }
-    catch (e) {
-        console.error("Erreur lors du chargement ou de l'affichage du planning :", e);
-        adminInfo.textContent = "Erreur lors du chargement du planning global. Veuillez réessayer.";
-        adminInfo.style.backgroundColor = "#ffe6e6";
-        adminInfo.style.borderColor = "#e6a4a4";
-        adminInfo.style.color = "#a94442";
-        planningData = {}; // Réinitialise les données du planning en cas d'erreur
-    }
-    finally {
-        showLoading(false);
-    }
-}
-
-// Met à jour les options du sélecteur de semaine
-function updateWeekSelector(availableWeeks) {
-    weekSelect.innerHTML = "";
-    const sortedWeeks = Array.from(availableWeeks).sort((a, b) => {
-        return parseInt(a.split("-")[1]) - parseInt(b.split("-")[1]);
-    });
-
-    sortedWeeks.forEach(weekKey => {
-        const opt = document.createElement("option");
-        opt.value = weekKey;
-        const weekNum = parseInt(weekKey.split("-")[1]);
-        const dateRange = getWeekDateRange(weekNum);
-        opt.textContent = `Semaine ${weekNum} (${dateRange})`;
-        weekSelect.appendChild(opt);
-    });
-
-    // Sélectionne la semaine actuelle si elle existe, sinon la première semaine disponible
-    if (sortedWeeks.includes(`week-${currentWeek}`)) {
-        weekSelect.value = `week-${currentWeek}`;
-    } else if (sortedWeeks.length > 0) {
-        weekSelect.value = sortedWeeks[0];
-        currentWeek = parseInt(sortedWeeks[0].split("-")[1]);
-    } else {
-        // Si aucune semaine n'est disponible (aucun planning), ajoute la semaine actuelle
-        const currentWeekKey = `week-${getCurrentWeek()}`;
-        const opt = document.createElement("option");
-        opt.value = currentWeekKey;
-        const dateRange = getWeekDateRange(getCurrentWeek());
-        opt.textContent = `Semaine ${getCurrentWeek()} (${dateRange})`;
-        weekSelect.appendChild(opt);
-        weekSelect.value = currentWeekKey;
-        currentWeek = getCurrentWeek();
-    }
-
-    // MODIFICATION: Vider le contenu de dateRangeDisplay pour enlever les dates redondantes
-    dateRangeDisplay.textContent = "";
-}
-
-// Affiche le planning pour le jour sélectionné
-function showDay(day) {
-    currentDay = day;
-    tabButtons.forEach(tab => {
-        tab.classList.toggle("active", tab.dataset.day === day);
-    });
-
-    planningContainer.innerHTML = ""; // Vide le planning existant
-
-    const table = document.createElement("table");
-    table.className = "planning-table";
-
-    // Header (créneaux horaires)
-    const thead = document.createElement("thead");
-    const headerRow = document.createElement("tr");
-
-    const thAgent = document.createElement("th");
-    thAgent.textContent = "Agent";
-    headerRow.appendChild(thAgent);
-
-    const allTimeSlots = [];
-    // Génère les créneaux horaires de 07:00 à 07:00 du jour suivant
-    const startHour = 7; // Heure de début
-    for (let i = 0; i < 48; i++) { // 48 créneaux de 30 minutes = 24 heures
-        const currentSlotHour = (startHour + Math.floor(i / 2)) % 24;
-        const currentSlotMinute = (i % 2) * 30;
-
-        const endSlotHour = (startHour + Math.floor((i + 1) / 2)) % 24;
-        const endSlotMinute = ((i + 1) % 2) * 30;
-
-        const slotString = `${String(currentSlotHour).padStart(2, '0')}:${String(currentSlotMinute).padStart(2, '0')} - ${String(endSlotHour).padStart(2, '0')}:${String(endSlotMinute).padStart(2, '0')}`;
-        allTimeSlots.push(slotString);
-
-        const th = document.createElement("th");
-        if (currentSlotMinute === 0) { // Regroupe 00:00-00:30 et 00:30-01:00 sous une entête 00:00
-            th.textContent = `${String(currentSlotHour).padStart(2, '0')}:00`;
-            th.colSpan = 2; // S'étend sur deux colonnes (00 et 30 minutes)
-        } else {
-            th.style.display = "none"; // Cache la deuxième colonne du créneau horaire
-        }
-        headerRow.appendChild(th);
-    }
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    // Body (planning par agent)
-    const tbody = document.createElement("tbody");
-
-    const weekKey = `week-${currentWeek}`;
-
-    // Récupère les IDs des agents à partir de agentDisplayInfos et les trie
-    const sortedAgentIds = Object.keys(agentDisplayInfos).sort();
-
-    if (sortedAgentIds.length === 0) {
-        const tr = document.createElement("tr");
-        const td = document.createElement("td");
-        td.colSpan = 1 + allTimeSlots.length;
-        td.textContent = "Aucun agent ou planning disponible.";
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-    } else {
-        sortedAgentIds.forEach(agentId => {
-            const slots = planningData[agentId]?.[weekKey]?.[day] || []; // Récupère les créneaux de l'agent pour ce jour
-            const agentInfo = agentDisplayInfos[agentId]; // Récupère le nom/prénom
-
-            const tr = document.createElement("tr");
-            const tdAgent = document.createElement("td");
-            tdAgent.textContent = `${agentInfo.prenom} ${agentInfo.nom}`; // Affiche Prénom Nom
-            tr.appendChild(tdAgent);
-
-            allTimeSlots.forEach(slotString => {
-                const td = document.createElement("td");
-                td.classList.add('slot-cell');
-                td.setAttribute("data-time", slotString);
-                if (slots.includes(slotString)) {
-                    td.classList.add('occupied'); // Marque la cellule comme occupée
-                }
-                tr.appendChild(td);
-            });
-            tbody.appendChild(tr);
-        });
-    }
-
-    table.appendChild(tbody);
-    planningContainer.appendChild(table);
-
-    // Réinitialise le message d'info si tout va bien
-    adminInfo.textContent = "Vue du planning global des agents.";
-    adminInfo.style.backgroundColor = "";
-    adminInfo.style.borderColor = "";
-    adminInfo.style.color = "";
-}
-
-
-// --- Fonctions d'Export PDF ---
-async function exportPdf() {
-    const container = document.getElementById("global-planning");
-    const table = container.querySelector('.planning-table');
-
-    if (!table) {
-        console.warn("La table de planning est introuvable. Impossible d'exporter.");
-        return;
-    }
-
-    // Stocke les styles originaux
-    const originalContainerOverflowX = container.style.overflowX;
-    const originalTableWhiteSpace = table.style.whiteSpace;
-
-    showLoading(true, true);
-
-    try {
-        container.style.overflowX = "visible";
-        table.style.whiteSpace = "nowrap";
-
-        await new Promise(r => setTimeout(r, 100)); // Petit délai pour le rendu des styles
-
-        const { jsPDF } = window.jspdf;
-
-        const year = new Date().getFullYear();
-        const mondayDate = getMondayOfWeek(currentWeek, year);
-        const sundayDate = new Date(mondayDate);
-        sundayDate.setDate(mondayDate.getDate() + 6);
-
-        function formatDate(d) {
-            return d.getDate().toString().padStart(2, '0') + '/' + (d.getMonth() + 1).toString().padStart(2, '0');
-        }
-        const title = `Planning Semaine ${currentWeek} du ${formatDate(mondayDate)} au ${formatDate(sundayDate)}`;
-
-        const canvas = await html2canvas(table, {
-            scale: 2, // Augmente l'échelle pour une meilleure qualité d'image dans le PDF
-            scrollY: -window.scrollY,
-            useCORS: true,
-            allowTaint: true,
-            // background: '#ffffff',
-            // logging: true
-        });
-
-        const imgData = canvas.toDataURL("image/png");
-
-        const pdf = new jsPDF({
-            orientation: "landscape",
-            unit: "mm",
-            format: "a3"
-        });
-
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 10;
-
-        const imgProps = pdf.getImageProperties(imgData);
-        let pdfWidth = pageWidth - 2 * margin;
-        let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-        if (pdfHeight > pageHeight - (2 * margin + 30)) {
-            pdfHeight = pageHeight - (2 * margin + 30);
-            pdfWidth = (imgProps.width * pdfHeight) / imgProps.height;
-        }
-
-        const x = (pageWidth - pdfWidth) / 2;
-        const y = margin + 25;
-
-        pdf.setFontSize(18);
-        pdf.text(title, margin, margin + 5);
-        pdf.setFontSize(14);
-        pdf.text(`Jour : ${currentDay.charAt(0).toUpperCase() + currentDay.slice(1)}`, margin, margin + 12);
-
-        if (canvas.width > pageWidth * 2) { // Si l'image est très large, indiquer une potentielle compression
-            pdf.setFontSize(8);
-            pdf.setTextColor(100);
-            pdf.text("Note: Le planning a été ajusté pour tenir sur la page. Certains détails peuvent apparaître plus petits.", margin, margin + 18);
-            pdf.setTextColor(0);
-        }
-
-        pdf.addImage(imgData, "PNG", x, y, pdfWidth, pdfHeight);
-        pdf.save(`planning_${currentDay}_semaine${currentWeek}.pdf`);
-        console.log("Le PDF a été généré avec succès !");
-
-    } catch (error) {
-        console.error("Erreur lors de l'export PDF:", error);
-        console.error("Une erreur est survenue lors de la génération du PDF. Veuillez réessayer ou contacter l'administrateur. Détails: " + error.message);
-    } finally {
-        container.style.overflowX = originalContainerOverflowX;
-        table.style.whiteSpace = originalTableWhiteSpace;
-        showLoading(false, true);
-    }
-}
-
-
-// --- Fonctions de gestion des grades ---
-
-async function loadAvailableGrades() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/grades`, {
-            headers: { 'X-User-Role': 'admin' }
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || 'Erreur lors du chargement des grades disponibles.');
-        }
-        availableGrades = data;
-        console.log('Grades disponibles chargés:', availableGrades);
-    } catch (error) {
-        console.error('Erreur de chargement des grades:', error);
-        if (gradesMessage) {
-            gradesMessage.textContent = `Erreur de chargement des grades: ${error.message}`;
-            gradesMessage.style.color = 'red';
-        }
-    }
-}
-
-function renderNewAgentGradesCheckboxes() {
-    if (!newAgentGradesCheckboxes) return;
-
-    newAgentGradesCheckboxes.innerHTML = '';
-    if (availableGrades.length === 0) {
-        newAgentGradesCheckboxes.textContent = 'Aucun grade disponible. Ajoutez-en d\'abord via la gestion des grades.';
-        return;
-    }
-
-    availableGrades.forEach(grade => {
-        const checkboxContainer = document.createElement('div');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `new-grade-${grade.id}`;
-        checkbox.value = grade.id;
-
-        const label = document.createElement('label');
-        label.htmlFor = `new-grade-${grade.id}`;
-        label.textContent = grade.name;
-
-        checkboxContainer.appendChild(checkbox);
-        checkboxContainer.appendChild(label);
-        newAgentGradesCheckboxes.appendChild(checkboxContainer);
-    });
-}
-
-function renderGradesCheckboxes(agentGrades = []) {
-    if (!gradesCheckboxesDiv) return;
-
-    gradesCheckboxesDiv.innerHTML = '';
-    if (availableGrades.length === 0) {
-        gradesCheckboxesDiv.textContent = 'Aucun grade disponible.';
-        if (gradesMessage) {
-             gradesMessage.textContent = 'Veuillez ajouter des grades via l\'administration.';
-             gradesMessage.style.color = 'orange';
-        }
-        return;
-    }
-
-    availableGrades.forEach(grade => {
-        const checkboxContainer = document.createElement('div');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `edit-grade-${grade.id}`;
-        checkbox.value = grade.id;
-        checkbox.checked = agentGrades.includes(grade.id);
-
-        const label = document.createElement('label');
-        label.htmlFor = `edit-grade-${grade.id}`;
-        label.textContent = grade.name;
-
-        checkboxContainer.appendChild(checkbox);
-        checkboxContainer.appendChild(label);
-        gradesCheckboxesDiv.appendChild(checkboxContainer);
-    });
-    if (gradesMessage) {
-        gradesMessage.textContent = '';
-    }
-}
-
-// --- Fonctions de gestion des fonctions ---
-
-async function loadAvailableFonctions() { 
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/fonctions`, { 
-            headers: { 'X-User-Role': 'admin' }
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || 'Erreur lors du chargement des fonctions disponibles.'); 
-        }
-        availableFonctions = data; 
-        console.log('Fonctions disponibles chargées:', availableFonctions); 
-    } catch (error) {
-        console.error('Erreur de chargement des fonctions:', error); 
-        if (fonctionsMessage) { 
-            fonctionsMessage.textContent = `Erreur de chargement des fonctions: ${error.message}`; 
-            fonctionsMessage.style.color = 'red'; 
-        }
-    }
-}
-
-function renderNewAgentFonctionsCheckboxes() { 
-    if (!newAgentFonctionsCheckboxes) return; 
-
-    newAgentFonctionsCheckboxes.innerHTML = ''; 
-    if (availableFonctions.length === 0) { 
-        newAgentFonctionsCheckboxes.textContent = 'Aucune fonction disponible. Ajoutez-en d\'abord via la gestion des fonctions.'; 
-        return;
-    }
-
-    availableFonctions.forEach(fonction => { 
-        const checkboxContainer = document.createElement('div');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `new-fonction-${fonction.id}`; 
-        checkbox.value = fonction.id; 
-
-        const label = document.createElement('label');
-        label.htmlFor = `new-fonction-${fonction.id}`; 
-        label.textContent = fonction.name; 
-
-        checkboxContainer.appendChild(checkbox);
-        checkboxContainer.appendChild(label);
-        newAgentFonctionsCheckboxes.appendChild(checkboxContainer); 
-    });
-}
-
-function renderFonctionsCheckboxes(agentFonctions = []) { 
-    if (!fonctionsCheckboxesDiv) return; 
-
-    fonctionsCheckboxesDiv.innerHTML = ''; 
-    if (availableFonctions.length === 0) { 
-        fonctionsCheckboxesDiv.textContent = 'Aucune fonction disponible.'; 
-        if (fonctionsMessage) { 
-             fonctionsMessage.textContent = 'Veuillez ajouter des fonctions via l\'administration.'; 
-             fonctionsMessage.style.color = 'orange'; 
-        }
-        return;
-    }
-
-    availableFonctions.forEach(fonction => { 
-        const checkboxContainer = document.createElement('div');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `edit-fonction-${fonction.id}`; 
-        checkbox.value = fonction.id; 
-        checkbox.checked = agentFonctions.includes(fonction.id); 
-
-        const label = document.createElement('label');
-        label.htmlFor = `edit-fonction-${fonction.id}`; 
-        label.textContent = fonction.name; 
-
-        checkboxContainer.appendChild(checkbox);
-        checkboxContainer.appendChild(label);
-        fonctionsCheckboxesDiv.appendChild(checkboxContainer); 
-    });
-    if (fonctionsMessage) { 
-        fonctionsMessage.textContent = ''; 
-    }
-}
-
-
-// --- Fonctions CRUD pour les agents (Backend) ---
-
-async function loadAgents() {
-    listAgentsMessage.textContent = 'Chargement des agents...';
-    listAgentsMessage.style.color = 'blue';
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/agents`, {
-            headers: {
-                'X-User-Role': 'admin'
-            }
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'Erreur lors du chargement des agents.');
-        }
-
-        agentsTableBody.innerHTML = '';
-        if (data.length === 0) {
-            agentsTableBody.innerHTML = '<tr><td colspan="7">Aucun agent enregistré pour le moment.</td></tr>'; // Colspan ajusté
-        } else {
-            data.forEach(agent => {
-                const row = agentsTableBody.insertRow();
-                // Afficher les grades dans la table
-                const gradeNames = (agent.grades || [])
-                                    .map(id => {
-                                        const grade = availableGrades.find(g => g.id === id);
-                                        return grade ? grade.name : id;
-                                    })
-                                    .join(', ');
-
-                // Afficher les fonctions dans la table 
-                const fonctionNames = (agent.fonctions || []) 
-                                    .map(id => {
-                                        const fonction = availableFonctions.find(f => f.id === id); 
-                                        return fonction ? fonction.name : id; 
-                                    })
-                                    .join(', ');
-
-                row.innerHTML = `
-                    <td>${agent.id}</td>
-                    <td>${agent.nom}</td>
-                    <td>${agent.prenom}</td>
-                    <td>${gradeNames}</td>
-                    <td>${fonctionNames}</td> 
-                    <td>
-                        <button class="edit-btn btn-secondary" data-id="${agent.id}" data-nom="${agent.nom}" data-prenom="${agent.prenom}" data-grades='${JSON.stringify(agent.grades || [])}' data-fonctions='${JSON.stringify(agent.fonctions || [])}'>Modifier</button>
-                        <button class="delete-btn btn-danger" data-id="${agent.id}">Supprimer</button>
-                    </td>
-                `;
-            });
-        }
-        listAgentsMessage.textContent = '';
-    } catch (error) {
-        console.error('Erreur de chargement des agents:', error);
-        listAgentsMessage.textContent = `Erreur : ${error.message}`;
-        listAgentsMessage.style.color = 'red';
-        agentsTableBody.innerHTML = '<tr><td colspan="7">Impossible de charger la liste des agents.</td></tr>'; // Colspan ajusté
-    }
-}
-
-async function handleAddAgent(event) {
-    event.preventDefault();
-    const id = document.getElementById('newAgentId').value.trim();
-    const nom = document.getElementById('newAgentNom').value.trim();
-    const prenom = document.getElementById('newAgentPrenom').value.trim();
-    const password = document.getElementById('newAgentPassword').value.trim();
-
-    // Récupérer les grades sélectionnés
-    const selectedGrades = Array.from(newAgentGradesCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
-                                       .map(checkbox => checkbox.value);
-    // Récupérer les fonctions sélectionnées 
-    const selectedFonctions = Array.from(newAgentFonctionsCheckboxes.querySelectorAll('input[type="checkbox"]:checked')) 
-                                       .map(checkbox => checkbox.value);
-
-    addAgentMessage.textContent = 'Ajout en cours...';
-    addAgentMessage.style.color = 'blue';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/agents`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-Role': 'admin'
-            },
-            body: JSON.stringify({ id, nom, prenom, password, grades: selectedGrades, fonctions: selectedFonctions }) 
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-            addAgentMessage.textContent = data.message;
-            addAgentMessage.style.color = 'green';
-            addAgentForm.reset();
-            // Réinitialiser les checkboxes après l'ajout
-            newAgentGradesCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            newAgentFonctionsCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false); 
-            loadAgents(); // Recharger la liste
-        } else {
-            addAgentMessage.textContent = `Erreur : ${data.message}`;
-            addAgentMessage.style.color = 'red';
-        }
-    } catch (error) {
-        console.error('Erreur lors de l\'ajout de l\'agent:', error);
-        addAgentMessage.textContent = 'Erreur réseau lors de l\'ajout de l\'agent.';
-        addAgentMessage.style.color = 'red';
-    }
-}
-
-async function handleAgentActions(event) {
-    const target = event.target;
-    const agentId = target.dataset.id;
-
-    if (!agentId) return;
-
-    if (target.classList.contains('edit-btn')) {
-        editAgentId.value = agentId;
-        editAgentNom.value = target.dataset.nom;
-        editAgentPrenom.value = target.dataset.prenom;
-        editAgentNewPassword.value = '';
-        editAgentMessage.textContent = '';
-
-        // Récupérer les grades et fonctions de l'agent depuis le dataset
-        const agentGrades = JSON.parse(target.dataset.grades || '[]');
-        const agentFonctions = JSON.parse(target.dataset.fonctions || '[]'); 
-
-        renderGradesCheckboxes(agentGrades);
-        renderFonctionsCheckboxes(agentFonctions); 
-
-        editAgentModal.style.display = 'block';
-    } else if (target.classList.contains('delete-btn')) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agentId} ?`)) { // Confirmer avec l'utilisateur
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/agents/${agentId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-User-Role': 'admin'
-                    }
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    console.log(data.message);
-                    loadAgents(); // Recharger la liste
-                } else {
-                    console.error(`Erreur lors de la suppression : ${data.message}`);
-                }
-            } catch (error) {
-                console.error('Erreur lors de la suppression de l\'agent:', error);
-                console.error('Erreur réseau lors de la suppression de l\'agent.');
-            }
-        }
-    }
-}
-
-async function handleEditAgent(event) {
-    event.preventDefault();
-    const id = editAgentId.value.trim();
-    const nom = editAgentNom.value.trim();
-    const prenom = editAgentPrenom.value.trim();
-    const newPassword = editAgentNewPassword.value.trim();
-
-    // Récupérer les grades sélectionnés
-    const selectedGrades = Array.from(gradesCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked'))
-                                       .map(checkbox => checkbox.value);
-    // Récupérer les fonctions sélectionnées 
-    const selectedFonctions = Array.from(fonctionsCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked')) 
-                                       .map(checkbox => checkbox.value);
-
-
-    editAgentMessage.textContent = 'Mise à jour en cours...';
-    editAgentMessage.style.color = 'blue';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/agents/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-Role': 'admin'
-            },
-            body: JSON.stringify({ nom, prenom, newPassword, grades: selectedGrades, fonctions: selectedFonctions }) 
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-            editAgentMessage.textContent = data.message;
-            editAgentMessage.style.color = 'green';
-            loadAgents(); // Recharger la liste des agents
-            // editAgentModal.style.display = 'none'; // Optionnel: fermer la modale après succès
-        } else {
-            editAgentMessage.textContent = `Erreur : ${data.message}`;
-            editAgentMessage.style.color = 'red';
-        }
-    } catch (error) {
-        console.error('Erreur lors de la mise à jour de l\'agent:', error);
-        editAgentMessage.textContent = 'Erreur réseau lors de la mise à jour de l\'agent.';
-        editAgentMessage.style.color = 'red';
-    }
-}
-
-// --- Fonctions CRUD pour la gestion des grades ---
-
-async function loadGradesList() {
-    listGradesMessage.textContent = 'Chargement des grades...';
-    listGradesMessage.style.color = 'blue';
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/grades`, {
-            headers: { 'X-User-Role': 'admin' }
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'Erreur lors du chargement des grades.');
-        }
-
-        gradesTableBody.innerHTML = '';
-        if (data.length === 0) {
-            gradesTableBody.innerHTML = '<tr><td colspan="3">Aucun grade enregistré pour le moment.</td></tr>';
-        } else {
-            data.forEach(grade => {
-                const row = gradesTableBody.insertRow();
-                row.innerHTML = `
-                    <td>${grade.id}</td>
-                    <td>${grade.name}</td>
-                    <td>
-                        <button class="edit-btn btn-secondary" data-id="${grade.id}" data-name="${grade.name}">Modifier</button>
-                        <button class="delete-btn btn-danger" data-id="${grade.id}">Supprimer</button>
-                    </td>
-                `;
-            });
-        }
-        listGradesMessage.textContent = '';
-    } catch (error) {
-        console.error('Erreur de chargement des grades:', error);
-        listGradesMessage.textContent = `Erreur : ${error.message}`;
-        listGradesMessage.style.color = 'red';
-        gradesTableBody.innerHTML = '<tr><td colspan="3">Impossible de charger la liste des grades.</td></tr>';
-    }
-}
-
-async function handleAddGrade(event) {
-    event.preventDefault();
-    const id = document.getElementById('newGradeId').value.trim();
-    const name = document.getElementById('newGradeName').value.trim();
-
-    addGradeMessage.textContent = 'Ajout en cours...';
-    addGradeMessage.style.color = 'blue';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/grades`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-Role': 'admin'
-            },
-            body: JSON.stringify({ id, name })
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-            addGradeMessage.textContent = data.message;
-            addGradeMessage.style.color = 'green';
-            addGradeForm.reset();
-            await loadAvailableGrades();
-            await loadGradesList();
-            renderNewAgentGradesCheckboxes();
-        } else {
-            addGradeMessage.textContent = `Erreur : ${data.message}`;
-            addGradeMessage.style.color = 'red';
-        }
-    } catch (error) {
-        console.error('Erreur lors de l\'ajout du grade:', error);
-        addGradeMessage.textContent = 'Erreur réseau lors de l\'ajout du grade.';
-        addGradeMessage.style.color = 'red';
-    }
-}
-
-async function handleGradeActions(event) {
-    const target = event.target;
-    const gradeId = target.dataset.id;
-
-    if (!gradeId) return;
-
-    if (target.classList.contains('edit-btn')) {
-        editGradeId.value = gradeId;
-        editGradeName.value = target.dataset.name;
-        editGradeMessage.textContent = '';
-        editGradeModal.style.display = 'block';
-    } else if (target.classList.contains('delete-btn')) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer le grade "${gradeId}" ? Cela le retirera aussi des agents qui le possèdent.`)) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/grades/${gradeId}`, {
-                    method: 'DELETE',
-                    headers: { 'X-User-Role': 'admin' }
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    console.log(data.message);
-                    await loadAvailableGrades();
-                    await loadGradesList();
-                    renderNewAgentGradesCheckboxes();
-                    loadAgents(); // Recharger la liste des agents pour refléter les suppressions
-                } else {
-                    console.error(`Erreur lors de la suppression : ${data.message}`);
-                }
-            } catch (error) {
-                console.error('Erreur lors de la suppression du grade:', error);
-                console.error('Erreur réseau lors de la suppression du grade.');
-            }
-        }
-    }
-}
-
-async function handleEditGrade(event) {
-    event.preventDefault();
-    const id = editGradeId.value.trim();
-    const name = editGradeName.value.trim();
-
-    editGradeMessage.textContent = 'Mise à jour en cours...';
-    editGradeMessage.style.color = 'blue';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/grades/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-Role': 'admin'
-            },
-            body: JSON.stringify({ name })
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-            editGradeMessage.textContent = data.message;
-            editGradeMessage.style.color = 'green';
-            await loadAvailableGrades();
-            await loadGradesList();
-            renderNewAgentGradesCheckboxes();
-            loadAgents(); // Refresh agents list to update displayed grade names
-            // editGradeModal.style.display = 'none';
-        } else {
-            editGradeMessage.textContent = `Erreur : ${data.message}`;
-            editGradeMessage.style.color = 'red';
-        }
-    } catch (error) {
-        console.error('Erreur lors de la mise à jour du grade:', error);
-        editGradeMessage.textContent = 'Erreur réseau lors de la mise à jour du grade.';
-        editGradeMessage.style.color = 'red';
-    }
-}
-
-
-// --- Fonctions CRUD pour la gestion des fonctions ---
-
-async function loadFonctionsList() { 
-    listFonctionsMessage.textContent = 'Chargement des fonctions...'; 
-    listFonctionsMessage.style.color = 'blue'; 
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/fonctions`, { 
-            headers: { 'X-User-Role': 'admin' }
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'Erreur lors du chargement des fonctions.'); 
-        }
-
-        fonctionsTableBody.innerHTML = ''; 
-        if (data.length === 0) {
-            fonctionsTableBody.innerHTML = '<tr><td colspan="3">Aucune fonction enregistrée pour le moment.</td></tr>'; 
-        } else {
-            data.forEach(fonction => { 
-                const row = fonctionsTableBody.insertRow(); 
-                row.innerHTML = `
-                    <td>${fonction.id}</td> 
-                    <td>${fonction.name}</td> 
-                    <td>
-                        <button class="edit-btn btn-secondary" data-id="${fonction.id}" data-name="${fonction.name}">Modifier</button> 
-                        <button class="delete-btn btn-danger" data-id="${fonction.id}">Supprimer</button> 
-                    </td>
-                `;
-            });
-        }
-        listFonctionsMessage.textContent = ''; 
-    } catch (error) {
-        console.error('Erreur de chargement des fonctions:', error); 
-        listFonctionsMessage.textContent = `Erreur : ${error.message}`; 
-        listFonctionsMessage.style.color = 'red'; 
-        fonctionsTableBody.innerHTML = '<tr><td colspan="3">Impossible de charger la liste des fonctions.</td></tr>'; 
-    }
-}
-
-async function handleAddFonction(event) { 
-    event.preventDefault();
-    const id = document.getElementById('newFonctionId').value.trim(); 
-    const name = document.getElementById('newFonctionName').value.trim(); 
-
-    addFonctionMessage.textContent = 'Ajout en cours...'; 
-    addFonctionMessage.style.color = 'blue'; 
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/fonctions`, { 
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-Role': 'admin'
-            },
-            body: JSON.stringify({ id, name })
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-            addFonctionMessage.textContent = data.message; 
-            addFonctionMessage.style.color = 'green'; 
-            addFonctionForm.reset(); 
-            await loadAvailableFonctions(); 
-            await loadFonctionsList(); 
-            renderNewAgentFonctionsCheckboxes(); 
-        } else {
-            addFonctionMessage.textContent = `Erreur : ${data.message}`; 
-            addFonctionMessage.style.color = 'red'; 
-        }
-    } catch (error) {
-        console.error('Erreur lors de l\'ajout de la fonction:', error); 
-        addFonctionMessage.textContent = 'Erreur réseau lors de l\'ajout de la fonction.'; 
-        addFonctionMessage.style.color = 'red'; 
-    }
-}
-
-async function handleFonctionActions(event) { 
-    const target = event.target;
-    const fonctionId = target.dataset.id; 
-
-    if (!fonctionId) return; 
-
-    if (target.classList.contains('edit-btn')) {
-        editFonctionId.value = fonctionId; 
-        editFonctionName.value = target.dataset.name; 
-        editFonctionMessage.textContent = ''; 
-        editFonctionModal.style.display = 'block'; 
-    } else if (target.classList.contains('delete-btn')) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer la fonction "${fonctionId}" ? Cela la retirera aussi des agents qui la possèdent.`)) { 
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/fonctions/${fonctionId}`, { 
-                    method: 'DELETE',
-                    headers: { 'X-User-Role': 'admin' }
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    console.log(data.message);
-                    await loadAvailableFonctions(); 
-                    await loadFonctionsList(); 
-                    renderNewAgentFonctionsCheckboxes(); 
-                    loadAgents(); // Recharger la liste des agents pour refléter les suppressions
-                } else {
-                    console.error(`Erreur lors de la suppression : ${data.message}`);
-                }
-            } catch (error) {
-                console.error('Erreur lors de la suppression de la fonction:', error); 
-                console.error('Erreur réseau lors de la suppression de la fonction.'); 
-            }
-        }
-    }
-}
-
-async function handleEditFonction(event) { 
-    event.preventDefault();
-    const id = editFonctionId.value.trim(); 
-    const name = editFonctionName.value.trim(); 
-
-    editFonctionMessage.textContent = 'Mise à jour en cours...'; 
-    editFonctionMessage.style.color = 'blue'; 
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/fonctions/${id}`, { 
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-Role': 'admin'
-            },
-            body: JSON.stringify({ name })
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-            editFonctionMessage.textContent = data.message; 
-            editFonctionMessage.style.color = 'green'; 
-            await loadAvailableFonctions(); 
-            await loadFonctionsList(); 
-            renderNewAgentFonctionsCheckboxes(); 
-            loadAgents(); // Refresh agents list to update displayed function names
-            // editFonctionModal.style.display = 'none'; 
-        } else {
-            editFonctionMessage.textContent = `Erreur : ${data.message}`; 
-            editFonctionMessage.style.color = 'red'; 
-        }
-    } catch (error) {
-        console.error('Erreur lors de la mise à jour de la fonction:', error); 
-        editFonctionMessage.textContent = 'Erreur réseau lors de la mise à jour de la fonction.'; 
-        editFonctionMessage.style.color = 'red'; 
-    }
-}
-
-
-function logout() {
-    sessionStorage.clear();
-    window.location.href = "index.html";
-}
-
-// --- Fonction pour gérer l'affichage du spinner de chargement et désactiver/réactiver les contrôles ---
-function showLoading(isLoading, forPdf = false) {
+// Gestion de la visibilité du spinner de chargement
+function toggleLoading(isLoading, forPdf = false) {
+    const loadingSpinner = document.getElementById("loading-spinner"); // Assurez-vous d'avoir un élément spinner dans votre HTML
     if (isLoading) {
-        loadingSpinner.classList.remove("hidden");
+        // loadingSpinner.classList.remove("hidden"); // Décommenter si vous avez un spinner
         // Désactiver les contrôles globaux et ceux de l'onglet actif
         document.querySelectorAll('button, select, input, a').forEach(el => {
             if (el.id !== 'logout-btn') { // Ne pas désactiver le bouton de déconnexion
@@ -1231,7 +119,7 @@ function showLoading(isLoading, forPdf = false) {
             adminInfo.style.color = "#856404";
         }
     } else {
-        loadingSpinner.classList.add("hidden");
+        // loadingSpinner.classList.add("hidden"); // Décommenter si vous avez un spinner
         // Réactiver les contrôles globaux et ceux de l'onglet actif
         document.querySelectorAll('button, select, input, a').forEach(el => {
             if (el.id !== 'logout-btn') {
@@ -1250,3 +138,1194 @@ function showLoading(isLoading, forPdf = false) {
         }
     }
 }
+
+
+// Fonctions utilitaires pour les dates et semaines
+function getCurrentWeek() {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const diff = now.getTime() - startOfYear.getTime();
+    const oneWeek = 1000 * 60 * 60 * 24 * 7;
+    return Math.ceil(diff / oneWeek);
+}
+
+function getWeekRange(weekNumber) {
+    const jan1 = new Date(new Date().getFullYear(), 0, 1);
+    const startOfWeek = new Date(jan1.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
+    // Ajuster au lundi le plus proche
+    startOfWeek.setDate(startOfWeek.getDate() - (startOfWeek.getDay() + 6) % 7 + 1);
+
+    const endOfWeek = new Date(startOfWeek.getTime() + 6 * 24 * 60 * 60 * 1000);
+    return { start: startOfWeek, end: endOfWeek };
+}
+
+function formatDate(date) {
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// Initialisation du sélecteur de semaine
+function populateWeekSelect() {
+    weekSelect.innerHTML = ''; // Clear previous options
+    const currentYear = new Date().getFullYear();
+    for (let i = 1; i <= 52; i++) { // Typically 52 weeks in a year
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `Semaine ${i}`;
+        if (i === currentWeek) {
+            option.selected = true;
+        }
+        weekSelect.appendChild(option);
+    }
+    updateDateRange();
+}
+
+function updateDateRange() {
+    const { start, end } = getWeekRange(parseInt(weekSelect.value));
+    dateRangeDisplay.textContent = `Du ${formatDate(start)} au ${formatDate(end)}`;
+}
+
+// -----------------------------------------------------------
+// Fonctions de navigation et de chargement des onglets
+// -----------------------------------------------------------
+
+function openMainTab(tabId) {
+    mainTabContents.forEach(content => {
+        content.classList.add('hidden');
+    });
+    mainTabButtons.forEach(button => {
+        button.classList.remove('active');
+    });
+
+    document.getElementById(tabId).classList.remove('hidden');
+    document.querySelector(`button[data-main-tab="${tabId}"]`).classList.add('active');
+
+    // Charger les données spécifiques à l'onglet
+    if (tabId === 'global-planning-view') {
+        loadPlanning();
+        openDayTab(currentDay); // Ouvre le planning du jour par défaut
+    } else if (tabId === 'agent-management-view') {
+        loadAgents();
+        loadAvailableGrades(); // Recharger les grades pour le formulaire d'ajout
+        loadAvailableFonctions(); // Recharger les fonctions pour le formulaire d'ajout
+    }
+    // SUPPRIMÉ : Le bloc else if pour la gestion des qualifications
+    // else if (tabId === 'qualification-management-view') {
+    //     await loadQualificationsList();
+    // }
+    else if (tabId === 'grade-management-view') {
+        loadGradesList();
+    } else if (tabId === 'fonction-management-view') {
+        loadFonctionsList();
+    }
+}
+
+function openDayTab(day) {
+    currentDay = day;
+    tabButtons.forEach(button => {
+        button.classList.remove('active');
+    });
+    document.querySelector(`.planning-day-tabs button[data-day="${day}"]`).classList.add('active');
+    renderPlanningForDay(day);
+}
+
+// -----------------------------------------------------------
+// Fonctions pour le planning global (global-planning-view)
+// -----------------------------------------------------------
+
+async function loadPlanning() {
+    toggleLoading(true);
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'index.html';
+            return;
+        }
+        const response = await fetch(`${API_BASE_URL}/planning?week=${currentWeek}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            throw new Error('Erreur de chargement du planning');
+        }
+        const data = await response.json();
+        planningData = data.planning;
+        agentDisplayInfos = data.agentDisplayInfos; // Store agent names
+        availableGrades = data.availableGrades; // Store available grades
+        availableFonctions = data.availableFonctions; // Store available fonctions
+
+        // Initialiser selectedAbsences si non défini ou si la semaine change
+        if (!selectedAbsences[currentWeek]) {
+            selectedAbsences[currentWeek] = {};
+            for (const day of days) {
+                selectedAbsences[currentWeek][day] = {};
+            }
+        }
+
+        // Pré-remplir selectedAbsences avec les données du planning
+        for (const day of days) {
+            if (planningData[day]) {
+                for (const agentId in planningData[day]) {
+                    selectedAbsences[currentWeek][day][agentId] = planningData[day][agentId];
+                }
+            }
+        }
+        renderPlanningForDay(currentDay);
+    } catch (error) {
+        console.error('Erreur lors du chargement du planning:', error);
+        alert('Erreur lors du chargement du planning: ' + error.message);
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+
+function renderPlanningForDay(day) {
+    const dayContent = document.getElementById('planning-day-content');
+    dayContent.innerHTML = ''; // Clear previous content
+
+    const agents = Object.values(agentDisplayInfos).sort((a, b) => {
+        // Trier par grade (du plus haut au plus bas) puis par nom
+        const gradeA = availableGrades.find(g => g.id === (a.grades[0] || ''));
+        const gradeB = availableGrades.find(g => g.id === (b.grades[0] || ''));
+
+        if (gradeA && gradeB) {
+            if (gradeA.order !== gradeB.order) {
+                return gradeB.order - gradeA.order; // Tri descendant par ordre de grade
+            }
+        }
+        return a.nom.localeCompare(b.nom); // Puis par nom
+    });
+
+
+    // Création du tableau de planning
+    const table = document.createElement('table');
+    table.classList.add('planning-table');
+
+    // En-tête du tableau
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    const headerColumns = ['Agent', 'Matin (06h-14h)', 'Après-midi (14h-22h)', 'Nuit (22h-06h)'];
+    headerColumns.forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Corps du tableau
+    const tbody = document.createElement('tbody');
+    if (agents.length === 0) {
+        const noAgentsRow = document.createElement('tr');
+        noAgentsRow.innerHTML = `<td colspan="4">Aucun agent à afficher.</td>`;
+        tbody.appendChild(noAgentsRow);
+    } else {
+        agents.forEach(agent => {
+            const row = document.createElement('tr');
+            row.dataset.agentId = agent.id;
+
+            // Cellule Agent
+            const agentCell = document.createElement('td');
+            agentCell.classList.add('agent-info-cell');
+            agentCell.innerHTML = `
+                <div class="agent-name">${agent.nom} ${agent.prenom}</div>
+                <div class="agent-details">
+                    <span class="agent-grade">${(availableGrades.find(g => g.id === (agent.grades[0] || '')) || {}).name || 'N/A'}</span>
+                    <span class="agent-fonction">${(availableFonctions.find(f => f.id === (agent.fonctions[0] || '')) || {}).name || 'N/A'}</span>
+                    </div>
+            `;
+            row.appendChild(agentCell);
+
+            // Cellules de planning
+            const timeSlots = ['morning', 'afternoon', 'night'];
+            timeSlots.forEach(slot => {
+                const cell = document.createElement('td');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.dataset.agentId = agent.id;
+                checkbox.dataset.day = day;
+                checkbox.dataset.slot = slot;
+                checkbox.checked = (selectedAbsences[currentWeek][day][agent.id] || []).includes(slot);
+                checkbox.addEventListener('change', handleAbsenceChange);
+                cell.appendChild(checkbox);
+                row.appendChild(cell);
+            });
+            tbody.appendChild(row);
+        });
+    }
+    table.appendChild(tbody);
+    dayContent.appendChild(table);
+}
+
+
+async function handleAbsenceChange(event) {
+    const { agentId, day, slot } = event.target.dataset;
+    const isChecked = event.target.checked;
+
+    if (!selectedAbsences[currentWeek][day][agentId]) {
+        selectedAbsences[currentWeek][day][agentId] = [];
+    }
+
+    if (isChecked) {
+        if (!selectedAbsences[currentWeek][day][agentId].includes(slot)) {
+            selectedAbsences[currentWeek][day][agentId].push(slot);
+        }
+    } else {
+        selectedAbsences[currentWeek][day][agentId] = selectedAbsences[currentWeek][day][agentId].filter(s => s !== slot);
+    }
+
+    await savePlanningChanges(agentId, day, selectedAbsences[currentWeek][day][agentId]);
+}
+
+async function savePlanningChanges(agentId, day, absences) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/planning/update-absence`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                week: currentWeek,
+                day: day,
+                agentId: agentId,
+                absences: absences
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erreur serveur lors de la sauvegarde: ${errorText}`);
+        }
+        // Pas besoin de recharger tout le planning, l'état local est déjà à jour
+        adminInfo.textContent = "Planning mis à jour avec succès.";
+        adminInfo.style.backgroundColor = "#d4edda";
+        adminInfo.style.borderColor = "#c3e6cb";
+        adminInfo.style.color = "#155724";
+        setTimeout(() => adminInfo.textContent = "Vue du planning global des agents.", 3000);
+    } catch (error) {
+        console.error('Erreur lors de la sauvegarde du planning:', error);
+        adminInfo.textContent = "Erreur lors de la sauvegarde: " + error.message;
+        adminInfo.style.backgroundColor = "#f8d7da";
+        adminInfo.style.borderColor = "#f5c6cb";
+        adminInfo.style.color = "#721c24";
+    }
+}
+
+
+// -----------------------------------------------------------
+// Fonctions CRUD pour la gestion des agents (agent-management-view)
+// -----------------------------------------------------------
+
+async function loadAgents() {
+    toggleLoading(true);
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/agents`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            throw new Error('Erreur de chargement des agents');
+        }
+        const agents = await response.json();
+        agentsTableBody.innerHTML = ''; // Clear previous content
+
+        if (agents.length === 0) {
+            agentsTableBody.innerHTML = '<tr><td colspan="6">Aucun agent trouvé.</td></tr>'; // Corrigé colspan
+            return;
+        }
+
+        agents.forEach(agent => {
+            const row = document.createElement('tr');
+            row.dataset.id = agent.id;
+
+            // Afficher les grades et fonctions dans la table
+            const gradeNames = (agent.grades || [])
+                                .map(id => {
+                                    const grade = availableGrades.find(g => g.id === id);
+                                    return grade ? grade.name : id;
+                                })
+                                .join(', ');
+            const fonctionNames = (agent.fonctions || [])
+                                  .map(id => {
+                                      const fonction = availableFonctions.find(f => f.id === id);
+                                      return fonction ? fonction.name : id;
+                                  })
+                                  .join(', ');
+
+            // SUPPRIMÉ : Afficher les qualifications dans la table
+            // const qualificationNames = (agent.qualifications || [])
+            //                             .map(id => {
+            //                                 const qualification = availableQualifications.find(q => q.id === id);
+            //                                 return qualification ? qualification.name : id;
+            //                             })
+            //                             .join(', ');
+
+            row.innerHTML = `
+                <td>${agent.id}</td>
+                <td>${agent.nom}</td>
+                <td>${agent.prenom}</td>
+                <td>${gradeNames}</td>
+                <td>${fonctionNames}</td>
+                <td>
+                    <button class="edit-btn btn-secondary"
+                            data-id="${agent.id}"
+                            data-nom="${agent.nom}"
+                            data-prenom="${agent.prenom}"
+                            data-grades='${JSON.stringify(agent.grades || [])}'
+                            data-fonctions='${JSON.stringify(agent.fonctions || [])}'>Modifier</button>
+                    <button class="delete-btn btn-danger" data-id="${agent.id}">Supprimer</button>
+                </td>
+            `;
+            agentsTableBody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Erreur lors du chargement des agents:', error);
+        listAgentsMessage.textContent = 'Erreur: ' + error.message;
+        listAgentsMessage.style.color = 'red';
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+async function handleAddAgent(event) {
+    event.preventDefault();
+    toggleLoading(true);
+
+    const id = newAgentIdInput.value.trim();
+    const nom = newAgentNomInput.value.trim();
+    const prenom = newAgentPrenomInput.value.trim();
+    const password = newAgentPasswordInput.value.trim();
+
+    if (!id || !nom || !prenom || !password) {
+        showMessage(addAgentMessage, 'Tous les champs sont requis.', true);
+        toggleLoading(false);
+        return;
+    }
+
+    // Récupérer les grades sélectionnés
+    const selectedGrades = Array.from(newAgentGradesCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
+                               .map(checkbox => checkbox.value);
+    // Récupérer les fonctions sélectionnées
+    const selectedFonctions = Array.from(newAgentFonctionsCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
+                                 .map(checkbox => checkbox.value);
+
+    // SUPPRIMÉ : Récupérer les qualifications sélectionnées
+    // const selectedQualifications = Array.from(newAgentQualificationsCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
+    //                                    .map(checkbox => checkbox.value);
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/agents`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ id, nom, prenom, password, grades: selectedGrades, fonctions: selectedFonctions }) // SUPPRIMÉ: qualifications
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de l\'ajout de l\'agent');
+        }
+
+        showMessage(addAgentMessage, 'Agent ajouté avec succès !');
+        addAgentForm.reset();
+        // Réinitialiser les checkboxes après l'ajout
+        newAgentGradesCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        newAgentFonctionsCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        // SUPPRIMÉ : Réinitialiser les checkboxes de qualification
+        // newAgentQualificationsCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        loadAgents(); // Recharger la liste des agents
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout de l\'agent:', error);
+        showMessage(addAgentMessage, 'Erreur: ' + error.message, true);
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+async function handleAgentActions(event) {
+    if (event.target.classList.contains('delete-btn')) {
+        const agentId = event.target.dataset.id;
+        if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agentId} ?`)) {
+            toggleLoading(true);
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE_URL}/agents/${agentId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Erreur lors de la suppression de l\'agent');
+                }
+                showMessage(listAgentsMessage, 'Agent supprimé avec succès !');
+                loadAgents();
+            } catch (error) {
+                console.error('Erreur lors de la suppression de l\'agent:', error);
+                showMessage(listAgentsMessage, 'Erreur: ' + error.message, true);
+            } finally {
+                toggleLoading(false);
+            }
+        }
+    } else if (event.target.classList.contains('edit-btn')) {
+        const target = event.target;
+        const agentId = target.dataset.id;
+        const agentNom = target.dataset.nom;
+        const agentPrenom = target.dataset.prenom;
+        const agentGrades = JSON.parse(target.dataset.grades || '[]');
+        const agentFonctions = JSON.parse(target.dataset.fonctions || '[]');
+
+        // SUPPRIMÉ : Parse des qualifications de l'agent
+        // const agentQualifications = JSON.parse(target.dataset.qualifications || '[]');
+
+        editAgentId.value = agentId;
+        editAgentNom.value = agentNom;
+        editAgentPrenom.value = agentPrenom;
+        editAgentPassword.value = ''; // Clear password field for security
+
+        // Charger et rendre les checkboxes pour les grades
+        await loadAvailableGrades(); // Assurez-vous que les grades sont chargés
+        renderGradesCheckboxes(agentGrades);
+
+        // Charger et rendre les checkboxes pour les fonctions
+        await loadAvailableFonctions(); // Assurez-vous que les fonctions sont chargées
+        renderFonctionsCheckboxes(agentFonctions);
+
+        // SUPPRIMÉ : Charger et rendre les checkboxes pour les qualifications
+        // await loadAvailableQualifications(); // Assurez-vous que les qualifications sont chargées
+        // renderQualificationsCheckboxes(agentQualifications);
+
+        editAgentModal.style.display = 'block';
+    }
+}
+
+async function handleEditAgent(event) {
+    event.preventDefault();
+    toggleLoading(true);
+
+    const id = editAgentId.value;
+    const nom = editAgentNom.value.trim();
+    const prenom = editAgentPrenom.value.trim();
+    const newPassword = editAgentPassword.value.trim();
+
+    if (!nom || !prenom) {
+        showMessage(editAgentMessage, 'Nom et prénom sont requis.', true);
+        toggleLoading(false);
+        return;
+    }
+
+    // Récupérer les grades sélectionnés
+    const selectedGrades = Array.from(gradesCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked'))
+                               .map(checkbox => checkbox.value);
+    // Récupérer les fonctions sélectionnées
+    const selectedFonctions = Array.from(fonctionsCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked'))
+                                 .map(checkbox => checkbox.value);
+
+    // SUPPRIMÉ : Récupérer les qualifications sélectionnées
+    // const selectedQualifications = Array.from(qualificationsCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked'))
+    //                                    .map(checkbox => checkbox.value);
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/agents/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ nom, prenom, newPassword, grades: selectedGrades, fonctions: selectedFonctions }) // SUPPRIMÉ: qualifications
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la mise à jour de l\'agent');
+        }
+
+        showMessage(editAgentMessage, 'Agent mis à jour avec succès !');
+        editAgentModal.style.display = 'none';
+        loadAgents(); // Recharger la liste des agents
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour de l\'agent:', error);
+        showMessage(editAgentMessage, 'Erreur: ' + error.message, true);
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+// -----------------------------------------------------------
+// Fonctions pour les grades (commun avec qualifications et fonctions)
+// -----------------------------------------------------------
+
+async function loadAvailableGrades() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/grades`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            throw new Error('Erreur de chargement des grades disponibles');
+        }
+        availableGrades = await response.json();
+        // S'assurer que les grades sont triés par ordre croissant d'importance
+        availableGrades.sort((a, b) => (a.order || 0) - (b.order || 0));
+        renderNewAgentGradesCheckboxes();
+    } catch (error) {
+        console.error('Erreur lors du chargement des grades disponibles:', error);
+        // Gérer l'erreur, par exemple afficher un message
+    }
+}
+
+function renderNewAgentGradesCheckboxes() {
+    newAgentGradesCheckboxes.innerHTML = ''; // Clear previous content
+    if (availableGrades.length === 0) {
+        newAgentGradesCheckboxes.textContent = 'Aucun grade disponible.';
+        return;
+    }
+    availableGrades.forEach(grade => {
+        const div = document.createElement('div');
+        div.classList.add('checkbox-item');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `new-agent-grade-${grade.id}`;
+        checkbox.value = grade.id;
+        const label = document.createElement('label');
+        label.htmlFor = `new-agent-grade-${grade.id}`;
+        label.textContent = grade.name;
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        newAgentGradesCheckboxes.appendChild(div);
+    });
+}
+
+function renderGradesCheckboxes(agentGrades = []) {
+    gradesCheckboxesDiv.innerHTML = ''; // Clear previous content
+    if (availableGrades.length === 0) {
+        gradesCheckboxesDiv.textContent = 'Aucun grade disponible.';
+        return;
+    }
+    availableGrades.forEach(grade => {
+        const div = document.createElement('div');
+        div.classList.add('checkbox-item');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `edit-agent-grade-${grade.id}`;
+        checkbox.value = grade.id;
+        checkbox.checked = agentGrades.includes(grade.id); // Check if agent has this grade
+        const label = document.createElement('label');
+        label.htmlFor = `edit-agent-grade-${grade.id}`;
+        label.textContent = grade.name;
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        gradesCheckboxesDiv.appendChild(div);
+    });
+}
+
+// -----------------------------------------------------------
+// Fonctions pour les fonctions (commun avec grades et qualifications)
+// -----------------------------------------------------------
+
+async function loadAvailableFonctions() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/fonctions`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            throw new Error('Erreur de chargement des fonctions disponibles');
+        }
+        availableFonctions = await response.json();
+        // Trier les fonctions si un ordre est défini
+        availableFonctions.sort((a, b) => (a.order || 0) - (b.order || 0));
+        renderNewAgentFonctionsCheckboxes();
+    } catch (error) {
+        console.error('Erreur lors du chargement des fonctions disponibles:', error);
+        // Gérer l'erreur
+    }
+}
+
+function renderNewAgentFonctionsCheckboxes() {
+    newAgentFonctionsCheckboxes.innerHTML = ''; // Clear previous content
+    if (availableFonctions.length === 0) {
+        newAgentFonctionsCheckboxes.textContent = 'Aucune fonction disponible.';
+        return;
+    }
+    availableFonctions.forEach(fonction => {
+        const div = document.createElement('div');
+        div.classList.add('checkbox-item');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `new-agent-fonction-${fonction.id}`;
+        checkbox.value = fonction.id;
+        const label = document.createElement('label');
+        label.htmlFor = `new-agent-fonction-${fonction.id}`;
+        label.textContent = fonction.name;
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        newAgentFonctionsCheckboxes.appendChild(div);
+    });
+}
+
+function renderFonctionsCheckboxes(agentFonctions = []) {
+    fonctionsCheckboxesDiv.innerHTML = ''; // Clear previous content
+    if (availableFonctions.length === 0) {
+        fonctionsCheckboxesDiv.textContent = 'Aucune fonction disponible.';
+        return;
+    }
+    availableFonctions.forEach(fonction => {
+        const div = document.createElement('div');
+        div.classList.add('checkbox-item');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `edit-agent-fonction-${fonction.id}`;
+        checkbox.value = fonction.id;
+        checkbox.checked = agentFonctions.includes(fonction.id); // Check if agent has this fonction
+        const label = document.createElement('label');
+        label.htmlFor = `edit-agent-fonction-${fonction.id}`;
+        label.textContent = fonction.name;
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        fonctionsCheckboxesDiv.appendChild(div);
+    });
+}
+
+// -----------------------------------------------------------
+// Fonctions CRUD pour la gestion des qualifications
+// SUPPRIMÉES : Toutes les fonctions liées à la gestion des qualifications.
+// -----------------------------------------------------------
+// async function loadAvailableQualifications() { ... }
+// function renderNewAgentQualificationsCheckboxes() { ... }
+// function renderQualificationsCheckboxes(agentQualifications = []) { ... }
+// async function loadQualificationsList() { ... }
+// async function handleAddQualification(event) { ... }
+// async function handleQualificationActions(event) { ... }
+// async function handleEditQualification(event) { ... }
+
+
+// -----------------------------------------------------------
+// Fonctions CRUD pour la gestion des grades (grade-management-view)
+// -----------------------------------------------------------
+
+async function loadGradesList() {
+    toggleLoading(true);
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/grades`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            throw new Error('Erreur de chargement des grades');
+        }
+        const grades = await response.json();
+        gradesTableBody.innerHTML = ''; // Clear previous content
+
+        if (grades.length === 0) {
+            gradesTableBody.innerHTML = '<tr><td colspan="3">Aucun grade trouvé.</td></tr>';
+            return;
+        }
+
+        grades.forEach(grade => {
+            const row = document.createElement('tr');
+            row.dataset.id = grade.id;
+            row.innerHTML = `
+                <td>${grade.id}</td>
+                <td>${grade.name}</td>
+                <td>
+                    <button class="edit-btn btn-secondary" data-id="${grade.id}" data-name="${grade.name}">Modifier</button>
+                    <button class="delete-btn btn-danger" data-id="${grade.id}">Supprimer</button>
+                </td>
+            `;
+            gradesTableBody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Erreur lors du chargement des grades:', error);
+        listGradesMessage.textContent = 'Erreur: ' + error.message;
+        listGradesMessage.style.color = 'red';
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+async function handleAddGrade(event) {
+    event.preventDefault();
+    toggleLoading(true);
+
+    const id = document.getElementById('newGradeId').value.trim();
+    const name = document.getElementById('newGradeName').value.trim();
+
+    if (!id || !name) {
+        showMessage(addGradeMessage, 'Identifiant et nom sont requis.', true);
+        toggleLoading(false);
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/grades`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ id, name })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de l\'ajout du grade');
+        }
+
+        showMessage(addGradeMessage, 'Grade ajouté avec succès !');
+        addGradeForm.reset();
+        loadGradesList(); // Recharger la liste des grades
+        loadAvailableGrades(); // Recharger les grades pour les checkboxes d'agent
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout du grade:', error);
+        showMessage(addGradeMessage, 'Erreur: ' + error.message, true);
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+async function handleGradeActions(event) {
+    if (event.target.classList.contains('delete-btn')) {
+        const gradeId = event.target.dataset.id;
+        if (confirm(`Êtes-vous sûr de vouloir supprimer le grade ${gradeId} ? Cela affectera les agents qui l'ont.`)) {
+            toggleLoading(true);
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE_URL}/grades/${gradeId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Erreur lors de la suppression du grade');
+                }
+                showMessage(listGradesMessage, 'Grade supprimé avec succès !');
+                loadGradesList();
+                loadAgents(); // Recharger les agents pour rafraîchir les grades affichés
+                loadAvailableGrades(); // Mettre à jour les listes de sélection
+            } catch (error) {
+                console.error('Erreur lors de la suppression du grade:', error);
+                showMessage(listGradesMessage, 'Erreur: ' + error.message, true);
+            } finally {
+                toggleLoading(false);
+            }
+        }
+    } else if (event.target.classList.contains('edit-btn')) {
+        const gradeId = event.target.dataset.id;
+        const gradeName = event.target.dataset.name;
+        editGradeId.value = gradeId;
+        editGradeName.value = gradeName;
+        editGradeModal.style.display = 'block';
+    }
+}
+
+async function handleEditGrade(event) {
+    event.preventDefault();
+    toggleLoading(true);
+
+    const id = editGradeId.value;
+    const name = editGradeName.value.trim();
+
+    if (!name) {
+        showMessage(editGradeMessage, 'Le nom du grade est requis.', true);
+        toggleLoading(false);
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/grades/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ name })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la mise à jour du grade');
+        }
+
+        showMessage(editGradeMessage, 'Grade mis à jour avec succès !');
+        editGradeModal.style.display = 'none';
+        loadGradesList();
+        loadAgents(); // Recharger les agents pour rafraîchir les grades affichés
+        loadAvailableGrades(); // Mettre à jour les listes de sélection
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour du grade:', error);
+        showMessage(editGradeMessage, 'Erreur: ' + error.message, true);
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+
+// -----------------------------------------------------------
+// Fonctions CRUD pour la gestion des fonctions (fonction-management-view)
+// -----------------------------------------------------------
+
+async function loadFonctionsList() {
+    toggleLoading(true);
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/fonctions`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            throw new Error('Erreur de chargement des fonctions');
+        }
+        const fonctions = await response.json();
+        fonctionsTableBody.innerHTML = ''; // Clear previous content
+
+        if (fonctions.length === 0) {
+            fonctionsTableBody.innerHTML = '<tr><td colspan="3">Aucune fonction trouvée.</td></tr>';
+            return;
+        }
+
+        fonctions.forEach(fonction => {
+            const row = document.createElement('tr');
+            row.dataset.id = fonction.id;
+            row.innerHTML = `
+                <td>${fonction.id}</td>
+                <td>${fonction.name}</td>
+                <td>
+                    <button class="edit-btn btn-secondary" data-id="${fonction.id}" data-name="${fonction.name}">Modifier</button>
+                    <button class="delete-btn btn-danger" data-id="${fonction.id}">Supprimer</button>
+                </td>
+            `;
+            fonctionsTableBody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Erreur lors du chargement des fonctions:', error);
+        listFonctionsMessage.textContent = 'Erreur: ' + error.message;
+        listFonctionsMessage.style.color = 'red';
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+async function handleAddFonction(event) {
+    event.preventDefault();
+    toggleLoading(true);
+
+    const id = document.getElementById('newFonctionId').value.trim();
+    const name = document.getElementById('newFonctionName').value.trim();
+
+    if (!id || !name) {
+        showMessage(addFonctionMessage, 'Identifiant et nom sont requis.', true);
+        toggleLoading(false);
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/fonctions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ id, name })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de l\'ajout de la fonction');
+        }
+
+        showMessage(addFonctionMessage, 'Fonction ajoutée avec succès !');
+        addFonctionForm.reset();
+        loadFonctionsList(); // Recharger la liste des fonctions
+        loadAvailableFonctions(); // Recharger les fonctions pour les checkboxes d'agent
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout de la fonction:', error);
+        showMessage(addFonctionMessage, 'Erreur: ' + error.message, true);
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+async function handleFonctionActions(event) {
+    if (event.target.classList.contains('delete-btn')) {
+        const fonctionId = event.target.dataset.id;
+        if (confirm(`Êtes-vous sûr de vouloir supprimer la fonction ${fonctionId} ? Cela affectera les agents qui l'ont.`)) {
+            toggleLoading(true);
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE_URL}/fonctions/${fonctionId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Erreur lors de la suppression de la fonction');
+                }
+                showMessage(listFonctionsMessage, 'Fonction supprimée avec succès !');
+                loadFonctionsList();
+                loadAgents(); // Recharger les agents pour rafraîchir les fonctions affichées
+                loadAvailableFonctions(); // Mettre à jour les listes de sélection
+            } catch (error) {
+                console.error('Erreur lors de la suppression de la fonction:', error);
+                showMessage(listFonctionsMessage, 'Erreur: ' + error.message, true);
+            } finally {
+                toggleLoading(false);
+            }
+        }
+    } else if (event.target.classList.contains('edit-btn')) {
+        const fonctionId = event.target.dataset.id;
+        const fonctionName = event.target.dataset.name;
+        editFonctionId.value = fonctionId;
+        editFonctionName.value = fonctionName;
+        editFonctionModal.style.display = 'block';
+    }
+}
+
+async function handleEditFonction(event) {
+    event.preventDefault();
+    toggleLoading(true);
+
+    const id = editFonctionId.value;
+    const name = editFonctionName.value.trim();
+
+    if (!name) {
+        showMessage(editFonctionMessage, 'Le nom de la fonction est requis.', true);
+        toggleLoading(false);
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/fonctions/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ name })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la mise à jour de la fonction');
+        }
+
+        showMessage(editFonctionMessage, 'Fonction mise à jour avec succès !');
+        editFonctionModal.style.display = 'none';
+        loadFonctionsList();
+        loadAgents(); // Recharger les agents pour rafraîchir les fonctions affichées
+        loadAvailableFonctions(); // Mettre à jour les listes de sélection
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour de la fonction:', error);
+        showMessage(editFonctionMessage, 'Erreur: ' + error.message, true);
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+
+// -----------------------------------------------------------
+// Initialisation des écouteurs d'événements
+// -----------------------------------------------------------
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    populateWeekSelect();
+    await loadPlanning(); // Charge le planning initial et les infos d'agent
+    await loadAvailableGrades(); // Charge les grades disponibles
+    await loadAvailableFonctions(); // Charge les fonctions disponibles
+
+    // SUPPRIMÉ : Pas besoin de charger les qualifications disponibles
+    // await loadAvailableQualifications();
+
+    // Gestion des onglets principaux
+    mainTabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            openMainTab(button.dataset.mainTab);
+        });
+    });
+
+    // Gestion des onglets de jour (Planning Global)
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => openDayTab(button.dataset.day));
+    });
+
+    // Gestion des événements du Planning Global
+    weekSelect.addEventListener('change', async (event) => {
+        currentWeek = parseInt(event.target.value);
+        updateDateRange();
+        await loadPlanning();
+        openDayTab(currentDay); // S'assurer que le planning du jour actuel est affiché pour la nouvelle semaine
+    });
+
+    // Événements pour la gestion des agents
+    if (addAgentForm) {
+        addAgentForm.addEventListener('submit', handleAddAgent);
+    }
+    if (agentsTableBody) {
+        agentsTableBody.addEventListener('click', handleAgentActions);
+    }
+    if (closeAgentButton) {
+        closeAgentButton.addEventListener('click', () => {
+            editAgentModal.style.display = 'none';
+        });
+    }
+    window.addEventListener('click', (event) => {
+        if (event.target == editAgentModal) {
+            editAgentModal.style.display = 'none';
+        }
+        // SUPPRIMÉ : Fermeture de la modale de qualification
+        // if (event.target == editQualificationModal) {
+        //     editQualificationModal.style.display = 'none';
+        // }
+        if (event.target == editGradeModal) {
+            editGradeModal.style.display = 'none';
+        }
+        if (event.target == editFonctionModal) {
+            editFonctionModal.style.display = 'none';
+        }
+    });
+    if (editAgentForm) {
+        editAgentForm.addEventListener('submit', handleEditAgent);
+    }
+
+    // SUPPRIMÉ : Événements pour la gestion des qualifications
+    // if (addQualificationForm) {
+    //     addQualificationForm.addEventListener('submit', handleAddQualification);
+    // }
+    // if (qualificationsTableBody) {
+    //     qualificationsTableBody.addEventListener('click', handleQualificationActions);
+    // }
+    // if (closeQualButton) {
+    //     closeQualButton.addEventListener('click', () => {
+    //         editQualificationModal.style.display = 'none';
+    //     });
+    // }
+    // if (editQualificationForm) {
+    //     editQualificationForm.addEventListener('submit', handleEditQualification);
+    // }
+
+    // Événements pour la gestion des grades
+    if (addGradeForm) {
+        addGradeForm.addEventListener('submit', handleAddGrade);
+    }
+    if (gradesTableBody) {
+        gradesTableBody.addEventListener('click', handleGradeActions);
+    }
+    if (closeGradeButton) {
+        closeGradeButton.addEventListener('click', () => {
+            editGradeModal.style.display = 'none';
+        });
+    }
+    if (editGradeForm) {
+        editGradeForm.addEventListener('submit', handleEditGrade);
+    }
+
+    // Événements pour la gestion des fonctions
+    if (addFonctionForm) {
+        addFonctionForm.addEventListener('submit', handleAddFonction);
+    }
+    if (fonctionsTableBody) {
+        fonctionsTableBody.addEventListener('click', handleFonctionActions);
+    }
+    if (closeFonctionButton) {
+        closeFonctionButton.addEventListener('click', () => {
+            editFonctionModal.style.display = 'none';
+        });
+    }
+    if (editFonctionForm) {
+        editFonctionForm.addEventListener('submit', handleEditFonction);
+    }
+
+    // Initialisation de l'onglet actif au chargement
+    openMainTab('global-planning-view'); // Ouvre le planning global par défaut
+
+    // Gérer la déconnexion
+    document.getElementById('logout-btn').addEventListener('click', () => {
+        localStorage.removeItem('token');
+        window.location.href = 'index.html';
+    });
+
+    // Exporter en PDF
+    document.getElementById('export-pdf').addEventListener('click', async () => {
+        toggleLoading(true, true); // Active le chargement avec un message spécifique pour le PDF
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Récupérer le planning global de la semaine
+        const planningDiv = document.getElementById('global-planning');
+
+        // Créer une copie du planning pour la manipulation sans affecter l'affichage réel
+        const planningClone = planningDiv.cloneNode(true);
+        planningClone.style.display = 'block'; // S'assurer qu'il est visible pour html2canvas
+
+        // Supprimer les boutons de jour et autres contrôles qui ne devraient pas être dans le PDF
+        const dayTabs = planningClone.querySelector('.planning-day-tabs');
+        if (dayTabs) dayTabs.remove();
+
+        const weekControls = document.getElementById('planning-controls');
+        if (weekControls) weekControls.style.display = 'none'; // Temporarily hide controls for PDF
+
+        // Afficher les onglets de contenu des jours pour les capturer dans le PDF
+        const planningDayContent = planningClone.querySelector('#planning-day-content');
+        if (planningDayContent) planningDayContent.style.display = 'block';
+
+        // Pour chaque jour, générer une page
+        let yOffset = 10;
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+        const margin = 10;
+
+        // Ajouter le titre pour la semaine
+        doc.setFontSize(16);
+        const { start, end } = getWeekRange(currentWeek);
+        const weekTitle = `Planning de la semaine du ${formatDate(start)} au ${formatDate(end)}`;
+        doc.text(weekTitle, pageWidth / 2, yOffset, { align: 'center' });
+        yOffset += 15;
+
+        for (const day of days) {
+            // Créer un conteneur temporaire pour chaque tableau de jour
+            const tempContainer = document.createElement('div');
+            tempContainer.style.width = `${planningDiv.offsetWidth}px`; // Assurez-vous d'avoir la bonne largeur
+            tempContainer.style.padding = '10px';
+            tempContainer.style.boxSizing = 'border-box';
+            tempContainer.innerHTML = `<h3>${day.charAt(0).toUpperCase() + day.slice(1)}</h3>`; // Titre du jour
+            const table = planningClone.querySelector(`[data-day="${day}"]`).closest('.planning-table'); // Assurez-vous que c'est le bon sélecteur
+            if (table) {
+                tempContainer.appendChild(table.cloneNode(true)); // Cloner le tableau spécifique du jour
+                document.body.appendChild(tempContainer); // Ajouter temporairement au DOM pour html2canvas
+
+                await html2canvas(tempContainer, { scale: 2, useCORS: true }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const imgWidth = 190; // Largeur pour s'adapter à la page (pageWidth - 2*margin)
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                    if (yOffset + imgHeight > pageHeight - margin) {
+                        doc.addPage();
+                        yOffset = margin; // Réinitialiser le décalage pour la nouvelle page
+                    }
+
+                    doc.addImage(imgData, 'PNG', margin, yOffset, imgWidth, imgHeight);
+                    yOffset += imgHeight + 10; // Espacement après l'image
+                });
+                document.body.removeChild(tempContainer); // Supprimer le conteneur temporaire
+            }
+        }
+
+        doc.save(`planning_semaine_${currentWeek}.pdf`);
+        toggleLoading(false, true); // Désactive le chargement
+        if (weekControls) weekControls.style.display = ''; // Restore controls display
+    });
+});
