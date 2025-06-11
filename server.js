@@ -16,15 +16,12 @@ console.log('Dossier public:', PUBLIC_DIR);
 app.use(express.static(PUBLIC_DIR));
 
 // Répertoire persistant Render pour les plannings, les utilisateurs et les qualifications
-const PERSISTENT_DIR = '/mnt/storage'; // Assurez-vous que ce répertoire est persistant sur Render
-// Pour le développement local, vous pouvez utiliser :
-// const PERSISTENT_DIR = process.env.NODE_ENV === 'production' ? '/mnt/storage' : path.join(__dirname, 'data');
+const PERSISTENT_DIR = '/mnt/storage'; 
 
 const DATA_DIR = path.join(PERSISTENT_DIR, 'plannings');
 const USERS_FILE_PATH = path.join(PERSISTENT_DIR, 'users.json');
 const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json');
-const GRADES_FILE_PATH = path.join(PERSISTENT_DIR, 'grades.json'); // Nouveau chemin pour les grades
-const FUNCTIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'functions.json'); // Nouveau chemin pour les fonctions
+const GRADES_FILE_PATH = path.join(PERSISTENT_DIR, 'grades.json'); 
 
 // Nouveaux chemins pour la persistance de la feuille de garde
 const ROSTER_CONFIG_DIR = path.join(PERSISTENT_DIR, 'roster_configs');
@@ -33,7 +30,6 @@ const DAILY_ROSTER_DIR = path.join(PERSISTENT_DIR, 'daily_rosters');
 let USERS = {}; // L'objet USERS sera chargé depuis le fichier
 let AVAILABLE_QUALIFICATIONS = []; // La liste des qualifications disponibles sera chargée depuis le fichier
 let AVAILABLE_GRADES = []; // Nouvelle: La liste des grades disponibles sera chargée depuis le fichier
-let AVAILABLE_FUNCTIONS = []; // Nouvelle: La liste des fonctions disponibles sera chargée depuis le fichier
 
 // Mot de passe par défaut pour le premier administrateur si le fichier users.json n'existe pas
 const DEFAULT_ADMIN_PASSWORD = 'supersecureadminpassword'; // À changer absolument en production !
@@ -48,7 +44,7 @@ async function loadUsers() {
     if (err.code === 'ENOENT') {
       console.warn('users.json not found. Creating default admin user.');
       // Create a default admin if the file does not exist
-      const hashedDefaultPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
+      const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
       USERS = {
         admin: {
           prenom: "Admin",
@@ -56,8 +52,7 @@ async function loadUsers() {
           mdp: hashedPassword,
           role: "admin",
           qualifications: [], // Admin starts with no qualifications
-          grades: [], // Nouvelle: Admin starts with no grades
-          functions: [] // Nouvelle: Admin starts with no functions
+          grades: [] // Nouvelle: Admin starts with no grades
         }
       };
       await saveUsers(); // Save the default admin
@@ -145,38 +140,6 @@ async function saveGrades() {
     }
 }
 
-// Nouvelle fonction pour charger les fonctions depuis functions.json
-async function loadFunctions() {
-    try {
-        const data = await fs.readFile(FUNCTIONS_FILE_PATH, 'utf8');
-        AVAILABLE_FUNCTIONS = JSON.parse(data);
-        console.log('Functions loaded from', FUNCTIONS_FILE_PATH);
-    } catch (err) {
-        if (err.code === 'ENOENT') {
-            console.warn('functions.json not found. Creating default functions.');
-            AVAILABLE_FUNCTIONS = [
-                { id: 'standard', name: 'Standard' },
-                { id: 'maint', name: 'Maintenance' },
-                { id: 'com', name: 'Communication' }
-            ];
-            await saveFunctions();
-            console.log('Default functions created.');
-        } else {
-            console.error('Error loading functions:', err);
-        }
-    }
-}
-
-// Nouvelle fonction pour sauvegarder les fonctions vers functions.json
-async function saveFunctions() {
-    try {
-        await fs.writeFile(FUNCTIONS_FILE_PATH, JSON.stringify(AVAILABLE_FUNCTIONS, null, 2), 'utf8');
-        console.log('Functions saved to', FUNCTIONS_FILE_PATH);
-    } catch (err) {
-        console.error('Error saving functions:', err);
-    }
-}
-
 
 // Fonction pour s'assurer que les dossiers de la feuille de garde existent
 async function initializeRosterFolders() {
@@ -192,7 +155,6 @@ async function initializeRosterFolders() {
   await loadUsers(); // Loads users at server startup
   await loadQualifications(); // Loads qualifications at server startup
   await loadGrades(); // Nouvelle: Loads grades at server startup
-  await loadFunctions(); // Nouvelle: Loads functions at server startup
 })();
 
 // Middleware to check if the user is an administrator
@@ -227,14 +189,13 @@ app.post("/api/login", async (req, res) => {
     return res.status(401).json({ message: "Incorrect password" });
   }
 
-  // Retourne les informations complètes de l'utilisateur y compris qualifications, grades, functions
+  // Retourne les informations complètes de l'utilisateur y compris qualifications, grades
   res.json({
     prenom: user.prenom,
     nom: user.nom,
     role: user.role,
     qualifications: user.qualifications || [],
-    grades: user.grades || [],
-    functions: user.functions || []
+    grades: user.grades || []
   });
 });
 
@@ -320,43 +281,41 @@ app.get('/api/planning', async (req, res) => {
 // GET /api/admin/agents - Get all agents (excluding admin) - UNIQUE DEFINITION
 app.get('/api/admin/agents', authorizeAdmin, (req, res) => {
     const agentsList = Object.keys(USERS)
-        .filter(key => USERS[key].role === 'agent' || USERS[key].role === 'admin') // Include admin for dropdown/list purposes if needed
+        .filter(key => USERS[key].role === 'agent' || USERS[key].role === 'admin') 
         .map(key => ({
-            id: key, // Use the key from the USERS object as a unique identifier
+            id: key, 
             nom: USERS[key].nom,
             prenom: USERS[key].prenom,
-            qualifications: USERS[key].qualifications || [], // Include qualifications
-            grades: USERS[key].grades || [], // Nouvelle: Inclure les grades
-            functions: USERS[key].functions || [] // Nouvelle: Inclure les fonctions
+            qualifications: USERS[key].qualifications || [], 
+            grades: USERS[key].grades || []
         }));
     res.json(agentsList);
 });
 
 // POST /api/admin/agents - Add a new agent
 app.post('/api/admin/agents', authorizeAdmin, async (req, res) => {
-    const { id, nom, prenom, password, qualifications, grades, functions } = req.body; // 'id' will be the unique identifier (e.g., username)
+    const { id, nom, prenom, password, qualifications, grades } = req.body; 
     if (!id || !nom || !prenom || !password) {
         return res.status(400).json({ message: 'Identifier, last name, first name and password are required.' });
     }
-    const agentId = id.toLowerCase(); // Convert identifier to lowercase for consistency
+    const agentId = id.toLowerCase(); 
 
     if (USERS[agentId]) {
         return res.status(409).json({ message: 'This agent identifier already exists.' });
     }
 
     try {
-        const hashedPassword = await bcrypt.hash(password, 10); // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10); 
         USERS[agentId] = {
             prenom: prenom,
             nom: nom,
             mdp: hashedPassword,
             role: 'agent', // Set the default role as 'agent'
             qualifications: qualifications || [], // Assign qualifications (empty array if not provided)
-            grades: grades || [], // Nouvelle: Assign grades (empty array if not provided)
-            functions: functions || [] // Nouvelle: Assign functions (empty array if not provided)
+            grades: grades || [] // Nouvelle: Assign grades (empty array if not provided)
         };
         await saveUsers(); // Save changes to users.json file
-        res.status(201).json({ message: 'Agent added successfully', agent: { id: agentId, nom, prenom, qualifications: USERS[agentId].qualifications, grades: USERS[agentId].grades, functions: USERS[agentId].functions } });
+        res.status(201).json({ message: 'Agent added successfully', agent: { id: agentId, nom, prenom, qualifications: USERS[agentId].qualifications, grades: USERS[agentId].grades } });
     } catch (error) {
         console.error("Error adding agent:", error);
         res.status(500).json({ message: 'Server error when adding agent.' });
@@ -366,7 +325,7 @@ app.post('/api/admin/agents', authorizeAdmin, async (req, res) => {
 // PUT /api/admin/agents/:id - Modify an existing agent
 app.put('/api/admin/agents/:id', authorizeAdmin, async (req, res) => {
     const agentId = req.params.id.toLowerCase();
-    const { nom, prenom, newPassword, qualifications, grades, functions } = req.body; // Include qualifications, grades, functions in update
+    const { nom, prenom, newPassword, qualifications, grades } = req.body; // Include qualifications, grades in update
 
     // Check if agent exists and is not an administrator (to avoid modifying admin via this route)
     if (!USERS[agentId] || USERS[agentId].role !== 'agent') {
@@ -395,14 +354,10 @@ app.put('/api/admin/agents/:id', authorizeAdmin, async (req, res) => {
     if (Array.isArray(grades)) {
         USERS[agentId].grades = grades;
     }
-    // Nouvelle: Update functions if provided
-    if (Array.isArray(functions)) {
-        USERS[agentId].functions = functions;
-    }
 
     try {
         await saveUsers(); // Save changes
-        res.json({ message: 'Agent updated successfully', agent: { id: agentId, nom: USERS[agentId].nom, prenom: USERS[agentId].prenom, qualifications: USERS[agentId].qualifications, grades: USERS[agentId].grades, functions: USERS[agentId].functions } });
+        res.json({ message: 'Agent updated successfully', agent: { id: agentId, nom: USERS[agentId].nom, prenom: USERS[agentId].prenom, qualifications: USERS[agentId].qualifications, grades: USERS[agentId].grades } });
     } catch (error) {
         console.error("Error updating agent:", error);
         res.status(500).json({ message: 'Server error when updating agent.' });
@@ -446,7 +401,7 @@ app.delete('/api/admin/agents/:id', authorizeAdmin, async (req, res) => {
 // This route does not require authentication as it is used before login
 app.get('/api/agents/names', (req, res) => {
     const agentsForDropdown = Object.keys(USERS)
-        .filter(key => USERS[key].role === 'agent' || USERS[key].role === 'admin') // Include admin for the dropdown if necessary
+        .filter(key => USERS[key].role === 'agent' || USERS[key].role === 'admin') 
         .map(key => ({
             id: key, // The identifier is the key (e.g., 'bruneau', 'admin')
             nom: USERS[key].nom,
@@ -614,87 +569,6 @@ app.delete('/api/grades/:id', authorizeAdmin, async (req, res) => {
         res.status(500).json({ message: 'Server error when deleting grade.' });
     }
 });
-
-// --- NOUVELLES ROUTES POUR LA GESTION DES FONCTIONS ---
-
-// GET /api/functions - Get all available functions
-app.get('/api/functions', authorizeAdmin, (req, res) => {
-    res.json(AVAILABLE_FUNCTIONS);
-});
-
-// POST /api/functions - Add a new function
-app.post('/api/functions', authorizeAdmin, async (req, res) => {
-    const { id, name } = req.body;
-    if (!id || !name) {
-        return res.status(400).json({ message: 'ID and name for function are required.' });
-    }
-    const functionId = id.toLowerCase();
-    if (AVAILABLE_FUNCTIONS.some(f => f.id === functionId)) {
-        return res.status(409).json({ message: 'This function ID already exists.' });
-    }
-
-    AVAILABLE_FUNCTIONS.push({ id: functionId, name: name });
-    try {
-        await saveFunctions();
-        res.status(201).json({ message: 'Function added successfully', func: { id: functionId, name } });
-    } catch (error) {
-        console.error("Error adding function:", error);
-        res.status(500).json({ message: 'Server error when adding function.' });
-    }
-});
-
-// PUT /api/functions/:id - Modify an existing function
-app.put('/api/functions/:id', authorizeAdmin, async (req, res) => {
-    const functionId = req.params.id.toLowerCase();
-    const { name } = req.body;
-
-    const index = AVAILABLE_FUNCTIONS.findIndex(f => f.id === functionId);
-    if (index === -1) {
-        return res.status(404).json({ message: 'Function not found.' });
-    }
-
-    AVAILABLE_FUNCTIONS[index].name = name || AVAILABLE_FUNCTIONS[index].name;
-    try {
-        await saveFunctions();
-        res.json({ message: 'Function updated successfully', func: AVAILABLE_FUNCTIONS[index] });
-    } catch (error) {
-        console.error("Error updating function:", error);
-        res.status(500).json({ message: 'Server error when updating function.' });
-    }
-});
-
-// DELETE /api/functions/:id - Delete a function
-app.delete('/api/functions/:id', authorizeAdmin, async (req, res) => {
-    const functionId = req.params.id.toLowerCase();
-
-    const initialLength = AVAILABLE_FUNCTIONS.length;
-    AVAILABLE_FUNCTIONS = AVAILABLE_FUNCTIONS.filter(f => f.id !== functionId);
-
-    if (AVAILABLE_FUNCTIONS.length === initialLength) {
-        return res.status(404).json({ message: 'Function not found.' });
-    }
-
-    // Optional: Remove this function from all users who have it
-    let usersModified = false;
-    for (const userId in USERS) {
-        if (USERS[userId].functions && USERS[userId].functions.includes(functionId)) {
-            USERS[userId].functions = USERS[userId].functions.filter(f => f !== functionId);
-            usersModified = true;
-        }
-    }
-
-    try {
-        await saveFunctions();
-        if (usersModified) {
-            await saveUsers(); // Save users if their functions were updated
-        }
-        res.json({ message: 'Function deleted successfully.' });
-    } catch (error) {
-        console.error("Error deleting function:", error);
-        res.status(500).json({ message: 'Server error when deleting function.' });
-    }
-});
-
 
 // --- NOUVELLES ROUTES POUR LA FEUILLE DE GARDE (AJOUTÉES) ---
 

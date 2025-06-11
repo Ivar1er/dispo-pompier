@@ -26,9 +26,8 @@
     <nav class="main-tabs-navigation">
       <button class="main-tab active" data-main-tab="global-planning-view">Planning Global</button>
       <button class="main-tab" data-main-tab="agent-management-view">Gestion des Agents</button>
-      <button class="main-tab" data-main-tab="qualification-management-view">Gestion des Qualifications</button>
       <button class="main-tab" data-main-tab="grade-management-view">Gestion des Grades</button>
-      <button class="main-tab" data-main-tab="function-management-view">Gestion des Fonctions</button>
+      <button class="main-tab" data-main-tab="fonction-management-view">Gestion des Fonctions</button>
     </nav>
 
     <div id="global-planning-view" class="main-tab-content active">
@@ -75,14 +74,6 @@
                 <input type="password" id="newAgentPassword" required><br><br>
 
                 <div>
-                    <h4>Qualifications de l'Agent :</h4>
-                    <div id="newAgentQualificationsCheckboxes">
-                        <!-- Les cases à cocher des qualifications seront chargées ici par JavaScript -->
-                        Chargement des qualifications...
-                    </div>
-                </div>
-                <br>
-                <div>
                     <h4>Grades de l'Agent :</h4>
                     <div id="newAgentGradesCheckboxes">
                         <!-- Les cases à cocher des grades seront chargées ici par JavaScript -->
@@ -92,7 +83,7 @@
                 <br>
                 <div>
                     <h4>Fonctions de l'Agent :</h4>
-                    <div id="newAgentFunctionsCheckboxes">
+                    <div id="newAgentFonctionsCheckboxes">
                         <!-- Les cases à cocher des fonctions seront chargées ici par JavaScript -->
                         Chargement des fonctions...
                     </div>
@@ -114,53 +105,16 @@
                         <th>Identifiant</th>
                         <th>Nom</th>
                         <th>Prénom</th>
-                        <th>Qualifications</th>
                         <th>Grades</th>
                         <th>Fonctions</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="agentsTableBody">
-                    <tr><td colspan="7">Chargement des agents...</td></tr>
+                    <tr><td colspan="6">Chargement des agents...</td></tr>
                 </tbody>
             </table>
             <p id="listAgentsMessage"></p>
-        </section>
-    </div>
-
-    <!-- NOUVEAU : Conteneur pour la vue de Gestion des Qualifications -->
-    <div id="qualification-management-view" class="main-tab-content hidden">
-        <section id="add-qualification-section">
-            <h3>Ajouter une Nouvelle Qualification</h3>
-            <form id="addQualificationForm">
-                <label for="newQualId">Identifiant (ex: chef-agr) :</label>
-                <input type="text" id="newQualId" required><br><br>
-
-                <label for="newQualName">Nom de la Qualification (ex: Chef d'Agrès) :</label>
-                <input type="text" id="newQualName" required><br><br>
-
-                <button type="submit" class="btn btn-primary">Ajouter la Qualification</button>
-            </form>
-            <p id="addQualificationMessage"></p>
-        </section>
-
-        <hr>
-
-        <section id="list-qualifications-section">
-            <h3>Liste des Qualifications</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Identifiant</th>
-                        <th>Nom</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="qualificationsTableBody">
-                    <tr><td colspan="3">Chargement des qualifications...</td></tr>
-                </tbody>
-            </table>
-            <p id="listQualificationsMessage"></p>
         </section>
     </div>
 
@@ -201,24 +155,24 @@
     </div>
 
     <!-- NOUVEAU : Conteneur pour la vue de Gestion des Fonctions -->
-    <div id="function-management-view" class="main-tab-content hidden">
-        <section id="add-function-section">
+    <div id="fonction-management-view" class="main-tab-content hidden">
+        <section id="add-fonction-section">
             <h3>Ajouter une Nouvelle Fonction</h3>
-            <form id="addFunctionForm">
-                <label for="newFunctionId">Identifiant (ex: standard) :</label>
-                <input type="text" id="newFunctionId" required><br><br>
+            <form id="addFonctionForm">
+                <label for="newFonctionId">Identifiant (ex: standard) :</label>
+                <input type="text" id="newFonctionId" required><br><br>
 
-                <label for="newFunctionName">Nom de la Fonction (ex: Standard) :</label>
-                <input type="text" id="newFunctionName" required><br><br>
+                <label for="newFonctionName">Nom de la Fonction (ex: Standard) :</label>
+                <input type="text" id="newFonctionName" required><br><br>
 
                 <button type="submit" class="btn btn-primary">Ajouter la Fonction</button>
             </form>
-            <p id="addFunctionMessage"></p>
+            <p id="addFonctionMessage"></p>
         </section>
 
         <hr>
 
-        <section id="list-functions-section">
+        <section id="list-fonctions-section">
             <h3>Liste des Fonctions</h3>
             <table>
                 <thead>
@@ -228,11 +182,11 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="functionsTableBody">
+                <tbody id="fonctionsTableBody">
                     <tr><td colspan="3">Chargement des fonctions...</td></tr>
                 </tbody>
             </table>
-            <p id="listFunctionsMessage"></p>
+            <p id="listFonctionsMessage"></p>
         </section>
     </div>
 
@@ -242,7 +196,7 @@
     </footer>
   </div>
 
-  <!-- Modale de modification d'agent et de qualifications, grades, fonctions -->
+  <!-- Modale de modification d'agent et de grades, fonctions -->
   <div id="editAgentModal" class="modal" style="display: none;">
       <div class="modal-content">
           <span class="close-button">&times;</span>
@@ -260,15 +214,6 @@
               <input type="password" id="editAgentNewPassword"><br><br>
 
               <div>
-                  <h4>Qualifications de l'Agent :</h4>
-                  <div id="qualificationsCheckboxes">
-                      <!-- Les cases à cocher des qualifications seront chargées ici par JavaScript -->
-                      Chargement des qualifications...
-                  </div>
-                  <p id="qualificationsMessage" style="color: red;"></p>
-              </div>
-              <br>
-              <div>
                   <h4>Grades de l'Agent :</h4>
                   <div id="gradesCheckboxes">
                       <!-- Les cases à cocher des grades seront chargées ici par JavaScript -->
@@ -279,11 +224,11 @@
               <br>
               <div>
                   <h4>Fonctions de l'Agent :</h4>
-                  <div id="functionsCheckboxes">
+                  <div id="fonctionsCheckboxes">
                       <!-- Les cases à cocher des fonctions seront chargées ici par JavaScript -->
                       Chargement des fonctions...
                   </div>
-                  <p id="functionsMessage" style="color: red;"></p>
+                  <p id="fonctionsMessage" style="color: red;"></p>
               </div>
               <br>
 
@@ -293,24 +238,7 @@
       </div>
   </div>
 
-  <!-- Modale de modification de qualification (Nouveau) -->
-  <div id="editQualificationModal" class="modal" style="display: none;">
-      <div class="modal-content">
-          <span class="close-button">&times;</span>
-          <h3>Modifier la Qualification</h3>
-          <form id="editQualificationForm">
-              <input type="hidden" id="editQualId">
-
-              <label for="editQualName">Nom de la Qualification :</label>
-              <input type="text" id="editQualName" required><br><br>
-
-              <button type="submit" class="btn btn-primary">Mettre à jour la Qualification</button>
-          </form>
-          <p id="editQualMessage"></p>
-      </div>
-  </div>
-
-  <!-- Modale de modification de grade (Nouveau) -->
+  <!-- Modale de modification de grade -->
   <div id="editGradeModal" class="modal" style="display: none;">
       <div class="modal-content">
           <span class="close-button">&times;</span>
@@ -327,20 +255,20 @@
       </div>
   </div>
 
-  <!-- Modale de modification de fonction (Nouveau) -->
-  <div id="editFunctionModal" class="modal" style="display: none;">
+  <!-- Modale de modification de fonction (Corrigée) -->
+  <div id="editFonctionModal" class="modal" style="display: none;">
       <div class="modal-content">
           <span class="close-button">&times;</span>
           <h3>Modifier la Fonction</h3>
-          <form id="editFunctionForm">
-              <input type="hidden" id="editFunctionId">
+          <form id="editFonctionForm">
+              <input type="hidden" id="editFonctionId">
 
-              <label for="editFunctionName">Nom de la Fonction :</label>
-              <input type="text" id="editFunctionName" required><br><br>
+              <label for="editFonctionName">Nom de la Fonction :</label>
+              <input type="text" id="editFonctionName" required><br><br>
 
               <button type="submit" class="btn btn-primary">Mettre à jour la Fonction</button>
           </form>
-          <p id="editFunctionMessage"></p>
+          <p id="editFonctionMessage"></p>
       </div>
   </div>
 
