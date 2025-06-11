@@ -6,6 +6,8 @@ let currentDay = 'lundi'; // Jour actuel par défaut pour le planning
 let planningData = {}; // Contiendra le planning global chargé de l'API
 let agentDisplayInfos = {}; // Mapping dynamique agentId => {nom, prenom}
 let availableQualifications = []; // Liste des qualifications disponibles chargée depuis l'API
+let availableGrades = []; // Nouvelle: Liste des grades disponibles chargée depuis l'API
+let availableFunctions = []; // Nouvelle: Liste des fonctions disponibles chargée depuis l'API
 
 // --- DOM Elements pour la navigation principale (onglets) ---
 const mainTabButtons = document.querySelectorAll('.main-tab');
@@ -21,7 +23,9 @@ const adminInfo = document.getElementById("admin-info");
 
 // --- DOM Elements pour la vue "Gestion des Agents" ---
 const addAgentForm = document.getElementById('addAgentForm');
-const newAgentQualificationsCheckboxes = document.getElementById('newAgentQualificationsCheckboxes'); // Nouveau: pour le formulaire d'ajout
+const newAgentQualificationsCheckboxes = document.getElementById('newAgentQualificationsCheckboxes');
+const newAgentGradesCheckboxes = document.getElementById('newAgentGradesCheckboxes'); // Nouveau
+const newAgentFunctionsCheckboxes = document.getElementById('newAgentFunctionsCheckboxes'); // Nouveau
 const addAgentMessage = document.getElementById('addAgentMessage');
 const agentsTableBody = document.getElementById('agentsTableBody');
 const listAgentsMessage = document.getElementById('listAgentsMessage');
@@ -36,7 +40,48 @@ const editAgentPrenom = document.getElementById('editAgentPrenom');
 const editAgentNewPassword = document.getElementById('editAgentNewPassword');
 const editAgentMessage = document.getElementById('editAgentMessage');
 const qualificationsCheckboxesDiv = document.getElementById('qualificationsCheckboxes'); // Pour la modale de modification
+const gradesCheckboxesDiv = document.getElementById('gradesCheckboxes'); // Nouveau: Pour la modale de modification
+const functionsCheckboxesDiv = document.getElementById('functionsCheckboxes'); // Nouveau: Pour la modale de modification
 const qualificationsMessage = document.getElementById('qualificationsMessage'); // Pour la modale de modification
+const gradesMessage = document.getElementById('gradesMessage'); // Nouveau: Pour la modale de modification des grades
+const functionsMessage = document.getElementById('functionsMessage'); // Nouveau: Pour la modale de modification des fonctions
+
+
+// --- DOM Elements pour la vue "Gestion des Qualifications" ---
+const addQualificationForm = document.getElementById('addQualificationForm');
+const addQualificationMessage = document.getElementById('addQualificationMessage');
+const qualificationsTableBody = document.getElementById('qualificationsTableBody');
+const listQualificationsMessage = document.getElementById('listQualificationsMessage');
+const editQualificationModal = document.getElementById('editQualificationModal'); // Nouvelle modale
+const closeQualButton = editQualificationModal ? editQualificationModal.querySelector('.close-button') : null;
+const editQualificationForm = document.getElementById('editQualificationForm');
+const editQualId = document.getElementById('editQualId');
+const editQualName = document.getElementById('editQualName');
+const editQualMessage = document.getElementById('editQualMessage');
+
+// --- DOM Elements pour la vue "Gestion des Grades" (Nouveau) ---
+const addGradeForm = document.getElementById('addGradeForm');
+const addGradeMessage = document.getElementById('addGradeMessage');
+const gradesTableBody = document.getElementById('gradesTableBody');
+const listGradesMessage = document.getElementById('listGradesMessage');
+const editGradeModal = document.getElementById('editGradeModal');
+const closeGradeButton = editGradeModal ? editGradeModal.querySelector('.close-button') : null;
+const editGradeForm = document.getElementById('editGradeForm');
+const editGradeId = document.getElementById('editGradeId');
+const editGradeName = document.getElementById('editGradeName');
+const editGradeMessage = document.getElementById('editGradeMessage');
+
+// --- DOM Elements pour la vue "Gestion des Fonctions" (Nouveau) ---
+const addFunctionForm = document.getElementById('addFunctionForm');
+const addFunctionMessage = document.getElementById('addFunctionMessage');
+const functionsTableBody = document.getElementById('functionsTableBody');
+const listFunctionsMessage = document.getElementById('listFunctionsMessage');
+const editFunctionModal = document.getElementById('editFunctionModal');
+const closeFunctionButton = editFunctionModal ? editFunctionModal.querySelector('.close-button') : null;
+const editFunctionForm = document.getElementById('editFunctionForm');
+const editFunctionId = document.getElementById('editFunctionId');
+const editFunctionName = document.getElementById('editFunctionName');
+const editFunctionMessage = document.getElementById('editFunctionMessage');
 
 // --- Global DOM Elements ---
 const loadingSpinner = document.getElementById("loading-spinner");
@@ -47,7 +92,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // **Vérification du rôle administrateur au chargement de la page**
     const userRole = sessionStorage.getItem("userRole");
     if (!userRole || userRole !== "admin") {
-        alert("Accès non autorisé. Vous devez être administrateur.");
+        console.error("Accès non autorisé. Vous devez être administrateur.");
         sessionStorage.clear();
         window.location.href = "index.html";
         return;
@@ -70,10 +115,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     // --- Initialisation des fonctionnalités par défaut de la page ---
-    // Charger la liste des qualifications disponibles en premier
+    // Charger la liste des qualifications, grades et fonctions disponibles en premier
     await loadAvailableQualifications();
-    // Rendre les checkboxes pour le formulaire d'ajout d'agent après le chargement des qualifications
+    await loadAvailableGrades(); // Nouveau
+    await loadAvailableFunctions(); // Nouveau
+
+    // Rendre les checkboxes pour le formulaire d'ajout d'agent après le chargement des données
     renderNewAgentQualificationsCheckboxes();
+    renderNewAgentGradesCheckboxes(); // Nouveau
+    renderNewAgentFunctionsCheckboxes(); // Nouveau
 
     // Ouvrir l'onglet "Planning Global" par défaut au chargement
     await openMainTab('global-planning-view'); // Attendre que le planning soit chargé avant d'afficher
@@ -98,7 +148,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         agentsTableBody.addEventListener('click', handleAgentActions);
     }
 
-    // --- Écouteurs d'événements pour la Modale de modification ---
+    // --- Écouteurs d'événements pour la Modale de modification d'agent ---
     if (closeButton) {
         closeButton.addEventListener('click', () => {
             editAgentModal.style.display = 'none';
@@ -113,6 +163,55 @@ document.addEventListener("DOMContentLoaded", async () => {
         editAgentForm.addEventListener('submit', handleEditAgent);
     }
 
+    // --- Écouteurs d'événements pour la vue "Gestion des Qualifications" ---
+    if (addQualificationForm) {
+        addQualificationForm.addEventListener('submit', handleAddQualification);
+    }
+    if (qualificationsTableBody) {
+        qualificationsTableBody.addEventListener('click', handleQualificationActions);
+    }
+    if (closeQualButton) {
+        closeQualButton.addEventListener('click', () => {
+            editQualificationModal.style.display = 'none';
+        });
+    }
+    if (editQualificationForm) {
+        editQualificationForm.addEventListener('submit', handleEditQualification);
+    }
+
+    // --- Écouteurs d'événements pour la vue "Gestion des Grades" (Nouveau) ---
+    if (addGradeForm) {
+        addGradeForm.addEventListener('submit', handleAddGrade);
+    }
+    if (gradesTableBody) {
+        gradesTableBody.addEventListener('click', handleGradeActions);
+    }
+    if (closeGradeButton) {
+        closeGradeButton.addEventListener('click', () => {
+            editGradeModal.style.display = 'none';
+        });
+    }
+    if (editGradeForm) {
+        editGradeForm.addEventListener('submit', handleEditGrade);
+    }
+
+    // --- Écouteurs d'événements pour la vue "Gestion des Fonctions" (Nouveau) ---
+    if (addFunctionForm) {
+        addFunctionForm.addEventListener('submit', handleAddFunction);
+    }
+    if (functionsTableBody) {
+        functionsTableBody.addEventListener('click', handleFunctionActions);
+    }
+    if (closeFunctionButton) {
+        closeFunctionButton.addEventListener('click', () => {
+            editFunctionModal.style.display = 'none';
+        });
+    }
+    if (editFunctionForm) {
+        editFunctionForm.addEventListener('submit', handleEditFunction);
+    }
+
+
     // --- Écouteur pour la déconnexion ---
     if (logoutButton) {
         logoutButton.addEventListener("click", logout);
@@ -120,7 +219,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 
-// --- Fonctions de gestion des onglets principaux (Planning Global / Gestion Agents) ---
+// --- Fonctions de gestion des onglets principaux (Planning Global / Gestion Agents / Gestion Qualifications / Gestion Grades / Gestion Fonctions) ---
 async function openMainTab(tabId) {
     mainTabContents.forEach(tab => {
         tab.classList.remove('active');
@@ -138,7 +237,15 @@ async function openMainTab(tabId) {
         await loadPlanningAndDisplay(); // Recharger le planning si on revient sur cet onglet
     } else {
         planningControls.style.display = 'none'; // Cache les contrôles
-        await loadAgents(); // Recharger la liste des agents quand on va sur cet onglet
+        if (tabId === 'agent-management-view') {
+            await loadAgents(); // Recharger la liste des agents quand on va sur cet onglet
+        } else if (tabId === 'qualification-management-view') { // Nouveau
+            await loadQualificationsList();
+        } else if (tabId === 'grade-management-view') { // Nouveau
+            await loadGradesList();
+        } else if (tabId === 'function-management-view') { // Nouveau
+            await loadFunctionsList();
+        }
     }
 }
 
@@ -374,7 +481,7 @@ async function exportPdf() {
     const table = container.querySelector('.planning-table');
 
     if (!table) {
-        alert("La table de planning est introuvable. Impossible d'exporter.");
+        console.warn("La table de planning est introuvable. Impossible d'exporter.");
         return;
     }
 
@@ -449,11 +556,11 @@ async function exportPdf() {
 
         pdf.addImage(imgData, "PNG", x, y, pdfWidth, pdfHeight);
         pdf.save(`planning_${currentDay}_semaine${currentWeek}.pdf`);
-        alert("Le PDF a été généré avec succès !");
+        console.log("Le PDF a été généré avec succès !");
 
     } catch (error) {
         console.error("Erreur lors de l'export PDF:", error);
-        alert("Une erreur est survenue lors de la génération du PDF. Veuillez réessayer ou contacter l'administrateur. Détails: " + error.message);
+        console.error("Une erreur est survenue lors de la génération du PDF. Veuillez réessayer ou contacter l'administrateur. Détails: " + error.message);
     } finally {
         container.style.overflowX = originalContainerOverflowX;
         table.style.whiteSpace = originalTableWhiteSpace;
@@ -468,7 +575,7 @@ async function exportPdf() {
 async function loadAvailableQualifications() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/qualifications`, {
-            headers: { 'X-User-Role': 'admin' } // Assurez-vous que le backend protège cette route
+            headers: { 'X-User-Role': 'admin' }
         });
         const data = await response.json();
         if (!response.ok) {
@@ -478,36 +585,39 @@ async function loadAvailableQualifications() {
         console.log('Qualifications disponibles chargées:', availableQualifications);
     } catch (error) {
         console.error('Erreur de chargement des qualifications:', error);
-        if (qualificationsMessage) { // S'assurer que l'élément existe avant de le manipuler
+        if (qualificationsMessage) {
             qualificationsMessage.textContent = `Erreur de chargement des qualifications: ${error.message}`;
             qualificationsMessage.style.color = 'red';
         }
     }
 }
 
-// Fonction pour générer les cases à cocher des qualifications pour le formulaire d'ajout
+// Fonction pour générer les cases à cocher des qualifications pour le formulaire d'ajout d'agent
 function renderNewAgentQualificationsCheckboxes() {
-    if (!newAgentQualificationsCheckboxes) return; // S'assurer que l'élément DOM existe
+    if (!newAgentQualificationsCheckboxes) return;
 
     newAgentQualificationsCheckboxes.innerHTML = '';
     if (availableQualifications.length === 0) {
-        newAgentQualificationsCheckboxes.textContent = 'Aucune qualification disponible. Ajoutez-en d\'abord via la gestion des qualifications (si implémenté).';
+        newAgentQualificationsCheckboxes.textContent = 'Aucune qualification disponible. Ajoutez-en d\'abord via la gestion des qualifications.';
         return;
     }
 
     availableQualifications.forEach(qualification => {
         const checkboxContainer = document.createElement('div');
-        checkboxContainer.classList.add('flex', 'items-center'); // Tailwind classes for alignment
+        // Pas de classes Tailwind, on s'appuie sur le CSS
+        // checkboxContainer.classList.add('flex', 'items-center');
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.id = `new-qual-${qualification.id}`; // ID unique pour le formulaire d'ajout
+        checkbox.id = `new-qual-${qualification.id}`;
         checkbox.value = qualification.id;
-        checkbox.classList.add('form-checkbox', 'h-4', 'w-4', 'text-blue-600', 'rounded', 'border-gray-300', 'focus:ring-blue-500'); // Tailwind for checkbox styling
+        // Pas de classes Tailwind
+        // checkbox.classList.add('form-checkbox', 'h-4', 'w-4', 'text-blue-600', 'rounded', 'border-gray-300', 'focus:ring-blue-500');
 
         const label = document.createElement('label');
         label.htmlFor = `new-qual-${qualification.id}`;
         label.textContent = qualification.name;
-        label.classList.add('ml-2', 'text-gray-700', 'text-sm');
+        // Pas de classes Tailwind
+        // label.classList.add('ml-2', 'text-gray-700', 'text-sm');
 
         checkboxContainer.appendChild(checkbox);
         checkboxContainer.appendChild(label);
@@ -515,10 +625,9 @@ function renderNewAgentQualificationsCheckboxes() {
     });
 }
 
-
-// Fonction pour générer les cases à cocher des qualifications dans la modale de modification
+// Fonction pour générer les cases à cocher des qualifications dans la modale de modification d'agent
 function renderQualificationsCheckboxes(agentQualifications = []) {
-    if (!qualificationsCheckboxesDiv) return; // S'assurer que l'élément DOM existe
+    if (!qualificationsCheckboxesDiv) return;
 
     qualificationsCheckboxesDiv.innerHTML = '';
     if (availableQualifications.length === 0) {
@@ -532,18 +641,21 @@ function renderQualificationsCheckboxes(agentQualifications = []) {
 
     availableQualifications.forEach(qualification => {
         const checkboxContainer = document.createElement('div');
-        checkboxContainer.classList.add('flex', 'items-center'); // Tailwind classes for alignment
+        // Pas de classes Tailwind
+        // checkboxContainer.classList.add('flex', 'items-center');
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.id = `edit-qual-${qualification.id}`; // ID unique pour la modale d'édition
+        checkbox.id = `edit-qual-${qualification.id}`;
         checkbox.value = qualification.id;
         checkbox.checked = agentQualifications.includes(qualification.id);
-        checkbox.classList.add('form-checkbox', 'h-4', 'w-4', 'text-blue-600', 'rounded', 'border-gray-300', 'focus:ring-blue-500'); // Tailwind for checkbox styling
+        // Pas de classes Tailwind
+        // checkbox.classList.add('form-checkbox', 'h-4', 'w-4', 'text-blue-600', 'rounded', 'border-gray-300', 'focus:ring-blue-500');
 
         const label = document.createElement('label');
         label.htmlFor = `edit-qual-${qualification.id}`;
         label.textContent = qualification.name;
-        label.classList.add('ml-2', 'text-gray-700', 'text-sm');
+        // Pas de classes Tailwind
+        // label.classList.add('ml-2', 'text-gray-700', 'text-sm');
 
         checkboxContainer.appendChild(checkbox);
         checkboxContainer.appendChild(label);
@@ -551,6 +663,170 @@ function renderQualificationsCheckboxes(agentQualifications = []) {
     });
     if (qualificationsMessage) {
         qualificationsMessage.textContent = ''; // Clear message if qualifications are loaded
+    }
+}
+
+// --- Fonctions de gestion des grades (Frontend - Nouveau) ---
+
+async function loadAvailableGrades() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/grades`, {
+            headers: { 'X-User-Role': 'admin' }
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Erreur lors du chargement des grades disponibles.');
+        }
+        availableGrades = data;
+        console.log('Grades disponibles chargés:', availableGrades);
+    } catch (error) {
+        console.error('Erreur de chargement des grades:', error);
+        if (gradesMessage) {
+            gradesMessage.textContent = `Erreur de chargement des grades: ${error.message}`;
+            gradesMessage.style.color = 'red';
+        }
+    }
+}
+
+function renderNewAgentGradesCheckboxes() {
+    if (!newAgentGradesCheckboxes) return;
+
+    newAgentGradesCheckboxes.innerHTML = '';
+    if (availableGrades.length === 0) {
+        newAgentGradesCheckboxes.textContent = 'Aucun grade disponible. Ajoutez-en d\'abord via la gestion des grades.';
+        return;
+    }
+
+    availableGrades.forEach(grade => {
+        const checkboxContainer = document.createElement('div');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `new-grade-${grade.id}`;
+        checkbox.value = grade.id;
+
+        const label = document.createElement('label');
+        label.htmlFor = `new-grade-${grade.id}`;
+        label.textContent = grade.name;
+
+        checkboxContainer.appendChild(checkbox);
+        checkboxContainer.appendChild(label);
+        newAgentGradesCheckboxes.appendChild(checkboxContainer);
+    });
+}
+
+function renderGradesCheckboxes(agentGrades = []) {
+    if (!gradesCheckboxesDiv) return;
+
+    gradesCheckboxesDiv.innerHTML = '';
+    if (availableGrades.length === 0) {
+        gradesCheckboxesDiv.textContent = 'Aucun grade disponible.';
+        if (gradesMessage) {
+             gradesMessage.textContent = 'Veuillez ajouter des grades via l\'administration.';
+             gradesMessage.style.color = 'orange';
+        }
+        return;
+    }
+
+    availableGrades.forEach(grade => {
+        const checkboxContainer = document.createElement('div');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `edit-grade-${grade.id}`;
+        checkbox.value = grade.id;
+        checkbox.checked = agentGrades.includes(grade.id);
+
+        const label = document.createElement('label');
+        label.htmlFor = `edit-grade-${grade.id}`;
+        label.textContent = grade.name;
+
+        checkboxContainer.appendChild(checkbox);
+        checkboxContainer.appendChild(label);
+        gradesCheckboxesDiv.appendChild(checkboxContainer);
+    });
+    if (gradesMessage) {
+        gradesMessage.textContent = '';
+    }
+}
+
+// --- Fonctions de gestion des fonctions (Frontend - Nouveau) ---
+
+async function loadAvailableFunctions() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/functions`, {
+            headers: { 'X-User-Role': 'admin' }
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Erreur lors du chargement des fonctions disponibles.');
+        }
+        availableFunctions = data;
+        console.log('Fonctions disponibles chargées:', availableFunctions);
+    } catch (error) {
+        console.error('Erreur de chargement des fonctions:', error);
+        if (functionsMessage) {
+            functionsMessage.textContent = `Erreur de chargement des fonctions: ${error.message}`;
+            functionsMessage.style.color = 'red';
+        }
+    }
+}
+
+function renderNewAgentFunctionsCheckboxes() {
+    if (!newAgentFunctionsCheckboxes) return;
+
+    newAgentFunctionsCheckboxes.innerHTML = '';
+    if (availableFunctions.length === 0) {
+        newAgentFunctionsCheckboxes.textContent = 'Aucune fonction disponible. Ajoutez-en d\'abord via la gestion des fonctions.';
+        return;
+    }
+
+    availableFunctions.forEach(func => {
+        const checkboxContainer = document.createElement('div');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `new-func-${func.id}`;
+        checkbox.value = func.id;
+
+        const label = document.createElement('label');
+        label.htmlFor = `new-func-${func.id}`;
+        label.textContent = func.name;
+
+        checkboxContainer.appendChild(checkbox);
+        checkboxContainer.appendChild(label);
+        newAgentFunctionsCheckboxes.appendChild(checkboxContainer);
+    });
+}
+
+function renderFunctionsCheckboxes(agentFunctions = []) {
+    if (!functionsCheckboxesDiv) return;
+
+    functionsCheckboxesDiv.innerHTML = '';
+    if (availableFunctions.length === 0) {
+        functionsCheckboxesDiv.textContent = 'Aucune fonction disponible.';
+        if (functionsMessage) {
+             functionsMessage.textContent = 'Veuillez ajouter des fonctions via l\'administration.';
+             functionsMessage.style.color = 'orange';
+        }
+        return;
+    }
+
+    availableFunctions.forEach(func => {
+        const checkboxContainer = document.createElement('div');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `edit-func-${func.id}`;
+        checkbox.value = func.id;
+        checkbox.checked = agentFunctions.includes(func.id);
+
+        const label = document.createElement('label');
+        label.htmlFor = `edit-func-${func.id}`;
+        label.textContent = func.name;
+
+        checkboxContainer.appendChild(checkbox);
+        checkboxContainer.appendChild(label);
+        functionsCheckboxesDiv.appendChild(checkboxContainer);
+    });
+    if (functionsMessage) {
+        functionsMessage.textContent = '';
     }
 }
 
@@ -563,7 +839,7 @@ async function loadAgents() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/agents`, {
             headers: {
-                'X-User-Role': 'admin' // Temporaire: à retirer si express-session ou JWT est implémenté
+                'X-User-Role': 'admin'
             }
         });
         const data = await response.json();
@@ -574,15 +850,31 @@ async function loadAgents() {
 
         agentsTableBody.innerHTML = '';
         if (data.length === 0) {
-            agentsTableBody.innerHTML = '<tr><td colspan="4">Aucun agent enregistré pour le moment.</td></tr>';
+            agentsTableBody.innerHTML = '<tr><td colspan="6">Aucun agent enregistré pour le moment.</td></tr>'; // Colspan ajusté
         } else {
             data.forEach(agent => {
                 const row = agentsTableBody.insertRow();
-                // Afficher les qualifications dans la table (optionnel, pour l'admin)
+                // Afficher les qualifications dans la table
                 const qualNames = (agent.qualifications || [])
                                     .map(id => {
                                         const qual = availableQualifications.find(q => q.id === id);
-                                        return qual ? qual.name : id; // Affiche le nom ou l'ID si non trouvé
+                                        return qual ? qual.name : id;
+                                    })
+                                    .join(', ');
+
+                // Afficher les grades dans la table (Nouveau)
+                const gradeNames = (agent.grades || [])
+                                    .map(id => {
+                                        const grade = availableGrades.find(g => g.id === id);
+                                        return grade ? grade.name : id;
+                                    })
+                                    .join(', ');
+
+                // Afficher les fonctions dans la table (Nouveau)
+                const functionNames = (agent.functions || [])
+                                    .map(id => {
+                                        const func = availableFunctions.find(f => f.id === id);
+                                        return func ? func.name : id;
                                     })
                                     .join(', ');
 
@@ -590,9 +882,11 @@ async function loadAgents() {
                     <td>${agent.id}</td>
                     <td>${agent.nom}</td>
                     <td>${agent.prenom}</td>
-                    <td>${qualNames}</td> <!-- Nouvelle colonne pour les qualifications -->
+                    <td>${qualNames}</td>
+                    <td>${gradeNames}</td> <!-- Nouvelle colonne pour les grades -->
+                    <td>${functionNames}</td> <!-- Nouvelle colonne pour les fonctions -->
                     <td>
-                        <button class="edit-btn btn-secondary" data-id="${agent.id}" data-nom="${agent.nom}" data-prenom="${agent.prenom}" data-qualifications='${JSON.stringify(agent.qualifications || [])}'>Modifier</button>
+                        <button class="edit-btn btn-secondary" data-id="${agent.id}" data-nom="${agent.nom}" data-prenom="${agent.prenom}" data-qualifications='${JSON.stringify(agent.qualifications || [])}' data-grades='${JSON.stringify(agent.grades || [])}' data-functions='${JSON.stringify(agent.functions || [])}'>Modifier</button>
                         <button class="delete-btn btn-danger" data-id="${agent.id}">Supprimer</button>
                     </td>
                 `;
@@ -603,7 +897,7 @@ async function loadAgents() {
         console.error('Erreur de chargement des agents:', error);
         listAgentsMessage.textContent = `Erreur : ${error.message}`;
         listAgentsMessage.style.color = 'red';
-        agentsTableBody.innerHTML = '<tr><td colspan="5">Impossible de charger la liste des agents.</td></tr>'; // Colspan ajusté
+        agentsTableBody.innerHTML = '<tr><td colspan="6">Impossible de charger la liste des agents.</td></tr>'; // Colspan ajusté
     }
 }
 
@@ -617,6 +911,12 @@ async function handleAddAgent(event) {
     // Récupérer les qualifications sélectionnées pour le nouvel agent
     const selectedQualifications = Array.from(newAgentQualificationsCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
                                        .map(checkbox => checkbox.value);
+    // Récupérer les grades sélectionnés (Nouveau)
+    const selectedGrades = Array.from(newAgentGradesCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
+                                       .map(checkbox => checkbox.value);
+    // Récupérer les fonctions sélectionnées (Nouveau)
+    const selectedFunctions = Array.from(newAgentFunctionsCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
+                                       .map(checkbox => checkbox.value);
 
     addAgentMessage.textContent = 'Ajout en cours...';
     addAgentMessage.style.color = 'blue';
@@ -626,9 +926,9 @@ async function handleAddAgent(event) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-User-Role': 'admin' // Temporaire
+                'X-User-Role': 'admin'
             },
-            body: JSON.stringify({ id, nom, prenom, password, qualifications: selectedQualifications }) // Envoyer les qualifications
+            body: JSON.stringify({ id, nom, prenom, password, qualifications: selectedQualifications, grades: selectedGrades, functions: selectedFunctions })
         });
         const data = await response.json();
 
@@ -638,6 +938,8 @@ async function handleAddAgent(event) {
             addAgentForm.reset();
             // Réinitialiser les checkboxes après l'ajout
             newAgentQualificationsCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            newAgentGradesCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false); // Nouveau
+            newAgentFunctionsCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false); // Nouveau
             loadAgents(); // Recharger la liste
         } else {
             addAgentMessage.textContent = `Erreur : ${data.message}`;
@@ -663,31 +965,36 @@ async function handleAgentActions(event) {
         editAgentNewPassword.value = '';
         editAgentMessage.textContent = '';
 
-        // Récupérer les qualifications de l'agent depuis le dataset
+        // Récupérer les qualifications, grades et fonctions de l'agent depuis le dataset
         const agentQualifications = JSON.parse(target.dataset.qualifications || '[]');
+        const agentGrades = JSON.parse(target.dataset.grades || '[]'); // Nouveau
+        const agentFunctions = JSON.parse(target.dataset.functions || '[]'); // Nouveau
+
         renderQualificationsCheckboxes(agentQualifications); // Remplir les checkboxes
+        renderGradesCheckboxes(agentGrades); // Nouveau: Remplir les checkboxes de grades
+        renderFunctionsCheckboxes(agentFunctions); // Nouveau: Remplir les checkboxes de fonctions
 
         editAgentModal.style.display = 'block';
     } else if (target.classList.contains('delete-btn')) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agentId} ?`)) {
+        if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agentId} ?`)) { // Confirmer avec l'utilisateur
             try {
                 const response = await fetch(`${API_BASE_URL}/api/admin/agents/${agentId}`, {
                     method: 'DELETE',
                     headers: {
-                        'X-User-Role': 'admin' // Temporaire
+                        'X-User-Role': 'admin'
                     }
                 });
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert(data.message);
+                    console.log(data.message);
                     loadAgents(); // Recharger la liste
                 } else {
-                    alert(`Erreur lors de la suppression : ${data.message}`);
+                    console.error(`Erreur lors de la suppression : ${data.message}`);
                 }
             } catch (error) {
                 console.error('Erreur lors de la suppression de l\'agent:', error);
-                alert('Erreur réseau lors de la suppression de l\'agent.');
+                console.error('Erreur réseau lors de la suppression de l\'agent.');
             }
         }
     }
@@ -703,6 +1010,13 @@ async function handleEditAgent(event) {
     // Récupérer les qualifications sélectionnées
     const selectedQualifications = Array.from(qualificationsCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked'))
                                        .map(checkbox => checkbox.value);
+    // Récupérer les grades sélectionnés (Nouveau)
+    const selectedGrades = Array.from(gradesCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked'))
+                                       .map(checkbox => checkbox.value);
+    // Récupérer les fonctions sélectionnées (Nouveau)
+    const selectedFunctions = Array.from(functionsCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked'))
+                                       .map(checkbox => checkbox.value);
+
 
     editAgentMessage.textContent = 'Mise à jour en cours...';
     editAgentMessage.style.color = 'blue';
@@ -712,9 +1026,9 @@ async function handleEditAgent(event) {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-User-Role': 'admin' // Temporaire
+                'X-User-Role': 'admin'
             },
-            body: JSON.stringify({ nom, prenom, newPassword, qualifications: selectedQualifications }) // Envoyer les qualifications
+            body: JSON.stringify({ nom, prenom, newPassword, qualifications: selectedQualifications, grades: selectedGrades, functions: selectedFunctions })
         });
         const data = await response.json();
 
@@ -734,14 +1048,467 @@ async function handleEditAgent(event) {
     }
 }
 
+// --- Fonctions CRUD pour la gestion des qualifications (Nouveau) ---
+
+async function loadQualificationsList() {
+    listQualificationsMessage.textContent = 'Chargement des qualifications...';
+    listQualificationsMessage.style.color = 'blue';
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/qualifications`, {
+            headers: { 'X-User-Role': 'admin' }
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erreur lors du chargement des qualifications.');
+        }
+
+        qualificationsTableBody.innerHTML = '';
+        if (data.length === 0) {
+            qualificationsTableBody.innerHTML = '<tr><td colspan="3">Aucune qualification enregistrée pour le moment.</td></tr>';
+        } else {
+            data.forEach(qual => {
+                const row = qualificationsTableBody.insertRow();
+                row.innerHTML = `
+                    <td>${qual.id}</td>
+                    <td>${qual.name}</td>
+                    <td>
+                        <button class="edit-btn btn-secondary" data-id="${qual.id}" data-name="${qual.name}">Modifier</button>
+                        <button class="delete-btn btn-danger" data-id="${qual.id}">Supprimer</button>
+                    </td>
+                `;
+            });
+        }
+        listQualificationsMessage.textContent = '';
+    } catch (error) {
+        console.error('Erreur de chargement des qualifications:', error);
+        listQualificationsMessage.textContent = `Erreur : ${error.message}`;
+        listQualificationsMessage.style.color = 'red';
+        qualificationsTableBody.innerHTML = '<tr><td colspan="3">Impossible de charger la liste des qualifications.</td></tr>';
+    }
+}
+
+async function handleAddQualification(event) {
+    event.preventDefault();
+    const id = document.getElementById('newQualId').value.trim();
+    const name = document.getElementById('newQualName').value.trim();
+
+    addQualificationMessage.textContent = 'Ajout en cours...';
+    addQualificationMessage.style.color = 'blue';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/qualifications`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Role': 'admin'
+            },
+            body: JSON.stringify({ id, name })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            addQualificationMessage.textContent = data.message;
+            addQualificationMessage.style.color = 'green';
+            addQualificationForm.reset();
+            await loadAvailableQualifications(); // Recharger la liste des qualifications disponibles
+            await loadQualificationsList(); // Recharger la liste affichée dans la table
+            renderNewAgentQualificationsCheckboxes(); // Mettre à jour les checkboxes d'agent
+        } else {
+            addQualificationMessage.textContent = `Erreur : ${data.message}`;
+            addQualificationMessage.style.color = 'red';
+        }
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout de la qualification:', error);
+        addQualificationMessage.textContent = 'Erreur réseau lors de l\'ajout de la qualification.';
+        addQualificationMessage.style.color = 'red';
+    }
+}
+
+async function handleQualificationActions(event) {
+    const target = event.target;
+    const qualId = target.dataset.id;
+
+    if (!qualId) return;
+
+    if (target.classList.contains('edit-btn')) {
+        editQualId.value = qualId;
+        editQualName.value = target.dataset.name;
+        editQualMessage.textContent = '';
+        editQualificationModal.style.display = 'block';
+    } else if (target.classList.contains('delete-btn')) {
+        if (confirm(`Êtes-vous sûr de vouloir supprimer la qualification "${qualId}" ? Cela la retirera aussi des agents qui la possèdent.`)) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/qualifications/${qualId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-User-Role': 'admin' }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log(data.message);
+                    await loadAvailableQualifications(); // Recharger la liste des qualifications disponibles
+                    await loadQualificationsList(); // Recharger la liste affichée dans la table
+                    renderNewAgentQualificationsCheckboxes(); // Mettre à jour les checkboxes d'agent
+                    loadAgents(); // Recharger la liste des agents pour refléter les suppressions
+                } else {
+                    console.error(`Erreur lors de la suppression : ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Erreur lors de la suppression de la qualification:', error);
+                console.error('Erreur réseau lors de la suppression de la qualification.');
+            }
+        }
+    }
+}
+
+async function handleEditQualification(event) {
+    event.preventDefault();
+    const id = editQualId.value.trim();
+    const name = editQualName.value.trim();
+
+    editQualMessage.textContent = 'Mise à jour en cours...';
+    editQualMessage.style.color = 'blue';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/qualifications/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Role': 'admin'
+            },
+            body: JSON.stringify({ name })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            editQualMessage.textContent = data.message;
+            editQualMessage.style.color = 'green';
+            await loadAvailableQualifications();
+            await loadQualificationsList();
+            renderNewAgentQualificationsCheckboxes();
+            loadAgents(); // Refresh agents list to update displayed qualification names
+            // editQualificationModal.style.display = 'none';
+        } else {
+            editQualMessage.textContent = `Erreur : ${data.message}`;
+            editQualMessage.style.color = 'red';
+        }
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour de la qualification:', error);
+        editQualMessage.textContent = 'Erreur réseau lors de la mise à jour de la qualification.';
+        editQualMessage.style.color = 'red';
+    }
+}
+
+// --- Fonctions CRUD pour la gestion des grades (Nouveau) ---
+
+async function loadGradesList() {
+    listGradesMessage.textContent = 'Chargement des grades...';
+    listGradesMessage.style.color = 'blue';
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/grades`, {
+            headers: { 'X-User-Role': 'admin' }
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erreur lors du chargement des grades.');
+        }
+
+        gradesTableBody.innerHTML = '';
+        if (data.length === 0) {
+            gradesTableBody.innerHTML = '<tr><td colspan="3">Aucun grade enregistré pour le moment.</td></tr>';
+        } else {
+            data.forEach(grade => {
+                const row = gradesTableBody.insertRow();
+                row.innerHTML = `
+                    <td>${grade.id}</td>
+                    <td>${grade.name}</td>
+                    <td>
+                        <button class="edit-btn btn-secondary" data-id="${grade.id}" data-name="${grade.name}">Modifier</button>
+                        <button class="delete-btn btn-danger" data-id="${grade.id}">Supprimer</button>
+                    </td>
+                `;
+            });
+        }
+        listGradesMessage.textContent = '';
+    } catch (error) {
+        console.error('Erreur de chargement des grades:', error);
+        listGradesMessage.textContent = `Erreur : ${error.message}`;
+        listGradesMessage.style.color = 'red';
+        gradesTableBody.innerHTML = '<tr><td colspan="3">Impossible de charger la liste des grades.</td></tr>';
+    }
+}
+
+async function handleAddGrade(event) {
+    event.preventDefault();
+    const id = document.getElementById('newGradeId').value.trim();
+    const name = document.getElementById('newGradeName').value.trim();
+
+    addGradeMessage.textContent = 'Ajout en cours...';
+    addGradeMessage.style.color = 'blue';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/grades`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Role': 'admin'
+            },
+            body: JSON.stringify({ id, name })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            addGradeMessage.textContent = data.message;
+            addGradeMessage.style.color = 'green';
+            addGradeForm.reset();
+            await loadAvailableGrades();
+            await loadGradesList();
+            renderNewAgentGradesCheckboxes(); // Mettre à jour les checkboxes d'agent
+        } else {
+            addGradeMessage.textContent = `Erreur : ${data.message}`;
+            addGradeMessage.style.color = 'red';
+        }
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout du grade:', error);
+        addGradeMessage.textContent = 'Erreur réseau lors de l\'ajout du grade.';
+        addGradeMessage.style.color = 'red';
+    }
+}
+
+async function handleGradeActions(event) {
+    const target = event.target;
+    const gradeId = target.dataset.id;
+
+    if (!gradeId) return;
+
+    if (target.classList.contains('edit-btn')) {
+        editGradeId.value = gradeId;
+        editGradeName.value = target.dataset.name;
+        editGradeMessage.textContent = '';
+        editGradeModal.style.display = 'block';
+    } else if (target.classList.contains('delete-btn')) {
+        if (confirm(`Êtes-vous sûr de vouloir supprimer le grade "${gradeId}" ? Cela le retirera aussi des agents qui le possèdent.`)) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/grades/${gradeId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-User-Role': 'admin' }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log(data.message);
+                    await loadAvailableGrades();
+                    await loadGradesList();
+                    renderNewAgentGradesCheckboxes();
+                    loadAgents(); // Recharger la liste des agents pour refléter les suppressions
+                } else {
+                    console.error(`Erreur lors de la suppression : ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Erreur lors de la suppression du grade:', error);
+                console.error('Erreur réseau lors de la suppression du grade.');
+            }
+        }
+    }
+}
+
+async function handleEditGrade(event) {
+    event.preventDefault();
+    const id = editGradeId.value.trim();
+    const name = editGradeName.value.trim();
+
+    editGradeMessage.textContent = 'Mise à jour en cours...';
+    editGradeMessage.style.color = 'blue';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/grades/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Role': 'admin'
+            },
+            body: JSON.stringify({ name })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            editGradeMessage.textContent = data.message;
+            editGradeMessage.style.color = 'green';
+            await loadAvailableGrades();
+            await loadGradesList();
+            renderNewAgentGradesCheckboxes();
+            loadAgents(); // Refresh agents list to update displayed grade names
+            // editGradeModal.style.display = 'none';
+        } else {
+            editGradeMessage.textContent = `Erreur : ${data.message}`;
+            editGradeMessage.style.color = 'red';
+        }
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour du grade:', error);
+        editGradeMessage.textContent = 'Erreur réseau lors de la mise à jour du grade.';
+        editGradeMessage.style.color = 'red';
+    }
+}
+
+
+// --- Fonctions CRUD pour la gestion des fonctions (Nouveau) ---
+
+async function loadFunctionsList() {
+    listFunctionsMessage.textContent = 'Chargement des fonctions...';
+    listFunctionsMessage.style.color = 'blue';
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/functions`, {
+            headers: { 'X-User-Role': 'admin' }
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erreur lors du chargement des fonctions.');
+        }
+
+        functionsTableBody.innerHTML = '';
+        if (data.length === 0) {
+            functionsTableBody.innerHTML = '<tr><td colspan="3">Aucune fonction enregistrée pour le moment.</td></tr>';
+        } else {
+            data.forEach(func => {
+                const row = functionsTableBody.insertRow();
+                row.innerHTML = `
+                    <td>${func.id}</td>
+                    <td>${func.name}</td>
+                    <td>
+                        <button class="edit-btn btn-secondary" data-id="${func.id}" data-name="${func.name}">Modifier</button>
+                        <button class="delete-btn btn-danger" data-id="${func.id}">Supprimer</button>
+                    </td>
+                `;
+            });
+        }
+        listFunctionsMessage.textContent = '';
+    } catch (error) {
+        console.error('Erreur de chargement des fonctions:', error);
+        listFunctionsMessage.textContent = `Erreur : ${error.message}`;
+        listFunctionsMessage.style.color = 'red';
+        functionsTableBody.innerHTML = '<tr><td colspan="3">Impossible de charger la liste des fonctions.</td></tr>';
+    }
+}
+
+async function handleAddFunction(event) {
+    event.preventDefault();
+    const id = document.getElementById('newFunctionId').value.trim();
+    const name = document.getElementById('newFunctionName').value.trim();
+
+    addFunctionMessage.textContent = 'Ajout en cours...';
+    addFunctionMessage.style.color = 'blue';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/functions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Role': 'admin'
+            },
+            body: JSON.stringify({ id, name })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            addFunctionMessage.textContent = data.message;
+            addFunctionMessage.style.color = 'green';
+            addFunctionForm.reset();
+            await loadAvailableFunctions();
+            await loadFunctionsList();
+            renderNewAgentFunctionsCheckboxes(); // Mettre à jour les checkboxes d'agent
+        } else {
+            addFunctionMessage.textContent = `Erreur : ${data.message}`;
+            addFunctionMessage.style.color = 'red';
+        }
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout de la fonction:', error);
+        addFunctionMessage.textContent = 'Erreur réseau lors de l\'ajout de la fonction.';
+        addFunctionMessage.style.color = 'red';
+    }
+}
+
+async function handleFunctionActions(event) {
+    const target = event.target;
+    const functionId = target.dataset.id;
+
+    if (!functionId) return;
+
+    if (target.classList.contains('edit-btn')) {
+        editFunctionId.value = functionId;
+        editFunctionName.value = target.dataset.name;
+        editFunctionMessage.textContent = '';
+        editFunctionModal.style.display = 'block';
+    } else if (target.classList.contains('delete-btn')) {
+        if (confirm(`Êtes-vous sûr de vouloir supprimer la fonction "${functionId}" ? Cela la retirera aussi des agents qui la possèdent.`)) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/functions/${functionId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-User-Role': 'admin' }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log(data.message);
+                    await loadAvailableFunctions();
+                    await loadFunctionsList();
+                    renderNewAgentFunctionsCheckboxes();
+                    loadAgents(); // Recharger la liste des agents pour refléter les suppressions
+                } else {
+                    console.error(`Erreur lors de la suppression : ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Erreur lors de la suppression de la fonction:', error);
+                console.error('Erreur réseau lors de la suppression de la fonction.');
+            }
+        }
+    }
+}
+
+async function handleEditFunction(event) {
+    event.preventDefault();
+    const id = editFunctionId.value.trim();
+    const name = editFunctionName.value.trim();
+
+    editFunctionMessage.textContent = 'Mise à jour en cours...';
+    editFunctionMessage.style.color = 'blue';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/functions/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Role': 'admin'
+            },
+            body: JSON.stringify({ name })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            editFunctionMessage.textContent = data.message;
+            editFunctionMessage.style.color = 'green';
+            await loadAvailableFunctions();
+            await loadFunctionsList();
+            renderNewAgentFunctionsCheckboxes();
+            loadAgents(); // Refresh agents list to update displayed function names
+            // editFunctionModal.style.display = 'none';
+        } else {
+            editFunctionMessage.textContent = `Erreur : ${data.message}`;
+            editFunctionMessage.style.color = 'red';
+        }
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour de la fonction:', error);
+        editFunctionMessage.textContent = 'Erreur réseau lors de la mise à jour de la fonction.';
+        editFunctionMessage.style.color = 'red';
+    }
+}
+
+
 function logout() {
-    // Si vous avez une route de déconnexion côté serveur, appelez-la ici
-    // Exemple: fetch(`${API_BASE_URL}/api/logout`, { method: 'POST' })
-    //   .then(res => res.json())
-    //   .finally(() => {
     sessionStorage.clear();
     window.location.href = "index.html";
-    //   });
 }
 
 // --- Fonction pour gérer l'affichage du spinner de chargement et désactiver/réactiver les contrôles ---

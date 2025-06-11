@@ -26,6 +26,9 @@
     <nav class="main-tabs-navigation">
       <button class="main-tab active" data-main-tab="global-planning-view">Planning Global</button>
       <button class="main-tab" data-main-tab="agent-management-view">Gestion des Agents</button>
+      <button class="main-tab" data-main-tab="qualification-management-view">Gestion des Qualifications</button>
+      <button class="main-tab" data-main-tab="grade-management-view">Gestion des Grades</button>
+      <button class="main-tab" data-main-tab="function-management-view">Gestion des Fonctions</button>
     </nav>
 
     <div id="global-planning-view" class="main-tab-content active">
@@ -78,6 +81,23 @@
                         Chargement des qualifications...
                     </div>
                 </div>
+                <br>
+                <div>
+                    <h4>Grades de l'Agent :</h4>
+                    <div id="newAgentGradesCheckboxes">
+                        <!-- Les cases à cocher des grades seront chargées ici par JavaScript -->
+                        Chargement des grades...
+                    </div>
+                </div>
+                <br>
+                <div>
+                    <h4>Fonctions de l'Agent :</h4>
+                    <div id="newAgentFunctionsCheckboxes">
+                        <!-- Les cases à cocher des fonctions seront chargées ici par JavaScript -->
+                        Chargement des fonctions...
+                    </div>
+                </div>
+                <br>
 
                 <button type="submit" class="btn btn-primary">Ajouter l'Agent</button>
             </form>
@@ -95,26 +115,138 @@
                         <th>Nom</th>
                         <th>Prénom</th>
                         <th>Qualifications</th>
+                        <th>Grades</th>
+                        <th>Fonctions</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="agentsTableBody">
-                    <tr><td colspan="5">Chargement des agents...</td></tr>
+                    <tr><td colspan="7">Chargement des agents...</td></tr>
                 </tbody>
             </table>
             <p id="listAgentsMessage"></p>
         </section>
     </div>
 
+    <!-- NOUVEAU : Conteneur pour la vue de Gestion des Qualifications -->
+    <div id="qualification-management-view" class="main-tab-content hidden">
+        <section id="add-qualification-section">
+            <h3>Ajouter une Nouvelle Qualification</h3>
+            <form id="addQualificationForm">
+                <label for="newQualId">Identifiant (ex: chef-agr) :</label>
+                <input type="text" id="newQualId" required><br><br>
+
+                <label for="newQualName">Nom de la Qualification (ex: Chef d'Agrès) :</label>
+                <input type="text" id="newQualName" required><br><br>
+
+                <button type="submit" class="btn btn-primary">Ajouter la Qualification</button>
+            </form>
+            <p id="addQualificationMessage"></p>
+        </section>
+
+        <hr>
+
+        <section id="list-qualifications-section">
+            <h3>Liste des Qualifications</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identifiant</th>
+                        <th>Nom</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="qualificationsTableBody">
+                    <tr><td colspan="3">Chargement des qualifications...</td></tr>
+                </tbody>
+            </table>
+            <p id="listQualificationsMessage"></p>
+        </section>
+    </div>
+
+    <!-- NOUVEAU : Conteneur pour la vue de Gestion des Grades -->
+    <div id="grade-management-view" class="main-tab-content hidden">
+        <section id="add-grade-section">
+            <h3>Ajouter un Nouveau Grade</h3>
+            <form id="addGradeForm">
+                <label for="newGradeId">Identifiant (ex: sap) :</label>
+                <input type="text" id="newGradeId" required><br><br>
+
+                <label for="newGradeName">Nom du Grade (ex: Sapeur) :</label>
+                <input type="text" id="newGradeName" required><br><br>
+
+                <button type="submit" class="btn btn-primary">Ajouter le Grade</button>
+            </form>
+            <p id="addGradeMessage"></p>
+        </section>
+
+        <hr>
+
+        <section id="list-grades-section">
+            <h3>Liste des Grades</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identifiant</th>
+                        <th>Nom</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="gradesTableBody">
+                    <tr><td colspan="3">Chargement des grades...</td></tr>
+                </tbody>
+            </table>
+            <p id="listGradesMessage"></p>
+        </section>
+    </div>
+
+    <!-- NOUVEAU : Conteneur pour la vue de Gestion des Fonctions -->
+    <div id="function-management-view" class="main-tab-content hidden">
+        <section id="add-function-section">
+            <h3>Ajouter une Nouvelle Fonction</h3>
+            <form id="addFunctionForm">
+                <label for="newFunctionId">Identifiant (ex: standard) :</label>
+                <input type="text" id="newFunctionId" required><br><br>
+
+                <label for="newFunctionName">Nom de la Fonction (ex: Standard) :</label>
+                <input type="text" id="newFunctionName" required><br><br>
+
+                <button type="submit" class="btn btn-primary">Ajouter la Fonction</button>
+            </form>
+            <p id="addFunctionMessage"></p>
+        </section>
+
+        <hr>
+
+        <section id="list-functions-section">
+            <h3>Liste des Fonctions</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identifiant</th>
+                        <th>Nom</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="functionsTableBody">
+                    <tr><td colspan="3">Chargement des fonctions...</td></tr>
+                </tbody>
+            </table>
+            <p id="listFunctionsMessage"></p>
+        </section>
+    </div>
+
+
     <footer class="bottom-actions">
       <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
     </footer>
   </div>
 
+  <!-- Modale de modification d'agent et de qualifications, grades, fonctions -->
   <div id="editAgentModal" class="modal" style="display: none;">
       <div class="modal-content">
           <span class="close-button">&times;</span>
-          <h3>Modifier l'Agent et les Qualifications</h3>
+          <h3>Modifier l'Agent et les Informations</h3>
           <form id="editAgentForm">
               <input type="hidden" id="editAgentId">
 
@@ -135,10 +267,80 @@
                   </div>
                   <p id="qualificationsMessage" style="color: red;"></p>
               </div>
+              <br>
+              <div>
+                  <h4>Grades de l'Agent :</h4>
+                  <div id="gradesCheckboxes">
+                      <!-- Les cases à cocher des grades seront chargées ici par JavaScript -->
+                      Chargement des grades...
+                  </div>
+                  <p id="gradesMessage" style="color: red;"></p>
+              </div>
+              <br>
+              <div>
+                  <h4>Fonctions de l'Agent :</h4>
+                  <div id="functionsCheckboxes">
+                      <!-- Les cases à cocher des fonctions seront chargées ici par JavaScript -->
+                      Chargement des fonctions...
+                  </div>
+                  <p id="functionsMessage" style="color: red;"></p>
+              </div>
+              <br>
 
               <button type="submit" class="btn btn-primary">Mettre à jour l'Agent</button>
           </form>
           <p id="editAgentMessage"></p>
+      </div>
+  </div>
+
+  <!-- Modale de modification de qualification (Nouveau) -->
+  <div id="editQualificationModal" class="modal" style="display: none;">
+      <div class="modal-content">
+          <span class="close-button">&times;</span>
+          <h3>Modifier la Qualification</h3>
+          <form id="editQualificationForm">
+              <input type="hidden" id="editQualId">
+
+              <label for="editQualName">Nom de la Qualification :</label>
+              <input type="text" id="editQualName" required><br><br>
+
+              <button type="submit" class="btn btn-primary">Mettre à jour la Qualification</button>
+          </form>
+          <p id="editQualMessage"></p>
+      </div>
+  </div>
+
+  <!-- Modale de modification de grade (Nouveau) -->
+  <div id="editGradeModal" class="modal" style="display: none;">
+      <div class="modal-content">
+          <span class="close-button">&times;</span>
+          <h3>Modifier le Grade</h3>
+          <form id="editGradeForm">
+              <input type="hidden" id="editGradeId">
+
+              <label for="editGradeName">Nom du Grade :</label>
+              <input type="text" id="editGradeName" required><br><br>
+
+              <button type="submit" class="btn btn-primary">Mettre à jour le Grade</button>
+          </form>
+          <p id="editGradeMessage"></p>
+      </div>
+  </div>
+
+  <!-- Modale de modification de fonction (Nouveau) -->
+  <div id="editFunctionModal" class="modal" style="display: none;">
+      <div class="modal-content">
+          <span class="close-button">&times;</span>
+          <h3>Modifier la Fonction</h3>
+          <form id="editFunctionForm">
+              <input type="hidden" id="editFunctionId">
+
+              <label for="editFunctionName">Nom de la Fonction :</label>
+              <input type="text" id="editFunctionName" required><br><br>
+
+              <button type="submit" class="btn btn-primary">Mettre à jour la Fonction</button>
+          </form>
+          <p id="editFunctionMessage"></p>
       </div>
   </div>
 
