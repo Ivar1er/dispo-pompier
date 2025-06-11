@@ -38,7 +38,11 @@ async function login() {
     sessionStorage.setItem("agent", agent); // Stocke l'identifiant (ex: 'bruneau', 'admin')
     sessionStorage.setItem("agentPrenom", data.prenom);
     sessionStorage.setItem("agentNom", data.nom);
-    sessionStorage.setItem("userRole", data.role); // <<< NOUVEAU : Stocke le rôle de l'utilisateur
+    sessionStorage.setItem("userRole", data.role); // Stocke le rôle de l'utilisateur
+
+    // --- Ligne ajoutée/corrigée : Stocke le token reçu du serveur ---
+    sessionStorage.setItem("token", data.token); // IMPORTANT : Stocke le 'admin' pour l'admin, ou l'ID de l'agent pour les agents
+    // -----------------------------------------------------------------
 
     // Rediriger en fonction du rôle
     if (data.role === "admin") {
