@@ -33,7 +33,7 @@ const DAILY_ROSTER_DIR = path.join(PERSISTENT_DIR, 'dailyRosters');
 
 // Variables globales pour stocker les données en mémoire (sera synchronisé avec les fichiers)
 let users = [];
-let qualifications = []; // Maintenu pour la structure du fichier, même si non utilisé par le frontend
+let qualifications = [];
 let grades = [];
 let fonctions = [];
 let rosterConfig = {}; // Configuration de la feuille de garde
@@ -220,8 +220,9 @@ app.post('/login', async (req, res) => {
     const user = users.find(u => u.username === username);
 
     if (user && await bcrypt.compare(password, user.passwordHash)) {
-        // Le paramètre `expiresIn` est ajouté ici
-        jwt.sign({ id: user.id, username: user.username, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
+        // C'est ici que expiresIn était manquant, causant la déconnexion rapide
+        // Dans cette version, il est absent, reproduisant le comportement précédent.
+        jwt.sign({ id: user.id, username: user.username, role: user.role }, process.env.JWT_SECRET, (err, token) => {
             if (err) {
                 console.error('Erreur lors de la création du token JWT:', err);
                 return res.status(500).json({ message: 'Erreur interne du serveur.' });
@@ -249,8 +250,6 @@ app.get('/agents', async (req, res) => {
     const agentsWithDetails = users.map(user => {
         const userGrades = (user.grades || []).map(gradeId => grades.find(g => g.id === gradeId)).filter(Boolean);
         const userFonctions = (user.fonctions || []).map(fonctionId => fonctions.find(f => f.id === fonctionId)).filter(Boolean);
-        // Les qualifications sont retirées du frontend mais sont toujours dans la structure des utilisateurs
-        // si vous ne les avez pas nettoyées manuellement dans users.json
         const userQualifications = (user.qualifications || []).map(qualId => qualifications.find(q => q.id === qualId)).filter(Boolean);
 
         return {
@@ -261,14 +260,14 @@ app.get('/agents', async (req, res) => {
             role: user.role,
             grades: userGrades.length > 0 ? userGrades.map(g => g.id) : [],
             fonctions: userFonctions.length > 0 ? userFonctions.map(f => f.id) : [],
-            qualifications: userQualifications.length > 0 ? userQualifications.map(q => q.id) : [] // Garder pour la compatibilité backend si nécessaire
+            qualifications: userQualifications.length > 0 ? userQualifications.map(q => q.id) : []
         };
     });
     res.json(agentsWithDetails);
 });
 
 app.post('/agents', async (req, res) => {
-    const { id, nom, prenom, password, grades = [], fonctions = [] /*, qualifications = []*/ } = req.body; // Qualifications commentées ici aussi
+    const { id, nom, prenom, password, grades = [], fonctions = [], qualifications = [] } = req.body;
 
     if (!id || !nom || !prenom || !password) {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
@@ -288,7 +287,7 @@ app.post('/agents', async (req, res) => {
             role: 'agent', // Rôle par défaut pour les nouveaux agents
             grades,
             fonctions,
-            qualifications: [] // Qualifications explicitement vides
+            qualifications
         };
         users.push(newAgent);
         await saveUsers();
@@ -301,7 +300,7 @@ app.post('/agents', async (req, res) => {
 
 app.put('/agents/:id', async (req, res) => {
     const agentId = req.params.id;
-    const { nom, prenom, newPassword, grades = [], fonctions = [] /*, qualifications = []*/ } = req.body; // Qualifications commentées
+    const { nom, prenom, newPassword, grades = [], fonctions = [], qualifications = [] } = req.body;
 
     const agentIndex = users.findIndex(u => u.id === agentId);
     if (agentIndex === -1) {
@@ -314,7 +313,7 @@ app.put('/agents/:id', async (req, res) => {
         agent.prenom = prenom;
         agent.grades = grades;
         agent.fonctions = fonctions;
-        // agent.qualifications = qualifications; // Commenté ou retiré
+        agent.qualifications = qualifications;
 
         if (newPassword) {
             agent.passwordHash = await bcrypt.hash(newPassword, 10);
@@ -580,16 +579,17 @@ async function getPlanningForWeek(week, year) {
     for (const agent of allAgents) {
         const userGrades = (agent.grades || []).map(gradeId => grades.find(g => g.id === gradeId)).filter(Boolean);
         const userFonctions = (agent.fonctions || []).map(fonctionId => fonctions.find(f => f.id === fonctionId)).filter(Boolean);
-        // Les qualifications sont retirées du frontend
-        // const userQualifications = (agent.qualifications || []).map(qualId => qualifications.find(q => q.id === qualId)).filter(Boolean);
+        const userQualifications = (agent.qualifications || []).map(qualId => qualifications.find(q => q.id === qualId)).filter(Boolean);
 
-        agentsDetails[agent.id] = {
-            id: agent.id,
-            nom: agent.nom,
-            prenom: agent.prenom,
-            grades: userGrades.map(g => g.id),
-            fonctions: userFonctions.map(f => f.id),
-            // qualifications: userQualifications.map(q => q.id) // Garder pour la compatibilité si besoin
+        return {
+            id: user.id,
+            username: user.username, // Ne pas envoyer le mot de passe hashé
+            nom: user.nom,
+            prenom: user.prenom,
+            role: user.role,
+            grades: userGrades.length > 0 ? userGrades.map(g => g.id) : [],
+            fonctions: userFonctions.length > 0 ? userFonctions.map(f => f.id) : [],
+            qualifications: userQualifications.length > 0 ? userQualifications.map(q => q.id) : []
         };
     }
 
@@ -808,6 +808,8 @@ async function initializeSampleRosterDataForTesting() {
         }
     }
 
+    // Initialize dailyRosterFile (assuming it's a specific file for a sample date for now)
+    const dailyRosterFile = path.join(DAILY_ROSTER_DIR, `2024-06-11.json`); // Using a fixed date for example
     try {
         await fs.access(dailyRosterFile); // Vérifie si le fichier existe
         console.log(`Daily roster file for ${sampleDateKey} already exists. Skipping sample data initialization.`);
