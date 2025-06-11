@@ -6,175 +6,139 @@
   <title>Administration - Sapeur Pompier</title>
   <link rel="stylesheet" href="css/admin.css" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS CDN for styling -->
-  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="font-sans antialiased bg-gray-100 min-h-screen flex flex-col">
-  <div class="agent-container max-w-7xl mx-auto p-6 bg-white shadow-lg rounded-lg my-8 w-full">
-    <header class="page-header flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200">
-      <h2 class="welcome-message text-2xl font-semibold text-gray-800 mb-4 md:mb-0">Tableau de bord Administrateur</h2>
+<body>
+  <div class="agent-container">
+    <header class="page-header">
+      <h2 class="welcome-message">Tableau de bord Administrateur</h2>
 
-      <div class="header-controls flex flex-wrap justify-center md:justify-end items-center gap-4">
-        <!-- Ces contrôles (semaine, export, feuille de garde) seront affichés uniquement
-             quand l'onglet "Planning Global" est actif. Leur visibilité sera gérée par JS. -->
-        <div class="week-info flex items-center gap-3" id="planning-controls">
+      <div class="header-controls">
+        <div class="week-info" id="planning-controls">
           <label for="week-select" class="sr-only">Sélectionner la semaine</label>
-          <select id="week-select" class="form-select border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
-          <p id="date-range" class="text-gray-600"></p>
-          <button id="export-pdf" class="btn btn-secondary bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out">
-            📄 Exporter en PDF
-          </button>
-          <a href="feuille_de_garde.html" class="btn btn-secondary bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out">
-            Feuille de Garde
-          </a>
+          <select id="week-select"></select>
+          <p id="date-range"></p>
+          <button id="export-pdf" class="btn btn-secondary">📄 Exporter en PDF</button>
+          <a href="feuille_de_garde.html" class="btn btn-secondary">Feuille de Garde</a>
         </div>
       </div>
     </header>
 
-    <!-- NOUVEAU : Navigation principale entre les vues (Planning Global et Gestion des Agents) -->
-    <nav class="main-tabs-navigation flex border-b border-gray-200 mb-6">
-      <button class="main-tab active py-3 px-6 text-lg font-medium text-gray-700 border-b-2 border-blue-500 hover:text-blue-600 transition duration-300 ease-in-out" data-main-tab="global-planning-view">Planning Global</button>
-      <button class="main-tab py-3 px-6 text-lg font-medium text-gray-700 border-b-2 border-transparent hover:text-blue-600 transition duration-300 ease-in-out" data-main-tab="agent-management-view">Gestion des Agents</button>
+    <nav class="main-tabs-navigation">
+      <button class="main-tab active" data-main-tab="global-planning-view">Planning Global</button>
+      <button class="main-tab" data-main-tab="agent-management-view">Gestion des Agents</button>
     </nav>
 
-    <!-- NOUVEAU : Conteneur pour la vue du Planning Global -->
-    <div id="global-planning-view" class="main-tab-content active p-4 bg-gray-50 rounded-md">
-      <nav class="tabs-navigation flex flex-wrap justify-center gap-2 mb-6">
-        <button class="tab active py-2 px-4 rounded-md text-sm font-medium bg-blue-500 text-white shadow-sm hover:bg-blue-600 transition duration-300 ease-in-out" data-day="lundi">Lundi</button>
-        <button class="tab py-2 px-4 rounded-md text-sm font-medium bg-gray-200 text-gray-700 shadow-sm hover:bg-gray-300 transition duration-300 ease-in-out" data-day="mardi">Mardi</button>
-        <button class="tab py-2 px-4 rounded-md text-sm font-medium bg-gray-200 text-gray-700 shadow-sm hover:bg-gray-300 transition duration-300 ease-in-out" data-day="mercredi">Mercredi</button>
-        <button class="tab py-2 px-4 rounded-md text-sm font-medium bg-gray-200 text-gray-700 shadow-sm hover:bg-gray-300 transition duration-300 ease-in-out" data-day="jeudi">Jeudi</button>
-        <button class="tab py-2 px-4 rounded-md text-sm font-medium bg-gray-200 text-gray-700 shadow-sm hover:bg-gray-300 transition duration-300 ease-in-out" data-day="vendredi">Vendredi</button>
-        <button class="tab py-2 px-4 rounded-md text-sm font-medium bg-gray-200 text-gray-700 shadow-sm hover:bg-gray-300 transition duration-300 ease-in-out" data-day="samedi">Samedi</button>
-        <button class="tab py-2 px-4 rounded-md text-sm font-medium bg-gray-200 text-gray-700 shadow-sm hover:bg-gray-300 transition duration-300 ease-in-out" data-day="dimanche">Dimanche</button>
+    <div id="global-planning-view" class="main-tab-content active">
+      <nav class="tabs-navigation">
+        <button class="tab active" data-day="lundi">Lundi</button>
+        <button class="tab" data-day="mardi">Mardi</button>
+        <button class="tab" data-day="mercredi">Mercredi</button>
+        <button class="tab" data-day="jeudi">Jeudi</button>
+        <button class="tab" data-day="vendredi">Vendredi</button>
+        <button class="tab" data-day="samedi">Samedi</button>
+        <button class="tab" data-day="dimanche">Dimanche</button>
       </nav>
 
       <section class="planning-section">
-        <p id="admin-info" class="info-message text-center text-gray-600 text-sm mb-4">
+        <p id="admin-info" class="info-message">
           Vue du planning global des agents.
         </p>
 
-        <div id="global-planning" class="table-container planning-grid overflow-x-auto">
+        <div id="global-planning" class="table-container planning-grid">
             <!-- Le planning global sera généré ici par JS -->
         </div>
 
-        <div id="loading-spinner" class="loading-spinner hidden flex items-center justify-center mt-4">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            <p class="ml-2 text-blue-500">Chargement...</p>
+        <div id="loading-spinner" class="loading-spinner hidden">
+            <div></div>
+            <p>Chargement...</p>
         </div>
       </section>
     </div>
 
-    <!-- NOUVEAU : Conteneur pour la vue de Gestion des Agents -->
-    <div id="agent-management-view" class="main-tab-content p-4 bg-gray-50 rounded-md hidden">
-        <section id="add-agent-section" class="mb-8 p-6 bg-white rounded-lg shadow-md">
-            <h3 class="text-xl font-semibold text-gray-800 mb-4">Ajouter un Nouvel Agent</h3>
-            <form id="addAgentForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="newAgentId" class="block text-gray-700 text-sm font-bold mb-2">Identifiant (utilisé pour la connexion, ex: dupont) :</label>
-                    <input type="text" id="newAgentId" required class="shadow appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"><br>
-                </div>
+    <div id="agent-management-view" class="main-tab-content hidden">
+        <section id="add-agent-section">
+            <h3>Ajouter un Nouvel Agent</h3>
+            <form id="addAgentForm">
+                <label for="newAgentId">Identifiant (utilisé pour la connexion, ex: dupont) :</label>
+                <input type="text" id="newAgentId" required><br><br>
+
+                <label for="newAgentNom">Nom :</label>
+                <input type="text" id="newAgentNom" required><br><br>
+
+                <label for="newAgentPrenom">Prénom :</label>
+                <input type="text" id="newAgentPrenom" required><br><br>
+
+                <label for="newAgentPassword">Mot de passe :</label>
+                <input type="password" id="newAgentPassword" required><br><br>
 
                 <div>
-                    <label for="newAgentNom" class="block text-gray-700 text-sm font-bold mb-2">Nom :</label>
-                    <input type="text" id="newAgentNom" required class="shadow appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"><br>
-                </div>
-
-                <div>
-                    <label for="newAgentPrenom" class="block text-gray-700 text-sm font-bold mb-2">Prénom :</label>
-                    <input type="text" id="newAgentPrenom" required class="shadow appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"><br>
-                </div>
-
-                <div>
-                    <label for="newAgentPassword" class="block text-gray-700 text-sm font-bold mb-2">Mot de passe :</label>
-                    <input type="password" id="newAgentPassword" required class="shadow appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"><br>
-                </div>
-
-                <div class="md:col-span-2">
-                    <h4 class="text-lg font-semibold text-gray-800 mb-2">Qualifications de l'Agent :</h4>
-                    <div id="newAgentQualificationsCheckboxes" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <h4>Qualifications de l'Agent :</h4>
+                    <div id="newAgentQualificationsCheckboxes">
                         <!-- Les cases à cocher des qualifications seront chargées ici par JavaScript -->
                         Chargement des qualifications...
                     </div>
                 </div>
 
-                <div class="md:col-span-2">
-                    <button type="submit" class="btn btn-primary bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out w-full">
-                        Ajouter l'Agent
-                    </button>
-                </div>
+                <button type="submit" class="btn btn-primary">Ajouter l'Agent</button>
             </form>
-            <p id="addAgentMessage" class="mt-4 text-center text-sm"></p>
+            <p id="addAgentMessage"></p>
         </section>
 
-        <hr class="my-8 border-gray-300">
+        <hr>
 
-        <section id="list-agents-section" class="p-6 bg-white rounded-lg shadow-md">
-            <h3 class="text-xl font-semibold text-gray-800 mb-4">Liste des Agents</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full bg-white border border-gray-200 rounded-lg">
-                    <thead>
-                        <tr class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
-                            <th class="py-3 px-6 text-left">Identifiant</th>
-                            <th class="py-3 px-6 text-left">Nom</th>
-                            <th class="py-3 px-6 text-left">Prénom</th>
-                            <th class="py-3 px-6 text-left">Qualifications</th>
-                            <th class="py-3 px-6 text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="agentsTableBody" class="text-gray-700 text-sm font-light">
-                        <tr><td colspan="5" class="py-3 px-6 text-center">Chargement des agents...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <p id="listAgentsMessage" class="mt-4 text-center text-sm"></p>
+        <section id="list-agents-section">
+            <h3>Liste des Agents</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identifiant</th>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Qualifications</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="agentsTableBody">
+                    <tr><td colspan="5">Chargement des agents...</td></tr>
+                </tbody>
+            </table>
+            <p id="listAgentsMessage"></p>
         </section>
     </div>
 
-    <footer class="bottom-actions mt-8 pt-4 border-t border-gray-200 flex justify-end">
-      <button id="logout-btn" class="btn btn-danger bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out">
-        Déconnexion
-      </button>
+    <footer class="bottom-actions">
+      <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
     </footer>
   </div>
 
-  <!-- Modale de modification d'agent et de qualifications -->
-  <div id="editAgentModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50" style="display: none;">
-      <div class="modal-content bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-          <span class="close-button absolute top-4 right-4 text-gray-500 text-2xl font-bold cursor-pointer hover:text-gray-700">&times;</span>
-          <h3 class="text-xl font-semibold text-gray-800 mb-6">Modifier l'Agent et les Qualifications</h3>
-          <form id="editAgentForm" class="grid grid-cols-1 gap-4">
+  <div id="editAgentModal" class="modal" style="display: none;">
+      <div class="modal-content">
+          <span class="close-button">&times;</span>
+          <h3>Modifier l'Agent et les Qualifications</h3>
+          <form id="editAgentForm">
               <input type="hidden" id="editAgentId">
 
-              <div>
-                  <label for="editAgentNom" class="block text-gray-700 text-sm font-bold mb-2">Nom :</label>
-                  <input type="text" id="editAgentNom" required class="shadow appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500">
-              </div>
+              <label for="editAgentNom">Nom :</label>
+              <input type="text" id="editAgentNom" required><br><br>
+
+              <label for="editAgentPrenom">Prénom :</label>
+              <input type="text" id="editAgentPrenom" required><br><br>
+
+              <label for="editAgentNewPassword">Nouveau mot de passe (laisser vide pour ne pas modifier) :</label>
+              <input type="password" id="editAgentNewPassword"><br><br>
 
               <div>
-                  <label for="editAgentPrenom" class="block text-gray-700 text-sm font-bold mb-2">Prénom :</label>
-                  <input type="text" id="editAgentPrenom" required class="shadow appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500">
-              </div>
-
-              <div>
-                  <label for="editAgentNewPassword" class="block text-gray-700 text-sm font-bold mb-2">Nouveau mot de passe (laisser vide pour ne pas modifier) :</label>
-                  <input type="password" id="editAgentNewPassword" class="shadow appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500">
-              </div>
-
-              <div class="mt-4">
-                  <h4 class="text-lg font-semibold text-gray-800 mb-2">Qualifications de l'Agent :</h4>
-                  <div id="qualificationsCheckboxes" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <h4>Qualifications de l'Agent :</h4>
+                  <div id="qualificationsCheckboxes">
                       <!-- Les cases à cocher des qualifications seront chargées ici par JavaScript -->
                       Chargement des qualifications...
                   </div>
-                  <p id="qualificationsMessage" class="mt-2 text-sm" style="color: red;"></p>
+                  <p id="qualificationsMessage" style="color: red;"></p>
               </div>
 
-              <button type="submit" class="btn btn-primary bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out w-full mt-6">
-                  Mettre à jour l'Agent
-              </button>
+              <button type="submit" class="btn btn-primary">Mettre à jour l'Agent</button>
           </form>
-          <p id="editAgentMessage" class="mt-4 text-center text-sm"></p>
+          <p id="editAgentMessage"></p>
       </div>
   </div>
 

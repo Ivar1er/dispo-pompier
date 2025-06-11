@@ -343,7 +343,7 @@ body {
   text-align: center;
 }
 
-/* NOUVEAU: Bouton Primaire (pour Ajouter, Mettre à jour) */
+/* Bouton Primaire (pour Ajouter, Mettre à jour) */
 .btn-primary {
     background-color: var(--primary-color);
     color: white;
@@ -402,13 +402,26 @@ body {
 
 /* Spinner de chargement */
 .loading-spinner {
+  display: flex; /* Utilise flexbox pour centrer le contenu */
+  flex-direction: column; /* Aligne les éléments verticalement */
+  align-items: center; /* Centre horizontalement */
+  justify-content: center; /* Centre verticalement */
+  margin: 20px auto;
+  gap: 10px; /* Espace entre le spinner et le texte */
+}
+
+.loading-spinner > div { /* Cible le div à l'intérieur du spinner pour le cercle */
   border: 4px solid #f3f3f3;
   border-top: 4px solid var(--primary-color);
   border-radius: 50%;
   width: 40px;
   height: 40px;
   animation: spin 1s linear infinite;
-  margin: 20px auto;
+}
+
+.loading-spinner p {
+    color: var(--primary-color);
+    font-weight: 500;
 }
 
 .loading-spinner.hidden {
@@ -549,6 +562,7 @@ p#addAgentMessage[style*="blue"], p#editAgentMessage[style*="blue"], p#listAgent
     height: 100%;
     overflow: auto;
     background-color: rgba(0,0,0,0.6); /* Fond semi-transparent foncé */
+    display: flex; /* Utilisez flex pour centrer */
     justify-content: center;
     align-items: center;
     padding: 20px;
@@ -605,7 +619,8 @@ p#addAgentMessage[style*="blue"], p#editAgentMessage[style*="blue"], p#listAgent
     font-size: 1.2rem;
 }
 
-/* --- STYLES POUR LES QUALIFICATIONS DANS LA MODALE --- */
+/* --- STYLES POUR LES QUALIFICATIONS DANS LA MODALE ET LE FORMULAIRE D'AJOUT --- */
+#newAgentQualificationsCheckboxes,
 #qualificationsCheckboxes {
     display: flex;
     flex-wrap: wrap;
@@ -617,24 +632,42 @@ p#addAgentMessage[style*="blue"], p#editAgentMessage[style*="blue"], p#listAgent
     background-color: #fcfcfc;
 }
 
-.qualification-item {
+/* Styles pour le conteneur de chaque checkbox (qui était flex items-center) */
+/* Cible les divs enfants directs dans les conteneurs de qualifications */
+#newAgentQualificationsCheckboxes > div,
+#qualificationsCheckboxes > div {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 8px; /* Espace entre le checkbox et le label */
 }
 
-.qualification-item input[type="checkbox"] {
+/* Styles pour les checkboxes elles-mêmes (qui étaient h-4, w-4, text-blue-600, rounded, border-gray-300, focus:ring-blue-500) */
+#newAgentQualificationsCheckboxes input[type="checkbox"],
+#qualificationsCheckboxes input[type="checkbox"] {
     width: 18px;
     height: 18px;
     cursor: pointer;
-    accent-color: var(--primary-color); /* Couleur de la case à cocher */
+    accent-color: var(--primary-color); /* Couleur de la case à cocher native */
+    border: 1px solid var(--medium-gray); /* Couleur de la bordure */
+    border-radius: 4px; /* Bordures arrondies */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.qualification-item label {
+#newAgentQualificationsCheckboxes input[type="checkbox"]:focus,
+#qualificationsCheckboxes input[type="checkbox"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Anneau de focus */
+}
+
+
+#newAgentQualificationsCheckboxes label,
+#qualificationsCheckboxes label {
     margin-bottom: 0; /* Réinitialise le margin-bottom du label de formulaire */
     font-weight: normal;
     color: var(--text-color);
     cursor: pointer;
+    font-size: 0.95rem; /* Ajuste la taille de la police */
 }
 
 
@@ -768,9 +801,16 @@ p#addAgentMessage[style*="blue"], p#editAgentMessage[style*="blue"], p#listAgent
       padding: 8px 15px;
       font-size: 0.85rem;
   }
-  
-  .qualification-item {
-      gap: 5px;
+
+  /* Styles pour les qualifications dans la modale et le formulaire d'ajout (petits écrans) */
+  #newAgentQualificationsCheckboxes > div,
+  #qualificationsCheckboxes > div {
       font-size: 0.9rem;
+      gap: 5px;
+  }
+  #newAgentQualificationsCheckboxes input[type="checkbox"],
+  #qualificationsCheckboxes input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
   }
 }
