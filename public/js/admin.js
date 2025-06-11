@@ -23,7 +23,7 @@ const adminInfo = document.getElementById("admin-info");
 // --- DOM Elements pour la vue "Gestion des Agents" ---
 const addAgentForm = document.getElementById('addAgentForm');
 const newAgentGradesCheckboxes = document.getElementById('newAgentGradesCheckboxes');
-const newAgentFonctionsCheckboxes = document.getElementById('newAgentFonctionsCheckboxes'); // Renommé functions en fonctions
+const newAgentFonctionsCheckboxes = document.getElementById('newAgentFonctionsCheckboxes'); 
 const addAgentMessage = document.getElementById('addAgentMessage');
 const agentsTableBody = document.getElementById('agentsTableBody');
 const listAgentsMessage = document.getElementById('listAgentsMessage');
@@ -38,9 +38,9 @@ const editAgentPrenom = document.getElementById('editAgentPrenom');
 const editAgentNewPassword = document.getElementById('editAgentNewPassword');
 const editAgentMessage = document.getElementById('editAgentMessage');
 const gradesCheckboxesDiv = document.getElementById('gradesCheckboxes');
-const fonctionsCheckboxesDiv = document.getElementById('fonctionsCheckboxes'); // Renommé functions en fonctions
+const fonctionsCheckboxesDiv = document.getElementById('fonctionsCheckboxes'); 
 const gradesMessage = document.getElementById('gradesMessage');
-const fonctionsMessage = document.getElementById('fonctionsMessage'); // Renommé functions en fonctions
+const fonctionsMessage = document.getElementById('fonctionsMessage'); 
 
 
 // --- DOM Elements pour la vue "Gestion des Grades" ---
@@ -55,17 +55,17 @@ const editGradeId = document.getElementById('editGradeId');
 const editGradeName = document.getElementById('editGradeName');
 const editGradeMessage = document.getElementById('editGradeMessage');
 
-// --- DOM Elements pour la vue "Gestion des Fonctions" (Renommé) ---
-const addFonctionForm = document.getElementById('addFonctionForm'); // Renommé
-const addFonctionMessage = document.getElementById('addFonctionMessage'); // Renommé
-const fonctionsTableBody = document.getElementById('fonctionsTableBody'); // Renommé
-const listFonctionsMessage = document.getElementById('listFonctionsMessage'); // Renommé
-const editFonctionModal = document.getElementById('editFonctionModal'); // Renommé
-const closeFonctionButton = editFonctionModal ? editFonctionModal.querySelector('.close-button') : null; // Renommé
-const editFonctionForm = document.getElementById('editFonctionForm'); // Renommé
-const editFonctionId = document.getElementById('editFonctionId'); // Renommé
-const editFonctionName = document.getElementById('editFonctionName'); // Renommé
-const editFonctionMessage = document.getElementById('editFonctionMessage'); // Renommé
+// --- DOM Elements pour la vue "Gestion des Fonctions" ---
+const addFonctionForm = document.getElementById('addFonctionForm'); 
+const addFonctionMessage = document.getElementById('addFonctionMessage'); 
+const fonctionsTableBody = document.getElementById('fonctionsTableBody'); 
+const listFonctionsMessage = document.getElementById('listFonctionsMessage'); 
+const editFonctionModal = document.getElementById('editFonctionModal'); 
+const closeFonctionButton = editFonctionModal ? editFonctionModal.querySelector('.close-button') : null; 
+const editFonctionForm = document.getElementById('editFonctionForm'); 
+const editFonctionId = document.getElementById('editFonctionId'); 
+const editFonctionName = document.getElementById('editFonctionName'); 
+const editFonctionMessage = document.getElementById('editFonctionMessage'); 
 
 // --- Global DOM Elements ---
 const loadingSpinner = document.getElementById("loading-spinner");
@@ -101,11 +101,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Initialisation des fonctionnalités par défaut de la page ---
     // Charger la liste des grades et fonctions disponibles en premier
     await loadAvailableGrades();
-    await loadAvailableFonctions(); // Renommé functions en fonctions
+    await loadAvailableFonctions(); 
 
     // Rendre les checkboxes pour le formulaire d'ajout d'agent après le chargement des données
     renderNewAgentGradesCheckboxes();
-    renderNewAgentFonctionsCheckboxes(); // Renommé functions en fonctions
+    renderNewAgentFonctionsCheckboxes(); 
 
     // Ouvrir l'onglet "Planning Global" par défaut au chargement
     await openMainTab('global-planning-view'); // Attendre que le planning soit chargé avant d'afficher
@@ -161,20 +161,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         editGradeForm.addEventListener('submit', handleEditGrade);
     }
 
-    // --- Écouteurs d'événements pour la vue "Gestion des Fonctions" (Renommé) ---
-    if (addFonctionForm) { // Renommé
-        addFonctionForm.addEventListener('submit', handleAddFonction); // Renommé
+    // --- Écouteurs d'événements pour la vue "Gestion des Fonctions" ---
+    if (addFonctionForm) { 
+        addFonctionForm.addEventListener('submit', handleAddFonction); 
     }
-    if (fonctionsTableBody) { // Renommé
-        fonctionsTableBody.addEventListener('click', handleFonctionActions); // Renommé
+    if (fonctionsTableBody) { 
+        fonctionsTableBody.addEventListener('click', handleFonctionActions); 
     }
-    if (closeFonctionButton) { // Renommé
-        closeFonctionButton.addEventListener('click', () => { // Renommé
-            editFonctionModal.style.display = 'none'; // Renommé
+    if (closeFonctionButton) { 
+        closeFonctionButton.addEventListener('click', () => { 
+            editFonctionModal.style.display = 'none'; 
         });
     }
-    if (editFonctionForm) { // Renommé
-        editFonctionForm.addEventListener('submit', handleEditFonction); // Renommé
+    if (editFonctionForm) { 
+        editFonctionForm.addEventListener('submit', handleEditFonction); 
     }
 
 
@@ -207,8 +207,8 @@ async function openMainTab(tabId) {
             await loadAgents(); // Recharger la liste des agents quand on va sur cet onglet
         } else if (tabId === 'grade-management-view') {
             await loadGradesList();
-        } else if (tabId === 'fonction-management-view') { // Renommé function en fonction
-            await loadFonctionsList(); // Renommé functions en fonctions
+        } else if (tabId === 'fonction-management-view') { 
+            await loadFonctionsList(); 
         }
     }
 }
@@ -295,14 +295,16 @@ async function loadPlanningAndDisplay() {
         updateWeekSelector(allWeeksSet); // Met à jour le sélecteur de semaine
         showDay(currentDay); // Affiche le planning pour le jour actuel
 
-    } catch (e) {
+    }
+    catch (e) {
         console.error("Erreur lors du chargement ou de l'affichage du planning :", e);
         adminInfo.textContent = "Erreur lors du chargement du planning global. Veuillez réessayer.";
         adminInfo.style.backgroundColor = "#ffe6e6";
         adminInfo.style.borderColor = "#e6a4a4";
         adminInfo.style.color = "#a94442";
         planningData = {}; // Réinitialise les données du planning en cas d'erreur
-    } finally {
+    }
+    finally {
         showLoading(false);
     }
 }
@@ -615,85 +617,85 @@ function renderGradesCheckboxes(agentGrades = []) {
     }
 }
 
-// --- Fonctions de gestion des fonctions (Renommé function en fonction) ---
+// --- Fonctions de gestion des fonctions ---
 
-async function loadAvailableFonctions() { // Renommé
+async function loadAvailableFonctions() { 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/fonctions`, { // Renommé functions en fonctions
+        const response = await fetch(`${API_BASE_URL}/api/fonctions`, { 
             headers: { 'X-User-Role': 'admin' }
         });
         const data = await response.json();
         if (!response.ok) {
-            throw new Error(data.message || 'Erreur lors du chargement des fonctions disponibles.'); // Renommé
+            throw new Error(data.message || 'Erreur lors du chargement des fonctions disponibles.'); 
         }
-        availableFonctions = data; // Renommé
-        console.log('Fonctions disponibles chargées:', availableFonctions); // Renommé
+        availableFonctions = data; 
+        console.log('Fonctions disponibles chargées:', availableFonctions); 
     } catch (error) {
-        console.error('Erreur de chargement des fonctions:', error); // Renommé
-        if (fonctionsMessage) { // Renommé
-            fonctionsMessage.textContent = `Erreur de chargement des fonctions: ${error.message}`; // Renommé
-            fonctionsMessage.style.color = 'red'; // Renommé
+        console.error('Erreur de chargement des fonctions:', error); 
+        if (fonctionsMessage) { 
+            fonctionsMessage.textContent = `Erreur de chargement des fonctions: ${error.message}`; 
+            fonctionsMessage.style.color = 'red'; 
         }
     }
 }
 
-function renderNewAgentFonctionsCheckboxes() { // Renommé
-    if (!newAgentFonctionsCheckboxes) return; // Renommé
+function renderNewAgentFonctionsCheckboxes() { 
+    if (!newAgentFonctionsCheckboxes) return; 
 
-    newAgentFonctionsCheckboxes.innerHTML = ''; // Renommé
-    if (availableFonctions.length === 0) { // Renommé
-        newAgentFonctionsCheckboxes.textContent = 'Aucune fonction disponible. Ajoutez-en d\'abord via la gestion des fonctions.'; // Renommé
+    newAgentFonctionsCheckboxes.innerHTML = ''; 
+    if (availableFonctions.length === 0) { 
+        newAgentFonctionsCheckboxes.textContent = 'Aucune fonction disponible. Ajoutez-en d\'abord via la gestion des fonctions.'; 
         return;
     }
 
-    availableFonctions.forEach(fonction => { // Renommé func en fonction
+    availableFonctions.forEach(fonction => { 
         const checkboxContainer = document.createElement('div');
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.id = `new-fonction-${fonction.id}`; // Renommé func en fonction
-        checkbox.value = fonction.id; // Renommé func en fonction
+        checkbox.id = `new-fonction-${fonction.id}`; 
+        checkbox.value = fonction.id; 
 
         const label = document.createElement('label');
-        label.htmlFor = `new-fonction-${fonction.id}`; // Renommé func en fonction
-        label.textContent = fonction.name; // Renommé func en fonction
+        label.htmlFor = `new-fonction-${fonction.id}`; 
+        label.textContent = fonction.name; 
 
         checkboxContainer.appendChild(checkbox);
         checkboxContainer.appendChild(label);
-        newAgentFonctionsCheckboxes.appendChild(checkboxContainer); // Renommé
+        newAgentFonctionsCheckboxes.appendChild(checkboxContainer); 
     });
 }
 
-function renderFonctionsCheckboxes(agentFonctions = []) { // Renommé
-    if (!fonctionsCheckboxesDiv) return; // Renommé
+function renderFonctionsCheckboxes(agentFonctions = []) { 
+    if (!fonctionsCheckboxesDiv) return; 
 
-    fonctionsCheckboxesDiv.innerHTML = ''; // Renommé
-    if (availableFonctions.length === 0) { // Renommé
-        fonctionsCheckboxesDiv.textContent = 'Aucune fonction disponible.'; // Renommé
-        if (fonctionsMessage) { // Renommé
-             fonctionsMessage.textContent = 'Veuillez ajouter des fonctions via l\'administration.'; // Renommé
-             fonctionsMessage.style.color = 'orange'; // Renommé
+    fonctionsCheckboxesDiv.innerHTML = ''; 
+    if (availableFonctions.length === 0) { 
+        fonctionsCheckboxesDiv.textContent = 'Aucune fonction disponible.'; 
+        if (fonctionsMessage) { 
+             fonctionsMessage.textContent = 'Veuillez ajouter des fonctions via l\'administration.'; 
+             fonctionsMessage.style.color = 'orange'; 
         }
         return;
     }
 
-    availableFonctions.forEach(fonction => { // Renommé func en fonction
+    availableFonctions.forEach(fonction => { 
         const checkboxContainer = document.createElement('div');
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.id = `edit-fonction-${fonction.id}`; // Renommé func en fonction
-        checkbox.value = fonction.id; // Renommé func en fonction
-        checkbox.checked = agentFonctions.includes(fonction.id); // Renommé func en fonction
+        checkbox.id = `edit-fonction-${fonction.id}`; 
+        checkbox.value = fonction.id; 
+        checkbox.checked = agentFonctions.includes(fonction.id); 
 
         const label = document.createElement('label');
-        label.htmlFor = `edit-fonction-${fonction.id}`; // Renommé func en fonction
-        label.textContent = fonction.name; // Renommé func en fonction
+        label.htmlFor = `edit-fonction-${fonction.id}`; 
+        label.textContent = fonction.name; 
 
         checkboxContainer.appendChild(checkbox);
         checkboxContainer.appendChild(label);
-        fonctionsCheckboxesDiv.appendChild(checkboxContainer); // Renommé
+        fonctionsCheckboxesDiv.appendChild(checkboxContainer); 
     });
-    if (fonctionsMessage) { // Renommé
-        fonctionsMessage.textContent = ''; // Renommé
+    if (fonctionsMessage) { 
+        fonctionsMessage.textContent = ''; 
     }
 }
 
@@ -717,7 +719,7 @@ async function loadAgents() {
 
         agentsTableBody.innerHTML = '';
         if (data.length === 0) {
-            agentsTableBody.innerHTML = '<tr><td colspan="6">Aucun agent enregistré pour le moment.</td></tr>'; // Colspan ajusté
+            agentsTableBody.innerHTML = '<tr><td colspan="7">Aucun agent enregistré pour le moment.</td></tr>'; // Colspan ajusté
         } else {
             data.forEach(agent => {
                 const row = agentsTableBody.insertRow();
@@ -729,11 +731,11 @@ async function loadAgents() {
                                     })
                                     .join(', ');
 
-                // Afficher les fonctions dans la table (Renommé)
-                const fonctionNames = (agent.fonctions || []) // Renommé functions en fonctions
+                // Afficher les fonctions dans la table 
+                const fonctionNames = (agent.fonctions || []) 
                                     .map(id => {
-                                        const fonction = availableFonctions.find(f => f.id === id); // Renommé func en fonction
-                                        return fonction ? fonction.name : id; // Renommé func en fonction
+                                        const fonction = availableFonctions.find(f => f.id === id); 
+                                        return fonction ? fonction.name : id; 
                                     })
                                     .join(', ');
 
@@ -742,7 +744,7 @@ async function loadAgents() {
                     <td>${agent.nom}</td>
                     <td>${agent.prenom}</td>
                     <td>${gradeNames}</td>
-                    <td>${fonctionNames}</td> <!-- Renommé functions en fonctions -->
+                    <td>${fonctionNames}</td> 
                     <td>
                         <button class="edit-btn btn-secondary" data-id="${agent.id}" data-nom="${agent.nom}" data-prenom="${agent.prenom}" data-grades='${JSON.stringify(agent.grades || [])}' data-fonctions='${JSON.stringify(agent.fonctions || [])}'>Modifier</button>
                         <button class="delete-btn btn-danger" data-id="${agent.id}">Supprimer</button>
@@ -755,7 +757,7 @@ async function loadAgents() {
         console.error('Erreur de chargement des agents:', error);
         listAgentsMessage.textContent = `Erreur : ${error.message}`;
         listAgentsMessage.style.color = 'red';
-        agentsTableBody.innerHTML = '<tr><td colspan="6">Impossible de charger la liste des agents.</td></tr>'; // Colspan ajusté
+        agentsTableBody.innerHTML = '<tr><td colspan="7">Impossible de charger la liste des agents.</td></tr>'; // Colspan ajusté
     }
 }
 
@@ -769,8 +771,8 @@ async function handleAddAgent(event) {
     // Récupérer les grades sélectionnés
     const selectedGrades = Array.from(newAgentGradesCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
                                        .map(checkbox => checkbox.value);
-    // Récupérer les fonctions sélectionnées (Renommé)
-    const selectedFonctions = Array.from(newAgentFonctionsCheckboxes.querySelectorAll('input[type="checkbox"]:checked')) // Renommé functions en fonctions
+    // Récupérer les fonctions sélectionnées 
+    const selectedFonctions = Array.from(newAgentFonctionsCheckboxes.querySelectorAll('input[type="checkbox"]:checked')) 
                                        .map(checkbox => checkbox.value);
 
     addAgentMessage.textContent = 'Ajout en cours...';
@@ -783,7 +785,7 @@ async function handleAddAgent(event) {
                 'Content-Type': 'application/json',
                 'X-User-Role': 'admin'
             },
-            body: JSON.stringify({ id, nom, prenom, password, grades: selectedGrades, fonctions: selectedFonctions }) // Renommé functions en fonctions
+            body: JSON.stringify({ id, nom, prenom, password, grades: selectedGrades, fonctions: selectedFonctions }) 
         });
         const data = await response.json();
 
@@ -793,7 +795,7 @@ async function handleAddAgent(event) {
             addAgentForm.reset();
             // Réinitialiser les checkboxes après l'ajout
             newAgentGradesCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            newAgentFonctionsCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false); // Renommé functions en fonctions
+            newAgentFonctionsCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false); 
             loadAgents(); // Recharger la liste
         } else {
             addAgentMessage.textContent = `Erreur : ${data.message}`;
@@ -821,10 +823,10 @@ async function handleAgentActions(event) {
 
         // Récupérer les grades et fonctions de l'agent depuis le dataset
         const agentGrades = JSON.parse(target.dataset.grades || '[]');
-        const agentFonctions = JSON.parse(target.dataset.fonctions || '[]'); // Renommé functions en fonctions
+        const agentFonctions = JSON.parse(target.dataset.fonctions || '[]'); 
 
         renderGradesCheckboxes(agentGrades);
-        renderFonctionsCheckboxes(agentFonctions); // Renommé functions en fonctions
+        renderFonctionsCheckboxes(agentFonctions); 
 
         editAgentModal.style.display = 'block';
     } else if (target.classList.contains('delete-btn')) {
@@ -862,8 +864,8 @@ async function handleEditAgent(event) {
     // Récupérer les grades sélectionnés
     const selectedGrades = Array.from(gradesCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked'))
                                        .map(checkbox => checkbox.value);
-    // Récupérer les fonctions sélectionnées (Renommé)
-    const selectedFonctions = Array.from(fonctionsCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked')) // Renommé functions en fonctions
+    // Récupérer les fonctions sélectionnées 
+    const selectedFonctions = Array.from(fonctionsCheckboxesDiv.querySelectorAll('input[type="checkbox"]:checked')) 
                                        .map(checkbox => checkbox.value);
 
 
@@ -877,7 +879,7 @@ async function handleEditAgent(event) {
                 'Content-Type': 'application/json',
                 'X-User-Role': 'admin'
             },
-            body: JSON.stringify({ nom, prenom, newPassword, grades: selectedGrades, fonctions: selectedFonctions }) // Renommé functions en fonctions
+            body: JSON.stringify({ nom, prenom, newPassword, grades: selectedGrades, fonctions: selectedFonctions }) 
         });
         const data = await response.json();
 
@@ -1050,56 +1052,56 @@ async function handleEditGrade(event) {
 }
 
 
-// --- Fonctions CRUD pour la gestion des fonctions (Renommé function en fonction) ---
+// --- Fonctions CRUD pour la gestion des fonctions ---
 
-async function loadFonctionsList() { // Renommé
-    listFonctionsMessage.textContent = 'Chargement des fonctions...'; // Renommé
-    listFonctionsMessage.style.color = 'blue'; // Renommé
+async function loadFonctionsList() { 
+    listFonctionsMessage.textContent = 'Chargement des fonctions...'; 
+    listFonctionsMessage.style.color = 'blue'; 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/fonctions`, { // Renommé functions en fonctions
+        const response = await fetch(`${API_BASE_URL}/api/fonctions`, { 
             headers: { 'X-User-Role': 'admin' }
         });
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.message || 'Erreur lors du chargement des fonctions.'); // Renommé
+            throw new Error(data.message || 'Erreur lors du chargement des fonctions.'); 
         }
 
-        fonctionsTableBody.innerHTML = ''; // Renommé
+        fonctionsTableBody.innerHTML = ''; 
         if (data.length === 0) {
-            fonctionsTableBody.innerHTML = '<tr><td colspan="3">Aucune fonction enregistrée pour le moment.</td></tr>'; // Renommé
+            fonctionsTableBody.innerHTML = '<tr><td colspan="3">Aucune fonction enregistrée pour le moment.</td></tr>'; 
         } else {
-            data.forEach(fonction => { // Renommé func en fonction
-                const row = fonctionsTableBody.insertRow(); // Renommé
+            data.forEach(fonction => { 
+                const row = fonctionsTableBody.insertRow(); 
                 row.innerHTML = `
-                    <td>${fonction.id}</td> // Renommé
-                    <td>${fonction.name}</td> // Renommé
+                    <td>${fonction.id}</td> 
+                    <td>${fonction.name}</td> 
                     <td>
-                        <button class="edit-btn btn-secondary" data-id="${fonction.id}" data-name="${fonction.name}">Modifier</button> // Renommé
-                        <button class="delete-btn btn-danger" data-id="${fonction.id}">Supprimer</button> // Renommé
+                        <button class="edit-btn btn-secondary" data-id="${fonction.id}" data-name="${fonction.name}">Modifier</button> 
+                        <button class="delete-btn btn-danger" data-id="${fonction.id}">Supprimer</button> 
                     </td>
                 `;
             });
         }
-        listFonctionsMessage.textContent = ''; // Renommé
+        listFonctionsMessage.textContent = ''; 
     } catch (error) {
-        console.error('Erreur de chargement des fonctions:', error); // Renommé
-        listFonctionsMessage.textContent = `Erreur : ${error.message}`; // Renommé
-        listFonctionsMessage.style.color = 'red'; // Renommé
-        fonctionsTableBody.innerHTML = '<tr><td colspan="3">Impossible de charger la liste des fonctions.</td></tr>'; // Renommé
+        console.error('Erreur de chargement des fonctions:', error); 
+        listFonctionsMessage.textContent = `Erreur : ${error.message}`; 
+        listFonctionsMessage.style.color = 'red'; 
+        fonctionsTableBody.innerHTML = '<tr><td colspan="3">Impossible de charger la liste des fonctions.</td></tr>'; 
     }
 }
 
-async function handleAddFonction(event) { // Renommé
+async function handleAddFonction(event) { 
     event.preventDefault();
-    const id = document.getElementById('newFonctionId').value.trim(); // Renommé
-    const name = document.getElementById('newFonctionName').value.trim(); // Renommé
+    const id = document.getElementById('newFonctionId').value.trim(); 
+    const name = document.getElementById('newFonctionName').value.trim(); 
 
-    addFonctionMessage.textContent = 'Ajout en cours...'; // Renommé
-    addFonctionMessage.style.color = 'blue'; // Renommé
+    addFonctionMessage.textContent = 'Ajout en cours...'; 
+    addFonctionMessage.style.color = 'blue'; 
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/fonctions`, { // Renommé functions en fonctions
+        const response = await fetch(`${API_BASE_URL}/api/fonctions`, { 
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1110,38 +1112,38 @@ async function handleAddFonction(event) { // Renommé
         const data = await response.json();
 
         if (response.ok) {
-            addFonctionMessage.textContent = data.message; // Renommé
-            addFonctionMessage.style.color = 'green'; // Renommé
-            addFonctionForm.reset(); // Renommé
-            await loadAvailableFonctions(); // Renommé
-            await loadFonctionsList(); // Renommé
-            renderNewAgentFonctionsCheckboxes(); // Renommé
+            addFonctionMessage.textContent = data.message; 
+            addFonctionMessage.style.color = 'green'; 
+            addFonctionForm.reset(); 
+            await loadAvailableFonctions(); 
+            await loadFonctionsList(); 
+            renderNewAgentFonctionsCheckboxes(); 
         } else {
-            addFonctionMessage.textContent = `Erreur : ${data.message}`; // Renommé
-            addFonctionMessage.style.color = 'red'; // Renommé
+            addFonctionMessage.textContent = `Erreur : ${data.message}`; 
+            addFonctionMessage.style.color = 'red'; 
         }
     } catch (error) {
-        console.error('Erreur lors de l\'ajout de la fonction:', error); // Renommé
-        addFonctionMessage.textContent = 'Erreur réseau lors de l\'ajout de la fonction.'; // Renommé
-        addFonctionMessage.style.color = 'red'; // Renommé
+        console.error('Erreur lors de l\'ajout de la fonction:', error); 
+        addFonctionMessage.textContent = 'Erreur réseau lors de l\'ajout de la fonction.'; 
+        addFonctionMessage.style.color = 'red'; 
     }
 }
 
-async function handleFonctionActions(event) { // Renommé
+async function handleFonctionActions(event) { 
     const target = event.target;
-    const fonctionId = target.dataset.id; // Renommé
+    const fonctionId = target.dataset.id; 
 
-    if (!fonctionId) return; // Renommé
+    if (!fonctionId) return; 
 
     if (target.classList.contains('edit-btn')) {
-        editFonctionId.value = fonctionId; // Renommé
-        editFonctionName.value = target.dataset.name; // Renommé
-        editFonctionMessage.textContent = ''; // Renommé
-        editFonctionModal.style.display = 'block'; // Renommé
+        editFonctionId.value = fonctionId; 
+        editFonctionName.value = target.dataset.name; 
+        editFonctionMessage.textContent = ''; 
+        editFonctionModal.style.display = 'block'; 
     } else if (target.classList.contains('delete-btn')) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer la fonction "${fonctionId}" ? Cela la retirera aussi des agents qui la possèdent.`)) { // Renommé
+        if (confirm(`Êtes-vous sûr de vouloir supprimer la fonction "${fonctionId}" ? Cela la retirera aussi des agents qui la possèdent.`)) { 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/fonctions/${fonctionId}`, { // Renommé functions en fonctions
+                const response = await fetch(`${API_BASE_URL}/api/fonctions/${fonctionId}`, { 
                     method: 'DELETE',
                     headers: { 'X-User-Role': 'admin' }
                 });
@@ -1149,31 +1151,31 @@ async function handleFonctionActions(event) { // Renommé
 
                 if (response.ok) {
                     console.log(data.message);
-                    await loadAvailableFonctions(); // Renommé
-                    await loadFonctionsList(); // Renommé
-                    renderNewAgentFonctionsCheckboxes(); // Renommé
+                    await loadAvailableFonctions(); 
+                    await loadFonctionsList(); 
+                    renderNewAgentFonctionsCheckboxes(); 
                     loadAgents(); // Recharger la liste des agents pour refléter les suppressions
                 } else {
                     console.error(`Erreur lors de la suppression : ${data.message}`);
                 }
             } catch (error) {
-                console.error('Erreur lors de la suppression de la fonction:', error); // Renommé
-                console.error('Erreur réseau lors de la suppression de la fonction.'); // Renommé
+                console.error('Erreur lors de la suppression de la fonction:', error); 
+                console.error('Erreur réseau lors de la suppression de la fonction.'); 
             }
         }
     }
 }
 
-async function handleEditFonction(event) { // Renommé
+async function handleEditFonction(event) { 
     event.preventDefault();
-    const id = editFonctionId.value.trim(); // Renommé
-    const name = editFonctionName.value.trim(); // Renommé
+    const id = editFonctionId.value.trim(); 
+    const name = editFonctionName.value.trim(); 
 
-    editFonctionMessage.textContent = 'Mise à jour en cours...'; // Renommé
-    editFonctionMessage.style.color = 'blue'; // Renommé
+    editFonctionMessage.textContent = 'Mise à jour en cours...'; 
+    editFonctionMessage.style.color = 'blue'; 
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/fonctions/${id}`, { // Renommé functions en fonctions
+        const response = await fetch(`${API_BASE_URL}/api/fonctions/${id}`, { 
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -1184,21 +1186,21 @@ async function handleEditFonction(event) { // Renommé
         const data = await response.json();
 
         if (response.ok) {
-            editFonctionMessage.textContent = data.message; // Renommé
-            editFonctionMessage.style.color = 'green'; // Renommé
-            await loadAvailableFonctions(); // Renommé
-            await loadFonctionsList(); // Renommé
-            renderNewAgentFonctionsCheckboxes(); // Renommé
+            editFonctionMessage.textContent = data.message; 
+            editFonctionMessage.style.color = 'green'; 
+            await loadAvailableFonctions(); 
+            await loadFonctionsList(); 
+            renderNewAgentFonctionsCheckboxes(); 
             loadAgents(); // Refresh agents list to update displayed function names
-            // editFonctionModal.style.display = 'none'; // Renommé
+            // editFonctionModal.style.display = 'none'; 
         } else {
-            editFonctionMessage.textContent = `Erreur : ${data.message}`; // Renommé
-            editFonctionMessage.style.color = 'red'; // Renommé
+            editFonctionMessage.textContent = `Erreur : ${data.message}`; 
+            editFonctionMessage.style.color = 'red'; 
         }
     } catch (error) {
-        console.error('Erreur lors de la mise à jour de la fonction:', error); // Renommé
-        editFonctionMessage.textContent = 'Erreur réseau lors de la mise à jour de la fonction.'; // Renommé
-        editFonctionMessage.style.color = 'red'; // Renommé
+        console.error('Erreur lors de la mise à jour de la fonction:', error); 
+        editFonctionMessage.textContent = 'Erreur réseau lors de la mise à jour de la fonction.'; 
+        editFonctionMessage.style.color = 'red'; 
     }
 }
 

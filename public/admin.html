@@ -26,6 +26,7 @@
     <nav class="main-tabs-navigation">
       <button class="main-tab active" data-main-tab="global-planning-view">Planning Global</button>
       <button class="main-tab" data-main-tab="agent-management-view">Gestion des Agents</button>
+      <button class="main-tab" data-main-tab="qualification-management-view">Gestion des Qualifications</button>
       <button class="main-tab" data-main-tab="grade-management-view">Gestion des Grades</button>
       <button class="main-tab" data-main-tab="fonction-management-view">Gestion des Fonctions</button>
     </nav>
@@ -74,6 +75,14 @@
                 <input type="password" id="newAgentPassword" required><br><br>
 
                 <div>
+                    <h4>Qualifications de l'Agent :</h4>
+                    <div id="newAgentQualificationsCheckboxes">
+                        <!-- Les cases à cocher des qualifications seront chargées ici par JavaScript -->
+                        Chargement des qualifications...
+                    </div>
+                </div>
+                <br>
+                <div>
                     <h4>Grades de l'Agent :</h4>
                     <div id="newAgentGradesCheckboxes">
                         <!-- Les cases à cocher des grades seront chargées ici par JavaScript -->
@@ -105,16 +114,53 @@
                         <th>Identifiant</th>
                         <th>Nom</th>
                         <th>Prénom</th>
+                        <th>Qualifications</th>
                         <th>Grades</th>
                         <th>Fonctions</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="agentsTableBody">
-                    <tr><td colspan="6">Chargement des agents...</td></tr>
+                    <tr><td colspan="7">Chargement des agents...</td></tr>
                 </tbody>
             </table>
             <p id="listAgentsMessage"></p>
+        </section>
+    </div>
+
+    <!-- NOUVEAU : Conteneur pour la vue de Gestion des Qualifications -->
+    <div id="qualification-management-view" class="main-tab-content hidden">
+        <section id="add-qualification-section">
+            <h3>Ajouter une Nouvelle Qualification</h3>
+            <form id="addQualificationForm">
+                <label for="newQualId">Identifiant (ex: chef-agr) :</label>
+                <input type="text" id="newQualId" required><br><br>
+
+                <label for="newQualName">Nom de la Qualification (ex: Chef d'Agrès) :</label>
+                <input type="text" id="newQualName" required><br><br>
+
+                <button type="submit" class="btn btn-primary">Ajouter la Qualification</button>
+            </form>
+            <p id="addQualificationMessage"></p>
+        </section>
+
+        <hr>
+
+        <section id="list-qualifications-section">
+            <h3>Liste des Qualifications</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identifiant</th>
+                        <th>Nom</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="qualificationsTableBody">
+                    <tr><td colspan="3">Chargement des qualifications...</td></tr>
+                </tbody>
+            </table>
+            <p id="listQualificationsMessage"></p>
         </section>
     </div>
 
@@ -196,7 +242,7 @@
     </footer>
   </div>
 
-  <!-- Modale de modification d'agent et de grades, fonctions -->
+  <!-- Modale de modification d'agent et de qualifications, grades, fonctions -->
   <div id="editAgentModal" class="modal" style="display: none;">
       <div class="modal-content">
           <span class="close-button">&times;</span>
@@ -213,6 +259,15 @@
               <label for="editAgentNewPassword">Nouveau mot de passe (laisser vide pour ne pas modifier) :</label>
               <input type="password" id="editAgentNewPassword"><br><br>
 
+              <div>
+                  <h4>Qualifications de l'Agent :</h4>
+                  <div id="qualificationsCheckboxes">
+                      <!-- Les cases à cocher des qualifications seront chargées ici par JavaScript -->
+                      Chargement des qualifications...
+                  </div>
+                  <p id="qualificationsMessage" style="color: red;"></p>
+              </div>
+              <br>
               <div>
                   <h4>Grades de l'Agent :</h4>
                   <div id="gradesCheckboxes">
@@ -235,6 +290,23 @@
               <button type="submit" class="btn btn-primary">Mettre à jour l'Agent</button>
           </form>
           <p id="editAgentMessage"></p>
+      </div>
+  </div>
+
+  <!-- Modale de modification de qualification -->
+  <div id="editQualificationModal" class="modal" style="display: none;">
+      <div class="modal-content">
+          <span class="close-button">&times;</span>
+          <h3>Modifier la Qualification</h3>
+          <form id="editQualificationForm">
+              <input type="hidden" id="editQualId">
+
+              <label for="editQualName">Nom de la Qualification :</label>
+              <input type="text" id="editQualName" required><br><br>
+
+              <button type="submit" class="btn btn-primary">Mettre à jour la Qualification</button>
+          </form>
+          <p id="editQualMessage"></p>
       </div>
   </div>
 

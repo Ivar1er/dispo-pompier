@@ -24,7 +24,7 @@ const DATA_DIR = path.join(PERSISTENT_DIR, 'plannings');
 const USERS_FILE_PATH = path.join(PERSISTENT_DIR, 'users.json');
 const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json');
 const GRADES_FILE_PATH = path.join(PERSISTENT_DIR, 'grades.json'); // Nouveau chemin pour les grades
-const FUNCTIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'functions.json'); // Nouveau chemin pour les fonctions
+const FONCTIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'fonctions.json'); // Chemin mis à jour pour les fonctions
 
 // Nouveaux chemins pour la persistance de la feuille de garde
 const ROSTER_CONFIG_DIR = path.join(PERSISTENT_DIR, 'roster_configs');
@@ -33,7 +33,7 @@ const DAILY_ROSTER_DIR = path.join(PERSISTENT_DIR, 'daily_rosters');
 let USERS = {}; // L'objet USERS sera chargé depuis le fichier
 let AVAILABLE_QUALIFICATIONS = []; // La liste des qualifications disponibles sera chargée depuis le fichier
 let AVAILABLE_GRADES = []; // Nouvelle variable pour les grades disponibles
-let AVAILABLE_FUNCTIONS = []; // Nouvelle variable pour les fonctions disponibles
+let AVAILABLE_FONCTIONS = []; // Variable mise à jour pour les fonctions disponibles
 
 // Mot de passe par défaut pour le premier administrateur si le fichier users.json n'existe pas
 const DEFAULT_ADMIN_PASSWORD = 'supersecureadminpassword'; // À changer absolument en production !
@@ -145,16 +145,16 @@ async function saveGrades() {
   }
 }
 
-// NOUVELLE FONCTION : Charger les fonctions depuis functions.json
-async function loadFunctions() {
+// NOUVELLE FONCTION : Charger les fonctions depuis fonctions.json
+async function loadFonctions() {
     try {
-        const data = await fs.readFile(FUNCTIONS_FILE_PATH, 'utf8');
-        AVAILABLE_FUNCTIONS = JSON.parse(data);
-        console.log('Functions loaded from', FUNCTIONS_FILE_PATH);
+        const data = await fs.readFile(FONCTIONS_FILE_PATH, 'utf8');
+        AVAILABLE_FONCTIONS = JSON.parse(data);
+        console.log('Fonctions loaded from', FONCTIONS_FILE_PATH);
     } catch (err) {
         if (err.code === 'ENOENT') {
-            console.warn('functions.json not found. Creating default functions.');
-            AVAILABLE_FUNCTIONS = [
+            console.warn('fonctions.json not found. Creating default fonctions.');
+            AVAILABLE_FONCTIONS = [
                 { id: 'EQ', name: 'Équipier' },
                 { id: 'COD0', name: 'Conducteur VSAV' },
                 { id: 'EQ1_FPT', name: 'Équipier 1 FPT' },
@@ -169,21 +169,21 @@ async function loadFunctions() {
                 { id: 'CA_VTU', name: 'Chef Agrès VTU' },
                 { id: 'CA_VPMA', name: 'Chef Agrès VPMA' }
             ];
-            await saveFunctions();
-            console.log('Default functions created.');
+            await saveFonctions();
+            console.log('Default fonctions created.');
         } else {
-            console.error('Error loading functions:', err);
+            console.error('Error loading fonctions:', err);
         }
     }
 }
 
-// NOUVELLE FONCTION : Sauvegarder les fonctions vers functions.json
-async function saveFunctions() {
+// NOUVELLE FONCTION : Sauvegarder les fonctions vers fonctions.json
+async function saveFonctions() {
     try {
-        await fs.writeFile(FUNCTIONS_FILE_PATH, JSON.stringify(AVAILABLE_FUNCTIONS, null, 2), 'utf8');
-        console.log('Functions saved to', FUNCTIONS_FILE_PATH);
+        await fs.writeFile(FONCTIONS_FILE_PATH, JSON.stringify(AVAILABLE_FONCTIONS, null, 2), 'utf8');
+        console.log('Fonctions saved to', FONCTIONS_FILE_PATH);
     } catch (err) {
-        console.error('Error saving functions:', err);
+        console.error('Error saving fonctions:', err);
     }
 }
 
@@ -200,8 +200,8 @@ async function initializeRosterFolders() {
   await initializeRosterFolders(); // Initialize new roster folders
   await loadUsers(); // Loads users at server startup
   await loadQualifications(); // Loads qualifications at server startup
-  await loadGrades(); // Loads grades at server startup
-  await loadFunctions(); // Loads functions at server startup
+  await loadGrades(); // Charger les grades au démarrage
+  await loadFonctions(); // Charger les fonctions au démarrage
 })();
 
 // Middleware to check if the user is an administrator
@@ -619,74 +619,74 @@ app.delete('/api/grades/:id', authorizeAdmin, async (req, res) => {
 
 // --- NOUVELLES ROUTES POUR LA GESTION DES FONCTIONS ---
 
-// GET /api/functions - Get all available functions
-app.get('/api/functions', authorizeAdmin, (req, res) => {
-    res.json(AVAILABLE_FUNCTIONS);
+// GET /api/fonctions - Get all available fonctions
+app.get('/api/fonctions', authorizeAdmin, (req, res) => {
+    res.json(AVAILABLE_FONCTIONS);
 });
 
-// POST /api/functions - Add a new function
-app.post('/api/functions', authorizeAdmin, async (req, res) => {
+// POST /api/fonctions - Add a new fonction
+app.post('/api/fonctions', authorizeAdmin, async (req, res) => {
     const { id, name } = req.body;
     if (!id || !name) {
         return res.status(400).json({ message: 'ID et nom de la fonction sont requis.' });
     }
-    const functionId = id; // Garder l'ID tel quel si les fonctions ont des IDs spécifiques
-    if (AVAILABLE_FUNCTIONS.some(f => f.id === functionId)) {
+    const fonctionId = id; // Garder l'ID tel quel si les fonctions ont des IDs spécifiques
+    if (AVAILABLE_FONCTIONS.some(f => f.id === fonctionId)) {
         return res.status(409).json({ message: 'Cet ID de fonction existe déjà.' });
     }
 
-    AVAILABLE_FUNCTIONS.push({ id: functionId, name: name });
+    AVAILABLE_FONCTIONS.push({ id: fonctionId, name: name });
     try {
-        await saveFunctions();
-        res.status(201).json({ message: 'Fonction ajoutée avec succès', fonction: { id: functionId, name } });
+        await saveFonctions();
+        res.status(201).json({ message: 'Fonction ajoutée avec succès', fonction: { id: fonctionId, name } });
     } catch (error) {
         console.error("Erreur lors de l'ajout de la fonction:", error);
         res.status(500).json({ message: "Erreur serveur lors de l'ajout de la fonction." });
     }
 });
 
-// PUT /api/functions/:id - Modify an existing function
-app.put('/api/functions/:id', authorizeAdmin, async (req, res) => {
-    const functionId = req.params.id;
+// PUT /api/fonctions/:id - Modify an existing fonction
+app.put('/api/fonctions/:id', authorizeAdmin, async (req, res) => {
+    const fonctionId = req.params.id;
     const { name } = req.body;
 
-    const index = AVAILABLE_FUNCTIONS.findIndex(f => f.id === functionId);
+    const index = AVAILABLE_FONCTIONS.findIndex(f => f.id === fonctionId);
     if (index === -1) {
         return res.status(404).json({ message: 'Fonction non trouvée.' });
     }
 
-    AVAILABLE_FUNCTIONS[index].name = name || AVAILABLE_FUNCTIONS[index].name;
+    AVAILABLE_FONCTIONS[index].name = name || AVAILABLE_FONCTIONS[index].name;
     try {
-        await saveFunctions();
-        res.json({ message: 'Fonction mise à jour avec succès', fonction: AVAILABLE_FUNCTIONS[index] });
+        await saveFonctions();
+        res.json({ message: 'Fonction mise à jour avec succès', fonction: AVAILABLE_FONCTIONS[index] });
     } catch (error) {
         console.error("Erreur lors de la mise à jour de la fonction:", error);
         res.status(500).json({ message: "Erreur serveur lors de la mise à jour de la fonction." });
     }
 });
 
-// DELETE /api/functions/:id - Delete a function
-app.delete('/api/functions/:id', authorizeAdmin, async (req, res) => {
-    const functionId = req.params.id;
+// DELETE /api/fonctions/:id - Delete a fonction
+app.delete('/api/fonctions/:id', authorizeAdmin, async (req, res) => {
+    const fonctionId = req.params.id;
 
-    const initialLength = AVAILABLE_FUNCTIONS.length;
-    AVAILABLE_FUNCTIONS = AVAILABLE_FUNCTIONS.filter(f => f.id !== functionId);
+    const initialLength = AVAILABLE_FONCTIONS.length;
+    AVAILABLE_FONCTIONS = AVAILABLE_FONCTIONS.filter(f => f.id !== fonctionId);
 
-    if (AVAILABLE_FUNCTIONS.length === initialLength) {
+    if (AVAILABLE_FONCTIONS.length === initialLength) {
         return res.status(404).json({ message: 'Fonction non trouvée.' });
     }
 
     // Optionnel: Supprimer cette fonction de tous les utilisateurs qui l'ont
     let usersModified = false;
     for (const userId in USERS) {
-        if (USERS[userId].fonctions && USERS[userId].fonctions.includes(functionId)) {
-            USERS[userId].fonctions = USERS[userId].fonctions.filter(f => f !== functionId);
+        if (USERS[userId].fonctions && USERS[userId].fonctions.includes(fonctionId)) {
+            USERS[userId].fonctions = USERS[userId].fonctions.filter(f => f !== fonctionId);
             usersModified = true;
         }
     }
 
     try {
-        await saveFunctions();
+        await saveFonctions();
         if (usersModified) {
             await saveUsers();
         }
@@ -705,7 +705,7 @@ app.delete('/api/functions/:id', authorizeAdmin, async (req, res) => {
 app.get('/api/roster-config/:dateKey', async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. Attenduबद्दल-MM-DD.' });
     }
     const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
     try {
@@ -726,7 +726,7 @@ app.get('/api/roster-config/:dateKey', async (req, res) => {
 app.post('/api/roster-config/:dateKey', authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. Attenduबद्दल-MM-DD.' });
     }
     const { timeSlots, onDutyAgents } = req.body;
     if (!timeSlots || !onDutyAgents) {
@@ -747,7 +747,7 @@ app.post('/api/roster-config/:dateKey', authorizeAdmin, async (req, res) => {
 app.get('/api/daily-roster/:dateKey', async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. Attenduबद्दल-MM-DD.' });
     }
     const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
     try {
@@ -768,7 +768,7 @@ app.get('/api/daily-roster/:dateKey', async (req, res) => {
 app.post('/api/daily-roster/:dateKey', authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. Attenduबद्दल-MM-DD.' });
     }
     const { roster } = req.body;
     if (!roster) {
@@ -900,6 +900,6 @@ async function initializeSampleRosterDataForTesting() {
     await loadUsers();
     await loadQualifications();
     await loadGrades(); // Charger les grades au démarrage
-    await loadFunctions(); // Charger les fonctions au démarrage
+    await loadFonctions(); // Charger les fonctions au démarrage
     await initializeSampleRosterDataForTesting(); // Appel de la fonction d'initialisation des données de test
 })();
