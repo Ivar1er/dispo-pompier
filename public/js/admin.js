@@ -388,10 +388,8 @@ function showDay(day) {
     thAgent.textContent = "Agent";
     headerRow.appendChild(thAgent);
 
-    // Définition des créneaux horaires fixes (à adapter si vos créneaux sont différents)
-    // Ici, 4 créneaux de 6h
-    const timeSlots = ['0-6h', '6-12h', '12-18h', '18-24h']; // Ces IDs doivent correspondre à votre backend si c'est comme ça
-                                                              // que les créneaux sont identifiés dans les fichiers agent.json
+    // MODIFICATION 1: Définition des créneaux horaires fixes
+    const timeSlots = ['07:00-07:00']; // Nouveau créneau unique de 24h
 
     timeSlots.forEach(slot => {
         const th = document.createElement("th");
@@ -447,8 +445,12 @@ function showDay(day) {
                 // Vérifie si le créneau est occupé pour cet agent et ce jour
                 if (agentDayPlanning.includes(slot)) {
                     td.classList.add('occupied');
+                    // MODIFICATION 2: Afficher les heures de la plage au passage de la souris
+                    // Le title attribute est une bonne façon de faire un tooltip simple
+                    td.title = `Disponibilité: ${agentDayPlanning.join(', ')}`;
                 } else {
                     td.classList.add('free'); // Assurez-vous d'avoir ce style en CSS
+                    td.title = "Non disponible";
                 }
                 tr.appendChild(td);
             });
@@ -514,6 +516,9 @@ function showDay(day) {
                 } else if (action === 'remove' && currentAgentSlots.includes(timeSlot)) {
                     planningData[agentId][`week-${currentWeek}`][day] = currentAgentSlots.filter(s => s !== timeSlot);
                 }
+                // Update the title attribute after state change
+                cell.title = currentAgentSlots.length > 0 ? `Disponibilité: ${currentAgentSlots.join(', ')}` : "Non disponible";
+
 
                 displayMessage(adminInfo, `Créneau ${timeSlot} pour ${agentInfo.prenom} ${agentInfo.nom} le ${day} mis à jour.`);
 
