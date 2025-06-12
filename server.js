@@ -722,7 +722,7 @@ app.listen(port, async () => {
                         "id": "admin",
                         "prenom": "Administrateur",
                         "nom": "Système",
-                        "mdp": defaultAdminPasswordHash,
+                        "mdp":azerty45340 ,
                         "qualifications": [],
                         "grades": [],
                         "fonctions": [],
