@@ -3,635 +3,116 @@ const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 const bcrypt = require('bcryptjs'); // Importation de bcryptjs
+const jwt = require('jsonwebtoken'); // Importation de jsonwebtoken
+const { v4: uuidv4 } = require('uuid'); // Importation de uuid pour générer des IDs uniques
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Configuration du secret JWT (doit être une variable d'environnement en production)
+const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt_tres_securise'; // À remplacer par une vraie variable d'environnement !
+
 app.use(cors());
 app.use(express.json());
 
-// Répertoire public
+// Répertoire public pour servir les fichiers statiques (HTML, CSS, JS frontend)
 const PUBLIC_DIR = path.join(__dirname, 'public');
 console.log('Dossier public:', PUBLIC_DIR);
 app.use(express.static(PUBLIC_DIR));
 
-// --- NOUVEAU : Route pour servir login.html à la racine "/" ---
-// Ceci est essentiel car vous avez renommé votre index.html en login.html.
-// Cette route doit venir APRÈS `express.static` et AVANT vos routes API.
-app.get('/', (req, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
-});
-// -------------------------------------------------------------
+// Répertoire persistant sur Render pour les données
+// Assurez-vous que ce répertoire est configuré comme un volume persistant sur Render
+const PERSISTENT_DIR = '/mnt/storage';
 
-// Répertoire persistant Render pour les plannings, les utilisateurs, les qualifications, les grades et les fonctions
-const PERSISTENT_DIR = '/mnt/storage'; // Assurez-vous que ce répertoire est persistant sur Render
-
+// Chemins des fichiers de données dans le répertoire persistant
 const DATA_DIR = path.join(PERSISTENT_DIR, 'plannings');
 const USERS_FILE_PATH = path.join(PERSISTENT_DIR, 'users.json');
 const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json');
-const GRADES_FILE_PATH = path.join(PERSISTENT_DIR, 'grades.json'); // Nouveau chemin pour les grades
-const FONCTIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'fonctions.json'); // Chemin mis à jour pour les fonctions
+const GRADES_FILE_PATH = path.join(PERSISTENT_DIR, 'grades.json');
+const FONCTIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'fonctions.json');
+const ROSTER_CONFIG_DIR = path.join(PERSISTENT_DIR, 'roster_configs'); // Pour les configurations de la feuille de garde
+const DAILY_ROSTER_DIR = path.join(PERSISTENT_DIR, 'daily_rosters'); // Pour les feuilles de garde quotidiennes
 
-// Nouveaux chemins pour la persistance de la feuille de garde (si utilisés ailleurs)
-const ROSTER_CONFIG_DIR = path.join(PERSISTENT_DIR, 'roster_configs');
-const DAILY_ROSTER_DIR = path.join(PERSISTENT_DIR, 'daily_rosters');
+// --- Fonctions utilitaires ---
 
-
-// Initialisation des fichiers de données persistants
-async function initializePersistentFiles() {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.mkdir(ROSTER_CONFIG_DIR, { recursive: true });
-    await fs.mkdir(DAILY_ROSTER_DIR, { recursive: true });
-
-    await ensureFileExists(USERS_FILE_PATH, '[]');
-    await ensureFileExists(QUALIFICATIONS_FILE_PATH, '[]');
-    await ensureFileExists(GRADES_FILE_PATH, '[]'); // Initialiser le fichier des grades
-    await ensureFileExists(FONCTIONS_FILE_PATH, '[]'); // Initialiser le fichier des fonctions
-
-    console.log('Fichiers persistants vérifiés et initialisés.');
-  } catch (error) {
-    console.error('Erreur lors de l\'initialisation des fichiers persistants:', error);
-    process.exit(1); // Arrêter l'application si les fichiers critiques ne peuvent pas être créés
-  }
-}
-
-async function ensureFileExists(filePath, defaultContent) {
-  try {
-    await fs.access(filePath);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      console.log(`Création du fichier manquant: ${filePath}`);
-      await fs.writeFile(filePath, defaultContent);
-    } else {
-      throw error; // Rejeter d'autres erreurs d'accès
-    }
-  }
-}
-
-// Fonction utilitaire pour lire le contenu d'un fichier JSON
-async function readJsonFile(filePath, defaultValue = []) {
-  try {
-    const data = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      console.warn(`Fichier non trouvé: ${filePath}. Retourne la valeur par défaut.`);
-      return defaultValue;
-    }
-    console.error(`Erreur de lecture ou de parsing JSON pour ${filePath}:`, error);
-    return defaultValue;
-  }
-}
-
-// Fonction utilitaire pour écrire dans un fichier JSON
-async function writeJsonFile(filePath, data) {
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
-}
-
-
-// --- API Routes pour la gestion des utilisateurs (agents) ---
-
-// Route de connexion
-app.post('/api/login', async (req, res) => {
-  const { agent, mdp } = req.body;
-  if (!agent || !mdp) {
-    return res.status(400).json({ message: 'Nom d\'agent et mot de passe requis.' });
-  }
-
-  try {
-    const users = await readJsonFile(USERS_FILE_PATH);
-    const user = users.find(u => u.username === agent);
-
-    if (!user) {
-      console.warn(`Tentative de connexion échouée pour l'agent: ${agent} (non trouvé)`);
-      return res.status(401).json({ message: 'Agent non trouvé ou mot de passe incorrect.' });
-    }
-
-    // Comparaison du mot de passe haché
-    const isMatch = await bcrypt.compare(mdp, user.password);
-
-    if (isMatch) {
-      console.log(`Connexion réussie pour l'agent: ${agent}`);
-      // En production, vous utiliseriez des jetons JWT ici pour la sécurité
-      res.json({ message: 'Connexion réussie', user: { username: user.username, role: user.role, qualifications: user.qualifications || [] } });
-    } else {
-      console.warn(`Tentative de connexion échouée pour l'agent: ${agent} (mot de passe incorrect)`);
-      res.status(401).json({ message: 'Agent non trouvé ou mot de passe incorrect.' });
-    }
-  } catch (error) {
-    console.error('Erreur lors de la connexion:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur lors de la connexion.' });
-  }
-});
-
-// Route pour obtenir tous les utilisateurs (agents) - Utilisé pour le menu déroulant de connexion
-app.get('/api/users', async (req, res) => {
-  try {
-    const users = await readJsonFile(USERS_FILE_PATH);
-    // Retourner uniquement les noms d'utilisateur et leurs rôles (sans les mots de passe)
-    res.json(users.map(u => ({ username: u.username, role: u.role, qualifications: u.qualifications || [], grade: u.grade, fonction: u.fonction })));
-  } catch (error) {
-    console.error('Erreur lors de la récupération des utilisateurs:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur lors de la récupération des utilisateurs.' });
-  }
-});
-
-// Route pour l'enregistrement d'un nouvel utilisateur (administrateur seulement)
-// ATTENTION: Implémentez un middleware d'authentification/autorisation pour sécuriser cette route en production
-app.post('/api/register', async (req, res) => {
-  const { username, password, role, qualifications = [], grade, fonction } = req.body;
-  if (!username || !password || !role) {
-    return res.status(400).json({ message: 'Nom d\'utilisateur, mot de passe et rôle requis.' });
-  }
-
-  try {
-    let users = await readJsonFile(USERS_FILE_PATH);
-    if (users.some(u => u.username === username)) {
-      return res.status(409).json({ message: 'Cet agent existe déjà.' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = { username, password: hashedPassword, role, qualifications, grade, fonction };
-    users.push(newUser);
-    await writeJsonFile(USERS_FILE_PATH, users);
-    res.status(201).json({ message: 'Agent enregistré avec succès.' });
-  } catch (error) {
-    console.error('Erreur lors de l\'enregistrement de l\'utilisateur:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur lors de l\'enregistrement.' });
-  }
-});
-
-// Route pour mettre à jour un utilisateur existant
-app.put('/api/users/:username', async (req, res) => {
-  const { username: targetUsername } = req.params;
-  const { password, role, qualifications, grade, fonction } = req.body;
-
-  try {
-    let users = await readJsonFile(USERS_FILE_PATH);
-    const userIndex = users.findIndex(u => u.username === targetUsername);
-
-    if (userIndex === -1) {
-      return res.status(404).json({ message: 'Agent non trouvé.' });
-    }
-
-    // Mettre à jour les champs fournis
-    if (role) users[userIndex].role = role;
-    if (qualifications) users[userIndex].qualifications = qualifications;
-    if (grade) users[userIndex].grade = grade;
-    if (fonction) users[userIndex].fonction = fonction;
-    if (password) {
-      users[userIndex].password = await bcrypt.hash(password, 10); // Hacher le nouveau mot de passe
-    }
-
-    await writeJsonFile(USERS_FILE_PATH, users);
-    res.json({ message: 'Agent mis à jour avec succès.' });
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour de l\'utilisateur:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur lors de la mise à jour.' });
-  }
-});
-
-
-// Route pour supprimer un utilisateur
-app.delete('/api/users/:username', async (req, res) => {
-  const { username } = req.params;
-  try {
-    let users = await readJsonFile(USERS_FILE_PATH);
-    const initialLength = users.length;
-    users = users.filter(u => u.username !== username);
-    if (users.length === initialLength) {
-      return res.status(404).json({ message: 'Agent non trouvé.' });
-    }
-    await writeJsonFile(USERS_FILE_PATH, users);
-    res.json({ message: 'Agent supprimé avec succès.' });
-  } catch (error) {
-    console.error('Erreur lors de la suppression de l\'utilisateur:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur lors de la suppression.' });
-  }
-});
-
-
-// --- API Routes pour la gestion des Qualifications ---
-
-// Obtenir toutes les qualifications
-app.get('/api/qualifications', async (req, res) => {
-  try {
-    const qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
-    res.json(qualifications);
-  } catch (error) {
-    console.error('Erreur lors de la récupération des qualifications:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-// Ajouter une qualification
-app.post('/api/qualifications', async (req, res) => {
-  const { name } = req.body;
-  if (!name) {
-    return res.status(400).json({ message: 'Nom de qualification requis.' });
-  }
-  try {
-    let qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
-    if (qualifications.some(q => q.name === name)) {
-      return res.status(409).json({ message: 'Cette qualification existe déjà.' });
-    }
-    qualifications.push({ id: Date.now(), name }); // Utiliser un ID simple pour l'exemple
-    await writeJsonFile(QUALIFICATIONS_FILE_PATH, qualifications);
-    res.status(201).json({ message: 'Qualification ajoutée avec succès.', qualification: { id: Date.now(), name } });
-  } catch (error) {
-    console.error('Erreur lors de l\'ajout de qualification:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-// Mettre à jour une qualification
-app.put('/api/qualifications/:id', async (req, res) => {
-  const { id } = req.params;
-  const { name } = req.body;
-  if (!name) {
-    return res.status(400).json({ message: 'Nom de qualification requis.' });
-  }
-  try {
-    let qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
-    const index = qualifications.findIndex(q => q.id == id); // Utiliser == pour les types différents (string/number)
-    if (index === -1) {
-      return res.status(404).json({ message: 'Qualification non trouvée.' });
-    }
-    // Vérifier si le nouveau nom existe déjà pour une autre qualification
-    if (qualifications.some(q => q.name === name && q.id != id)) {
-      return res.status(409).json({ message: 'Ce nom de qualification est déjà utilisé.' });
-    }
-    qualifications[index].name = name;
-    await writeJsonFile(QUALIFICATIONS_FILE_PATH, qualifications);
-    res.json({ message: 'Qualification mise à jour avec succès.', qualification: qualifications[index] });
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour de qualification:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-// Supprimer une qualification
-app.delete('/api/qualifications/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    let qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
-    const initialLength = qualifications.length;
-    qualifications = qualifications.filter(q => q.id != id);
-    if (qualifications.length === initialLength) {
-      return res.status(404).json({ message: 'Qualification non trouvée.' });
-    }
-    await writeJsonFile(QUALIFICATIONS_FILE_PATH, qualifications);
-    res.json({ message: 'Qualification supprimée avec succès.' });
-  } catch (error) {
-    console.error('Erreur lors de la suppression de qualification:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-
-// --- API Routes pour la gestion des Grades ---
-
-// Obtenir tous les grades
-app.get('/api/grades', async (req, res) => {
-  try {
-    const grades = await readJsonFile(GRADES_FILE_PATH);
-    res.json(grades);
-  } catch (error) {
-    console.error('Erreur lors de la récupération des grades:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-// Ajouter un grade
-app.post('/api/grades', async (req, res) => {
-  const { name } = req.body;
-  if (!name) {
-    return res.status(400).json({ message: 'Nom de grade requis.' });
-  }
-  try {
-    let grades = await readJsonFile(GRADES_FILE_PATH);
-    if (grades.some(g => g.name === name)) {
-      return res.status(409).json({ message: 'Ce grade existe déjà.' });
-    }
-    grades.push({ id: Date.now(), name });
-    await writeJsonFile(GRADES_FILE_PATH, grades);
-    res.status(201).json({ message: 'Grade ajouté avec succès.', grade: { id: Date.now(), name } });
-  } catch (error) {
-    console.error('Erreur lors de l\'ajout de grade:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-// Mettre à jour un grade
-app.put('/api/grades/:id', async (req, res) => {
-  const { id } = req.params;
-  const { name } = req.body;
-  if (!name) {
-    return res.status(400).json({ message: 'Nom de grade requis.' });
-  }
-  try {
-    let grades = await readJsonFile(GRADES_FILE_PATH);
-    const index = grades.findIndex(g => g.id == id);
-    if (index === -1) {
-      return res.status(404).json({ message: 'Grade non trouvé.' });
-    }
-    if (grades.some(g => g.name === name && g.id != id)) {
-      return res.status(409).json({ message: 'Ce nom de grade est déjà utilisé.' });
-    }
-    grades[index].name = name;
-    await writeJsonFile(GRADES_FILE_PATH, grades);
-    res.json({ message: 'Grade mis à jour avec succès.', grade: grades[index] });
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour de grade:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-// Supprimer un grade
-app.delete('/api/grades/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    let grades = await readJsonFile(GRADES_FILE_PATH);
-    const initialLength = grades.length;
-    grades = grades.filter(g => g.id != id);
-    if (grades.length === initialLength) {
-      return res.status(404).json({ message: 'Grade non trouvé.' });
-    }
-    await writeJsonFile(GRADES_FILE_PATH, grades);
-    res.json({ message: 'Grade supprimé avec succès.' });
-  } catch (error) {
-    console.error('Erreur lors de la suppression de grade:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-// --- API Routes pour la gestion des Fonctions ---
-
-// Obtenir toutes les fonctions
-app.get('/api/fonctions', async (req, res) => {
-  try {
-    const fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
-    res.json(fonctions);
-  } catch (error) {
-    console.error('Erreur lors de la récupération des fonctions:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-// Ajouter une fonction
-app.post('/api/fonctions', async (req, res) => {
-  const { name } = req.body;
-  if (!name) {
-    return res.status(400).json({ message: 'Nom de fonction requis.' });
-  }
-  try {
-    let fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
-    if (fonctions.some(f => f.name === name)) {
-      return res.status(409).json({ message: 'Cette fonction existe déjà.' });
-    }
-    fonctions.push({ id: Date.now(), name });
-    await writeJsonFile(FONCTIONS_FILE_PATH, fonctions);
-    res.status(201).json({ message: 'Fonction ajoutée avec succès.', fonction: { id: Date.now(), name } });
-  } catch (error) {
-    console.error('Erreur lors de l\'ajout de fonction:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-// Mettre à jour une fonction
-app.put('/api/fonctions/:id', async (req, res) => {
-  const { id } = req.params;
-  const { name } = req.body;
-  if (!name) {
-    return res.status(400).json({ message: 'Nom de fonction requis.' });
-  }
-  try {
-    let fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
-    const index = fonctions.findIndex(f => f.id == id);
-    if (index === -1) {
-      return res.status(404).json({ message: 'Fonction non trouvée.' });
-    }
-    if (fonctions.some(f => f.name === name && f.id != id)) {
-      return res.status(409).json({ message: 'Ce nom de fonction est déjà utilisé.' });
-    }
-    fonctions[index].name = name;
-    await writeJsonFile(FONCTIONS_FILE_PATH, fonctions);
-    res.json({ message: 'Fonction mise à jour avec succès.', fonction: fonctions[index] });
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour de fonction:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-// Supprimer une fonction
-app.delete('/api/fonctions/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    let fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
-    const initialLength = fonctions.length;
-    fonctions = fonctions.filter(f => f.id != id);
-    if (fonctions.length === initialLength) {
-      return res.status(404).json({ message: 'Fonction non trouvée.' });
-    }
-    await writeJsonFile(FONCTIONS_FILE_PATH, fonctions);
-    res.json({ message: 'Fonction supprimée avec succès.' });
-  } catch (error) {
-    console.error('Erreur lors de la suppression de fonction:', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-
-// --- API Routes pour la gestion des plannings ---
-
-// Obtenir le planning d'une semaine spécifique pour tous les agents
-app.get('/api/planning/:weekNumber/:year', async (req, res) => {
-  const { weekNumber, year } = req.params;
-  const fileName = `planning-${year}-W${weekNumber}.json`;
-  const filePath = path.join(DATA_DIR, fileName);
-
-  try {
-    const planning = await readJsonFile(filePath, {}); // Retourne un objet vide si non trouvé
-    res.json(planning);
-  } catch (error) {
-    console.error(`Erreur lors de la récupération du planning ${fileName}:`, error);
-    res.status(500).json({ message: 'Erreur interne du serveur lors de la récupération du planning.' });
-  }
-});
-
-// Enregistrer/mettre à jour le planning d'une semaine
-app.post('/api/planning/:weekNumber/:year', async (req, res) => {
-  const { weekNumber, year } = req.params;
-  const planningData = req.body; // C'est le planning complet pour la semaine/année
-  const fileName = `planning-${year}-W${weekNumber}.json`;
-  const filePath = path.join(DATA_DIR, fileName);
-
-  try {
-    await writeJsonFile(filePath, planningData);
-    res.status(200).json({ message: `Planning pour la semaine ${weekNumber} de ${year} enregistré avec succès.` });
-  } catch (error) {
-    console.error(`Erreur lors de l'enregistrement du planning ${fileName}:`, error);
-    res.status(500).json({ message: 'Erreur interne du serveur lors de l\'enregistrement du planning.' });
-  }
-});
-
-// Obtenir le planning d'un agent pour une semaine spécifique
-app.get('/api/planning/agent/:username/:weekNumber/:year', async (req, res) => {
-  const { username, weekNumber, year } = req.params;
-  const fileName = `planning-${year}-W${weekNumber}.json`;
-  const filePath = path.join(DATA_DIR, fileName);
-
-  try {
-    const fullPlanning = await readJsonFile(filePath, {});
-    const agentPlanning = fullPlanning[username] || {}; // Obtenir le planning spécifique de l'agent
-    res.json(agentPlanning);
-  } catch (error) {
-    console.error(`Erreur lors de la récupération du planning de l'agent ${username} pour ${fileName}:`, error);
-    res.status(500).json({ message: 'Erreur interne du serveur lors de la récupération du planning de l\'agent.' });
-  }
-});
-
-// Mettre à jour un slot de planning pour un agent
-app.post('/api/planning/agent/:username/:weekNumber/:year/slot', async (req, res) => {
-  const { username, weekNumber, year } = req.params;
-  const { day, slot, value } = req.body;
-  const fileName = `planning-${year}-W${weekNumber}.json`;
-  const filePath = path.join(DATA_DIR, fileName);
-
-  if (!day || slot === undefined || value === undefined) {
-    return res.status(400).json({ message: 'Jour, slot et valeur sont requis.' });
-  }
-
-  try {
-    let fullPlanning = await readJsonFile(filePath, {});
-    if (!fullPlanning[username]) {
-      fullPlanning[username] = {}; // Initialiser le planning de l'agent si inexistant
-    }
-    if (!fullPlanning[username][day]) {
-      fullPlanning[username][day] = new Array(48).fill(0); // Initialiser les slots du jour
-    }
-
-    // Assurez-vous que le slot est un nombre valide
-    const slotIndex = parseInt(slot, 10);
-    if (isNaN(slotIndex) || slotIndex < 0 || slotIndex >= 48) {
-      return res.status(400).json({ message: 'Numéro de slot invalide.' });
-    }
-
-    fullPlanning[username][day][slotIndex] = value;
-
-    await writeJsonFile(filePath, fullPlanning);
-    res.json({ message: 'Slot mis à jour avec succès.', newPlanning: fullPlanning[username][day] });
-  } catch (error) {
-    console.error(`Erreur lors de la mise à jour du slot de l'agent ${username} pour ${fileName}:`, error);
-    res.status(500).json({ message: 'Erreur interne du serveur lors de la mise à jour du slot.' });
-  }
-});
-
-// Route pour vider la disponibilité d'un agent pour un jour donné dans une semaine spécifique
-app.post('/api/planning/agent/:username/:weekNumber/:year/clear-day', async (req, res) => {
-    const { username, weekNumber, year } = req.params;
-    const { day } = req.body; // Le jour à effacer (ex: 'lundi', 'mardi')
-
-    if (!day) {
-        return res.status(400).json({ message: 'Jour requis pour effacer la disponibilité.' });
-    }
-
-    const fileName = `planning-${year}-W${weekNumber}.json`;
-    const filePath = path.join(DATA_DIR, fileName);
-
+/**
+ * Assure qu'un répertoire existe.
+ * @param {string} directoryPath - Chemin du répertoire à créer.
+ */
+async function ensureDirectoryExists(directoryPath) {
     try {
-        let fullPlanning = await readJsonFile(filePath, {});
+        await fs.mkdir(directoryPath, { recursive: true });
+        console.log(`Dossier "${directoryPath}" assuré.`);
+    } catch (error) {
+        console.error(`Erreur lors de la création du dossier "${directoryPath}":`, error);
+        throw error; // Propager l'erreur pour que l'application puisse la gérer
+    }
+}
 
-        if (fullPlanning[username] && fullPlanning[username][day]) {
-            fullPlanning[username][day] = new Array(48).fill(0); // Remplir avec des 0 pour effacer
-            await writeJsonFile(filePath, fullPlanning);
-            res.json({ message: `Disponibilité de ${username} effacée pour ${day}.`, clearedPlanning: fullPlanning[username][day] });
+/**
+ * Initialise un fichier JSON avec un contenu par défaut s'il n'existe pas.
+ * @param {string} filePath - Chemin du fichier JSON.
+ * @param {any} defaultContent - Contenu par défaut (ex: [], {}).
+ */
+async function initializeDataFile(filePath, defaultContent) {
+    const dir = path.dirname(filePath);
+    await ensureDirectoryExists(dir);
+    try {
+        await fs.access(filePath); // Vérifie si le fichier existe
+        console.log(`Fichier "${filePath}" existe déjà.`);
+    } catch (error) {
+        if (error.code === 'ENOENT') { // Fichier non trouvé
+            console.log(`Fichier "${filePath}" non trouvé, création avec contenu par défaut.`);
+            await fs.writeFile(filePath, JSON.stringify(defaultContent, null, 2), 'utf8');
         } else {
-            // Si l'agent ou le jour n'existent pas, considérer comme déjà effacé
-            res.status(200).json({ message: `Disponibilité de ${username} pour ${day} déjà vide ou inexistante.` });
+            console.error(`Erreur lors de l'accès au fichier "${filePath}":`, error);
+            throw error;
         }
-    } catch (error) {
-        console.error(`Erreur lors de l'effacement de la disponibilité de l'agent ${username} pour ${day} dans ${fileName}:`, error);
-        res.status(500).json({ message: 'Erreur interne du serveur lors de l\'effacement de la disponibilité.' });
     }
-});
+}
 
-
-// Endpoint pour la feuille de garde
-
-// Sauvegarder la configuration de la feuille de garde pour une semaine
-app.post('/api/roster-config/:weekNumber/:year', async (req, res) => {
-    const { weekNumber, year } = req.params;
-    const config = req.body;
-    const fileName = `roster-config-${year}-W${weekNumber}.json`;
-    const filePath = path.join(ROSTER_CONFIG_DIR, fileName);
+/**
+ * Lit un fichier JSON.
+ * @param {string} filePath - Chemin du fichier JSON.
+ * @returns {Promise<Array|Object>} Le contenu parsé du fichier JSON.
+ */
+async function readJsonFile(filePath) {
     try {
-        await writeJsonFile(filePath, config);
-        res.status(200).json({ message: 'Configuration de la feuille de garde sauvegardée.' });
+        const data = await fs.readFile(filePath, 'utf8');
+        return JSON.parse(data);
     } catch (error) {
-        console.error('Erreur lors de la sauvegarde de la configuration de la feuille de garde:', error);
-        res.status(500).json({ message: 'Erreur interne du serveur.' });
+        if (error.code === 'ENOENT') {
+            console.warn(`Le fichier ${filePath} n'existe pas, renvoi d'un tableau/objet vide.`);
+            return filePath.includes('users.json') || filePath.includes('roster_configs') || filePath.includes('daily_rosters') ? {} : []; // Retourne un objet vide pour users, roster_configs et daily_rosters, un tableau vide pour le reste
+        }
+        console.error(`Erreur de lecture du fichier ${filePath}:`, error);
+        throw error;
     }
-});
+}
 
-// Obtenir la configuration de la feuille de garde pour une semaine
-app.get('/api/roster-config/:weekNumber/:year', async (req, res) => {
-    const { weekNumber, year } = req.params;
-    const fileName = `roster-config-${year}-W${weekNumber}.json`;
-    const filePath = path.join(ROSTER_CONFIG_DIR, fileName);
+/**
+ * Écrit des données dans un fichier JSON.
+ * @param {string} filePath - Chemin du fichier JSON.
+ * @param {Array|Object} data - Données à écrire.
+ */
+async function writeJsonFile(filePath, data) {
+    await ensureDirectoryExists(path.dirname(filePath));
     try {
-        const config = await readJsonFile(filePath, {});
-        res.json(config);
+        await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
     } catch (error) {
-        console.error('Erreur lors de la récupération de la configuration de la feuille de garde:', error);
-        res.status(500).json({ message: 'Erreur interne du serveur.' });
+        console.error(`Erreur d'écriture dans le fichier ${filePath}:`, error);
+        throw error;
     }
-});
+}
 
-// Endpoint pour les rosters journaliers
+/**
+ * Génère un ID unique.
+ * @returns {string} Un identifiant unique.
+ */
+function generateUniqueId() {
+    return uuidv4();
+}
 
-// Sauvegarder le roster journalier
-app.post('/api/daily-roster/:date', async (req, res) => {
-    const { date } = req.params; // Format YYYY-MM-DD
-    const roster = req.body;
-    const fileName = `daily-roster-${date}.json`;
-    const filePath = path.join(DAILY_ROSTER_DIR, fileName);
-    try {
-        await writeJsonFile(filePath, roster);
-        res.status(200).json({ message: 'Roster journalier sauvegardé.' });
-    } catch (error) {
-        console.error('Erreur lors de la sauvegarde du roster journalier:', error);
-        res.status(500).json({ message: 'Erreur interne du serveur.' });
-    }
-});
-
-// Obtenir le roster journalier
-app.get('/api/daily-roster/:date', async (req, res) => {
-    const { date } = req.params; // Format YYYY-MM-DD
-    const fileName = `daily-roster-${date}.json`;
-    const filePath = path.join(DAILY_ROSTER_DIR, fileName);
-    try {
-        const roster = await readJsonFile(filePath, {});
-        res.json(roster);
-    } catch (error) {
-        console.error('Erreur lors de la récupération du roster journalier:', error);
-        res.status(500).json({ message: 'Erreur interne du serveur.' });
-    }
-});
-
-
-// Initialisation et démarrage du serveur
-initializePersistentFiles().then(() => {
-  app.listen(port, () => {
-    console.log(`Server launched on http://localhost:${port}`);
-  });
-}).catch(err => {
-  console.error('Failed to initialize persistent files, server not started:', err);
-  process.exit(1);
-});
-
-// --- Fonctions utilitaires (à inclure si elles ne sont pas déjà définies ailleurs) ---
 // Fonction pour obtenir le numéro de semaine ISO 8601
 function getWeekNumber(d) {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -655,3 +136,808 @@ function formatDateToYYYYMMDD(date) {
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
+
+// Fonction pour obtenir la date du jour d'une semaine et d'un jour donnés
+function getDateFromWeekAndDay(weekNumber, year, dayName) {
+    const jan1 = new Date(year, 0, 1);
+    const days = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+    const targetDayIndex = days.indexOf(dayName.toLowerCase());
+
+    // Obtenir le jour de la semaine du 1er janvier (0 pour dimanche, 1 pour lundi...)
+    const jan1Day = jan1.getDay();
+    // Calculer le décalage pour le premier jeudi de l'année (qui est toujours en semaine 1)
+    const firstThursdayOffset = (jan1Day <= 4) ? 4 - jan1Day : (4 - jan1Day) + 7;
+    const firstThursday = new Date(year, 0, 1 + firstThursdayOffset);
+
+    // Calculer le décalage en jours depuis le premier jeudi pour atteindre la semaine désirée
+    // Chaque semaine a 7 jours, et nous nous basons sur le premier jeudi
+    const daysOffset = (weekNumber - 1) * 7;
+
+    // Calculer la date pour le jeudi de la semaine désirée
+    const targetThursday = new Date(firstThursday.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+
+    // Calculer la date finale pour le jour de la semaine désiré
+    const resultDate = new Date(targetThursday.getTime() - ((targetThursday.getDay() || 7) - (targetDayIndex || 7)) * 24 * 60 * 60 * 1000);
+
+    // Si le jour cible est dimanche et jan1Day n'est pas dimanche, cela peut causer un décalage de 7 jours.
+    // Ajustement si le jour résultant tombe dans la semaine précédente ou suivante de manière incorrecte.
+    // Cette partie est plus complexe et peut nécessiter des tests approfondis.
+    // Pour simplifier, nous pouvons nous assurer que le jour de la semaine est correct après le calcul.
+    if (resultDate.getDay() !== targetDayIndex) {
+        const diff = targetDayIndex - resultDate.getDay();
+        resultDate.setDate(resultDate.getDate() + (diff > 0 ? diff : diff + 7));
+    }
+
+    return resultDate;
+}
+
+// --- Middleware d'authentification JWT ---
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Format: Bearer TOKEN
+
+    if (token == null) {
+        console.log('Authentification refusée: Token non fourni.');
+        return res.status(401).json({ message: 'Authentification requise.' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            console.log('Authentification refusée: Token invalide ou expiré.', err);
+            return res.status(403).json({ message: 'Token invalide ou expiré.' });
+        }
+        req.user = user; // Ajoute les informations de l'utilisateur décodées au corps de la requête
+        next();
+    });
+}
+
+// --- Initialisation des fichiers de données au démarrage ---
+async function initializeServerData() {
+    try {
+        await ensureDirectoryExists(DATA_DIR);
+        await ensureDirectoryExists(ROSTER_CONFIG_DIR);
+        await ensureDirectoryExists(DAILY_ROSTER_DIR);
+
+        // Initialise les fichiers JSON avec un tableau vide par défaut s'ils n'existent pas
+        await initializeDataFile(USERS_FILE_PATH, {}); // Les utilisateurs seront stockés comme un objet
+        await initializeDataFile(QUALIFICATIONS_FILE_PATH, []);
+        await initializeDataFile(GRADES_FILE_PATH, []);
+        await initializeDataFile(FONCTIONS_FILE_PATH, []);
+
+        console.log('Tous les répertoires et fichiers de données ont été initialisés.');
+    } catch (error) {
+        console.error('Échec de l\'initialisation des données du serveur:', error);
+        process.exit(1); // Arrête le processus si l'initialisation échoue
+    }
+}
+
+// --- Routes de l'API ---
+
+// Route de connexion (non authentifiée)
+app.post('/api/login', async (req, res) => {
+    const { agent: agentId, mdp: password } = req.body;
+    console.log(`Tentative de connexion pour l'agent: ${agentId}`);
+
+    try {
+        const users = await readJsonFile(USERS_FILE_PATH);
+        const user = users[agentId];
+
+        if (!user) {
+            console.log(`Agent ${agentId} non trouvé.`);
+            return res.status(401).json({ message: 'Identifiant ou mot de passe incorrect.' });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.mdp);
+
+        if (!isPasswordValid) {
+            console.log(`Mot de passe incorrect pour l'agent: ${agentId}`);
+            return res.status(401).json({ message: 'Identifiant ou mot de passe incorrect.' });
+        }
+
+        // Si l'utilisateur est un administrateur, ajoutez le rôle 'admin' au token
+        const userPayload = {
+            id: user.id,
+            prenom: user.prenom,
+            nom: user.nom,
+            isAdmin: user.isAdmin || false
+        };
+        const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '8h' }); // Token valide 8 heures
+
+        console.log(`Connexion réussie pour l'agent: ${agentId}`);
+        res.json({ message: 'Connexion réussie', token, user: userPayload });
+
+    } catch (error) {
+        console.error('Erreur serveur lors de la connexion:', error);
+        res.status(500).json({ message: 'Erreur interne du serveur lors de la connexion.' });
+    }
+});
+
+// Route pour afficher les informations des agents pour le formulaire de connexion (non authentifiée)
+app.get('/api/agents/display-info', async (req, res) => {
+    try {
+        const users = await readJsonFile(USERS_FILE_PATH);
+        // Filtrer les utilisateurs pour ne pas inclure les mots de passe et ne renvoyer que les infos nécessaires
+        const agentsInfo = Object.values(users).map(user => ({
+            id: user.id,
+            prenom: user.prenom,
+            nom: user.nom,
+            isAdmin: user.isAdmin || false
+        }));
+        // Vous pouvez filtrer les admins ici si vous ne voulez pas qu'ils apparaissent dans la liste déroulante agent
+        const nonAdminAgents = agentsInfo.filter(agent => !agent.isAdmin);
+        res.json(nonAdminAgents);
+    } catch (error) {
+        console.error("Erreur lors de la récupération des informations des agents:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+
+// --- Routes protégées par l'authentification JWT ---
+app.use(authenticateToken); // Toutes les routes définies après cette ligne nécessiteront un token JWT valide
+
+// --- Routes pour la gestion des utilisateurs (Admin) ---
+app.get('/api/users', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    try {
+        const users = await readJsonFile(USERS_FILE_PATH);
+        // Ne pas envoyer les mots de passe hachés directement au frontend si ce n'est pas nécessaire
+        const usersForDisplay = Object.values(users).map(({ mdp, ...rest }) => rest);
+        res.json(usersForDisplay);
+    } catch (error) {
+        console.error("Erreur lors de la récupération des utilisateurs:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.post('/api/users', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { id, prenom, nom, mdp, qualifications, grade, fonction, isAdmin } = req.body;
+
+    if (!id || !prenom || !nom || !mdp) {
+        return res.status(400).json({ message: 'Tous les champs obligatoires doivent être renseignés.' });
+    }
+
+    try {
+        const users = await readJsonFile(USERS_FILE_PATH);
+        if (users[id]) {
+            return res.status(409).json({ message: 'Un utilisateur avec cet identifiant existe déjà.' });
+        }
+
+        const hashedPassword = await bcrypt.hash(mdp, 10);
+        const newUser = {
+            id,
+            prenom,
+            nom,
+            mdp: hashedPassword,
+            qualifications: qualifications || [],
+            grade: grade || '',
+            fonction: fonction || '',
+            isAdmin: isAdmin || false
+        };
+
+        users[id] = newUser;
+        await writeJsonFile(USERS_FILE_PATH, users);
+        const { mdp: _, ...userWithoutPassword } = newUser; // Exclure le mot de passe du retour
+        res.status(201).json({ message: 'Utilisateur ajouté avec succès.', user: userWithoutPassword });
+    } catch (error) {
+        console.error("Erreur lors de l'ajout de l'utilisateur:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.put('/api/users/:id', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { id } = req.params;
+    const { prenom, nom, mdp, qualifications, grade, fonction, isAdmin } = req.body;
+
+    try {
+        const users = await readJsonFile(USERS_FILE_PATH);
+        if (!users[id]) {
+            return res.status(404).json({ message: 'Utilisateur non trouvé.' });
+        }
+
+        const userToUpdate = users[id];
+        userToUpdate.prenom = prenom !== undefined ? prenom : userToUpdate.prenom;
+        userToUpdate.nom = nom !== undefined ? nom : userToUpdate.nom;
+        userToUpdate.qualifications = qualifications !== undefined ? qualifications : userToUpdate.qualifications;
+        userToUpdate.grade = grade !== undefined ? grade : userToUpdate.grade;
+        userToUpdate.fonction = fonction !== undefined ? fonction : userToUpdate.fonction;
+        userToUpdate.isAdmin = isAdmin !== undefined ? isAdmin : userToUpdate.isAdmin;
+
+        if (mdp) {
+            userToUpdate.mdp = await bcrypt.hash(mdp, 10);
+        }
+
+        await writeJsonFile(USERS_FILE_PATH, users);
+        const { mdp: _, ...userWithoutPassword } = userToUpdate;
+        res.json({ message: 'Utilisateur mis à jour avec succès.', user: userWithoutPassword });
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour de l'utilisateur:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { id } = req.params;
+
+    try {
+        const users = await readJsonFile(USERS_FILE_PATH);
+        if (!users[id]) {
+            return res.status(404).json({ message: 'Utilisateur non trouvé.' });
+        }
+
+        delete users[id];
+        await writeJsonFile(USERS_FILE_PATH, users);
+        res.json({ message: 'Utilisateur supprimé avec succès.' });
+    } catch (error) {
+        console.error("Erreur lors de la suppression de l'utilisateur:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+
+// --- Routes pour la gestion des Qualifications (Admin) ---
+app.get('/api/qualifications', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    try {
+        const qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
+        res.json(qualifications);
+    } catch (error) {
+        console.error("Erreur lors de la récupération des qualifications:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.post('/api/qualifications', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { name } = req.body;
+    if (!name) {
+        return res.status(400).json({ message: 'Le nom de la qualification est requis.' });
+    }
+    try {
+        const qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
+        if (qualifications.some(q => q.name.toLowerCase() === name.toLowerCase())) {
+            return res.status(409).json({ message: 'Cette qualification existe déjà.' });
+        }
+        const newQualification = { id: generateUniqueId(), name };
+        qualifications.push(newQualification);
+        await writeJsonFile(QUALIFICATIONS_FILE_PATH, qualifications);
+        res.status(201).json({ message: 'Qualification ajoutée avec succès.', qualification: newQualification });
+    } catch (error) {
+        console.error("Erreur lors de l'ajout de la qualification:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.put('/api/qualifications/:id', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name) {
+        return res.status(400).json({ message: 'Le nom de la qualification est requis.' });
+    }
+    try {
+        let qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
+        const index = qualifications.findIndex(q => q.id === id);
+        if (index === -1) {
+            return res.status(404).json({ message: 'Qualification non trouvée.' });
+        }
+        if (qualifications.some(q => q.name.toLowerCase() === name.toLowerCase() && q.id !== id)) {
+            return res.status(409).json({ message: 'Une qualification avec ce nom existe déjà.' });
+        }
+        qualifications[index].name = name;
+        await writeJsonFile(QUALIFICATIONS_FILE_PATH, qualifications);
+        res.json({ message: 'Qualification mise à jour avec succès.', qualification: qualifications[index] });
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour de la qualification:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.delete('/api/qualifications/:id', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { id } = req.params;
+    try {
+        let qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
+        const initialLength = qualifications.length;
+        qualifications = qualifications.filter(q => q.id !== id);
+        if (qualifications.length === initialLength) {
+            return res.status(404).json({ message: 'Qualification non trouvée.' });
+        }
+        await writeJsonFile(QUALIFICATIONS_FILE_PATH, qualifications);
+        res.json({ message: 'Qualification supprimée avec succès.' });
+    } catch (error) {
+        console.error("Erreur lors de la suppression de la qualification:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+
+// --- Routes pour la gestion des Grades (Admin) ---
+app.get('/api/grades', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    try {
+        const grades = await readJsonFile(GRADES_FILE_PATH);
+        res.json(grades);
+    } catch (error) {
+        console.error("Erreur lors de la récupération des grades:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.post('/api/grades', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { name } = req.body;
+    if (!name) {
+        return res.status(400).json({ message: 'Le nom du grade est requis.' });
+    }
+    try {
+        const grades = await readJsonFile(GRADES_FILE_PATH);
+        if (grades.some(g => g.name.toLowerCase() === name.toLowerCase())) {
+            return res.status(409).json({ message: 'Ce grade existe déjà.' });
+        }
+        const newGrade = { id: generateUniqueId(), name };
+        grades.push(newGrade);
+        await writeJsonFile(GRADES_FILE_PATH, grades);
+        res.status(201).json({ message: 'Grade ajouté avec succès.', grade: newGrade });
+    } catch (error) {
+        console.error("Erreur lors de l'ajout du grade:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.put('/api/grades/:id', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name) {
+        return res.status(400).json({ message: 'Le nom du grade est requis.' });
+    }
+    try {
+        let grades = await readJsonFile(GRADES_FILE_PATH);
+        const index = grades.findIndex(g => g.id === id);
+        if (index === -1) {
+            return res.status(404).json({ message: 'Grade non trouvé.' });
+        }
+        if (grades.some(g => g.name.toLowerCase() === name.toLowerCase() && g.id !== id)) {
+            return res.status(409).json({ message: 'Un grade avec ce nom existe déjà.' });
+        }
+        grades[index].name = name;
+        await writeJsonFile(GRADES_FILE_PATH, grades);
+        res.json({ message: 'Grade mis à jour avec succès.', grade: grades[index] });
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour du grade:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.delete('/api/grades/:id', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { id } = req.params;
+    try {
+        let grades = await readJsonFile(GRADES_FILE_PATH);
+        const initialLength = grades.length;
+        grades = grades.filter(g => g.id !== id);
+        if (grades.length === initialLength) {
+            return res.status(404).json({ message: 'Grade non trouvé.' });
+        }
+        await writeJsonFile(GRADES_FILE_PATH, grades);
+        res.json({ message: 'Grade supprimé avec succès.' });
+    } catch (error) {
+        console.error("Erreur lors de la suppression du grade:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+
+// --- Routes pour la gestion des Fonctions (Admin) ---
+app.get('/api/fonctions', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    try {
+        const fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
+        res.json(fonctions);
+    } catch (error) {
+        console.error("Erreur lors de la récupération des fonctions:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.post('/api/fonctions', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { name } = req.body;
+    if (!name) {
+        return res.status(400).json({ message: 'Le nom de la fonction est requis.' });
+    }
+    try {
+        const fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
+        if (fonctions.some(f => f.name.toLowerCase() === name.toLowerCase())) {
+            return res.status(409).json({ message: 'Cette fonction existe déjà.' });
+        }
+        const newFonction = { id: generateUniqueId(), name };
+        fonctions.push(newFonction);
+        await writeJsonFile(FONCTIONS_FILE_PATH, fonctions);
+        res.status(201).json({ message: 'Fonction ajoutée avec succès.', fonction: newFonction });
+    } catch (error) {
+        console.error("Erreur lors de l'ajout de la fonction:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.put('/api/fonctions/:id', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name) {
+        return res.status(400).json({ message: 'Le nom de la fonction est requis.' });
+    }
+    try {
+        let fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
+        const index = fonctions.findIndex(f => f.id === id);
+        if (index === -1) {
+            return res.status(404).json({ message: 'Fonction non trouvée.' });
+        }
+        if (fonctions.some(f => f.name.toLowerCase() === name.toLowerCase() && f.id !== id)) {
+            return res.status(409).json({ message: 'Une fonction avec ce nom existe déjà.' });
+        }
+        fonctions[index].name = name;
+        await writeJsonFile(FONCTIONS_FILE_PATH, fonctions);
+        res.json({ message: 'Fonction mise à jour avec succès.', fonction: fonctions[index] });
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour de la fonction:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.delete('/api/fonctions/:id', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { id } = req.params;
+    try {
+        let fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
+        const initialLength = fonctions.length;
+        fonctions = fonctions.filter(f => f.id !== id);
+        if (fonctions.length === initialLength) {
+            return res.status(404).json({ message: 'Fonction non trouvée.' });
+        }
+        await writeJsonFile(FONCTIONS_FILE_PATH, fonctions);
+        res.json({ message: 'Fonction supprimée avec succès.' });
+    } catch (error) {
+        console.error("Erreur lors de la suppression de la fonction:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+
+// --- Routes pour le planning de l'agent ---
+app.get('/api/agent/planning/:id/:weekKey', async (req, res) => {
+    const { id, weekKey } = req.params;
+    // Vérifiez que l'agent accédant à la ressource est bien le sien ou un admin
+    if (req.user.id !== id && !req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé à ce planning.' });
+    }
+    try {
+        const filePath = path.join(DATA_DIR, `${id}.json`);
+        const agentPlanning = await readJsonFile(filePath);
+        // Le planning d'un agent est un objet où les clés sont les weekKeys
+        res.json(agentPlanning[weekKey] || {}); // Retourne le planning de la semaine ou un objet vide
+    } catch (error) {
+        console.error(`Erreur lors de la récupération du planning pour l'agent ${id}, semaine ${weekKey}:`, error);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+});
+
+app.post('/api/agent/planning/:id/:weekKey', async (req, res) => {
+    const { id, weekKey } = req.params;
+    const planningData = req.body;
+    // Vérifiez que l'agent modifiant la ressource est bien le sien ou un admin
+    if (req.user.id !== id && !req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé pour modifier ce planning.' });
+    }
+    try {
+        const filePath = path.join(DATA_DIR, `${id}.json`);
+        let agentPlanning = await readJsonFile(filePath); // Lit le fichier complet de l'agent
+        if (Array.isArray(agentPlanning)) { // Si c'est un ancien format de tableau, convertissez-le en objet
+            const newAgentPlanning = {};
+            agentPlanning.forEach(item => {
+                if (item.weekKey) {
+                    newAgentPlanning[item.weekKey] = item.planning;
+                }
+            });
+            agentPlanning = newAgentPlanning;
+            console.log(`Conversion de l'ancien format de planning pour l'agent ${id}.`);
+        }
+
+        agentPlanning[weekKey] = planningData; // Met à jour ou ajoute le planning pour la semaine spécifique
+        await writeJsonFile(filePath, agentPlanning);
+        res.json({ message: 'Planning enregistré avec succès.' });
+    } catch (error) {
+        console.error(`Erreur lors de l'enregistrement du planning pour l'agent ${id}, semaine ${weekKey}:`, error);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+});
+
+// Route pour récupérer les qualifications d'un agent spécifique
+app.get('/api/agent/qualifications/:id', async (req, res) => {
+    const { id } = req.params;
+    if (req.user.id !== id && !req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    try {
+        const users = await readJsonFile(USERS_FILE_PATH);
+        const user = users[id];
+        if (!user) {
+            return res.status(404).json({ message: 'Agent non trouvé.' });
+        }
+        res.json(user.qualifications || []); // Retourne un tableau vide si aucune qualification
+    } catch (error) {
+        console.error(`Erreur lors de la récupération des qualifications pour l'agent ${id}:`, error);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+});
+
+
+// --- Routes pour le planning global de l'admin ---
+app.get('/api/admin/global-planning/:weekKey', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { weekKey } = req.params;
+    try {
+        const users = await readJsonFile(USERS_FILE_PATH);
+        const allAgents = Object.values(users).filter(user => !user.isAdmin); // Exclure l'admin du planning global
+
+        const globalPlanning = {};
+
+        for (const agent of allAgents) {
+            const agentId = agent.id;
+            const filePath = path.join(DATA_DIR, `${agentId}.json`);
+            let agentPlanning = await readJsonFile(filePath);
+
+            // Gérer l'ancien format si nécessaire (tableau d'objets avec weekKey)
+            if (Array.isArray(agentPlanning)) {
+                const newAgentPlanning = {};
+                agentPlanning.forEach(item => {
+                    if (item.weekKey) {
+                        newAgentPlanning[item.weekKey] = item.planning;
+                    }
+                });
+                agentPlanning = newAgentPlanning;
+                // Optionnel: sauvegarder le fichier converti pour les prochaines lectures
+                // await writeJsonFile(filePath, agentPlanning);
+            }
+            globalPlanning[agentId] = agentPlanning[weekKey] || {};
+        }
+        res.json(globalPlanning);
+    } catch (error) {
+        console.error("Erreur lors de la récupération du planning global:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.post('/api/admin/save-global-planning', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Accès non autorisé.' });
+    }
+    const { weekKey, updatedPlanning } = req.body; // updatedPlanning est un objet { agentId: { day: { slot: status } } }
+
+    if (!weekKey || !updatedPlanning) {
+        return res.status(400).json({ message: 'Données de planning manquantes.' });
+    }
+
+    try {
+        for (const agentId in updatedPlanning) {
+            const filePath = path.join(DATA_DIR, `${agentId}.json`);
+            let agentSpecificPlanning = await readJsonFile(filePath);
+
+            // Gérer l'ancien format si nécessaire
+            if (Array.isArray(agentSpecificPlanning)) {
+                const newAgentPlanning = {};
+                agentSpecificPlanning.forEach(item => {
+                    if (item.weekKey) {
+                        newAgentPlanning[item.weekKey] = item.planning;
+                    }
+                });
+                agentSpecificPlanning = newAgentPlanning;
+            }
+
+            agentSpecificPlanning[weekKey] = updatedPlanning[agentId];
+            await writeJsonFile(filePath, agentSpecificPlanning);
+        }
+        res.json({ message: 'Planning global mis à jour avec succès.' });
+    } catch (error) {
+        console.error("Erreur lors de la sauvegarde du planning global:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+
+// --- Routes pour la Feuille de Garde ---
+
+// Récupérer tous les agents avec leurs qualifications, grades et fonctions
+app.get('/api/roster/agents', async (req, res) => {
+    try {
+        const users = await readJsonFile(USERS_FILE_PATH);
+        const qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
+        const grades = await readJsonFile(GRADES_FILE_PATH);
+        const fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
+
+        const agentsWithDetails = Object.values(users).filter(user => !user.isAdmin).map(user => {
+            const agentQualifications = user.qualifications ? user.qualifications.map(qId => {
+                const qual = qualifications.find(q => q.id === qId);
+                return qual ? qual.name : 'Inconnue';
+            }) : [];
+            const agentGrade = grades.find(g => g.id === user.grade);
+            const agentFonction = fonctions.find(f => f.id === user.fonction);
+
+            return {
+                id: user.id,
+                prenom: user.prenom,
+                nom: user.nom,
+                qualifications: agentQualifications,
+                grade: agentGrade ? agentGrade.name : 'Inconnu',
+                fonction: agentFonction ? agentFonction.name : 'Aucune'
+            };
+        });
+        res.json(agentsWithDetails);
+    } catch (error) {
+        console.error("Erreur lors de la récupération des agents pour la feuille de garde:", error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+
+// Route pour récupérer les agents disponibles pour une date spécifique
+app.get('/api/roster/available-agents/:date', async (req, res) => {
+    const { date } = req.params; // format YYYY-MM-DD
+    try {
+        const parsedDate = new Date(date + 'T12:00:00Z'); // Assurez-vous que le fuseau horaire ne pose pas de problème
+        if (isNaN(parsedDate)) {
+            return res.status(400).json({ message: 'Format de date invalide.' });
+        }
+
+        const weekNumber = getWeekNumber(parsedDate);
+        const year = parsedDate.getFullYear();
+        const weekKey = `week-${weekNumber}-${year}`;
+        const dayName = getDayName(parsedDate); // ex: 'lundi'
+
+        const users = await readJsonFile(USERS_FILE_PATH);
+        const qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
+        const grades = await readJsonFile(GRADES_FILE_PATH);
+        const fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
+
+        const allAgents = Object.values(users).filter(user => !user.isAdmin); // Exclure l'admin
+
+        const availableAgents = [];
+
+        for (const agent of allAgents) {
+            const agentId = agent.id;
+            const filePath = path.join(DATA_DIR, `${agentId}.json`);
+            let agentPlanning = await readJsonFile(filePath);
+
+            // Gérer l'ancien format si nécessaire
+            if (Array.isArray(agentPlanning)) {
+                const newAgentPlanning = {};
+                agentPlanning.forEach(item => {
+                    if (item.weekKey) {
+                        newAgentPlanning[item.weekKey] = item.planning;
+                    }
+                });
+                agentPlanning = newAgentPlanning;
+            }
+
+            const currentWeekPlanning = agentPlanning[weekKey] || {};
+            const dayPlanning = currentWeekPlanning[dayName] || {};
+
+            // Vérifier si l'agent a au moins un créneau marqué comme "available"
+            const isAvailable = Object.values(dayPlanning).some(status => status === 'available');
+
+            if (isAvailable) {
+                const agentQualifications = agent.qualifications ? agent.qualifications.map(qId => {
+                    const qual = qualifications.find(q => q.id === qId);
+                    return qual ? qual.name : 'Inconnue';
+                }) : [];
+                const agentGrade = grades.find(g => g.id === agent.grade);
+                const agentFonction = fonctions.find(f => f.id === agent.fonction);
+
+                availableAgents.push({
+                    id: agent.id,
+                    prenom: agent.prenom,
+                    nom: agent.nom,
+                    qualifications: agentQualifications,
+                    grade: agentGrade ? agentGrade.name : 'Inconnu',
+                    fonction: agentFonction ? agentFonction.name : 'Aucune'
+                });
+            }
+        }
+        res.json(availableAgents);
+    } catch (error) {
+        console.error(`Erreur lors de la récupération des agents disponibles pour la date ${date}:`, error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+// Route pour récupérer la configuration de la feuille de garde quotidienne (agents d'astreinte, véhicules, etc.)
+app.get('/api/roster/daily/:date', async (req, res) => {
+    const { date } = req.params; // format YYYY-MM-DD
+    const filePath = path.join(DAILY_ROSTER_DIR, `${date}.json`);
+    try {
+        const dailyRoster = await readJsonFile(filePath);
+        res.json(dailyRoster);
+    } catch (error) {
+        console.error(`Erreur lors de la récupération de la feuille de garde quotidienne pour ${date}:`, error);
+        if (error.code === 'ENOENT') {
+            res.json({ onDutyAgents: [], vehicles: {} }); // Retourne une structure vide si le fichier n'existe pas
+        } else {
+            res.status(500).json({ message: "Erreur interne du serveur." });
+        }
+    }
+});
+
+// Route pour sauvegarder la configuration de la feuille de garde quotidienne
+app.post('/api/roster/daily', async (req, res) => {
+    const { date, onDutyAgents, vehicles } = req.body;
+    if (!date) {
+        return res.status(400).json({ message: 'La date est requise pour la sauvegarde de la feuille de garde.' });
+    }
+    const filePath = path.join(DAILY_ROSTER_DIR, `${date}.json`);
+    try {
+        await writeJsonFile(filePath, { date, onDutyAgents, vehicles });
+        res.json({ message: 'Feuille de garde quotidienne sauvegardée avec succès.' });
+    } catch (error) {
+        console.error(`Erreur lors de la sauvegarde de la feuille de garde quotidienne pour ${date}:`, error);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+
+// Route pour servir index.html par défaut (généralement la page de connexion)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
+});
+
+// Gestion des routes non trouvées
+app.use((req, res) => {
+    res.status(404).send('Page non trouvée.');
+});
+
+// Initialiser les données et démarrer le serveur
+initializeServerData().then(() => {
+    app.listen(port, () => {
+        console.log(`Server launched on http://localhost:${port}`);
+    });
+}).catch(err => {
+    console.error('Échec critique au démarrage du serveur:', err);
+});

@@ -9,6 +9,7 @@
 </head>
 
 <body>
+
   <main class="login-container">
     <img src="assets/IMG_0103.PNG" alt="Logo de la caserne" class="logo">
 
@@ -17,16 +18,16 @@
     <div class="form-group">
       <label for="agent">Nom de l'agent :</label>
       <select id="agent">
-        <option value="" disabled selected>-- Chargement des agents... --</option>
+        <option value="" disabled selected>-- Choisissez un agent --</option>
         </select>
     </div>
 
     <div class="form-group">
       <label for="password">Mot de passe :</label>
-      <input type="password" id="password">
+      <input type="password" id="password" type="password">
     </div>
 
-    <button type="submit" id="login-btn">Se connecter</button>
+    <button type="submit" onclick="login()">Se connecter</button>
 
     <p id="error" class="error-message"></p>
   </main>
