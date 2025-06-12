@@ -32,72 +32,75 @@ const addAgentMessage = document.getElementById('addAgentMessage');
 const agentsTableBody = document.getElementById('agentsTableBody');
 const listAgentsMessage = document.getElementById('listAgentsMessage');
 
-// --- DOM Elements pour la Modale de modification d'agent ---
+// DOM Elements pour la Modale de modification d'agent
 const editAgentModal = document.getElementById('editAgentModal');
 const editAgentForm = document.getElementById('editAgentForm');
 const closeAgentModalButton = editAgentModal ? editAgentModal.querySelector('.close-button') : null;
-const gradesCheckboxes = document.getElementById('gradesCheckboxes');
-const fonctionsCheckboxes = document.getElementById('fonctionsCheckboxes');
 const editAgentMessage = document.getElementById('editAgentMessage');
 
-// --- DOM Elements pour la vue "Gestion des Grades" ---
+// DOM Elements pour les Grades
 const addGradeForm = document.getElementById('addGradeForm');
 const addGradeMessage = document.getElementById('addGradeMessage');
 const gradesTableBody = document.getElementById('gradesTableBody');
 const listGradesMessage = document.getElementById('listGradesMessage');
 
-// --- DOM Elements pour la Modale de modification de grade ---
+// Modale d'édition de grade
 const editGradeModal = document.getElementById('editGradeModal');
 const editGradeForm = document.getElementById('editGradeForm');
 const closeGradeModalButton = editGradeModal ? editGradeModal.querySelector('.close-button') : null;
 const editGradeMessage = document.getElementById('editGradeMessage');
 
-// --- DOM Elements pour la vue "Gestion des Fonctions" ---
+// DOM Elements pour les Fonctions
 const addFonctionForm = document.getElementById('addFonctionForm');
 const addFonctionMessage = document.getElementById('addFonctionMessage');
 const fonctionsTableBody = document.getElementById('fonctionsTableBody');
 const listFonctionsMessage = document.getElementById('listFonctionsMessage');
 
-// --- DOM Elements pour la Modale de modification de fonction ---
+// Modale d'édition de fonction
 const editFonctionModal = document.getElementById('editFonctionModal');
 const editFonctionForm = document.getElementById('editFonctionForm');
 const closeFonctionModalButton = editFonctionModal ? editFonctionModal.querySelector('.close-button') : null;
 const editFonctionMessage = document.getElementById('editFonctionMessage');
 
-// Global DOM Elements
-const loadingSpinner = document.getElementById("loading-spinner");
-const logoutButton = document.getElementById("logout-btn");
+// DOM Elements pour le spinner de chargement
+const loadingSpinner = document.getElementById('loading-spinner');
 
-// --- Fonctions utilitaires ---
-function showMessage(element, message, type = 'info') {
+// --- Fonctions Utilitaires ---
+
+function getCurrentWeek() {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const diff = now - startOfYear;
+    const oneWeek = 1000 * 60 * 60 * 24 * 7;
+    return Math.ceil(diff / oneWeek);
+}
+
+function getWeekDateRange(weekNumber) {
+    const year = new Date().getFullYear(); // On suppose l'année actuelle
+    const jan1 = new Date(year, 0, 1);
+    const days = (weekNumber - 1) * 7;
+    let startOfWeek = new Date(jan1.getFullYear(), jan1.getMonth(), jan1.getDate() + days);
+
+    // Ajuster au lundi de la semaine si jan1 n'est pas un lundi
+    const dayOfWeek = startOfWeek.getDay(); // 0 = Dimanche, 1 = Lundi, etc.
+    const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Pour le lundi
+    startOfWeek = new Date(startOfWeek.setDate(diff));
+
+    const endOfWeek = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 6);
+
+    const options = { day: 'numeric', month: 'short' };
+    return `${startOfWeek.toLocaleDateString('fr-FR', options)} - ${endOfWeek.toLocaleDateString('fr-FR', options)}`;
+}
+
+function showInfoMessage(element, message, type = 'info') {
     element.textContent = message;
+    element.className = `info-message ${type}`; // 'info', 'success', 'error'
     element.style.display = 'block';
-    element.style.opacity = '0'; // Commence à 0 pour la transition
-    setTimeout(() => { element.style.opacity = '1'; }, 10); // Active la transition
-
-    if (type === 'success') {
-        element.style.backgroundColor = "#dff0d8";
-        element.style.borderColor = "#d6e9c6";
-        element.style.color = "#3c763d";
-    } else if (type === 'error') {
-        element.style.backgroundColor = "#ffe6e6";
-        element.style.borderColor = "#e6a4a4";
-        element.style.color = "#a94442";
-    } else { // info
-        element.style.backgroundColor = "#d9edf7";
-        element.style.borderColor = "#bce8f1";
-        element.style.color = "#31708f";
-    }
 
     setTimeout(() => {
-        element.style.opacity = '0'; // Cache avec transition
-        setTimeout(() => {
-            element.style.display = 'none';
-            element.textContent = '';
-            element.style.backgroundColor = "";
-            element.style.borderColor = "";
-            element.style.color = "";
-        }, 300); // Laisse le temps pour la transition
+        element.style.display = 'none';
+        element.textContent = '';
+        element.className = 'info-message';
     }, 3000);
 }
 
@@ -105,703 +108,165 @@ function showLoading(isLoading, forPdf = false) {
     if (isLoading) {
         loadingSpinner.classList.remove("hidden");
         document.querySelectorAll('button, select, input, a').forEach(el => {
-            if (el.id !== 'logout-btn' && !el.closest('#loading-spinner')) { // Ne pas désactiver le bouton de déconnexion ou les éléments du spinner
+            if (el.id !== 'logout-btn') { // Ne pas désactiver le bouton de déconnexion
                 el.disabled = true;
-                if (el.tagName === 'A') el.classList.add('disabled-link');
+                if (el.tagName === 'A') el.classList.add('disabled-link'); // Ajoute une classe pour les liens
             }
         });
-        mainTabButtons.forEach(btn => btn.disabled = true); // Désactiver les boutons principaux
-        tabButtons.forEach(btn => btn.disabled = true); // Désactiver les boutons de jour
+        mainTabButtons.forEach(btn => btn.disabled = true);
 
         if (forPdf) {
             adminInfo.textContent = "Génération du PDF en cours, veuillez patienter...";
             adminInfo.style.backgroundColor = "#fff3cd";
             adminInfo.style.borderColor = "#ffeeba";
             adminInfo.style.color = "#856404";
-            adminInfo.style.display = 'block'; // Assurer l'affichage du message
-            adminInfo.style.opacity = '1';
         }
     } else {
         loadingSpinner.classList.add("hidden");
         document.querySelectorAll('button, select, input, a').forEach(el => {
-            if (el.id !== 'logout-btn' && !el.closest('#loading-spinner')) {
+            if (el.id !== 'logout-btn') {
                 el.disabled = false;
                 if (el.tagName === 'A') el.classList.remove('disabled-link');
             }
         });
-        mainTabButtons.forEach(btn => btn.disabled = false); // Réactiver les boutons principaux
-        tabButtons.forEach(btn => btn.disabled = false); // Réactiver les boutons de jour
-
+        mainTabButtons.forEach(btn => btn.disabled = false);
 
         if (forPdf) {
-            // Pas besoin de cacher adminInfo ici, showMessage le fera si utilisé
-            // ou juste réinitialiser si aucun message n'est en attente
-            if (!adminInfo.textContent.includes("succès") && !adminInfo.textContent.includes("échec")) { // N'écrase pas un message de succès/échec
-                adminInfo.textContent = "Vue du planning global des agents.";
-                adminInfo.style.backgroundColor = "";
-                adminInfo.style.borderColor = "";
-                adminInfo.style.color = "";
-            }
-        }
-    }
-}
-
-
-// --- Fonctions de navigation ---
-function showMainTab(tabName) {
-    // Masquer tous les contenus principaux
-    mainTabContents.forEach(content => {
-        content.classList.remove('active');
-    });
-    // Désactiver tous les boutons d'onglets principaux
-    mainTabButtons.forEach(button => {
-        button.classList.remove('active');
-    });
-
-    // Afficher le contenu de l'onglet actif
-    const activeContent = document.getElementById(tabName);
-    if (activeContent) {
-        activeContent.classList.add('active');
-    }
-    // Activer le bouton d'onglet correspondant
-    const activeButton = document.querySelector(`.main-tab[data-main-tab="${tabName}"]`);
-    if (activeButton) {
-        activeButton.classList.add('active');
-    }
-
-    // Gérer l'affichage des contrôles permanents du header (sélecteur de semaine, export)
-    // et des messages d'information
-    if (tabName === 'global-planning-view') {
-        if (headerControlsPermanent) headerControlsPermanent.style.display = 'flex';
-        if (adminInfo) {
-            adminInfo.style.display = 'block';
             adminInfo.textContent = "Vue du planning global des agents.";
-            adminInfo.style.backgroundColor = ""; // Reset styles
+            adminInfo.style.backgroundColor = "";
             adminInfo.style.borderColor = "";
             adminInfo.style.color = "";
         }
-        loadWeekPlanning(); // Charger le planning lorsque l'onglet est actif
-    } else {
-        if (headerControlsPermanent) headerControlsPermanent.style.display = 'none';
-        if (adminInfo) adminInfo.style.display = 'none'; // Masquer le message info pour les autres onglets
-    }
-
-    // Si on passe à la gestion des agents, grades, fonctions, charger les listes
-    if (tabName === 'manage-agents-view') {
-        fetchAgents();
-        // S'assurer que les checkboxes grades/fonctions pour l'ajout sont à jour
-        populateNewAgentCheckboxes();
-    } else if (tabName === 'manage-grades-view') {
-        fetchAndRenderGrades();
-    } else if (tabName === 'manage-fonctions-view') {
-        fetchAndRenderFonctions();
     }
 }
 
-function showDay(day) {
-    currentDay = day;
-    // Désactiver tous les boutons de jour
-    tabButtons.forEach(button => {
-        button.classList.remove('active');
-    });
-    // Activer le bouton de jour correspondant
-    const activeDayButton = document.querySelector(`.tab[data-day="${day}"]`);
-    if (activeDayButton) {
-        activeDayButton.classList.add('active');
+// --- Fonctions d'Authentification ---
+
+async function checkAuth() {
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username'); // Récupérer le username aussi
+    const role = localStorage.getItem('role');
+
+    if (!token || !role || !username) { // Vérifier username aussi
+        window.location.href = 'login.html';
+        return false;
     }
 
-    // Masquer tous les conteneurs de planning de jour
-    document.querySelectorAll('.day-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    // Afficher le conteneur de planning du jour actif
-    const activeDayContent = document.getElementById(`${day}-planning-table`);
-    if (activeDayContent) {
-        activeDayContent.classList.add('active');
-    }
-
-    renderPlanningTable(planningData[currentWeek], currentDay);
-}
-
-// --- Fonctions de gestion de semaine ---
-function getCurrentWeek() {
-    const now = new Date();
-    // Créer une date pour le 4 janvier de l'année en cours (pour la logique ISO 8601)
-    const jan4 = new Date(now.getFullYear(), 0, 4);
-    // Calculer le jour de la semaine du 4 janvier (0=dimanche, 1=lundi...)
-    const jan4Day = jan4.getDay() || 7; // Convertir 0 (dimanche) en 7
-    // Décalage pour trouver le premier jeudi de l'année (qui est toujours dans la semaine 1)
-    const firstThursday = new Date(jan4.getFullYear(), 0, 1 + (4 - jan4Day + 7) % 7);
-    // Calculer la différence en millisecondes entre la date actuelle et le premier jeudi
-    const diff = now - firstThursday;
-    // Nombre de jours depuis le premier jeudi
-    const daysSinceFirstThursday = Math.floor(diff / (1000 * 60 * 60 * 24));
-    // Nombre de semaines entières depuis le premier jeudi, +1 pour la semaine 1
-    return Math.ceil(daysSinceFirstThursday / 7) + 1;
-}
-
-function getWeekRange(weekNumber) {
-    const year = new Date().getFullYear();
-    const jan1 = new Date(year, 0, 1);
-    // Jour de la semaine du 1er janvier (0=dim, 1=lun)
-    const jan1Day = jan1.getDay();
-    // Ajuster au premier lundi de l'année ou au lundi de la semaine 1 si elle commence avant le 1er
-    let dayOffset = 0;
-    if (jan1Day <= 4) { // Si le 1er janvier est lun, mar, mer, jeu, il est dans la semaine 1
-        dayOffset = (1 - jan1Day + 7) % 7; // Jours à ajouter pour atteindre le premier lundi
-    } else { // Si le 1er janvier est ven, sam, dim, la semaine 1 commence plus tard
-        dayOffset = (8 - jan1Day + 7) % 7; // Jours à ajouter pour atteindre le premier lundi de la semaine 1
-    }
-
-    const startDate = new Date(year, 0, 1 + dayOffset + (weekNumber - 1) * 7);
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
-
-    const options = { day: '2-digit', month: '2-digit' };
-    return `${startDate.toLocaleDateString('fr-FR', options)} au ${endDate.toLocaleDateString('fr-FR', options)}`;
-}
-
-function populateWeekSelect() {
-    const currentYear = new Date().getFullYear();
-    // On peut estimer 53 semaines pour avoir un peu de marge
-    const weeksInYear = 53;
-    weekSelect.innerHTML = ''; // Clear previous options
-
-    for (let i = 1; i <= weeksInYear; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = `Semaine ${i} (${getWeekRange(i)})`;
-        if (i === currentWeek) {
-            option.selected = true;
-        }
-        weekSelect.appendChild(option);
-    }
-    dateRangeDisplay.textContent = getWeekRange(currentWeek);
-}
-
-// --- Fonctions de chargement des données ---
-async function fetchPlanningData(week) {
-    showLoading(true);
     try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            logout();
-            return;
-        }
-        const response = await fetch(`${API_BASE_URL}/planning?week=${week}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        if (!response.ok) {
-            if (response.status === 401) {
-                logout();
-            }
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        // Transformer les données pour les stocker sous forme d'objet {agentId: {day: [slots]}}
-        planningData[week] = data.reduce((acc, agent) => {
-            acc[agent.id] = agent.planning;
-            return acc;
-        }, {});
-        console.log("Planning data fetched for week", week, planningData[week]);
-        renderPlanningTable(planningData[week], currentDay);
-    } catch (error) {
-        console.error("Error fetching planning data:", error);
-        showMessage(adminInfo, "Erreur lors du chargement du planning. Veuillez réessayer.", 'error');
-        // Vider le planning affiché en cas d'erreur
-        days.forEach(day => {
-            const currentDayPlanningDiv = document.getElementById(`${day}-planning-table`);
-            if (currentDayPlanningDiv) currentDayPlanningDiv.innerHTML = `<p style="text-align:center;">Erreur de chargement du planning.</p>`;
-        });
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function fetchAgentDisplayInfos() {
-    showLoading(true);
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/admin/agents`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const agents = await response.json();
-        agentDisplayInfos = agents.reduce((acc, agent) => {
-            acc[agent.id] = { nom: agent.nom, prenom: agent.prenom };
-            return acc;
-        }, {});
-    } catch (error) {
-        console.error("Error fetching agent display infos:", error);
-        showMessage(adminInfo, "Erreur lors du chargement des informations des agents.", 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function fetchGrades() {
-    showLoading(true);
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/grades`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        availableGrades = await response.json();
-        console.log("Grades fetched:", availableGrades);
-    } catch (error) {
-        console.error("Error fetching grades:", error);
-        showMessage(adminInfo, "Erreur lors du chargement des grades.", 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function fetchFonctions() {
-    showLoading(true);
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/fonctions`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        availableFonctions = await response.json();
-        console.log("Fonctions fetched:", availableFonctions);
-    } catch (error) {
-        console.error("Error fetching fonctions:", error);
-        showMessage(adminInfo, "Erreur lors du chargement des fonctions.", 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-
-// --- Fonctions de rendu du planning ---
-function renderPlanningTable(weekPlanning, day) {
-    // Masquer tous les conteneurs de tableau de planning de jour d'abord
-    document.querySelectorAll('.day-content').forEach(content => {
-        content.classList.remove('active');
-        content.innerHTML = ''; // Nettoyer le contenu quand inactif
-    });
-
-    // Afficher le conteneur actif
-    const currentDayPlanningDiv = document.getElementById(`${day}-planning-table`);
-    if (!currentDayPlanningDiv) {
-        console.error(`Element for day planning table '${day}-planning-table' not found.`);
-        return;
-    }
-    currentDayPlanningDiv.classList.add('active'); // Assurez-vous qu'il est visible
-    currentDayPlanningDiv.innerHTML = ''; // Clear existing table
-
-    const table = document.createElement('table');
-    table.classList.add('planning-table');
-
-    // Create table header
-    const thead = table.createTHead();
-    const headerRow = thead.insertRow();
-    headerRow.insertCell().textContent = 'Agent'; // First column for agent name
-
-    // Add time slots (00:00 to 23:00)
-    for (let i = 0; i < 24; i++) {
-        const hour = String(i).padStart(2, '0');
-        headerRow.insertCell().textContent = `${hour}h`;
-    }
-    headerRow.insertCell().textContent = 'Actions'; // Last column for actions
-
-    // Create table body
-    const tbody = table.createTBody();
-
-    const sortedAgentIds = Object.keys(weekPlanning || {}).sort((idA, idB) => {
-        const agentA = agentDisplayInfos[idA] || { nom: '', prenom: '' };
-        const agentB = agentDisplayInfos[idB] || { nom: '', prenom: '' };
-        const compareNom = agentA.nom.localeCompare(agentB.nom);
-        if (compareNom !== 0) return compareNom;
-        return agentA.prenom.localeCompare(agentB.prenom);
-    });
-
-    if (sortedAgentIds.length === 0) {
-        const row = tbody.insertRow();
-        const cell = row.insertCell();
-        cell.colSpan = 26; // Agent + 24 slots + Actions
-        cell.textContent = "Aucun agent ou planning disponible pour ce jour/semaine.";
-        cell.style.textAlign = "center";
-        currentDayPlanningDiv.appendChild(table);
-        return;
-    }
-
-    sortedAgentIds.forEach(agentId => {
-        // Ensure agentPlanningForDay is an array of 24 elements, defaulting to 0
-        const agentPlanningForDay = (weekPlanning[agentId] && weekPlanning[agentId][day])
-                                     ? Array.isArray(weekPlanning[agentId][day]) && weekPlanning[agentId][day].length === 24
-                                        ? weekPlanning[agentId][day]
-                                        : Array(24).fill(0) // If not an array or wrong length, default to all 0
-                                     : Array(24).fill(0); // If no planning for agent or day, default to all 0
-
-        const agentInfo = agentDisplayInfos[agentId] || { nom: 'Inconnu', prenom: '' };
-
-        const row = tbody.insertRow();
-        row.dataset.agentId = agentId;
-
-        // Agent Name Cell
-        const nameCell = row.insertCell();
-        nameCell.textContent = `${agentInfo.nom} ${agentInfo.prenom}`;
-
-        // Planning Slots Cells
-        for (let i = 0; i < 24; i++) {
-            const slotCell = row.insertCell();
-            slotCell.classList.add('slot-cell');
-
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.dataset.hour = i;
-            checkbox.dataset.agentId = agentId;
-            checkbox.checked = agentPlanningForDay[i] === 1;
-            checkbox.classList.add('planning-checkbox');
-            checkbox.disabled = true; // Disabled by default, enabled in edit mode
-
-            slotCell.appendChild(checkbox);
-
-            slotCell.classList.add(agentPlanningForDay[i] === 1 ? 'occupied' : 'free');
-        }
-
-        // Actions Cell
-        const actionsCell = row.insertCell();
-        actionsCell.classList.add('actions-cell');
-
-        const editButton = document.createElement('button');
-        editButton.textContent = 'Modifier';
-        editButton.classList.add('btn', 'btn-primary', 'edit-planning-btn', 'btn-small');
-        editButton.dataset.agentId = agentId;
-        actionsCell.appendChild(editButton);
-
-        const saveButton = document.createElement('button');
-        saveButton.textContent = 'Sauvegarder';
-        saveButton.classList.add('btn', 'btn-success', 'save-planning-btn', 'hidden', 'btn-small');
-        saveButton.dataset.agentId = agentId;
-        actionsCell.appendChild(saveButton);
-
-        const cancelButton = document.createElement('button');
-        cancelButton.textContent = 'Annuler';
-        cancelButton.classList.add('btn', 'btn-secondary', 'cancel-planning-btn', 'hidden', 'btn-small');
-        cancelButton.dataset.agentId = agentId;
-        actionsCell.appendChild(cancelButton);
-    });
-
-    currentDayPlanningDiv.appendChild(table);
-
-    // Add event listeners for edit, save, cancel buttons
-    addPlanningEventListeners();
-}
-
-function addPlanningEventListeners() {
-    document.querySelectorAll('.edit-planning-btn').forEach(button => {
-        button.removeEventListener('click', handleEditPlanning); // Éviter les écouteurs multiples
-        button.addEventListener('click', handleEditPlanning);
-    });
-    document.querySelectorAll('.save-planning-btn').forEach(button => {
-        button.removeEventListener('click', handleSavePlanning);
-        button.addEventListener('click', handleSavePlanning);
-    });
-    document.querySelectorAll('.cancel-planning-btn').forEach(button => {
-        button.removeEventListener('click', handleCancelPlanning);
-        button.addEventListener('click', handleCancelPlanning);
-    });
-}
-
-function handleEditPlanning(event) {
-    const agentId = event.target.dataset.agentId;
-    const row = event.target.closest('tr');
-    if (!row) return;
-
-    // Store original state
-    const checkboxes = row.querySelectorAll('.planning-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.dataset.originalChecked = checkbox.checked; // Store original state
-        checkbox.disabled = false; // Enable for editing
-        checkbox.addEventListener('change', updateSlotClass); // Add listener for immediate visual feedback
-    });
-
-    row.classList.add('editing-row');
-    row.querySelector('.edit-planning-btn').classList.add('hidden');
-    row.querySelector('.save-planning-btn').classList.remove('hidden');
-    row.querySelector('.cancel-planning-btn').classList.remove('hidden');
-}
-
-function updateSlotClass(event) {
-    const checkbox = event.target;
-    const slotCell = checkbox.closest('.slot-cell');
-    if (checkbox.checked) {
-        slotCell.classList.remove('free');
-        slotCell.classList.add('occupied');
-    } else {
-        slotCell.classList.remove('occupied');
-        slotCell.classList.add('free');
-    }
-}
-
-async function handleSavePlanning(event) {
-    const agentId = event.target.dataset.agentId;
-    const row = event.target.closest('tr');
-    if (!row) return;
-
-    const checkboxes = row.querySelectorAll('.planning-checkbox');
-    const newPlanning = Array(24).fill(0);
-    checkboxes.forEach(checkbox => {
-        const hour = parseInt(checkbox.dataset.hour);
-        newPlanning[hour] = checkbox.checked ? 1 : 0;
-    });
-
-    showLoading(true);
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/admin/planning/${agentId}/week/${currentWeek}/day/${currentDay}`, {
-            method: 'PUT',
+        const response = await fetch(`${API_BASE_URL}/api/auth/verify-token`, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ planning: newPlanning })
+            }
         });
 
         if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Le token n'est pas valide ou a expiré
+            throw new Error('Token non valide ou expiré');
         }
 
-        const result = await response.json();
-        showMessage(adminInfo, `Planning de ${agentDisplayInfos[agentId].nom} mis à jour avec succès !`, 'success');
-        console.log("Update successful:", result);
-
-        // Update local planningData cache
-        if (!planningData[currentWeek]) planningData[currentWeek] = {};
-        if (!planningData[currentWeek][agentId]) planningData[currentWeek][agentId] = {};
-        planningData[currentWeek][agentId][currentDay] = newPlanning;
-
-        // Exit edit mode
-        checkboxes.forEach(checkbox => {
-            checkbox.disabled = true;
-            checkbox.removeEventListener('change', updateSlotClass);
-            delete checkbox.dataset.originalChecked; // Clean up stored state
-        });
-        row.classList.remove('editing-row');
-        row.querySelector('.edit-planning-btn').classList.remove('hidden');
-        row.querySelector('.save-planning-btn').classList.add('hidden');
-        row.querySelector('.cancel-planning-btn').classList.add('hidden');
-
+        const data = await response.json();
+        // Vérifier que le token est valide ET que le rôle est bien 'admin'
+        if (data.isValid && data.role === 'admin') { // Utiliser data.role du serveur
+            // Mettre à jour le message de bienvenue avec le nom d'utilisateur
+            document.getElementById('welcome-message').textContent = `Bonjour, ${username} !`;
+            return true;
+        } else {
+            // Token valide mais rôle non admin, ou isValid est false
+            throw new Error('Accès non autorisé : rôle non admin ou validation échouée');
+        }
     } catch (error) {
-        console.error("Error saving planning:", error);
-        showMessage(adminInfo, "Erreur lors de la sauvegarde du planning. Veuillez réessayer.", 'error');
-        // Revert to original state on error
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = checkbox.dataset.originalChecked === 'true'; // Revert to original state
-            updateSlotClass({ target: checkbox }); // Update visual state
-            checkbox.disabled = true;
-            checkbox.removeEventListener('change', updateSlotClass);
-            delete checkbox.dataset.originalChecked;
-        });
-        row.classList.remove('editing-row');
-        row.querySelector('.edit-planning-btn').classList.remove('hidden');
-        row.querySelector('.save-planning-btn').classList.add('hidden');
-        row.querySelector('.cancel-planning-btn').classList.add('hidden');
-    } finally {
-        showLoading(false);
+        console.error('Erreur de vérification du token:', error);
+        handleLogout(); // Déconnecte l'utilisateur en cas d'erreur
+        return false;
     }
 }
 
-function handleCancelPlanning(event) {
-    const row = event.target.closest('tr');
-    if (!row) return;
-
-    const checkboxes = row.querySelectorAll('.planning-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = checkbox.dataset.originalChecked === 'true'; // Revert to original state
-        updateSlotClass({ target: checkbox }); // Update visual state
-        checkbox.disabled = true; // Disable again
-        checkbox.removeEventListener('change', updateSlotClass); // Remove listener
-        delete checkbox.dataset.originalChecked; // Clean up stored state
-    });
-
-    row.classList.remove('editing-row');
-    row.querySelector('.edit-planning-btn').classList.remove('hidden');
-    row.querySelector('.save-planning-btn').classList.add('hidden');
-    row.querySelector('.cancel-planning-btn').classList.add('hidden');
+function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    localStorage.removeItem('role');
+    window.location.href = 'login.html';
 }
 
+// --- Fonctions de Gestion des Agents ---
 
-// --- Fonction de chargement du planning pour la semaine sélectionnée ---
-async function loadWeekPlanning() {
-    // Si planningData[currentWeek] est vide ou non défini, le charger.
-    // Sinon, juste le rendre depuis le cache.
-    if (!planningData[currentWeek] || Object.keys(planningData[currentWeek]).length === 0) {
-        await fetchPlanningData(currentWeek);
-    } else {
-        renderPlanningTable(planningData[currentWeek], currentDay);
-    }
-}
-
-// --- Fonctions de gestion des Agents ---
 async function fetchAgents() {
     showLoading(true);
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/admin/agents`, {
+        const response = await fetch(`${API_BASE_URL}/api/agents`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error('Erreur lors de la récupération des agents');
         }
         const agents = await response.json();
         renderAgentsTable(agents);
+        showLoading(false);
     } catch (error) {
-        console.error("Error fetching agents:", error);
-        showMessage(listAgentsMessage, "Erreur lors du chargement des agents.", 'error');
-    } finally {
+        console.error('Erreur:', error);
+        showInfoMessage(listAgentsMessage, 'Erreur lors du chargement des agents.', 'error');
         showLoading(false);
     }
 }
 
-function renderAgentsTable(agents) {
-    agentsTableBody.innerHTML = '';
-    if (agents.length === 0) {
-        agentsTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Aucun agent enregistré.</td></tr>';
-        return;
-    }
-
-    agents.forEach(agent => {
-        const row = agentsTableBody.insertRow();
-        row.dataset.agentId = agent.id;
-        row.insertCell().textContent = agent.id;
-        row.insertCell().textContent = agent.nom;
-        row.insertCell().textContent = agent.prenom;
-        row.insertCell().textContent = agent.grades && agent.grades.length > 0 ? agent.grades.map(g => g.name).join(', ') : 'N/A';
-        row.insertCell().textContent = agent.fonctions && agent.fonctions.length > 0 ? agent.fonctions.map(f => f.name).join(', ') : 'N/A';
-
-
-        const actionsCell = row.insertCell();
-        const editBtn = document.createElement('button');
-        editBtn.textContent = 'Modifier';
-        editBtn.classList.add('btn', 'btn-primary', 'btn-small');
-        editBtn.onclick = () => openEditAgentModal(agent);
-        actionsCell.appendChild(editBtn);
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Supprimer';
-        deleteBtn.classList.add('btn', 'btn-danger', 'btn-small');
-        deleteBtn.onclick = () => deleteAgent(agent.id);
-        actionsCell.appendChild(deleteBtn);
-    });
-}
-
-// Fonction pour populer les checkboxes de grades et fonctions pour l'ajout d'agent
-async function populateNewAgentCheckboxes() {
-    newAgentGradesCheckboxes.innerHTML = '';
-    availableGrades.forEach(grade => {
-        const div = document.createElement('div');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `add-agent-grade-${grade.id}`;
-        checkbox.value = grade.id;
-        const label = document.createElement('label');
-        label.htmlFor = `add-agent-grade-${grade.id}`;
-        label.textContent = grade.name;
-        div.appendChild(checkbox);
-        div.appendChild(label);
-        newAgentGradesCheckboxes.appendChild(div);
-    });
-
-    newAgentFonctionsCheckboxes.innerHTML = '';
-    availableFonctions.forEach(fonction => {
-        const div = document.createElement('div');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `add-agent-fonction-${fonction.id}`;
-        checkbox.value = fonction.id;
-        const label = document.createElement('label');
-        label.htmlFor = `add-agent-fonction-${fonction.id}`;
-        label.textContent = fonction.name;
-        div.appendChild(checkbox);
-        div.appendChild(label);
-        newAgentFonctionsCheckboxes.appendChild(div);
-    });
-}
-
-
 async function addAgent(event) {
     event.preventDefault();
     showLoading(true);
-
-    const newAgentId = document.getElementById('newAgentId').value;
-    const newAgentNom = document.getElementById('newAgentNom').value;
-    const newAgentPrenom = document.getElementById('newAgentPrenom').value;
-    const newAgentPassword = document.getElementById('newAgentPassword').value;
-    const selectedGrades = Array.from(document.querySelectorAll('#newAgentGradesCheckboxes input[type="checkbox"]:checked')).map(cb => cb.value);
-    const selectedFonctions = Array.from(document.querySelectorAll('#newAgentFonctionsCheckboxes input[type="checkbox"]:checked')).map(cb => cb.value);
-
+    const formData = new FormData(addAgentForm);
+    const agentData = {};
+    formData.forEach((value, key) => {
+        if (key === 'grades' || key === 'fonctions') {
+            if (!agentData[key]) {
+                agentData[key] = [];
+            }
+            agentData[key].push(value);
+        } else {
+            agentData[key] = value;
+        }
+    });
 
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/admin/agents`, {
+        const response = await fetch(`${API_BASE_URL}/api/agents`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({
-                id: newAgentId,
-                nom: newAgentNom,
-                prenom: newAgentPrenom,
-                password: newAgentPassword,
-                grades: selectedGrades,
-                fonctions: selectedFonctions
-            })
+            body: JSON.stringify(agentData)
         });
 
         if (!response.ok) {
-            if (response.status === 409) { // Conflict
-                throw new Error("Un agent avec cet ID existe déjà.");
-            }
-            if (response.status === 401) logout();
-            throw new Error(`Erreur HTTP! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de l\'ajout de l\'agent');
         }
 
-        const result = await response.json();
-        showMessage(addAgentMessage, "Agent ajouté avec succès!", 'success');
+        showInfoMessage(addAgentMessage, 'Agent ajouté avec succès!', 'success');
         addAgentForm.reset();
-        await fetchAgents(); // Recharger la liste des agents
-        await fetchAgentDisplayInfos(); // Mettre à jour les infos d'affichage des agents
-        populateNewAgentCheckboxes(); // Réinitialiser les checkboxes
+        await fetchAgents(); // Recharger la liste des agents après l'ajout
+        await fetchAgentDisplayInfos(); // Mettre à jour la liste des noms/prénoms pour le planning
+        populateNewAgentCheckboxes(); // Réinitialiser les checkboxes pour le prochain ajout
+        showLoading(false);
     } catch (error) {
-        console.error("Error adding agent:", error);
-        showMessage(addAgentMessage, `Erreur lors de l'ajout de l'agent: ${error.message}`, 'error');
-    } finally {
+        console.error('Erreur:', error);
+        showInfoMessage(addAgentMessage, error.message, 'error');
         showLoading(false);
     }
 }
 
-async function deleteAgent(agentId) {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'agent avec l'ID ${agentId} ?`)) {
+async function deleteAgent(id) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet agent ?')) {
         return;
     }
     showLoading(true);
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/admin/agents/${agentId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/agents/${id}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -809,157 +274,232 @@ async function deleteAgent(agentId) {
         });
 
         if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la suppression de l\'agent');
         }
 
-        showMessage(listAgentsMessage, `Agent ${agentId} supprimé avec succès!`, 'success');
+        showInfoMessage(listAgentsMessage, 'Agent supprimé avec succès!', 'success');
         await fetchAgents(); // Recharger la liste des agents
-        await fetchAgentDisplayInfos(); // Mettre à jour les infos d'affichage des agents
-        // Optionnel: Vider planningData pour forcer un re-fetch complet si l'agent supprimé affectait le planning
-        planningData = {};
-        loadWeekPlanning();
+        await fetchAgentDisplayInfos(); // Mettre à jour la liste des noms/prénoms pour le planning
+        showLoading(false);
     } catch (error) {
-        console.error("Error deleting agent:", error);
-        showMessage(listAgentsMessage, "Erreur lors de la suppression de l'agent. Veuillez réessayer.", 'error');
-    } finally {
+        console.error('Erreur:', error);
+        showInfoMessage(listAgentsMessage, error.message, 'error');
         showLoading(false);
     }
 }
 
-function openEditAgentModal(agent) {
-    document.getElementById('editAgentId').value = agent.id;
-    document.getElementById('editAgentNom').value = agent.nom;
-    document.getElementById('editAgentPrenom').value = agent.prenom;
-    document.getElementById('editAgentNewPassword').value = ''; // Clear password field
+async function openEditAgentModal(agentId) {
+    showLoading(true);
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/api/agents/${agentId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) {
+            throw new Error('Agent non trouvé');
+        }
+        const agent = await response.json();
 
-    // Populate grades checkboxes
-    gradesCheckboxes.innerHTML = '';
-    availableGrades.forEach(grade => {
-        const div = document.createElement('div');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `edit-grade-${grade.id}`;
-        checkbox.value = grade.id;
-        // Vérifier si l'agent a ce grade (agent.grades est un tableau d'objets {id, name})
-        checkbox.checked = agent.grades && agent.grades.some(ag => ag.id === grade.id);
-        const label = document.createElement('label');
-        label.htmlFor = `edit-grade-${grade.id}`;
-        label.textContent = grade.name;
-        div.appendChild(checkbox);
-        div.appendChild(label);
-        gradesCheckboxes.appendChild(div);
-    });
+        document.getElementById('editAgentId').value = agent._id;
+        document.getElementById('editNom').value = agent.nom;
+        document.getElementById('editPrenom').value = agent.prenom;
+        document.getElementById('editTel').value = agent.tel;
+        document.getElementById('editEmail').value = agent.email;
+        document.getElementById('editRole').value = agent.role;
+        document.getElementById('editPassword').value = ''; // Ne pas pré-remplir le mot de passe pour des raisons de sécurité
 
-    // Populate fonctions checkboxes
-    fonctionsCheckboxes.innerHTML = '';
-    availableFonctions.forEach(fonction => {
-        const div = document.createElement('div');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `edit-fonction-${fonction.id}`;
-        checkbox.value = fonction.id;
-        // Vérifier si l'agent a cette fonction (agent.fonctions est un tableau d'objets {id, name})
-        checkbox.checked = agent.fonctions && agent.fonctions.some(af => af.id === fonction.id);
-        const label = document.createElement('label');
-        label.htmlFor = `edit-fonction-${fonction.id}`;
-        label.textContent = fonction.name;
-        div.appendChild(checkbox);
-        div.appendChild(label);
-        fonctionsCheckboxes.appendChild(div);
-    });
+        // Remplir les checkboxes de grades pour l'édition
+        const editAgentGradesCheckboxes = document.getElementById('editAgentGradesCheckboxes');
+        editAgentGradesCheckboxes.innerHTML = ''; // Nettoyer
+        availableGrades.forEach(grade => {
+            const div = document.createElement('div');
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.id = `edit-grade-${grade._id}`;
+            input.name = 'grades';
+            input.value = grade._id;
+            if (agent.grades && agent.grades.includes(grade._id)) {
+                input.checked = true;
+            }
+            const label = document.createElement('label');
+            label.htmlFor = `edit-grade-${grade._id}`;
+            label.textContent = grade.name;
+            div.appendChild(input);
+            div.appendChild(label);
+            editAgentGradesCheckboxes.appendChild(div);
+        });
 
-    editAgentMessage.textContent = ''; // Clear any previous messages
-    editAgentModal.style.display = 'flex'; // Utiliser 'flex' pour le centrage via CSS
+        // Remplir les checkboxes de fonctions pour l'édition
+        const editAgentFonctionsCheckboxes = document.getElementById('editAgentFonctionsCheckboxes');
+        editAgentFonctionsCheckboxes.innerHTML = ''; // Nettoyer
+        availableFonctions.forEach(fonction => {
+            const div = document.createElement('div');
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.id = `edit-fonction-${fonction._id}`;
+            input.name = 'fonctions';
+            input.value = fonction._id;
+            if (agent.fonctions && agent.fonctions.includes(fonction._id)) {
+                input.checked = true;
+            }
+            const label = document.createElement('label');
+            label.htmlFor = `edit-fonction-${fonction._id}`;
+            label.textContent = fonction.name;
+            div.appendChild(input);
+            div.appendChild(label);
+            editAgentFonctionsCheckboxes.appendChild(div);
+        });
+
+
+        editAgentModal.style.display = 'block';
+        showLoading(false);
+    } catch (error) {
+        console.error('Erreur:', error);
+        showInfoMessage(listAgentsMessage, 'Erreur lors du chargement des détails de l\'agent.', 'error');
+        showLoading(false);
+    }
 }
+
 
 async function editAgent(event) {
     event.preventDefault();
     showLoading(true);
-
     const agentId = document.getElementById('editAgentId').value;
-    const nom = document.getElementById('editAgentNom').value;
-    const prenom = document.getElementById('editAgentPrenom').value;
-    const newPassword = document.getElementById('editAgentNewPassword').value;
-    const selectedGrades = Array.from(document.querySelectorAll('#gradesCheckboxes input[type="checkbox"]:checked')).map(cb => cb.value);
-    const selectedFonctions = Array.from(document.querySelectorAll('#fonctionsCheckboxes input[type="checkbox"]:checked')).map(cb => cb.value);
+    const agentData = {
+        nom: document.getElementById('editNom').value,
+        prenom: document.getElementById('editPrenom').value,
+        tel: document.getElementById('editTel').value,
+        email: document.getElementById('editEmail').value,
+        role: document.getElementById('editRole').value,
+        grades: Array.from(document.querySelectorAll('#editAgentGradesCheckboxes input[name="grades"]:checked')).map(cb => cb.value),
+        fonctions: Array.from(document.querySelectorAll('#editAgentFonctionsCheckboxes input[name="fonctions"]:checked')).map(cb => cb.value)
+    };
 
-    const updateData = { nom, prenom, grades: selectedGrades, fonctions: selectedFonctions };
-    if (newPassword) {
-        updateData.password = newPassword;
+    const password = document.getElementById('editPassword').value;
+    if (password) {
+        agentData.password = password; // Inclure le mot de passe seulement s'il est rempli
     }
 
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/admin/agents/${agentId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/agents/${agentId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(updateData)
+            body: JSON.stringify(agentData)
         });
 
         if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la modification de l\'agent');
         }
 
-        showMessage(editAgentMessage, "Agent mis à jour avec succès!", 'success');
+        showInfoMessage(editAgentMessage, 'Agent modifié avec succès!', 'success');
         editAgentModal.style.display = 'none';
         await fetchAgents(); // Recharger la liste des agents
-        await fetchAgentDisplayInfos(); // Mettre à jour les infos d'affichage des agents
-        // Optionnel: Vider planningData pour forcer un re-fetch complet si l'agent modifié a un impact sur le planning affiché
-        planningData = {};
-        loadWeekPlanning();
+        await fetchAgentDisplayInfos(); // Mettre à jour la liste des noms/prénoms pour le planning
+        showLoading(false);
     } catch (error) {
-        console.error("Error updating agent:", error);
-        showMessage(editAgentMessage, `Erreur lors de la mise à jour de l'agent: ${error.message}`, 'error');
-    } finally {
+        console.error('Erreur:', error);
+        showInfoMessage(editAgentMessage, error.message, 'error');
         showLoading(false);
     }
 }
 
-// --- Fonctions de gestion des Grades ---
-async function fetchAndRenderGrades() {
+function renderAgentsTable(agents) {
+    agentsTableBody.innerHTML = ''; // Nettoyer le tableau
+    if (agents.length === 0) {
+        agentsTableBody.innerHTML = '<tr><td colspan="7">Aucun agent trouvé.</td></tr>';
+        return;
+    }
+    agents.forEach(agent => {
+        const row = agentsTableBody.insertRow();
+        row.dataset.id = agent._id; // Stocker l'ID sur la ligne
+
+        const gradeNames = agent.grades && agent.grades.length > 0
+            ? agent.grades.map(gradeId => {
+                const grade = availableGrades.find(g => g._id === gradeId);
+                return grade ? grade.name : 'Inconnu';
+            }).join(', ')
+            : 'Aucun';
+
+        const fonctionNames = agent.fonctions && agent.fonctions.length > 0
+            ? agent.fonctions.map(fonctionId => {
+                const fonction = availableFonctions.find(f => f._id === fonctionId);
+                return fonction ? fonction.name : 'Inconnue';
+            }).join(', ')
+            : 'Aucune';
+
+        row.insertCell().textContent = agent.nom;
+        row.insertCell().textContent = agent.prenom;
+        row.insertCell().textContent = agent.tel;
+        row.insertCell().textContent = agent.email;
+        row.insertCell().textContent = agent.role;
+        row.insertCell().textContent = gradeNames; // Afficher les noms des grades
+        row.insertCell().textContent = fonctionNames; // Afficher les noms des fonctions
+
+        const actionsCell = row.insertCell();
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Modifier';
+        editBtn.classList.add('btn', 'btn-edit');
+        editBtn.onclick = () => openEditAgentModal(agent._id);
+        actionsCell.appendChild(editBtn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Supprimer';
+        deleteBtn.classList.add('btn', 'btn-danger');
+        deleteBtn.onclick = () => deleteAgent(agent._id);
+        actionsCell.appendChild(deleteBtn);
+    });
+}
+
+// Fonction pour récupérer les noms et prénoms de tous les agents pour l'affichage dans le planning
+async function fetchAgentDisplayInfos() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/api/agents/display-info`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) {
+            throw new Error('Erreur lors de la récupération des noms/prénoms des agents');
+        }
+        const data = await response.json();
+        agentDisplayInfos = data.reduce((acc, agent) => {
+            acc[agent._id] = `${agent.nom} ${agent.prenom}`;
+            return acc;
+        }, {});
+    } catch (error) {
+        console.error('Erreur fetchAgentDisplayInfos:', error);
+        // Gérer l'erreur, peut-être afficher un message à l'utilisateur
+    }
+}
+
+// --- Fonctions de Gestion des Grades ---
+
+async function fetchGrades() {
     showLoading(true);
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/grades`, {
+        const response = await fetch(`${API_BASE_URL}/api/grades`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error('Erreur lors de la récupération des grades');
         }
         const grades = await response.json();
-        availableGrades = grades; // Mettre à jour la liste globale des grades
-        gradesTableBody.innerHTML = '';
-        if (grades.length === 0) {
-            gradesTableBody.innerHTML = '<tr><td colspan="3" style="text-align: center;">Aucun grade enregistré.</td></tr>';
-            return;
-        }
-        grades.forEach(grade => {
-            const row = gradesTableBody.insertRow();
-            row.insertCell().textContent = grade.id;
-            row.insertCell().textContent = grade.name;
-            const actionsCell = row.insertCell();
-            const editBtn = document.createElement('button');
-            editBtn.textContent = 'Modifier';
-            editBtn.classList.add('btn', 'btn-primary', 'btn-small');
-            editBtn.onclick = () => openEditGradeModal(grade);
-            actionsCell.appendChild(editBtn);
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'Supprimer';
-            deleteBtn.classList.add('btn', 'btn-danger', 'btn-small');
-            deleteBtn.onclick = () => deleteGrade(grade.id);
-            actionsCell.appendChild(deleteBtn);
-        });
+        availableGrades = grades; // Stocke les grades globalement
+        renderGradesTable(grades);
+        showLoading(false);
     } catch (error) {
-        console.error("Error fetching grades for table:", error);
-        showMessage(listGradesMessage, "Erreur lors du chargement des grades.", 'error');
-    } finally {
+        console.error('Erreur fetchGrades:', error);
+        showInfoMessage(listGradesMessage, 'Erreur lors du chargement des grades.', 'error');
         showLoading(false);
     }
 }
@@ -967,79 +507,79 @@ async function fetchAndRenderGrades() {
 async function addGrade(event) {
     event.preventDefault();
     showLoading(true);
-    const newGradeId = document.getElementById('newGradeId').value;
-    const newGradeName = document.getElementById('newGradeName').value;
-
+    const gradeName = document.getElementById('addGradeName').value;
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/grades`, {
+        const response = await fetch(`${API_BASE_URL}/api/grades`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ id: newGradeId, name: newGradeName })
+            body: JSON.stringify({ name: gradeName })
         });
-
         if (!response.ok) {
-            if (response.status === 409) {
-                throw new Error("Un grade avec cet ID existe déjà.");
-            }
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de l\'ajout du grade');
         }
-
-        showMessage(addGradeMessage, "Grade ajouté avec succès!", 'success');
+        showInfoMessage(addGradeMessage, 'Grade ajouté avec succès!', 'success');
         addGradeForm.reset();
-        await fetchGrades(); // Refresh global grades list (important pour l'ajout d'agent)
-        await fetchAndRenderGrades(); // Refresh table
-        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'ajout d'agent
+        await fetchGrades(); // Recharger les grades
+        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'agent
+        showLoading(false);
     } catch (error) {
-        console.error("Error adding grade:", error);
-        showMessage(addGradeMessage, `Erreur lors de l'ajout du grade: ${error.message}`, 'error');
-    } finally {
+        console.error('Erreur addGrade:', error);
+        showInfoMessage(addGradeMessage, error.message, 'error');
         showLoading(false);
     }
 }
 
-async function deleteGrade(gradeId) {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer le grade avec l'ID ${gradeId} ?`)) {
+async function deleteGrade(id) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce grade ?')) {
         return;
     }
     showLoading(true);
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/grades/${gradeId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/grades/${id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
         if (!response.ok) {
-            if (response.status === 409) { // Possible si des agents utilisent ce grade
-                throw new Error("Impossible de supprimer le grade car il est attribué à un ou plusieurs agents.");
-            }
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la suppression du grade');
         }
-
-        showMessage(listGradesMessage, `Grade ${gradeId} supprimé avec succès!`, 'success');
-        await fetchGrades(); // Refresh global grades list
-        await fetchAndRenderGrades(); // Refresh table
-        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'ajout d'agent
-        await fetchAgents(); // Recharger les agents au cas où leurs grades affichés sont impactés
+        showInfoMessage(listGradesMessage, 'Grade supprimé avec succès!', 'success');
+        await fetchGrades(); // Recharger les grades
+        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'agent
+        showLoading(false);
     } catch (error) {
-        console.error("Error deleting grade:", error);
-        showMessage(listGradesMessage, `Erreur lors de la suppression du grade: ${error.message}`, 'error');
-    } finally {
+        console.error('Erreur deleteGrade:', error);
+        showInfoMessage(listGradesMessage, error.message, 'error');
         showLoading(false);
     }
 }
 
-function openEditGradeModal(grade) {
-    document.getElementById('editGradeId').value = grade.id;
-    document.getElementById('editGradeName').value = grade.name;
-    editGradeMessage.textContent = '';
-    editGradeModal.style.display = 'flex';
+async function openEditGradeModal(gradeId) {
+    showLoading(true);
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/api/grades/${gradeId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            throw new Error('Grade non trouvé');
+        }
+        const grade = await response.json();
+        document.getElementById('editGradeId').value = grade._id;
+        document.getElementById('editGradeName').value = grade.name;
+        editGradeModal.style.display = 'block';
+        showLoading(false);
+    } catch (error) {
+        console.error('Erreur openEditGradeModal:', error);
+        showInfoMessage(listGradesMessage, 'Erreur lors du chargement des détails du grade.', 'error');
+        showLoading(false);
+    }
 }
 
 async function editGrade(event) {
@@ -1047,10 +587,9 @@ async function editGrade(event) {
     showLoading(true);
     const gradeId = document.getElementById('editGradeId').value;
     const gradeName = document.getElementById('editGradeName').value;
-
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/grades/${gradeId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/grades/${gradeId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -1058,66 +597,65 @@ async function editGrade(event) {
             },
             body: JSON.stringify({ name: gradeName })
         });
-
         if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la modification du grade');
         }
-
-        showMessage(editGradeMessage, "Grade mis à jour avec succès!", 'success');
+        showInfoMessage(editGradeMessage, 'Grade modifié avec succès!', 'success');
         editGradeModal.style.display = 'none';
-        await fetchGrades(); // Refresh global grades list
-        await fetchAndRenderGrades(); // Refresh table
-        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'ajout d'agent
-        await fetchAgents(); // Recharger les agents au cas où leurs grades affichés sont impactés
+        await fetchGrades(); // Recharger les grades
+        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'agent
+        showLoading(false);
     } catch (error) {
-        console.error("Error updating grade:", error);
-        showMessage(editGradeMessage, "Erreur lors de la mise à jour du grade. Veuillez réessayer.", 'error');
-    } finally {
+        console.error('Erreur editGrade:', error);
+        showInfoMessage(editGradeMessage, error.message, 'error');
         showLoading(false);
     }
 }
 
-// --- Fonctions de gestion des Fonctions ---
-async function fetchAndRenderFonctions() {
+function renderGradesTable(grades) {
+    gradesTableBody.innerHTML = '';
+    if (grades.length === 0) {
+        gradesTableBody.innerHTML = '<tr><td colspan="3">Aucun grade trouvé.</td></tr>';
+        return;
+    }
+    grades.forEach(grade => {
+        const row = gradesTableBody.insertRow();
+        row.insertCell().textContent = grade.name;
+        const actionsCell = row.insertCell();
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Modifier';
+        editBtn.classList.add('btn', 'btn-edit');
+        editBtn.onclick = () => openEditGradeModal(grade._id);
+        actionsCell.appendChild(editBtn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Supprimer';
+        deleteBtn.classList.add('btn', 'btn-danger');
+        deleteBtn.onclick = () => deleteGrade(grade._id);
+        actionsCell.appendChild(deleteBtn);
+    });
+}
+
+// --- Fonctions de Gestion des Fonctions ---
+
+async function fetchFonctions() {
     showLoading(true);
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/fonctions`, {
+        const response = await fetch(`${API_BASE_URL}/api/fonctions`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error('Erreur lors de la récupération des fonctions');
         }
         const fonctions = await response.json();
-        availableFonctions = fonctions; // Mettre à jour la liste globale des fonctions
-        fonctionsTableBody.innerHTML = '';
-        if (fonctions.length === 0) {
-            fonctionsTableBody.innerHTML = '<tr><td colspan="3" style="text-align: center;">Aucune fonction enregistrée.</td></tr>';
-            return;
-        }
-        fonctions.forEach(fonction => {
-            const row = fonctionsTableBody.insertRow();
-            row.insertCell().textContent = fonction.id;
-            row.insertCell().textContent = fonction.name;
-            const actionsCell = row.insertCell();
-            const editBtn = document.createElement('button');
-            editBtn.textContent = 'Modifier';
-            editBtn.classList.add('btn', 'btn-primary', 'btn-small');
-            editBtn.onclick = () => openEditFonctionModal(fonction);
-            actionsCell.appendChild(editBtn);
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'Supprimer';
-            deleteBtn.classList.add('btn', 'btn-danger', 'btn-small');
-            deleteBtn.onclick = () => deleteFonction(fonction.id);
-            actionsCell.appendChild(deleteBtn);
-        });
+        availableFonctions = fonctions; // Stocke les fonctions globalement
+        renderFonctionsTable(fonctions);
+        showLoading(false);
     } catch (error) {
-        console.error("Error fetching fonctions for table:", error);
-        showMessage(listFonctionsMessage, "Erreur lors du chargement des fonctions.", 'error');
-    } finally {
+        console.error('Erreur fetchFonctions:', error);
+        showInfoMessage(listFonctionsMessage, 'Erreur lors du chargement des fonctions.', 'error');
         showLoading(false);
     }
 }
@@ -1125,79 +663,79 @@ async function fetchAndRenderFonctions() {
 async function addFonction(event) {
     event.preventDefault();
     showLoading(true);
-    const newFonctionId = document.getElementById('newFonctionId').value;
-    const newFonctionName = document.getElementById('newFonctionName').value;
-
+    const fonctionName = document.getElementById('addFonctionName').value;
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/fonctions`, {
+        const response = await fetch(`${API_BASE_URL}/api/fonctions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ id: newFonctionId, name: newFonctionName })
+            body: JSON.stringify({ name: fonctionName })
         });
-
         if (!response.ok) {
-            if (response.status === 409) {
-                throw new Error("Une fonction avec cet ID existe déjà.");
-            }
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de l\'ajout de la fonction');
         }
-
-        showMessage(addFonctionMessage, "Fonction ajoutée avec succès!", 'success');
+        showInfoMessage(addFonctionMessage, 'Fonction ajoutée avec succès!', 'success');
         addFonctionForm.reset();
-        await fetchFonctions(); // Refresh global fonctions list
-        await fetchAndRenderFonctions(); // Refresh table
-        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'ajout d'agent
+        await fetchFonctions(); // Recharger les fonctions
+        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'agent
+        showLoading(false);
     } catch (error) {
-        console.error("Error adding fonction:", error);
-        showMessage(addFonctionMessage, `Erreur lors de l'ajout de la fonction: ${error.message}`, 'error');
-    } finally {
+        console.error('Erreur addFonction:', error);
+        showInfoMessage(addFonctionMessage, error.message, 'error');
         showLoading(false);
     }
 }
 
-async function deleteFonction(fonctionId) {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer la fonction avec l'ID ${fonctionId} ?`)) {
+async function deleteFonction(id) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette fonction ?')) {
         return;
     }
     showLoading(true);
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/fonctions/${fonctionId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/fonctions/${id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
         if (!response.ok) {
-            if (response.status === 409) { // Possible si des agents utilisent cette fonction
-                throw new Error("Impossible de supprimer la fonction car elle est attribuée à un ou plusieurs agents.");
-            }
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la suppression de la fonction');
         }
-
-        showMessage(listFonctionsMessage, `Fonction ${fonctionId} supprimée avec succès!`, 'success');
-        await fetchFonctions(); // Refresh global fonctions list
-        await fetchAndRenderFonctions(); // Refresh table
-        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'ajout d'agent
-        await fetchAgents(); // Recharger les agents au cas où leurs fonctions affichées sont impactées
+        showInfoMessage(listFonctionsMessage, 'Fonction supprimée avec succès!', 'success');
+        await fetchFonctions(); // Recharger les fonctions
+        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'agent
+        showLoading(false);
     } catch (error) {
-        console.error("Error deleting fonction:", error);
-        showMessage(listFonctionsMessage, `Erreur lors de la suppression de la fonction: ${error.message}`, 'error');
-    } finally {
+        console.error('Erreur deleteFonction:', error);
+        showInfoMessage(listFonctionsMessage, error.message, 'error');
         showLoading(false);
     }
 }
 
-function openEditFonctionModal(fonction) {
-    document.getElementById('editFonctionId').value = fonction.id;
-    document.getElementById('editFonctionName').value = fonction.name;
-    editFonctionMessage.textContent = '';
-    editFonctionModal.style.display = 'flex';
+async function openEditFonctionModal(fonctionId) {
+    showLoading(true);
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/api/fonctions/${fonctionId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            throw new Error('Fonction non trouvée');
+        }
+        const fonction = await response.json();
+        document.getElementById('editFonctionId').value = fonction._id;
+        document.getElementById('editFonctionName').value = fonction.name;
+        editFonctionModal.style.display = 'block';
+        showLoading(false);
+    } catch (error) {
+        console.error('Erreur openEditFonctionModal:', error);
+        showInfoMessage(listFonctionsMessage, 'Erreur lors du chargement des détails de la fonction.', 'error');
+        showLoading(false);
+    }
 }
 
 async function editFonction(event) {
@@ -1205,10 +743,9 @@ async function editFonction(event) {
     showLoading(true);
     const fonctionId = document.getElementById('editFonctionId').value;
     const fonctionName = document.getElementById('editFonctionName').value;
-
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/fonctions/${fonctionId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/fonctions/${fonctionId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -1216,226 +753,422 @@ async function editFonction(event) {
             },
             body: JSON.stringify({ name: fonctionName })
         });
-
         if (!response.ok) {
-            if (response.status === 401) logout();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la modification de la fonction');
         }
-
-        showMessage(editFonctionMessage, "Fonction mise à jour avec succès!", 'success');
+        showInfoMessage(editFonctionMessage, 'Fonction modifiée avec succès!', 'success');
         editFonctionModal.style.display = 'none';
-        await fetchFonctions(); // Refresh global fonctions list
-        await fetchAndRenderFonctions(); // Refresh table
-        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'ajout d'agent
-        await fetchAgents(); // Recharger les agents au cas où leurs fonctions affichées sont impactées
+        await fetchFonctions(); // Recharger les fonctions
+        populateNewAgentCheckboxes(); // Mettre à jour les checkboxes d'agent
+        showLoading(false);
     } catch (error) {
-        console.error("Error updating fonction:", error);
-        showMessage(editFonctionMessage, "Erreur lors de la mise à jour de la fonction. Veuillez réessayer.", 'error');
-    } finally {
+        console.error('Erreur editFonction:', error);
+        showInfoMessage(editFonctionMessage, error.message, 'error');
         showLoading(false);
     }
 }
 
-// --- Fonctions d'export PDF ---
-async function exportPlanningToPdf() {
-    showLoading(true, true); // showLoading with forPdf = true
-    const { jsPDF } = window.jspdf;
+function renderFonctionsTable(fonctions) {
+    fonctionsTableBody.innerHTML = '';
+    if (fonctions.length === 0) {
+        fonctionsTableBody.innerHTML = '<tr><td colspan="3">Aucune fonction trouvée.</td></tr>';
+        return;
+    }
+    fonctions.forEach(fonction => {
+        const row = fonctionsTableBody.insertRow();
+        row.insertCell().textContent = fonction.name;
+        const actionsCell = row.insertCell();
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Modifier';
+        editBtn.classList.add('btn', 'btn-edit');
+        editBtn.onclick = () => openEditFonctionModal(fonction._id);
+        actionsCell.appendChild(editBtn);
 
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Supprimer';
+        deleteBtn.classList.add('btn', 'btn-danger');
+        deleteBtn.onclick = () => deleteFonction(fonction._id);
+        actionsCell.appendChild(deleteBtn);
+    });
+}
+
+
+// Fonctions pour peupler les checkboxes des formulaires d'agents (grades et fonctions)
+async function populateNewAgentCheckboxes() {
+    if (!newAgentGradesCheckboxes || !newAgentFonctionsCheckboxes) return;
+
+    newAgentGradesCheckboxes.innerHTML = '';
+    availableGrades.forEach(grade => {
+        const div = document.createElement('div');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = `add-grade-${grade._id}`;
+        input.name = 'grades';
+        input.value = grade._id;
+        const label = document.createElement('label');
+        label.htmlFor = `add-grade-${grade._id}`;
+        label.textContent = grade.name;
+        div.appendChild(input);
+        div.appendChild(label);
+        newAgentGradesCheckboxes.appendChild(div);
+    });
+
+    newAgentFonctionsCheckboxes.innerHTML = '';
+    availableFonctions.forEach(fonction => {
+        const div = document.createElement('div');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = `add-fonction-${fonction._id}`;
+        input.name = 'fonctions';
+        input.value = fonction._id;
+        const label = document.createElement('label');
+        label.htmlFor = `add-fonction-${fonction._id}`;
+        label.textContent = fonction.name;
+        div.appendChild(input);
+        div.appendChild(label);
+        newAgentFonctionsCheckboxes.appendChild(div);
+    });
+}
+
+
+// --- Fonctions de Gestion du Planning ---
+
+async function fetchPlanningData(week, day) {
+    showLoading(true);
     try {
-        const activeDayContent = document.querySelector('.day-content.active');
-        if (!activeDayContent) {
-            throw new Error("Aucun planning de jour actif à exporter. Sélectionnez un jour.");
-        }
-
-        const tableToExport = activeDayContent.querySelector('.planning-table');
-        if (!tableToExport) {
-            throw new Error("Tableau de planning introuvable pour l'exportation. Le planning n'a pas été chargé.");
-        }
-
-        // Clone the table to avoid modifying the displayed table and fix sticky headers/columns for PDF
-        const clonedTable = tableToExport.cloneNode(true);
-        clonedTable.style.position = 'static'; // Remove sticky positioning
-        clonedTable.style.left = 'auto';
-        clonedTable.style.right = 'auto';
-        clonedTable.style.width = 'fit-content'; // S'assurer que le tableau prend sa largeur naturelle
-        clonedTable.style.height = 'fit-content'; // S'assurer que le tableau prend sa hauteur naturelle
-        clonedTable.querySelectorAll('th, td').forEach(cell => {
-            cell.style.position = 'static'; // Remove sticky for cells
-            cell.style.left = 'auto';
-            cell.style.right = 'auto';
-            cell.style.backgroundColor = ''; // Reset background for consistent PDF colors
-            cell.style.boxShadow = 'none'; // Remove shadows
-            cell.style.minWidth = 'auto'; // Réinitialiser min-width pour html2canvas
-            cell.style.width = 'auto'; // Réinitialiser width pour html2canvas
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/api/planning/week/${week}/day/${day}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
         });
-        // S'assurer que les checkboxes sont visibles pour html2canvas (pas disabled)
-        clonedTable.querySelectorAll('.planning-checkbox').forEach(checkbox => {
-            checkbox.disabled = false;
-        });
-
-
-        // Create a temporary div to render the cloned table for html2canvas
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px'; // Off-screen
-        tempDiv.style.top = '-9999px';
-        tempDiv.style.width = 'auto'; // Permet au contenu de déterminer la largeur
-        tempDiv.style.height = 'auto';
-        tempDiv.style.padding = '20px'; // Un peu de padding
-        tempDiv.style.backgroundColor = 'white'; // Ensure white background for PDF
-        tempDiv.appendChild(clonedTable);
-        document.body.appendChild(tempDiv);
-
-        // Convert the cloned table to an image
-        const canvas = await html2canvas(tempDiv, {
-            scale: 2, // Higher scale for better quality
-            logging: true,
-            useCORS: true,
-            windowWidth: tempDiv.scrollWidth + 40, // Ajouter un peu de marge
-            windowHeight: tempDiv.scrollHeight + 40
-        });
-
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('landscape', 'pt', 'a4'); // 'landscape' for wider tables
-        const imgWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
+        if (!response.ok) {
+            throw new Error('Erreur lors de la récupération du planning');
         }
+        const data = await response.json();
+        // Mettre à jour le cache planningData
+        if (!planningData[`week-${week}`]) {
+            planningData[`week-${week}`] = {};
+        }
+        planningData[`week-${week}`][day] = data; // Stocke directement les données du jour
 
-        pdf.save(`planning_semaine_${currentWeek}_${currentDay}.pdf`);
-
-        document.body.removeChild(tempDiv); // Clean up temporary div
-        showMessage(adminInfo, "PDF généré avec succès!", 'success');
-
+        renderPlanningTable(data);
+        showLoading(false);
     } catch (error) {
-        console.error("Erreur lors de l'exportation PDF:", error);
-        showMessage(adminInfo, `Échec de la génération du PDF: ${error.message}`, 'error');
-    } finally {
+        console.error('Erreur fetchPlanningData:', error);
+        showInfoMessage(adminInfo, 'Erreur lors du chargement du planning.', 'error');
+        // Vider le planning si erreur pour éviter d'afficher des données obsolètes
+        renderPlanningTable([]);
         showLoading(false);
     }
 }
 
-
-// --- Fonction de déconnexion ---
-function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userRole'); // Supprimer le rôle de l'utilisateur
-    window.location.href = 'index.html'; // Rediriger vers la page de connexion
+async function updatePlanningSlot(agentId, weekNumber, dayName, slotIndex, isOccupied) {
+    showLoading(true);
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}/${weekNumber}/${dayName}/${slotIndex}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ isOccupied })
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erreur lors de la mise à jour du créneau');
+        }
+        // Pas besoin de recharger toutes les données, juste rafraîchir le créneau
+        // Ou recharger le planning du jour si la mise à jour est complexe
+        await fetchPlanningData(currentWeek, currentDay); // Recharger le jour actuel pour s'assurer de la cohérence
+        showLoading(false);
+    } catch (error) {
+        console.error('Erreur updatePlanningSlot:', error);
+        showInfoMessage(adminInfo, error.message, 'error');
+        showLoading(false);
+    }
 }
 
-// --- Initialisation au chargement du DOM ---
-document.addEventListener('DOMContentLoaded', async () => {
-    const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('userRole');
+function renderPlanningTable(dayPlanning) {
+    const planningTableBody = document.getElementById('planningTableBody'); // Assurez-vous d'avoir cet ID dans votre HTML
+    if (!planningTableBody) {
+        console.error("Élément 'planningTableBody' introuvable dans le DOM.");
+        return;
+    }
+    planningTableBody.innerHTML = ''; // Nettoyer le tableau
 
-    if (!token || userRole !== 'admin') {
-        logout();
+    const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + ':00');
+
+    // Assurez-vous que agentDisplayInfos est rempli avant d'appeler cette fonction
+    if (Object.keys(agentDisplayInfos).length === 0) {
+        planningTableBody.innerHTML = '<tr><td colspan="25">Chargement des agents...</td></tr>';
         return;
     }
 
-    // Gestion des onglets principaux
+    // Sort agents by last name, then first name for consistent display
+    const sortedAgentIds = Object.keys(agentDisplayInfos).sort((idA, idB) => {
+        const nameA = agentDisplayInfos[idA];
+        const nameB = agentDisplayInfos[idB];
+        const [nomA, prenomA] = nameA.split(' ');
+        const [nomB, prenomB] = nameB.split(' ');
+
+        if (nomA < nomB) return -1;
+        if (nomA > nomB) return 1;
+        if (prenomA < prenomB) return -1;
+        if (prenomA > prenomB) return 1;
+        return 0;
+    });
+
+
+    sortedAgentIds.forEach(agentId => {
+        const agentName = agentDisplayInfos[agentId] || `Agent ${agentId}`;
+        const row = planningTableBody.insertRow();
+        row.insertCell().textContent = agentName; // Colonne pour le nom de l'agent
+
+        const agentSlots = dayPlanning.find(item => item.agentId === agentId);
+        const slots = agentSlots ? agentSlots.slots : Array(24).fill(0); // 0 pour libre, 1 pour occupé
+
+        hours.forEach((hour, index) => {
+            const cell = row.insertCell();
+            cell.classList.add('slot-cell');
+            const isOccupied = slots[index] === 1;
+            if (isOccupied) {
+                cell.classList.add('occupied');
+            } else {
+                cell.classList.add('free');
+            }
+            cell.dataset.agentId = agentId;
+            cell.dataset.slotIndex = index;
+            cell.dataset.isOccupied = isOccupied ? 'true' : 'false';
+
+            cell.addEventListener('click', async () => {
+                const newIsOccupied = !isOccupied;
+                await updatePlanningSlot(agentId, currentWeek, currentDay, index, newIsOccupied ? 1 : 0);
+            });
+        });
+    });
+}
+
+
+function populateWeekSelect() {
+    weekSelect.innerHTML = ''; // Nettoyer les options existantes
+    const currentYear = new Date().getFullYear();
+    const numberOfWeeks = 52; // La plupart des années ont 52 semaines, parfois 53
+
+    for (let i = 1; i <= numberOfWeeks; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `Semaine ${i}`;
+        weekSelect.appendChild(option);
+    }
+    weekSelect.value = currentWeek; // Sélectionne la semaine actuelle
+    dateRangeDisplay.textContent = getWeekDateRange(currentWeek);
+}
+
+// Fonction pour charger et afficher le planning de la semaine et du jour sélectionnés
+async function loadWeekPlanning() {
+    const selectedWeek = weekSelect.value;
+    currentWeek = selectedWeek; // Mettre à jour la semaine globale
+    dateRangeDisplay.textContent = getWeekDateRange(selectedWeek);
+
+    // Charger le planning pour le jour actuel de la semaine sélectionnée
+    await fetchPlanningData(currentWeek, currentDay);
+}
+
+
+// --- Fonctions de Gestion des Onglets et de l'Interface ---
+
+function showMainTab(tabId) {
+    mainTabContents.forEach(content => {
+        content.classList.remove('active');
+    });
     mainTabButtons.forEach(button => {
-        button.addEventListener('click', (event) => {
-            const tabName = event.target.dataset.mainTab;
-            showMainTab(tabName);
-        });
+        button.classList.remove('active');
     });
 
-    // Gestion des onglets de jour dans le planning
+    const targetTab = document.getElementById(tabId);
+    if (targetTab) {
+        targetTab.classList.add('active');
+        const correspondingButton = document.querySelector(`.main-tab[data-tab="${tabId}"]`);
+        if (correspondingButton) {
+            correspondingButton.classList.add('active');
+        }
+    }
+
+    // Gérer l'affichage des contrôles spécifiques à l'onglet "Planning Global"
+    if (tabId === 'global-planning-view') {
+        // Affiche les contrôles de semaine et d'export PDF
+        headerControlsPermanent.style.display = 'flex'; // ou 'block', selon votre CSS
+        // S'assurer que le planning est chargé pour la semaine et le jour en cours
+        fetchPlanningData(currentWeek, currentDay);
+    } else {
+        // Cache ces contrôles pour les autres onglets
+        headerControlsPermanent.style.display = 'none';
+    }
+}
+
+function showDay(dayName) {
+    currentDay = dayName; // Met à jour le jour global
+
     tabButtons.forEach(button => {
-        button.addEventListener('click', (event) => {
-            const day = event.target.dataset.day;
-            showDay(day);
-        });
+        button.classList.remove('active');
     });
-
-    // Écouteur pour le changement de semaine
-    if (weekSelect) {
-        weekSelect.addEventListener('change', (event) => {
-            currentWeek = parseInt(event.target.value);
-            dateRangeDisplay.textContent = getWeekRange(currentWeek);
-            loadWeekPlanning();
-        });
+    const clickedButton = document.querySelector(`.tab[data-day="${dayName}"]`);
+    if (clickedButton) {
+        clickedButton.classList.add('active');
     }
 
+    // Charger le planning pour le jour sélectionné
+    fetchPlanningData(currentWeek, currentDay);
+}
 
-    // Écouteur pour le bouton d'export PDF
-    if (exportPdfButton) {
-        exportPdfButton.addEventListener('click', exportPlanningToPdf);
-    }
+// --- Initialisation des Écouteurs d'Événements ---
 
-    // Écouteur pour le bouton de déconnexion
-    if (logoutButton) {
-        logoutButton.addEventListener("click", logout);
-    }
+// Bouton de déconnexion
+document.getElementById('logout-btn').addEventListener('click', handleLogout);
 
-    // Initialisation des formulaires et modales
-    if (addAgentForm) {
-        addAgentForm.addEventListener('submit', addAgent);
-    }
-    if (editAgentForm) {
-        editAgentForm.addEventListener('submit', editAgent);
-    }
-    if (closeAgentModalButton) {
-        closeAgentModalButton.addEventListener('click', () => editAgentModal.style.display = 'none');
-    }
-    if (addGradeForm) {
-        addGradeForm.addEventListener('submit', addGrade);
-    }
-    if (editGradeForm) {
-        editGradeForm.addEventListener('submit', editGrade);
-    }
-    if (closeGradeModalButton) {
-        closeGradeModalButton.addEventListener('click', () => editGradeModal.style.display = 'none');
-    }
-    if (addFonctionForm) {
-        addFonctionForm.addEventListener('submit', addFonction);
-    }
-    if (editFonctionForm) {
-        editFonctionForm.addEventListener('submit', editFonction);
-    }
-    if (closeFonctionModalButton) {
-        closeFonctionModalButton.addEventListener('click', () => editFonctionModal.style.display = 'none');
-    }
+// Sélecteur de semaine
+if (weekSelect) {
+    weekSelect.addEventListener('change', loadWeekPlanning);
+}
 
-    // Fermer les modales en cliquant à l'extérieur
-    window.addEventListener('click', (event) => {
-        if (event.target === editAgentModal) {
-            editAgentModal.style.display = 'none';
-        }
-        if (event.target === editGradeModal) {
-            editGradeModal.style.display = 'none';
-        }
-        if (event.target === editFonctionModal) {
-            editFonctionModal.style.display = 'none';
+// Bouton d'export PDF
+if (exportPdfButton) {
+    exportPdfButton.addEventListener('click', async () => {
+        showLoading(true, true); // Active le spinner avec message PDF
+        try {
+            // Options pour html2canvas pour cibler uniquement le tableau de planning
+            const planningTable = document.getElementById('planning-table'); // ID de votre table de planning
+            if (!planningTable) {
+                throw new Error("Tableau de planning introuvable pour l'export PDF.");
+            }
+
+            const canvas = await html2canvas(planningTable, {
+                scale: 2, // Augmente la résolution pour une meilleure qualité
+                useCORS: true, // Important si des images/ressources viennent d'une autre origine
+                logging: false // Désactive le logging pour html2canvas
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jspdf.jsPDF({
+                orientation: 'landscape', // Orientation paysage
+                unit: 'px', // Unités en pixels
+                format: [canvas.width, canvas.height] // Dimensions du PDF basées sur le canvas
+            });
+
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`planning_semaine_${currentWeek}_jour_${currentDay}.pdf`);
+            showInfoMessage(adminInfo, 'PDF généré avec succès!', 'success');
+        } catch (error) {
+            console.error("Erreur lors de la génération du PDF:", error);
+            showInfoMessage(adminInfo, `Erreur lors de la génération du PDF: ${error.message}`, 'error');
+        } finally {
+            showLoading(false, true); // Désactive le spinner
         }
     });
+}
 
-    // Chargement initial des données
+// Listeners pour les boutons de jour (Lundi, Mardi, etc.)
+tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        showDay(button.dataset.day);
+    });
+});
+
+// Listeners pour les boutons des onglets principaux (Planning Global, Gestion Agents, etc.)
+mainTabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        showMainTab(button.dataset.tab);
+    });
+});
+
+// Gestion des formulaires
+if (addAgentForm) {
+    addAgentForm.addEventListener('submit', addAgent);
+}
+
+if (editAgentForm) {
+    editAgentForm.addEventListener('submit', editAgent);
+}
+if (closeAgentModalButton) {
+    closeAgentModalButton.addEventListener('click', () => editAgentModal.style.display = 'none');
+}
+
+// Gestion des grades
+if (addGradeForm) {
+    addGradeForm.addEventListener('submit', addGrade);
+}
+if (editGradeForm) {
+    editGradeForm.addEventListener('submit', editGrade);
+}
+if (closeGradeModalButton) {
+    closeGradeModalButton.addEventListener('click', () => editGradeModal.style.display = 'none');
+}
+
+// Gestion des fonctions
+if (addFonctionForm) {
+    addFonctionForm.addEventListener('submit', addFonction);
+}
+if (editFonctionForm) {
+    editFonctionForm.addEventListener('submit', editFonction);
+}
+if (closeFonctionModalButton) {
+    closeFonctionModalButton.addEventListener('click', () => editFonctionModal.style.display = 'none');
+}
+
+// Fermer les modales en cliquant à l'extérieur
+window.addEventListener('click', (event) => {
+    if (event.target === editAgentModal) {
+        editAgentModal.style.display = 'none';
+    }
+    if (event.target === editGradeModal) {
+        editGradeModal.style.display = 'none';
+    }
+    if (event.target === editFonctionModal) {
+        editFonctionModal.style.display = 'none';
+    }
+});
+
+
+// -------------------------------------------------------------------
+// NOUVEAU: SEUL ET UNIQUE écouteur d'événement DOMContentLoaded pour admin.js
+// La logique d'authentification est maintenant la première chose exécutée.
+// -------------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', async () => {
     showLoading(true); // Active le spinner dès le début
 
-    await fetchAgentDisplayInfos(); // Récupère les noms/prénoms des agents
-    await fetchGrades(); // Récupère les grades
-    await fetchFonctions(); // Récupère les fonctions
+    const isAuthenticated = await checkAuth(); // Tente de vérifier l'authentification
 
-    // Populate les selecteurs et checkboxes
-    populateWeekSelect(); // Remplit le selecteur de semaine
-    populateNewAgentCheckboxes(); // Remplit les checkboxes pour l'ajout d'agent
+    if (isAuthenticated) {
+        // Si l'utilisateur est authentifié et admin, charger toutes les données
+        // et initialiser l'interface complète.
+        
+        // Charger les informations d'affichage des agents (nom/prénom)
+        await fetchAgentDisplayInfos(); 
+        
+        // Charger les grades et fonctions disponibles (pour les formulaires)
+        await fetchGrades();
+        await fetchFonctions();
+        
+        // Charger la liste des agents (pour la section de gestion des agents)
+        await fetchAgents(); 
+        
+        // Pré-remplir les selecteurs et checkboxes (dépend des grades/fonctions)
+        populateWeekSelect();
+        populateNewAgentCheckboxes(); 
 
-    // Afficher l'onglet par défaut (Planning Global) et charger ses données
-    showMainTab('global-planning-view'); // Ceci appellera loadWeekPlanning() et rendra le planning du `currentDay` ('lundi')
-    showDay('lundi'); // S'assure que le premier jour est sélectionné et affiché
+        // Afficher l'onglet par défaut (Planning Global) et charger ses données
+        // showMainTab déclenchera automatiquement le chargement du planning du jour
+        showMainTab('global-planning-view'); 
+        showDay('lundi'); // S'assure que le premier jour est sélectionné et affiché
 
-    showLoading(false); // Masque le spinner une fois tout initialisé
+        showLoading(false); // Masque le spinner une fois tout chargé
+    } else {
+        // Si non authentifié, checkAuth aura déjà redirigé vers login.html.
+        // On s'assure juste que le spinner est caché au cas où une erreur
+        // bloquerait la redirection immédiate.
+        showLoading(false);
+    }
 });
