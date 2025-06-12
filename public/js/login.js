@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que cette URL est correcte
+const API_BASE_URL = ""; // Ancien: "https://dispo-pompier.onrender.com"
 
 async function login() {
   const agentSelect = document.getElementById("agent"); // Cet élément est la liste déroulante d'agents
@@ -35,8 +35,8 @@ async function login() {
     }
 
     // Connexion réussie
-    sessionStorage.setItem("token", data.token);
-    sessionStorage.setItem("agent", data.agentId); // Stocker l'ID de l'agent
+    sessionStorage.setItem("jwtToken", data.token); // Stocker le token JWT
+    sessionStorage.setItem("agent", data.agentId); // Stocker l'identifiant de l'agent
     sessionStorage.setItem("isAdmin", data.isAdmin); // Stocker le statut admin
 
     if (data.isAdmin) {
@@ -45,15 +45,15 @@ async function login() {
       window.location.href = "agent.html"; // Rediriger vers la page agent
     }
   } catch (err) {
-    console.error("Erreur de réseau ou du serveur:", err);
-    errorElement.textContent = "Impossible de se connecter au serveur. Vérifiez votre connexion.";
+    console.error("Erreur de connexion :", err);
+    errorElement.textContent = "Erreur de connexion. Veuillez réessayer plus tard.";
   } finally {
-    loginButton.disabled = false; // Réactiver le bouton (en cas d'erreur)
+    loginButton.disabled = false; // Réactiver le bouton
     loginButton.textContent = "Se connecter"; // Rétablir le texte du bouton
   }
 }
 
-// Fonction pour charger dynamiquement la liste des agents
+// Chargement de la liste des agents au chargement de la page
 document.addEventListener("DOMContentLoaded", async () => {
   const agentSelect = document.getElementById("agent");
   const errorElement = document.getElementById("error");
@@ -61,14 +61,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Vérifiez si l'élément agentSelect existe avant de tenter de le manipuler
   if (agentSelect) {
       try {
-          // Appelle la bonne route dans server.js (maintenant accessible sans authentification)
+          // MODIFICATION : Appelle la bonne route dans server.js (maintenant accessible sans authentification)
           const response = await fetch(`${API_BASE_URL}/api/agents/display-info`);
           if (!response.ok) {
               throw new Error('Erreur lors du chargement de la liste des agents.');
           }
           const agents = await response.json();
 
-          // Vider les options existantes (sauf peut-être une option par défaut si vous en avez une)
+          // Vider les options existantes (sauf l'option par défaut)
           // Laisser l'option "-- Choisissez un agent --" si elle est présente
           agentSelect.innerHTML = '<option value="" disabled selected>-- Choisissez un agent --</option>';
 
@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           });
           
           // Note: Si l'admin n'est pas inclus dans /api/agents/display-info par défaut, vous pouvez l'ajouter ici:
-          // Exemple:
+          // Exemple: (Décommenter si nécessaire et si l'admin n'est pas renvoyé par display-info)
           /*
           const adminOption = document.createElement("option");
           adminOption.value = "admin";
