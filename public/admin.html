@@ -26,198 +26,195 @@
     <nav class="main-tabs-navigation">
       <button class="main-tab active" data-main-tab="global-planning-view">Planning Global</button>
       <button class="main-tab" data-main-tab="agent-management-view">Gestion des Agents</button>
-      <button class="main-tab" data-main-tab="qualification-management-view">Gestion des Qualifications</button>
       <button class="main-tab" data-main-tab="grade-management-view">Gestion des Grades</button>
       <button class="main-tab" data-main-tab="fonction-management-view">Gestion des Fonctions</button>
-      <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
     </nav>
 
-    <main class="main-content">
-      <div id="global-planning-view" class="main-tab-content active">
-        <p id="admin-info" class="info-message">Vue du planning global des agents.</p>
-        <div class="planning-grid-container">
-          <div class="header-hours" id="header-hours"></div>
-          <div id="global-planning" class="planning-grid-content"></div>
-        </div>
-        <div id="loading-spinner" class="loading-spinner hidden"></div>
-      </div>
+    <div id="admin-info" class="info-message"></div>
 
-      <div id="agent-management-view" class="main-tab-content" style="display: none;">
-        <h2 class="section-title">Gestion des Agents</h2>
-        <button id="add-agent-btn" class="btn btn-primary">Ajouter un Agent</button>
-        <table id="agents-table" class="data-table">
+    <div id="global-planning-view" class="main-tab-content active">
+      <div id="global-planning">
+        <div class="planning-day-tabs">
+          <button class="tab" data-day="lundi">Lundi</button>
+          <button class="tab" data-day="mardi">Mardi</button>
+          <button class="tab" data-day="mercredi">Mercredi</button>
+          <button class="tab" data-day="jeudi">Jeudi</button>
+          <button class="tab" data-day="vendredi">Vendredi</button>
+          <button class="tab" data-day="samedi">Samedi</button>
+          <button class="tab" data-day="dimanche">Dimanche</button>
+        </div>
+        <div id="planning-day-content">
+          <p>Sélectionnez un jour pour voir le planning.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="agent-management-view" class="main-tab-content hidden">
+      <section id="add-agent-section">
+        <h3>Ajouter un Nouvel Agent</h3>
+        <form id="addAgentForm">
+          <label for="newAgentId">Identifiant (ex: pompier01) :</label>
+          <input type="text" id="newAgentId" required><br><br>
+
+          <label for="newAgentNom">Nom :</label>
+          <input type="text" id="newAgentNom" required><br><br>
+
+          <label for="newAgentPrenom">Prénom :</label>
+          <input type="text" id="newAgentPrenom" required><br><br>
+
+          <label for="newAgentPassword">Mot de passe :</label>
+          <input type="password" id="newAgentPassword" required><br><br>
+
+          <div>
+              <h4>Grades de l'Agent :</h4>
+              <div id="newAgentGradesCheckboxes">
+                  Chargement des grades...
+              </div>
+          </div>
+          <br>
+
+          <div>
+              <h4>Fonctions de l'Agent :</h4>
+              <div id="newAgentFonctionsCheckboxes">
+                  Chargement des fonctions...
+              </div>
+          </div>
+          <br>
+
+          <button type="submit" class="btn btn-primary">Ajouter l'Agent</button>
+        </form>
+        <p id="addAgentMessage"></p>
+      </section>
+
+      <hr>
+
+      <section id="list-agents-section">
+        <h3>Liste des Agents</h3>
+        <table>
           <thead>
             <tr>
-              <th>ID</th>
+              <th>Identifiant</th>
               <th>Nom</th>
               <th>Prénom</th>
-              <th>Admin</th>
-              <th>Qualifications</th>
-              <th>Grade</th>
-              <th>Fonction</th>
+              <th>Grades</th>
+              <th>Fonctions</th>
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody>
-            </tbody>
+          <tbody id="agentsTableBody">
+            <tr><td colspan="6">Chargement des agents...</td></tr> </tbody>
         </table>
-        <p id="agent-management-message" class="info-message"></p>
-      </div>
-
-      <div id="qualification-management-view" class="main-tab-content" style="display: none;">
-        <h2 class="section-title">Gestion des Qualifications</h2>
-        <button id="add-qualification-btn" class="btn btn-primary">Ajouter une Qualification</button>
-        <table id="qualifications-table" class="data-table">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            </tbody>
-        </table>
-        <p id="qualification-management-message" class="info-message"></p>
-      </div>
-
-      <div id="grade-management-view" class="main-tab-content" style="display: none;">
-        <h2 class="section-title">Gestion des Grades</h2>
-        <button id="add-grade-btn" class="btn btn-primary">Ajouter un Grade</button>
-        <table id="grades-table" class="data-table">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            </tbody>
-        </table>
-        <p id="grade-management-message" class="info-message"></p>
-      </div>
-
-      <div id="fonction-management-view" class="main-tab-content" style="display: none;">
-        <h2 class="section-title">Gestion des Fonctions</h2>
-        <button id="add-fonction-btn" class="btn btn-primary">Ajouter une Fonction</button>
-        <table id="fonctions-table" class="data-table">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            </tbody>
-        </table>
-        <p id="fonction-management-message" class="info-message"></p>
-      </div>
-    </main>
-  </div>
-
-  <div id="addAgentModal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <span class="close-button">&times;</span>
-      <h3>Ajouter un nouvel Agent</h3>
-      <form id="addAgentForm">
-        <label for="agentId">Identifiant (ID) :</label>
-        <input type="text" id="addAgentId" required><br><br>
-
-        <label for="addAgentNom">Nom :</label>
-        <input type="text" id="addAgentNom" required><br><br>
-
-        <label for="addAgentPrenom">Prénom :</label>
-        <input type="text" id="addAgentPrenom" required><br><br>
-
-        <label for="addAgentMdp">Mot de passe :</label>
-        <input type="password" id="addAgentMdp" required><br><br>
-
-        <label for="addAgentIsAdmin">Administrateur :</label>
-        <input type="checkbox" id="addAgentIsAdmin"><br><br>
-
-        <label for="addAgentQualifications">Qualifications :</label>
-        <select id="addAgentQualifications" multiple></select><br><br>
-
-        <label for="addAgentGrade">Grade :</label>
-        <select id="addAgentGrade"></select><br><br>
-
-        <label for="addAgentFonction">Fonction :</label>
-        <select id="addAgentFonction"></select><br><br>
-
-        <button type="submit" class="btn btn-primary">Ajouter l'Agent</button>
-      </form>
-      <p id="addAgentMessage"></p>
+        <p id="listAgentsMessage"></p>
+      </section>
     </div>
-  </div>
 
-  <div id="editAgentModal" class="modal" style="display: none;">
+    <div id="grade-management-view" class="main-tab-content hidden">
+        <section id="add-grade-section">
+            <h3>Ajouter un Nouveau Grade</h3>
+            <form id="addGradeForm">
+                <label for="newGradeId">Identifiant (ex: caporal) :</label>
+                <input type="text" id="newGradeId" required><br><br>
+
+                <label for="newGradeName">Nom du Grade (ex: Caporal) :</label>
+                <input type="text" id="newGradeName" required><br><br>
+
+                <button type="submit" class="btn btn-primary">Ajouter le Grade</button>
+            </form>
+            <p id="addGradeMessage"></p>
+        </section>
+
+        <hr>
+
+        <section id="list-grades-section">
+            <h3>Liste des Grades</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identifiant</th>
+                        <th>Nom</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="gradesTableBody">
+                    <tr><td colspan="3">Chargement des grades...</td></tr>
+                </tbody>
+            </table>
+            <p id="listGradesMessage"></p>
+        </section>
+    </div>
+
+    <div id="fonction-management-view" class="main-tab-content hidden">
+        <section id="add-fonction-section">
+            <h3>Ajouter une Nouvelle Fonction</h3>
+            <form id="addFonctionForm">
+                <label for="newFonctionId">Identifiant (ex: eq) :</label>
+                <input type="text" id="newFonctionId" required><br><br>
+
+                <label for="newFonctionName">Nom de la Fonction (ex: Standard) :</label>
+                <input type="text" id="newFonctionName" required><br><br>
+
+                <button type="submit" class="btn btn-primary">Ajouter la Fonction</button>
+            </form>
+            <p id="addFonctionMessage"></p>
+        </section>
+
+        <hr>
+
+        <section id="list-fonctions-section">
+            <h3>Liste des Fonctions</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identifiant</th>
+                        <th>Nom</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="fonctionsTableBody">
+                    <tr><td colspan="3">Chargement des fonctions...</td></tr>
+                </tbody>
+            </table>
+            <p id="listFonctionsMessage"></p>
+        </section>
+    </div>
+
+  </div> <div id="editAgentModal" class="modal" style="display: none;">
     <div class="modal-content">
       <span class="close-button">&times;</span>
       <h3>Modifier l'Agent</h3>
       <form id="editAgentForm">
-        <input type="hidden" id="editAgentOriginalId"> <label for="editAgentIdDisplay">Identifiant (ID) :</label>
-        <input type="text" id="editAgentIdDisplay" disabled><br><br> <label for="editAgentNom">Nom :</label>
+        <input type="hidden" id="editAgentId">
+
+        <label for="editAgentNom">Nom :</label>
         <input type="text" id="editAgentNom" required><br><br>
 
         <label for="editAgentPrenom">Prénom :</label>
         <input type="text" id="editAgentPrenom" required><br><br>
 
-        <label for="editAgentMdp">Nouveau Mot de passe (laisser vide pour ne pas changer) :</label>
-        <input type="password" id="editAgentMdp"><br><br>
+        <label for="editAgentPassword">Nouveau mot de passe (laisser vide pour ne pas changer) :</label>
+        <input type="password" id="editAgentPassword"><br><br>
 
-        <label for="editAgentIsAdmin">Administrateur :</label>
-        <input type="checkbox" id="editAgentIsAdmin"><br><br>
+        <div>
+            <h4>Grades de l'Agent :</h4>
+            <div id="gradesCheckboxes">
+                Chargement des grades...
+            </div>
+            <p id="gradesMessage" style="color: red;"></p>
+        </div>
+        <br>
 
-        <label for="editAgentQualifications">Qualifications :</label>
-        <select id="editAgentQualifications" multiple></select><br><br>
-
-        <label for="editAgentGrade">Grade :</label>
-        <select id="editAgentGrade"></select><br><br>
-
-        <label for="editAgentFonction">Fonction :</label>
-        <select id="editAgentFonction"></select><br><br>
+        <div>
+            <h4>Fonctions de l'Agent :</h4>
+            <div id="fonctionsCheckboxes">
+                Chargement des fonctions...
+            </div>
+            <p id="fonctionsMessage" style="color: red;"></p>
+        </div>
+        <br>
 
         <button type="submit" class="btn btn-primary">Mettre à jour l'Agent</button>
       </form>
-    </div>
-  </div>
-
-  <div id="addQualificationModal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <span class="close-button">&times;</span>
-      <h3>Ajouter une nouvelle Qualification</h3>
-      <form id="addQualificationForm">
-        <label for="addQualificationName">Nom de la Qualification :</label>
-        <input type="text" id="addQualificationName" required><br><br>
-        <button type="submit" class="btn btn-primary">Ajouter la Qualification</button>
-      </form>
-      <p id="addQualificationMessage"></p>
-    </div>
-  </div>
-
-  <div id="editQualificationModal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <span class="close-button">&times;</span>
-      <h3>Modifier la Qualification</h3>
-      <form id="editQualificationForm">
-        <input type="hidden" id="editQualificationId">
-        <label for="editQualificationName">Nom de la Qualification :</label>
-        <input type="text" id="editQualificationName" required><br><br>
-        <button type="submit" class="btn btn-primary">Mettre à jour la Qualification</button>
-      </form>
-      <p id="editQualificationMessage"></p>
-    </div>
-  </div>
-
-  <div id="addGradeModal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <span class="close-button">&times;</span>
-      <h3>Ajouter un nouveau Grade</h3>
-      <form id="addGradeForm">
-        <label for="addGradeName">Nom du Grade :</label>
-        <input type="text" id="addGradeName" required><br><br>
-        <button type="submit" class="btn btn-primary">Ajouter le Grade</button>
-      </form>
-      <p id="addGradeMessage"></p>
+      <p id="editAgentMessage"></p>
     </div>
   </div>
 

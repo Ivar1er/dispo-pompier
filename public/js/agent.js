@@ -1,10 +1,8 @@
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-const API_BASE_URL = ""; // Ancien: "https://dispo-pompier.onrender.com"
+const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que cette URL est correcte et accessible
 
 let currentAgentId = sessionStorage.getItem("agent"); // L'identifiant de l'agent connecté
 let agentQualifications = []; // Pour stocker les qualifications de l'agent
-let agentGrade = {}; // Pour stocker le grade de l'agent
-let agentFonction = {}; // Pour stocker la fonction de l'agent
 let currentWeekKey = `week-${getCurrentWeek()}`; // La clé de la semaine actuelle (ex: "week-24")
 let currentDay = 'lundi'; // Le jour actuellement affiché
 let agentPlanningData = {}; // Contiendra les disponibilités de l'agent pour toutes les semaines chargées
@@ -27,63 +25,386 @@ for (let i = 0; i < 48; i++) {
   horaires.push(`${start} - ${end}`);
 }
 
-// DOM Elements
+// Définitions des éléments du DOM (mis à jour pour correspondre à agent.html)
 const agentPrenomSpan = document.getElementById("agent-prenom");
 const agentNomSpan = document.getElementById("agent-nom");
-const agentQualificationsDisplay = document.getElementById("agentQualificationsDisplay");
-const weekSelect = document.getElementById("week-select");
-const tabButtons = document.querySelectorAll(".tab");
-const planningContainer = document.getElementById("planning-container");
-const saveButton = document.getElementById("save-button");
-const clearSelectionBtn = document.getElementById("clear-selection-btn");
-const logoutButton = document.getElementById('logout-btn');
-const syntheseBtn = document.getElementById('synthese-btn');
+const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay');
+const weekSelect = document.getElementById("week-select"); // ID corrigé
+const syntheseBtn = document.getElementById("synthese-btn"); // ID corrigé
+const tabButtons = document.querySelectorAll('.tab'); // Classe corrigée
+const planningContainer = document.getElementById("planning-container"); // ID corrigé (ce sera le conteneur des boutons)
 const loadingSpinner = document.getElementById("loading-spinner");
-const infoMessageElement = document.getElementById("selection-info");
+const saveButton = document.getElementById("save-button"); // ID corrigé
+const clearSelectionBtn = document.getElementById("clear-selection-btn"); // ID corrigé
+const logoutButton = document.getElementById("logout-button"); // ID corrigé
+const selectionInfo = document.getElementById("selection-info"); // Message d'info
 
-// Variables pour la sélection par glisser-déposer
-let isDragging = false;
-let startSlot = null;
-let endSlot = null;
-let currentDaySlots = []; // Pour stocker les créneaux pour le jour actif
-let selectedSlots = new Set(); // Pour stocker les créneaux actuellement sélectionnés (visuel)
-let originalSelectedSlots = new Set(); // Pour restaurer si annuler la sélection
 
-// Fonctions utilitaires
-function getCurrentWeek() {
+document.addEventListener("DOMContentLoaded", async () => {
+  const userRole = sessionStorage.getItem("userRole");
+  const agentPrenom = sessionStorage.getItem("agentPrenom");
+  const agentNom = sessionStorage.getItem("agentNom");
+
+  // Vérification du rôle et de l'agent connecté
+  if (!userRole || userRole !== "agent" || !currentAgentId) {
+    alert("Accès non autorisé. Vous devez être connecté en tant qu’agent.");
+    sessionStorage.clear();
+    window.location.href = "index.html";
+    return;
+  }
+
+  // Afficher le message de bienvenue
+  if (agentPrenomSpan && agentNomSpan) {
+    agentPrenomSpan.textContent = agentPrenom || '';
+    agentNomSpan.textContent = agentNom || '';
+  }
+
+  // Charger les qualifications de l'agent
+  await loadAgentQualifications(currentAgentId);
+  displayAgentQualifications();
+
+  generateWeekOptions(); // Génère les options pour la sélection de la semaine
+  weekSelect.value = currentWeekKey; // Sélectionne la semaine actuelle par défaut
+
+  // Charge le planning pour la semaine et le jour actuels au démarrage
+  await loadPlanningForAgent(currentAgentId, currentWeekKey, currentDay);
+
+  // Écouteurs d'événements
+  if (weekSelect) {
+    weekSelect.addEventListener("change", async () => {
+      // Proposer d'enregistrer avant de changer de semaine
+      if (hasUnsavedChanges()) {
+        if (!confirm("Vous avez des modifications non enregistrées pour le jour actuel. Voulez-vous les enregistrer maintenant ?")) {
+          // Si l'utilisateur annule, réinitialiser le sélecteur à l'ancienne valeur
+          weekSelect.value = currentWeekKey;
+          return;
+        }
+        await savePlanning(); // Tenter d'enregistrer les modifications
+      }
+      currentWeekKey = weekSelect.value;
+      await loadPlanningForAgent(currentAgentId, currentWeekKey, currentDay);
+    });
+  }
+  if (saveButton) {
+    saveButton.addEventListener("click", savePlanning);
+  }
+  if (clearSelectionBtn) {
+    clearSelectionBtn.addEventListener("click", clearSelectedCells);
+  }
+  if (logoutButton) {
+    logoutButton.addEventListener("click", logout);
+  }
+  if (syntheseBtn) {
+    // Déjà un lien href="synthese.html" dans l'HTML, pas besoin de JS ici à moins d'une logique complexe
+  }
+
+  // Initialisation des onglets (jours de la semaine)
+  if (tabButtons.length > 0) {
+    tabButtons.forEach(button => {
+      button.addEventListener('click', async () => {
+        const targetDay = button.dataset.day;
+        // Proposer d'enregistrer avant de changer de jour
+        if (hasUnsavedChanges()) {
+          if (!confirm("Vous avez des modifications non enregistrées pour le jour actuel. Voulez-vous les enregistrer maintenant ?")) {
+            // Si l'utilisateur annule, ne pas changer de jour
+            return;
+          }
+          await savePlanning(); // Tenter d'enregistrer les modifications
+        }
+        currentDay = targetDay;
+        // Changer la classe active pour le bouton d'onglet
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        renderPlanningGrid(currentDay); // Afficher le planning pour le nouveau jour sous forme de grille de boutons
+      });
+    });
+    // Ouvre le premier onglet par défaut au démarrage
+    // Le HTML a déjà un .tab.active par défaut sur Lundi
+    renderPlanningGrid(currentDay); // Affiche le planning pour le jour 'lundi' initial
+  }
+
+  // Initialise le comportement de sélection des cellules (glisser-déposer)
+  initCellSelection();
+
+  showLoading(false);
+});
+
+
+// --- Fonctions de gestion des qualifications de l'agent ---
+
+// Charge les qualifications de l'agent connecté depuis le serveur
+async function loadAgentQualifications(agentId) {
+    try {
+        // Nouvelle route API pour récupérer les informations d'un agent spécifique, y compris les qualifications
+        // NOTE: Cette route est protégée par `authorizeAdmin` côté serveur. Pour un usage sécurisé
+        // en production où l'agent accède à ses propres informations, il faudrait une route séparée
+        // ou un système de token JWT pour autoriser l'agent à accéder à ses propres données sans être 'admin'.
+        const response = await fetch(`${API_BASE_URL}/api/admin/agents/${agentId}`, {
+             headers: { 'X-User-Role': 'admin' } // Temporaire: Simule un accès admin pour récupérer les infos de l'agent
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erreur lors du chargement des qualifications de l\'agent.');
+        }
+        agentQualifications = data.qualifications || [];
+        console.log(`Qualifications de ${agentId}:`, agentQualifications);
+    } catch (error) {
+        console.error('Erreur de chargement des qualifications de l\'agent:', error);
+        // Vous pouvez afficher un message d'erreur à l'utilisateur si nécessaire
+        if (agentQualificationsDisplay) {
+            agentQualificationsDisplay.textContent = 'Impossible de charger vos qualifications.';
+            agentQualificationsDisplay.style.color = 'red';
+        }
+    }
+}
+
+// Affiche les qualifications de l'agent sur la page
+function displayAgentQualifications() {
+    if (agentQualificationsDisplay) {
+        if (agentQualifications.length > 0) {
+            agentQualificationsDisplay.innerHTML = 'Vos qualifications : ' + agentQualifications.map(q => `<span class="qualification-tag">${q}</span>`).join(', ');
+        } else {
+            agentQualificationsDisplay.textContent = 'Vous n\'avez pas de qualifications attribuées.';
+        }
+    }
+}
+
+
+// --- Fonctions Utilitaire pour les dates et semaines ---
+function getCurrentWeek(date = new Date()) {
+  const target = new Date(date.valueOf());
+  target.setDate(target.getDate() + 3 - (target.getDay() + 6) % 7);
+  const firstThursday = new Date(target.getFullYear(), 0, 4);
+  const weekNo = Math.ceil((((target - firstThursday) / 86400000) + 1) / 7);
+  return weekNo;
+}
+
+function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
+  const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
+  const dow = simple.getDay() || 7;
+  const ISOweekStart = new Date(simple);
+  if (dow <= 4) {
+    ISOweekStart.setDate(simple.getDate() - dow + 1);
+  } else {
+    ISOweekStart.setDate(simple.getDate() + 8 - dow);
+  }
+
+  const start = new Date(ISOweekStart);
+  const end = new Date(ISOweekStart);
+  end.setDate(start.getDate() + 6);
+
+  const format = date => date.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit"
+  });
+
+  return `du ${format(start)} au ${format(end)}`;
+}
+
+
+// Génère les options de semaine (actuelle + 5 prochaines)
+function generateWeekOptions() {
+  const select = document.getElementById("week-select");
+  select.innerHTML = ""; // Vide les options existantes
+
   const today = new Date();
-  const date = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
-}
+  const currentWeekNumber = getCurrentWeek(today);
+  const currentYear = today.getFullYear();
 
-// Récupère la date de début et de fin d'une semaine donnée
-function getStartAndEndDateOfWeek(weekNum, year = new Date().getFullYear()) {
-    const date = new Date(year, 0, 1 + (weekNum - 1) * 7);
-    const day = date.getDay();
-    const diff = (day <= 4 ? 1 : 8) - day; // calculate diff to Monday
-    date.setDate(date.getDate() + diff);
-    const monday = new Date(date);
-    const sunday = new Date(date);
-    sunday.setDate(date.getDate() + 6);
-    return `${monday.toLocaleDateString('fr-FR')} - ${sunday.toLocaleDateString('fr-FR')}`;
-}
-
-// Fonction pour afficher des messages
-function displayMessage(element, message, isError = true) {
-  if (element) {
-    element.textContent = message;
-    element.style.color = isError ? 'red' : 'green';
-    element.style.display = 'block';
-    setTimeout(() => {
-      element.textContent = '';
-      element.style.display = 'none';
-    }, 5000);
+  for (let i = 0; i < 6; i++) { // Génère la semaine actuelle + 5 prochaines (total 6)
+    const weekNum = currentWeekNumber + i;
+    const option = document.createElement("option");
+    option.value = `week-${weekNum}`; // Format de la valeur pour correspondre au backend
+    const dateRange = getWeekDateRange(weekNum, currentYear);
+    option.textContent = `Semaine ${weekNum} (${dateRange})`;
+    select.appendChild(option);
   }
 }
 
-function showLoading(isLoading) {
+
+// Rendu des créneaux horaires sous forme de grille de boutons
+function renderPlanningGrid(day) {
+    if (!planningContainer) return;
+
+    planningContainer.innerHTML = ''; // Vide tout le contenu précédent
+
+    const currentWeekPlanning = agentPlanningData[currentWeekKey] || {};
+    const dayPlanning = currentWeekPlanning[day] || []; // Créneaux occupés pour le jour actuel
+
+    horaires.forEach(timeSlot => {
+        const button = document.createElement("button");
+        button.classList.add("slot-button"); // Applique la classe CSS
+        button.dataset.day = day;
+        button.dataset.time = timeSlot;
+        button.textContent = timeSlot; // Affiche le créneau complet (ex: 07:00 - 07:30)
+
+        if (dayPlanning.includes(timeSlot)) {
+            button.classList.add('selected'); // Marque comme sélectionné si déjà disponible
+        }
+        planningContainer.appendChild(button);
+    });
+}
+
+
+// Variables pour la sélection par glisser-déposer
+let isSelecting = false;
+let startCell = null; // Référence au bouton de début de sélection
+let initialSelectionState = null; // True si le bouton de départ était 'selected', False sinon
+
+function initCellSelection() {
+  if (!planningContainer) return;
+
+  // Écouteur sur le conteneur parent des boutons pour la délégation d'événements
+  planningContainer.addEventListener('mousedown', (e) => {
+    if (e.target.classList.contains('slot-button')) {
+      isSelecting = true;
+      startCell = e.target;
+      initialSelectionState = startCell.classList.contains('selected'); // État initial du bouton de départ
+
+      // Inverse l'état du bouton de départ
+      startCell.classList.toggle('selected');
+
+      e.preventDefault(); // Empêche la sélection de texte
+    }
+  });
+
+  planningContainer.addEventListener('mouseover', (e) => {
+    if (isSelecting && e.target.classList.contains('slot-button')) {
+        // Applique le même état que le bouton de départ à tous les boutons survolés
+        if (initialSelectionState) { // Si le bouton de départ était sélectionné, on désélectionne les survolés
+            e.target.classList.remove('selected');
+        } else { // Si le bouton de départ n'était PAS sélectionné, on sélectionne les survolés
+            e.target.classList.add('selected');
+        }
+    }
+  });
+
+  // Écouteurs globaux pour gérer la fin du glisser n'importe où sur la page
+  document.addEventListener('mouseup', () => {
+    isSelecting = false;
+    startCell = null;
+    initialSelectionState = null;
+  });
+
+  // Empêche la sélection de texte pendant le glisser
+  document.addEventListener('selectstart', (e) => {
+    if (isSelecting) {
+      e.preventDefault();
+    }
+  });
+}
+
+// Vérifie si des modifications non enregistrées existent pour le jour actuel
+function hasUnsavedChanges() {
+    // Collecte les créneaux sélectionnés actuellement sur la page
+    const currentSelectedSlots = Array.from(planningContainer.querySelectorAll('.slot-button.selected')).map(btn => btn.dataset.time);
+    // Récupère l'état sauvegardé pour le jour actuel depuis initialPlanningState
+    const savedSlotsForDay = initialPlanningState[currentWeekKey]?.[currentDay] || [];
+
+    // Compare les longueurs pour une vérification rapide
+    if (currentSelectedSlots.length !== savedSlotsForDay.length) {
+        return true;
+    }
+
+    // Convertit les tableaux en Set pour une comparaison plus efficace des contenus
+    const currentSet = new Set(currentSelectedSlots);
+    const savedSet = new Set(savedSlotsForDay);
+
+    // Vérifie si tous les éléments du set actuel sont dans le set sauvegardé
+    for (const slot of currentSet) {
+        if (!savedSet.has(slot)) {
+            return true;
+        }
+    }
+    // Vérifie si tous les éléments du set sauvegardé sont dans le set actuel
+    for (const slot of savedSet) {
+        if (!currentSet.has(slot)) {
+            return true;
+        }
+    }
+    return false; // Pas de changements
+}
+
+
+// Charge le planning de l'agent pour la semaine et le jour actuels
+async function loadPlanningForAgent(agentId, weekKey, day) {
+  showLoading(true);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`); // Ne pas filtrer par semaine ici
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Erreur lors du chargement du planning.');
+    }
+
+    agentPlanningData = data; // Stocke toutes les données de planning de l'agent
+    initialPlanningState = JSON.parse(JSON.stringify(data)); // Copie profonde pour détecter les changements
+
+    renderPlanningGrid(day); // Affiche les créneaux pour le jour sélectionné sous forme de grille de boutons
+  } catch (error) {
+    console.error('Erreur de chargement du planning:', error);
+    alert(`Erreur lors du chargement du planning : ${error.message}`);
+    // Si erreur de chargement, réinitialise le planning local
+    agentPlanningData = {};
+    initialPlanningState = {};
+    renderPlanningGrid(day); // Afficher une grille vide ou un message
+  } finally {
+    showLoading(false);
+  }
+}
+
+// Sauvegarde le planning actuel pour l'agent
+async function savePlanning() {
+  const selectedSlotsForCurrentDay = Array.from(planningContainer.querySelectorAll('.slot-button.selected')).map(btn => btn.dataset.time);
+
+  // Mettre à jour l'objet agentPlanningData avec les nouvelles sélections du jour actuel
+  if (!agentPlanningData[currentWeekKey]) {
+      agentPlanningData[currentWeekKey] = {};
+  }
+  agentPlanningData[currentWeekKey][currentDay] = selectedSlotsForCurrentDay;
+
+  showLoading(true, saveButton);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/planning/${currentAgentId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(agentPlanningData), // Envoie tout l'objet de planning mis à jour
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert("Planning enregistré avec succès !");
+      // Après sauvegarde réussie, mettre à jour l'état initial pour refléter le dernier enregistrement
+      initialPlanningState = JSON.parse(JSON.stringify(agentPlanningData));
+    } else {
+      throw new Error(data.message || "Erreur lors de l'enregistrement.");
+    }
+  } catch (err) {
+    console.error("Erreur lors de l'enregistrement du planning :", err);
+    alert(`Erreur lors de l'enregistrement du planning : ${err.message}`);
+  } finally {
+    showLoading(false, saveButton);
+  }
+}
+
+// Efface toutes les sélections de cellules sur le planning affiché
+function clearSelectedCells() {
+  planningContainer.querySelectorAll('.slot-button.selected').forEach(button => {
+    button.classList.remove('selected');
+  });
+  alert("La sélection actuelle a été effacée. N'oubliez pas d'enregistrer vos modifications !");
+}
+
+
+function logout() {
+  sessionStorage.clear();
+  window.location.href = "index.html";
+}
+
+// Fonction pour gérer l'affichage du spinner de chargement et désactiver/réactiver les contrôles
+function showLoading(isLoading, button = null) {
   if (isLoading) {
     if (loadingSpinner) loadingSpinner.classList.remove("hidden");
     // Désactiver tous les boutons et sélecteurs pertinents
@@ -109,389 +430,15 @@ function showLoading(isLoading) {
   }
 }
 
-// --- Fonctions d'authentification ---
-async function authenticateAndRedirect() {
-    const token = sessionStorage.getItem('jwtToken');
-    const isAdmin = sessionStorage.getItem('isAdmin'); // Récupérer le statut admin
-
-    if (!token || isAdmin === 'true') { // Si pas de token OU si l'utilisateur est admin
-        sessionStorage.clear(); // Nettoyer le stockage
-        window.location.href = 'login.html'; // Rediriger vers la page de connexion
-        return false;
-    }
-    // L'utilisateur est authentifié et n'est pas admin
-    return true;
-}
-
-// Fonction pour récupérer les données de l'agent connecté
-async function fetchAgentData() {
-    showLoading(true);
-    try {
-        const token = sessionStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE_URL}/api/users/${currentAgentId}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                sessionStorage.clear();
-                window.location.href = 'login.html';
-            }
-            throw new Error('Erreur lors du chargement des données de l\'agent.');
-        }
-
-        const agentData = await response.json();
-        agentPrenomSpan.textContent = agentData.prenom;
-        agentNomSpan.textContent = agentData.nom;
-        agentQualifications = agentData.qualifications; // Stocke les IDs des qualifications
-        agentGrade = agentData.grade; // Stocke l'ID du grade
-        agentFonction = agentData.fonction; // Stocke l'ID de la fonction
-        await displayAgentQualifications(); // Affiche les noms des qualifications
-        await displayAgentGradeAndFonction(); // Affiche le nom du grade et de la fonction
-
-    } catch (error) {
-        console.error('Erreur lors de la récupération des données de l\'agent :', error);
-        displayMessage(infoMessageElement, 'Erreur lors du chargement des informations de l\'agent.', true);
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Fonction pour récupérer les qualifications et les afficher
-async function displayAgentQualifications() {
-    try {
-        const token = sessionStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE_URL}/api/qualifications`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) throw new Error('Erreur lors du chargement des qualifications.');
-        const allQualifications = await response.json();
-
-        const qualificationNames = agentQualifications.map(qId => {
-            const qual = allQualifications.find(aq => aq.id === qId);
-            return qual ? qual.name : '';
-        }).filter(name => name !== ''); // Filtrer les noms vides
-
-        if (qualificationNames.length > 0) {
-            agentQualificationsDisplay.textContent = `Qualifications: ${qualificationNames.join(', ')}.`;
-        } else {
-            agentQualificationsDisplay.textContent = 'Aucune qualification attribuée.';
-        }
-    } catch (error) {
-        console.error('Erreur lors de l\'affichage des qualifications:', error);
-        agentQualificationsDisplay.textContent = 'Erreur de chargement des qualifications.';
-    }
-}
-
-// Fonction pour récupérer et afficher le grade et la fonction de l'agent
-async function displayAgentGradeAndFonction() {
-    let gradeName = 'Non attribué';
-    let fonctionName = 'Non attribuée';
-
-    try {
-        const token = sessionStorage.getItem('jwtToken');
-
-        // Récupérer les grades
-        const gradesResponse = await fetch(`${API_BASE_URL}/api/grades`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!gradesResponse.ok) throw new Error('Erreur lors du chargement des grades.');
-        const allGrades = await gradesResponse.json();
-        const foundGrade = allGrades.find(g => g.id === agentGrade);
-        if (foundGrade) {
-            gradeName = foundGrade.name;
-        }
-
-        // Récupérer les fonctions
-        const fonctionsResponse = await fetch(`${API_BASE_URL}/api/fonctions`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!fonctionsResponse.ok) throw new Error('Erreur lors du chargement des fonctions.');
-        const allFonctions = await fonctionsResponse.json();
-        const foundFonction = allFonctions.find(f => f.id === agentFonction);
-        if (foundFonction) {
-            fonctionName = foundFonction.name;
-        }
-
-    } catch (error) {
-        console.error('Erreur lors de l\'affichage du grade et de la fonction:', error);
-        gradeName = 'Erreur';
-        fonctionName = 'Erreur';
-    } finally {
-        // Mettre à jour l'affichage des qualifications avec le grade et la fonction
-        // Vous devrez ajuster l'élément HTML pour afficher ces infos. Pour l'instant, je les ajoute au même endroit.
-        if (agentQualificationsDisplay) {
-            agentQualificationsDisplay.textContent += ` Grade: ${gradeName}, Fonction: ${fonctionName}.`;
-        }
-    }
-}
-
-
-// --- Fonctions de gestion du planning ---
-
-async function loadAgentPlanning(agentId, weekKey) {
-  showLoading(true);
-  try {
-    const token = sessionStorage.getItem('jwtToken');
-    const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}?week=${weekKey.replace('week-', '')}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-    }
-
-    const data = await response.json();
-    agentPlanningData[weekKey] = data.slots || {}; // Stocke les créneaux de la semaine
-    initialPlanningState = JSON.parse(JSON.stringify(agentPlanningData[weekKey])); // Copie profonde pour détecter les changements
-    displayPlanningGrid(currentDay);
-  } catch (error) {
-    console.error(`Erreur lors du chargement du planning de l'agent ${agentId} pour la semaine ${weekKey} :`, error);
-    displayMessage(infoMessageElement, `Impossible de charger votre planning pour la semaine ${weekKey.replace('week-', '')}. ${error.message}`, true);
-    planningContainer.innerHTML = '<p class="info-message">Impossible de charger le planning. Vérifiez la connexion ou contactez le support.</p>';
-    agentPlanningData[weekKey] = {}; // Assurez-vous que c'est un objet vide en cas d'erreur
-    initialPlanningState = {};
-    displayPlanningGrid(currentDay); // Affiche une grille vide
-  } finally {
-    showLoading(false);
-  }
-}
-
-
-function displayPlanningGrid(day) {
-  planningContainer.innerHTML = ''; // Nettoyer la grille existante
-  currentDaySlots = []; // Réinitialiser pour le nouveau jour
-  selectedSlots.clear(); // Réinitialiser la sélection visuelle
-  originalSelectedSlots.clear(); // Réinitialiser l'état initial pour le jour
-
-  const currentWeekPlanning = agentPlanningData[currentWeekKey] || {};
-  const slotsForDay = currentWeekPlanning[day] || [];
-
-  // Recrée la grille
-  horaires.forEach((slot, index) => {
-    const slotButton = document.createElement('button');
-    slotButton.classList.add('slot-button');
-    slotButton.dataset.slot = slot; // Ex: "07:00 - 07:30"
-    slotButton.dataset.index = index; // Pour le glisser-déposer
-    slotButton.textContent = slot;
-
-    // Si le créneau est enregistré pour ce jour, le marquer comme sélectionné
-    if (slotsForDay.includes(slot)) {
-        slotButton.classList.add('selected');
-        selectedSlots.add(slot);
-        originalSelectedSlots.add(slot); // Ajoute aussi à l'état initial
-    }
-
-    slotButton.addEventListener('mousedown', (e) => startDrag(e, slot, index));
-    slotButton.addEventListener('mouseenter', (e) => duringDrag(e, slot, index));
-    planningContainer.appendChild(slotButton);
-    currentDaySlots.push(slotButton); // Stocke la référence aux boutons pour un accès facile
-  });
-
-  // Mettre à jour l'état du bouton "Enregistrer"
-  updateSaveButtonState();
-}
-
-function updateSaveButtonState() {
-    const currentDayPlanning = agentPlanningData[currentWeekKey]?.[currentDay] || [];
-    const currentSelectedSlotsArray = Array.from(selectedSlots).sort();
-    const originalSelectedSlotsArray = Array.from(originalSelectedSlots).sort();
-
-    // Comparaison des ensembles de créneaux (après tri pour comparaison fiable)
-    const hasChanges = currentSelectedSlotsArray.length !== originalSelectedSlotsArray.length ||
-                       !currentSelectedSlotsArray.every((val, index) => val === originalSelectedSlotsArray[index]);
-
-    saveButton.disabled = !hasChanges; // Active le bouton si des changements ont été faits
-}
-
-
-// --- Fonctions de Glisser-Déposer ---
-
-function startDrag(e, slot, index) {
-  if (e.button !== 0) return; // Seulement pour le clic gauche de la souris
-  isDragging = true;
-  startSlot = index;
-  endSlot = index;
-  updateSelection(index, index);
-  document.addEventListener('mouseup', endDrag);
-}
-
-function duringDrag(e, slot, index) {
-  if (!isDragging) return;
-  endSlot = index;
-  updateSelection(startSlot, endSlot);
-}
-
-function endDrag() {
-  isDragging = false;
-  startSlot = null;
-  endSlot = null;
-  document.removeEventListener('mouseup', endDrag);
-
-  // Appliquer la sélection aux données de planning (agentPlanningData)
-  const currentDayPlanning = agentPlanningData[currentWeekKey]?.[currentDay] || [];
-  const updatedDayPlanning = Array.from(selectedSlots).sort(); // Sortir pour maintenir un ordre cohérent
-
-  // Mettre à jour le planning de l'agent pour la semaine et le jour actuels
-  if (!agentPlanningData[currentWeekKey]) {
-      agentPlanningData[currentWeekKey] = {};
-  }
-  agentPlanningData[currentWeekKey][currentDay] = updatedDayPlanning;
-
-  // Mettre à jour l'état du bouton "Enregistrer"
-  updateSaveButtonState();
-}
-
-
-function updateSelection(startIndex, endIndex) {
-    // Déterminer la plage de sélection
-    const minIndex = Math.min(startIndex, endIndex);
-    const maxIndex = Math.max(startIndex, endIndex);
-
-    // Effacer toutes les sélections visuelles et réinitialiser selectedSlots
-    currentDaySlots.forEach(btn => btn.classList.remove('selected'));
-    selectedSlots.clear();
-
-    // Appliquer la sélection visuelle à la plage déterminée et ajouter à selectedSlots
-    for (let i = minIndex; i <= maxIndex; i++) {
-        const slotButton = currentDaySlots[i];
-        if (slotButton) {
-            slotButton.classList.add('selected');
-            selectedSlots.add(slotButton.dataset.slot);
-        }
-    }
-}
-
-// --- Sauvegarde et Effacement ---
-
-saveButton.addEventListener('click', async () => {
-  showLoading(true);
-  try {
-    // Obtenir les créneaux sélectionnés pour le jour actuel
-    const selectedSlotsForCurrentDay = Array.from(selectedSlots).sort();
-
-    const token = sessionStorage.getItem('jwtToken');
-    const payload = {
-      agentId: currentAgentId,
-      week: parseInt(currentWeekKey.replace('week-', '')),
-      day: currentDay,
-      slots: selectedSlotsForCurrentDay
-    };
-
-    const response = await fetch(`${API_BASE_URL}/api/planning`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Erreur lors de l\'enregistrement du planning.');
-    }
-
-    displayMessage(infoMessageElement, 'Planning enregistré avec succès !', false);
-    // Mettre à jour l'état initial après sauvegarde réussie
-    initialPlanningState[currentDay] = [...selectedSlotsForCurrentDay];
-    updateSaveButtonState();
-
-  } catch (error) {
-    console.error('Erreur lors de l\'enregistrement du planning :', error);
-    displayMessage(infoMessageElement, 'Erreur lors de l\'enregistrement du planning: ' + error.message, true);
-  } finally {
-    showLoading(false);
+// Fonction utilitaire pour éviter l'outline sur les éléments focusables mais non cliquables par défaut
+document.addEventListener('focusin', function(e) {
+  if (e.target.matches('button, select, input, a')) {
+    e.target.classList.add('focused-element');
   }
 });
 
-clearSelectionBtn.addEventListener('click', () => {
-    // Effacer toutes les sélections visuelles
-    currentDaySlots.forEach(btn => btn.classList.remove('selected'));
-    selectedSlots.clear(); // Vider l'ensemble des créneaux sélectionnés
-
-    // Mettre à jour les données du planning pour le jour actuel (le vider)
-    if (agentPlanningData[currentWeekKey]) {
-        agentPlanningData[currentWeekKey][currentDay] = [];
-    }
-    
-    updateSaveButtonState(); // Mettre à jour l'état du bouton "Enregistrer"
-    displayMessage(infoMessageElement, 'Sélection effacée. N\'oubliez pas d\'enregistrer !', false);
-});
-
-
-// --- Événements et Initialisation ---
-
-document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Authentifier et rediriger si nécessaire
-  const isAuthenticated = await authenticateAndRedirect();
-  if (!isAuthenticated) return;
-
-  // 2. Récupérer les données de l'agent connecté
-  await fetchAgentData();
-
-  // 3. Initialiser le sélecteur de semaine
-  populateWeekSelect();
-
-  // 4. Charger le planning de l'agent pour la semaine actuelle
-  await loadAgentPlanning(currentAgentId, currentWeekKey);
-
-  // 5. Initialiser les écouteurs d'événements
-  weekSelect.addEventListener('change', async (event) => {
-    currentWeekKey = `week-${event.target.value}`;
-    await loadAgentPlanning(currentAgentId, currentWeekKey);
-  });
-
-  tabButtons.forEach(button => {
-    button.addEventListener('click', (event) => {
-      // Retirer la classe 'active' de tous les onglets
-      tabButtons.forEach(btn => btn.classList.remove('active'));
-      // Ajouter la classe 'active' à l'onglet cliqué
-      event.target.classList.add('active');
-      currentDay = event.target.dataset.day;
-      displayPlanningGrid(currentDay);
-    });
-  });
-
-  // Ajouter l'écouteur de déconnexion
-  logoutButton.addEventListener('click', () => {
-    sessionStorage.clear();
-    window.location.href = 'login.html';
-  });
-
-  // Initialiser la sélection de l'onglet du jour actuel
-  const today = new Date();
-  const todayDayName = days[today.getDay()];
-  const currentDayTab = document.querySelector(`.tab[data-day="${todayDayName}"]`);
-  if (currentDayTab) {
-      currentDayTab.click(); // Simule un clic pour afficher le planning du jour actuel
-  } else {
-      // Si le jour actuel n'est pas dans les onglets (ex: dimanche si votre semaine commence lundi)
-      // Ou si pour une raison quelconque l'onglet n'est pas trouvé, revenir au lundi.
-      document.querySelector(`.tab[data-day="lundi"]`).click();
+document.addEventListener('focusout', function(e) {
+  if (e.target.matches('button, select, input, a')) {
+    e.target.classList.remove('focused-element');
   }
-
-  document.addEventListener('mouseup', endDrag); // Global mouseup pour arrêter le drag partout
 });
-
-// Fonction pour populer le sélecteur de semaine
-function populateWeekSelect() {
-  const currentYear = new Date().getFullYear();
-  const totalWeeks = 52; // Peut être ajusté si une année a 53 semaines
-
-  weekSelect.innerHTML = '';
-  for (let i = 1; i <= totalWeeks; i++) {
-    const option = document.createElement('option');
-    option.value = i;
-    option.textContent = `Semaine ${i} (${getStartAndEndDateOfWeek(i)})`;
-    if (i === getCurrentWeek()) {
-      option.selected = true;
-    }
-    weekSelect.appendChild(option);
-  }
-}

@@ -24,801 +24,839 @@
   --border-radius-medium: 8px;
   --border-radius-small: 6px;
 
-  --box-shadow-subtle: 0 2px 5px rgba(0, 0, 0, 0.05);
-  --box-shadow-medium: 0 4px 10px rgba(0, 0, 0, 0.1);
+  --box-shadow-subtle: 0 6px 20px rgba(0, 0, 0, 0.08);
+
+  --row-even-background: #fdfdfd;
+  --row-odd-background: #f9f9f9;
+  --row-border-color: #d1d1d1;
+  --row-hover-background: #e6f7ff;
+  --row-hover-border-color: #a3d9ff;
 }
 
 body {
   font-family: 'Poppins', sans-serif;
   margin: 0;
-  padding: 0;
+  padding: 20px;
   background-color: var(--background-color);
   color: var(--text-color);
-  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
 }
 
-.container {
-  max-width: 1400px; /* Augmenté pour donner plus d'espace */
-  margin: 20px auto;
-  background-color: var(--card-background);
+.agent-container {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  background: var(--card-background);
   border-radius: var(--border-radius-large);
-  box-shadow: var(--box-shadow-medium);
-  padding: 20px;
+  box-shadow: var(--box-shadow-subtle);
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
 }
 
-/* -------------------- Styles de l'en-tête (modifié) -------------------- */
-.admin-page-header {
-    background-color: #f8f9fa; /* Couleur de fond légère pour l'en-tête */
-    padding: 20px 25px; /* Augmenté le padding pour plus d'espace */
-    border-bottom: 1px solid #e0e0e0;
-    margin-bottom: 25px; /* Espace sous l'en-tête et avant les onglets principaux */
-    border-radius: var(--border-radius-medium);
-    box-shadow: var(--box-shadow-subtle);
-}
-
-.header-top-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px; /* Espace sous le titre et avant les contrôles permanents */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
 .welcome-message {
-    font-size: 2.2em; /* Taille de police du titre */
-    color: var(--primary-color);
-    margin: 0; /* Supprime les marges par défaut */
+  font-size: 2rem;
+  color: var(--primary-color);
+  margin: 0;
 }
 
-/* Nouveau conteneur pour les contrôles de semaine et export qui restent toujours dans le header */
-.header-controls-permanent {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap; /* Permet aux éléments de passer à la ligne sur petits écrans */
-    gap: 20px; /* Espace entre les groupes d'éléments */
-    padding-top: 15px; /* Espace interne au-dessus des contrôles */
-    border-top: 1px dashed var(--light-gray); /* Ligne de séparation subtile */
+.header-controls {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-.week-selector-group {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.week-display-label {
-    font-weight: 600;
-    color: var(--text-color);
-    font-size: 1.1em;
+.week-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 #week-select {
-    padding: 8px 12px;
-    border: 1px solid var(--medium-gray);
-    border-radius: var(--border-radius-small);
-    font-size: 1em;
-    background-color: #fff;
-    cursor: pointer;
-}
-
-#date-range {
-    font-weight: 400;
-    color: var(--dark-gray);
-    font-size: 0.95em;
-}
-
-.action-buttons-header {
-    display: flex;
-    gap: 10px; /* Espace entre les boutons d'export */
-}
-/* -------------------- Fin des styles de l'en-tête -------------------- */
-
-
-/* -------------------- Styles du pied de page (nouveau) -------------------- */
-footer {
-    text-align: right; /* Aligne le bouton de déconnexion à droite */
-    padding: 20px 25px;
-    margin-top: 40px; /* Espace au-dessus du pied de page */
-    border-top: 1px solid #e0e0e0;
-    background-color: #f8f9fa;
-    border-radius: var(--border-radius-medium);
-    box-shadow: var(--box-shadow-subtle);
-}
-
-footer .btn-danger {
-    padding: 12px 25px;
-    font-size: 1em;
-}
-/* -------------------- Fin des styles du pied de page -------------------- */
-
-
-/* Styles globaux pour les boutons */
-.btn {
-  padding: 10px 15px;
-  border: none;
+  padding: 8px 12px;
+  border: 1px solid var(--light-gray);
   border-radius: var(--border-radius-small);
+  font-size: 0.95rem;
+  background-color: #f8f8f8;
   cursor: pointer;
-  font-size: 0.9em;
-  font-weight: 600;
-  transition: background-color 0.2s ease, transform 0.1s ease;
-  text-decoration: none; /* Pour les liens stylisés comme boutons */
-  display: inline-flex; /* Pour centrer le contenu si besoin */
-  align-items: center;
-  justify-content: center;
 }
 
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+/* #date-range est désormais vide ou masqué, vous pouvez le supprimer du HTML si vous le souhaitez */
+#date-range {
+  display: none; /* Cache explicitement l'élément si vous ne le supprimez pas du HTML */
 }
 
-.btn-primary {
-  background-color: var(--primary-color);
-  color: white;
-}
-.btn-primary:hover {
-  background-color: var(--primary-hover-color);
-}
-
-.btn-secondary {
-  background-color: var(--secondary-color);
-  color: white;
-}
-.btn-secondary:hover {
-  background-color: var(--secondary-hover-color);
-}
-
-.btn-success {
-    background-color: var(--success-color);
-    color: white;
-}
-.btn-success:hover {
-    background-color: #218838;
-}
-
-.btn-danger {
-  background-color: var(--danger-color);
-  color: white;
-}
-.btn-danger:hover {
-  background-color: #c82333;
-}
-
-.disabled-link {
-    pointer-events: none;
-    opacity: 0.6;
-}
-
-/* Styles pour les onglets de navigation principaux */
-.main-tabs-nav {
-    display: flex;
-    justify-content: flex-start;
-    border-bottom: 2px solid var(--light-gray);
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 5px; /* Petit espace entre les onglets */
+/* --- NOUVEAUX STYLES POUR LA NAVIGATION PRINCIPALE (ONGLETS) --- */
+.main-tabs-navigation {
+  display: flex;
+  justify-content: flex-start; /* Aligne les onglets à gauche */
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--light-gray); /* Ligne sous les onglets */
+  flex-wrap: wrap;
+  gap: 5px; /* Espace entre les boutons d'onglet */
 }
 
 .main-tab {
-    padding: 12px 25px;
-    border: none;
-    background-color: transparent;
-    cursor: pointer;
-    font-size: 1.1em;
-    font-weight: 600;
-    color: var(--dark-gray);
-    border-bottom: 2px solid transparent;
-    transition: all 0.3s ease;
-    border-top-left-radius: var(--border-radius-small);
-    border-top-right-radius: var(--border-radius-small);
+  padding: 12px 20px;
+  border: none;
+  background-color: transparent;
+  color: var(--dark-gray);
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent; /* Bordure pour l'effet actif */
+  transition: all 0.3s ease;
+  font-size: 1.1rem;
 }
 
 .main-tab:hover {
-    color: var(--primary-color);
-    border-color: rgba(var(--primary-color), 0.5); /* Effet plus léger au survol */
+  color: var(--primary-color);
+  border-bottom-color: rgba(0, 123, 255, 0.5); /* Effet survol */
 }
 
 .main-tab.active {
-    color: var(--primary-color);
-    border-bottom: 2px solid var(--primary-color);
-    background-color: #e9ecef;
-    font-weight: 700;
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
 }
 
-/* Conteneur principal pour le contenu des onglets */
-.main-content-area {
-    padding: 0 10px; /* Assure un petit padding interne */
+.main-tab:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
-/* Styles pour les messages */
-.message-banner {
-  padding: 12px 20px;
-  margin-bottom: 20px;
-  border-radius: var(--border-radius-small);
-  border: 1px solid;
-  font-weight: 500;
-  text-align: center;
-  opacity: 0.9;
+/* Contenu des onglets principaux */
+.main-tab-content {
+  display: none; /* Masqué par défaut, affiché par JS */
 }
 
-.message-box {
-    margin-top: 15px;
-    padding: 10px;
-    border-radius: var(--border-radius-small);
-    font-size: 0.9em;
-    text-align: center;
-}
-
-/* Message de succès */
-.message-box[style*="background-color: rgb(223, 240, 216)"],
-.message-banner[style*="background-color: rgb(223, 240, 216)"] { /* Ciblage spécifique pour le JS actuel */
-    background-color: #dff0d8; /* Vert clair */
-    border-color: #d6e9c6;
-    color: #3c763d; /* Vert foncé */
-}
-
-/* Message d'erreur */
-.message-box[style*="background-color: rgb(255, 230, 230)"],
-.message-banner[style*="background-color: rgb(255, 230, 230)"] { /* Ciblage spécifique pour le JS actuel */
-    background-color: #ffe6e6; /* Rouge clair */
-    border-color: #e6a4a4;
-    color: #a94442; /* Rouge foncé */
-}
-
-/* Message d'information/chargement */
-.message-banner[style*="background-color: rgb(255, 243, 205)"] { /* Ciblage spécifique pour le JS actuel */
-    background-color: #fff3cd; /* Jaune clair */
-    border-color: #ffeeba;
-    color: #856404; /* Jaune foncé */
+.main-tab-content.active {
+  display: block; /* Affiche l'onglet actif */
 }
 
 
-/* Styles pour les onglets de jour (Lundi, Mardi...) */
-.day-tabs {
+/* Styles des onglets de jour (pour le planning global) */
+.tabs-navigation {
   display: flex;
   justify-content: center;
   margin-bottom: 20px;
-  background-color: #e9ecef;
+  background-color: #f8f8f8;
   border-radius: var(--border-radius-medium);
-  padding: 8px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
-  flex-wrap: wrap; /* Permet aux onglets de passer à la ligne */
-  gap: 5px; /* Espace entre les boutons de jour */
+  padding: 5px;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
 .tab {
-  padding: 10px 18px;
+  padding: 8px 15px;
   border: none;
   background-color: transparent;
-  cursor: pointer;
-  font-size: 1em;
-  font-weight: 500;
   color: var(--dark-gray);
+  font-weight: 500;
+  cursor: pointer;
   border-radius: var(--border-radius-small);
-  transition: all 0.2s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  white-space: nowrap;
 }
 
 .tab:hover {
-  background-color: #dee2e6;
-  color: var(--primary-color);
+  background-color: var(--light-gray);
 }
 
 .tab.active {
   background-color: var(--primary-color);
   color: white;
   font-weight: 600;
-  box-shadow: var(--box-shadow-subtle);
 }
 
-/* Conteneur pour les tables de planning */
-.day-planning-display {
-    padding: 10px 0; /* Padding pour l'intérieur du conteneur des jours */
+.tab:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
-.day-content {
-    display: none; /* Masqué par défaut, géré par JS */
-    background-color: var(--card-background);
-    padding: 25px;
+
+/* Message d'information */
+.info-message {
+  text-align: center;
+  padding: 15px;
+  background-color: #e9f7ef;
+  border: 1px solid #cce5da;
+  border-radius: var(--border-radius-medium);
+  color: #155724;
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+}
+
+/* Conteneur du tableau */
+.table-container {
+    overflow-x: auto;
+    margin-top: 20px;
+    border: 1px solid var(--light-gray);
     border-radius: var(--border-radius-medium);
     box-shadow: var(--box-shadow-subtle);
+    background-color: var(--card-background);
 }
 
-.day-content.active {
-    display: block; /* Affiché si actif */
-}
-
-.day-content h3 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    color: var(--primary-color);
-    text-align: center;
-    font-size: 1.5em;
-    border-bottom: 1px solid var(--light-gray);
-    padding-bottom: 10px;
-}
-
-.planning-table-container {
-    overflow-x: auto; /* Permet le défilement horizontal si la table est trop large */
-    -webkit-overflow-scrolling: touch; /* Améliore le défilement sur mobile */
-}
-
+/* Tableau du planning */
 .planning-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  font-size: 0.85em;
-  min-width: 1200px; /* Pour garantir une largeur minimale pour les créneaux */
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    table-layout: fixed;
 }
 
 .planning-table th,
 .planning-table td {
-  border: 1px solid var(--light-gray);
-  padding: 8px 5px;
-  text-align: center;
-  white-space: nowrap; /* Empêche le texte de passer à la ligne */
-}
-
-.planning-table th {
-  background-color: var(--primary-color);
-  color: white;
-  font-weight: 600;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-/* Colonne Agent, fixe */
-.planning-table th:first-child,
-.planning-table td:first-child {
-  position: sticky;
-  left: 0;
-  background-color: var(--card-background);
-  z-index: 11;
-  font-weight: 600;
-  color: var(--text-color);
-  min-width: 120px;
-  width: 120px;
-  text-align: left;
-  padding-left: 15px;
-}
-
-/* Ajustement pour le header de la colonne agent */
-.planning-table th:first-child {
-  background-color: var(--primary-color);
-  color: white;
-  z-index: 12;
-}
-
-.planning-table td.slot-cell {
-  width: 25px; /* Largeur de la cellule pour chaque créneau */
-  min-width: 25px;
-  height: 25px;
-  box-sizing: border-box; /* S'assure que padding et border sont inclus dans la largeur */
-  cursor: pointer;
-  transition: background-color 0.1s ease;
-}
-
-.planning-table td.slot-cell.occupied {
-  background-color: var(--occupied-slot-color);
-}
-
-.planning-table td.slot-cell.free {
-  background-color: var(--free-slot-color);
-}
-
-.planning-table td.slot-cell:hover:not(.editing-row .slot-cell) {
-    opacity: 0.8;
-}
-
-.planning-table td.slot-cell input[type="checkbox"] {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    cursor: pointer;
-    vertical-align: middle;
-    appearance: none; /* Cache la checkbox par défaut */
-    -webkit-appearance: none;
-    background-color: var(--free-slot-color); /* Couleur de fond de la checkbox */
-    border: 1px solid var(--medium-gray);
-    border-radius: 3px;
-    position: relative;
+    padding: 8px 4px;
+    text-align: center;
+    white-space: nowrap;
+    color: var(--text-color);
     box-sizing: border-box;
 }
 
-.planning-table td.slot-cell input[type="checkbox"]:checked {
-    background-color: var(--occupied-slot-color); /* Couleur si cochée */
-    border-color: var(--primary-hover-color);
-}
-
-.planning-table td.slot-cell input[type="checkbox"]:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-.planning-table td.slot-cell input[type="checkbox"]::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 60%;
-    height: 60%;
-    transform: translate(-50%, -50%) scale(0);
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>');
-    background-size: contain;
-    background-repeat: no-repeat;
-    opacity: 0;
-    transition: transform 0.2s ease-out, opacity 0.2s ease-out;
-}
-
-.planning-table td.slot-cell input[type="checkbox"]:checked::after {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-}
-
-/* Styles pour les actions de ligne */
-.planning-table td.actions-cell {
+.planning-table th {
+    background-color: var(--background-color);
+    font-weight: 600;
+    color: var(--dark-gray);
     position: sticky;
-    right: 0;
-    background-color: var(--card-background);
-    z-index: 11;
+    top: 0;
+    z-index: 2;
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    border-bottom: 1px solid var(--row-border-color);
+}
+
+/* Fixer la largeur de la première colonne (Agent) */
+.planning-table th:first-child,
+.planning-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+    font-weight: 600;
+    text-align: left;
+    padding-left: 15px;
     min-width: 150px;
     width: 150px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 5px;
-    box-shadow: -2px 0 5px rgba(0,0,0,0.02); /* Ombre sur le côté */
-}
-
-/* Cacher/montrer les boutons d'action */
-.planning-table td.actions-cell .hidden {
-    display: none;
-}
-
-/* Styles pour les sections de gestion */
-.form-container, .table-container {
-  background-color: var(--card-background);
-  padding: 25px;
-  border-radius: var(--border-radius-medium);
-  box-shadow: var(--box-shadow-subtle);
-  margin-bottom: 25px;
-}
-
-.form-container h3, .table-container h3 {
-  color: var(--primary-color);
-  margin-top: 0;
-  margin-bottom: 20px;
-  font-size: 1.4em;
-  border-bottom: 1px solid var(--light-gray);
-  padding-bottom: 10px;
-}
-
-/* Styles pour les formulaires */
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px; /* Espace entre les éléments du formulaire */
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-form label {
-  font-weight: 600;
-  margin-bottom: 5px;
-  color: var(--text-color);
-}
-
-form input[type="text"],
-form input[type="password"],
-form select {
-  padding: 10px;
-  border: 1px solid var(--medium-gray);
-  border-radius: var(--border-radius-small);
-  font-size: 1em;
-  width: 100%;
-  box-sizing: border-box; /* Inclure padding et border dans la largeur */
-}
-
-form button[type="submit"] {
-  align-self: flex-start; /* Aligne le bouton à gauche */
-  margin-top: 15px;
-}
-
-/* Styles pour les checkbox groups (grades et fonctions) */
-.checkbox-group {
-    margin-top: 15px;
-    border: 1px solid var(--light-gray);
-    border-radius: var(--border-radius-small);
-    padding: 15px;
-    background-color: #fcfcfc;
-}
-
-.checkbox-group p {
-    font-weight: 600;
-    margin-top: 0;
-    margin-bottom: 10px;
+    border-right: 1px solid var(--row-border-color);
     color: var(--text-color);
 }
 
-.checkbox-group > div { /* Conteneur des checkboxes */
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 20px; /* Espacement entre les items */
+.planning-table tbody tr {
+    border-bottom: 1px solid var(--row-border-color);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
-.checkbox-group div > div { /* Chaque checkbox et label */
-    display: flex;
-    align-items: center;
-    gap: 5px;
+.planning-table tbody tr:last-child {
+    border-bottom: none;
 }
 
-.checkbox-group input[type="checkbox"] {
-    width: auto; /* Laisser la taille par défaut du navigateur */
-    height: auto;
-    margin: 0;
-    cursor: pointer;
+.planning-table tbody tr:nth-child(even) {
+    background-color: var(--row-even-background);
 }
 
-.checkbox-group label {
-    font-weight: 400;
-    margin: 0;
-    cursor: pointer;
+.planning-table tbody tr:nth-child(odd) {
+    background-color: var(--row-odd-background);
 }
 
-
-/* Styles pour les tableaux de données (agents, grades, fonctions) */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  font-size: 0.9em;
+.planning-table tbody tr:hover {
+    background-color: var(--row-hover-background);
+    border-color: var(--row-hover-border-color);
 }
 
-.data-table th, .data-table td {
-  border: 1px solid var(--light-gray);
-  padding: 12px 15px;
-  text-align: left;
+.planning-table td {
+    background-color: transparent;
+    border: none;
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+}
+.planning-table td:last-child {
+    border-right: none;
 }
 
-.data-table th {
-  background-color: var(--primary-color);
-  color: white;
-  font-weight: 600;
+.planning-table tbody tr:nth-child(even) td:first-child {
+    background-color: var(--row-even-background);
+}
+.planning-table tbody tr:nth-child(odd) td:first-child {
+    background-color: var(--row-odd-background);
+}
+.planning-table tbody tr:hover td:first-child {
+    background-color: var(--row-hover-background);
 }
 
-.data-table tr:nth-child(even) {
-  background-color: #f8f8f8;
+.planning-table td.slot-cell {
+    height: 25px;
+    background-color: var(--free-slot-color);
+    cursor: default;
+    width: 25px;
+    min-width: 25px;
+    position: relative;
 }
 
-.data-table td .btn {
-  padding: 6px 10px;
-  font-size: 0.85em;
-  margin-right: 5px;
+.planning-table td.slot-cell.occupied {
+    background-color: var(--occupied-slot-color);
+    color: white;
+    cursor: help;
 }
 
-/* Modale */
-.modal {
-  display: none; /* Hidden by default */
-  position: fixed; /* Stay in place */
-  z-index: 1000; /* Sit on top */
-  left: 0;
-  top: 0;
-  width: 100%; /* Full width */
-  height: 100%; /* Full height */
-  overflow: auto; /* Enable scroll if needed */
-  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-  padding-top: 60px;
-}
-
-.modal-content {
-  background-color: var(--card-background);
-  margin: 5% auto; /* 15% from the top and centered */
-  padding: 30px;
-  border: 1px solid var(--light-gray);
-  border-radius: var(--border-radius-large);
-  width: 90%; /* Could be more or less, depending on screen size */
-  max-width: 500px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  position: relative;
-}
-
-.modal-content h3 {
-    text-align: center;
-    color: var(--primary-color);
-    margin-top: 0;
-    margin-bottom: 25px;
-    font-size: 1.6em;
-}
-
-.modal-content form {
-    gap: 10px; /* Plus petit espace dans les modales */
-}
-.modal-content form .form-group {
-    margin-bottom: 10px;
-}
-.modal-content form button[type="submit"] {
-    width: 100%;
-    margin-top: 20px;
-}
-
-
-.close-button {
-  color: #aaa;
+.planning-table td.slot-cell.occupied:hover::after {
+  content: attr(data-time);
   position: absolute;
-  top: 15px;
-  right: 25px;
-  font-size: 28px;
-  font-weight: bold;
-  cursor: pointer;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--dark-gray);
+  color: white;
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  border-radius: var(--border-radius-small);
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-.close-button:hover,
-.close-button:focus {
-  color: #000;
+
+/* Boutons génériques */
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
   text-decoration: none;
+  border-radius: var(--border-radius-medium);
   cursor: pointer;
+  border: none;
+  transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+  text-align: center;
+}
+
+/* Bouton Primaire (pour Ajouter, Mettre à jour) */
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+.btn-primary:hover {
+    background-color: var(--primary-hover-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
+}
+
+
+.btn-secondary {
+  background-color: var(--secondary-color);
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: var(--secondary-hover-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.2);
+}
+
+.btn-danger {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled,
+.btn.disabled,
+.btn.disabled-link { /* Nouvelle classe pour désactiver les liens */
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+
+/* Footer et bouton de déconnexion */
+.bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--light-gray);
 }
 
 
 /* Spinner de chargement */
 .loading-spinner {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(255, 255, 255, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000; /* Au-dessus de tout */
+  display: flex; /* Utilise flexbox pour centrer le contenu */
+  flex-direction: column; /* Aligne les éléments verticalement */
+  align-items: center; /* Centre horizontalement */
+  justify-content: center; /* Centre verticalement */
+  margin: 20px auto;
+  gap: 10px; /* Espace entre le spinner et le texte */
+}
+
+.loading-spinner > div { /* Cible le div à l'intérieur du spinner pour le cercle */
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner p {
+    color: var(--primary-color);
+    font-weight: 500;
 }
 
 .loading-spinner.hidden {
-    display: none;
-}
-
-.spinner {
-    border: 8px solid #f3f3f3;
-    border-top: 8px solid var(--primary-color);
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    animation: spin 1s linear infinite;
+  display: none;
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-/* Responsive adjustments */
+/* Styles pour les lecteurs d'écran */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* --- STYLES POUR LA GESTION DES AGENTS, GRADES, FONCTIONS (SECTIONS ET FORMULAIRES) --- */
+/* S'applique à toutes les sections d'ajout/liste similaires */
+#add-agent-section, #list-agents-section,
+#add-grade-section, #list-grades-section,
+#add-fonction-section, #list-fonctions-section { /* Renommé function en fonction */
+    background-color: var(--card-background);
+    padding: 25px;
+    border-radius: var(--border-radius-medium);
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+#add-agent-section h3, #list-agents-section h3,
+#add-grade-section h3, #list-grades-section h3,
+#add-fonction-section h3, #list-fonctions-section h3 { /* Renommé function en fonction */
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--light-gray);
+    padding-bottom: 10px;
+}
+
+form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--dark-gray);
+}
+
+form input[type="text"],
+form input[type="password"] {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid var(--medium-gray);
+    border-radius: var(--border-radius-small);
+    font-size: 1rem;
+    box-sizing: border-box; /* Inclure padding et border dans la largeur */
+}
+
+/* Styles pour les messages de feedback */
+p#addAgentMessage, p#editAgentMessage, p#listAgentsMessage,
+p#addGradeMessage, p#editGradeMessage, p#listGradesMessage,
+p#addFonctionMessage, p#editFonctionMessage, p#listFonctionsMessage, /* Renommé function en fonction */
+p#gradesMessage, p#fonctionsMessage { /* Renommé functions en fonctions */
+    margin-top: 15px;
+    padding: 10px 15px;
+    border-radius: var(--border-radius-small);
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+p#addAgentMessage[style*="green"], p#editAgentMessage[style*="green"],
+p#addGradeMessage[style*="green"], p#editGradeMessage[style*="green"],
+p#addFonctionMessage[style*="green"], p#editFonctionMessage[style*="green"] { /* Renommé function en fonction */
+    background-color: #e6ffe6;
+    border: 1px solid #a4e6a4;
+    color: #3c763d;
+}
+
+p#addAgentMessage[style*="red"], p#editAgentMessage[style*="red"], p#listAgentsMessage[style*="red"],
+p#gradesMessage[style*="red"], p#fonctionsMessage[style*="red"], /* Renommé functions en fonctions */
+p#addGradeMessage[style*="red"], p#editGradeMessage[style*="red"], p#listGradesMessage[style*="red"],
+p#addFonctionMessage[style*="red"], p#editFonctionMessage[style*="red"], p#listFonctionsMessage[style*="red"] { /* Renommé function en fonction */
+    background-color: #ffe6e6;
+    border: 1px solid #e6a4a4;
+    color: #a94442;
+}
+
+p#addAgentMessage[style*="blue"], p#editAgentMessage[style*="blue"], p#listAgentsMessage[style*="blue"],
+p#addGradeMessage[style*="blue"], p#editGradeMessage[style*="blue"], p#listGradesMessage[style*="blue"],
+p#addFonctionMessage[style*="blue"], p#editFonctionMessage[style*="blue"], p#listFonctionsMessage[style*="blue"] { /* Renommé function en fonction */
+    background-color: #e0f2f7;
+    border: 1px solid #b3e0ed;
+    color: #2196f3;
+}
+
+
+/* Styles pour les tableaux de liste (Agents, Grades, Fonctions) */
+#list-agents-section table,
+#list-grades-section table,
+#list-fonctions-section table { /* Renommé functions en fonctions */
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+#list-agents-section th, #list-agents-section td,
+#list-grades-section th, #list-grades-section td,
+#list-fonctions-section th, #list-fonctions-section td { /* Renommé functions en fonctions */
+    border: 1px solid var(--light-gray);
+    padding: 12px;
+    text-align: left;
+    font-size: 0.9rem;
+}
+
+#list-agents-section th,
+#list-grades-section th,
+#list-fonctions-section th { /* Renommé functions en fonctions */
+    background-color: var(--background-color);
+    font-weight: 600;
+    color: var(--dark-gray);
+}
+
+#list-agents-section tbody tr:nth-child(even),
+#list-grades-section tbody tr:nth-child(even),
+#list-fonctions-section tbody tr:nth-child(even) { /* Renommé functions en fonctions */
+    background-color: var(--row-even-background);
+}
+
+#list-agents-section tbody tr:nth-child(odd),
+#list-grades-section tbody tr:nth-child(odd),
+#list-fonctions-section tbody tr:nth-child(odd) { /* Renommé functions en fonctions */
+    background-color: var(--row-odd-background);
+}
+
+#list-agents-section tbody tr:hover,
+#list-grades-section tbody tr:hover,
+#list-fonctions-section tbody tr:hover { /* Renommé functions en fonctions */
+    background-color: var(--row-hover-background);
+}
+
+/* Styles des boutons Modifier/Supprimer dans les tableaux */
+#list-agents-section .btn-secondary,
+#list-agents-section .btn-danger,
+#list-grades-section .btn-secondary,
+#list-grades-section .btn-danger,
+#list-fonctions-section .btn-secondary,
+#list-fonctions-section .btn-danger { /* Renommé functions en fonctions */
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    border-radius: var(--border-radius-small);
+    margin-right: 5px;
+}
+
+/* --- STYLES DE LA MODALE --- */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000; /* Assurez-vous qu'elle est au-dessus de tout */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6); /* Fond semi-transparent foncé */
+    display: flex; /* Utilisez flex pour centrer */
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.modal-content {
+    background-color: var(--card-background);
+    margin: auto; /* Centre la modale verticalement et horizontalement */
+    padding: 30px;
+    border-radius: var(--border-radius-large);
+    width: 90%;
+    max-width: 600px;
+    box-shadow: var(--box-shadow-subtle);
+    position: relative;
+    animation: fadeIn 0.3s ease-out; /* Animation à l'ouverture */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.close-button {
+    color: var(--dark-gray);
+    float: right;
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    transition: color 0.2s ease;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: var(--danger-color);
+}
+
+.modal-content h3 {
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 1.6rem;
+    border-bottom: 1px solid var(--light-gray);
+    padding-bottom: 10px;
+}
+
+.modal-content h4 {
+    color: var(--text-color);
+    margin-top: 20px;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+}
+
+/* --- STYLES POUR LES CHECKBOXES DANS LA MODALE ET LE FORMULAIRE D'AJOUT (GRADES, FONCTIONS) --- */
+#newAgentGradesCheckboxes, /* Nouveau */
+#gradesCheckboxes, /* Nouveau */
+#newAgentFonctionsCheckboxes, /* Nouveau */ /* Renommé function en fonction */
+#fonctionsCheckboxes { /* Nouveau */ /* Renommé functions en fonctions */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius-small);
+    background-color: #fcfcfc;
+}
+
+/* Styles pour le conteneur de chaque checkbox */
+#newAgentGradesCheckboxes > div, /* Nouveau */
+#gradesCheckboxes > div, /* Nouveau */
+#newAgentFonctionsCheckboxes > div, /* Nouveau */ /* Renommé function en fonction */
+#fonctionsCheckboxes > div { /* Nouveau */ /* Renommé functions en fonctions */
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Espace entre le checkbox et le label */
+}
+
+/* Styles pour les checkboxes elles-mêmes */
+#newAgentGradesCheckboxes input[type="checkbox"], /* Nouveau */
+#gradesCheckboxes input[type="checkbox"], /* Nouveau */
+#newAgentFonctionsCheckboxes input[type="checkbox"], /* Nouveau */ /* Renommé function en fonction */
+#fonctionsCheckboxes input[type="checkbox"] { /* Nouveau */ /* Renommé functions en fonctions */
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary-color); /* Couleur de la case à cocher native */
+    border: 1px solid var(--medium-gray); /* Couleur de la bordure */
+    border-radius: 4px; /* Bordures arrondies */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#newAgentGradesCheckboxes input[type="checkbox"]:focus, /* Nouveau */
+#gradesCheckboxes input[type="checkbox"]:focus, /* Nouveau */
+#newAgentFonctionsCheckboxes input[type="checkbox"]:focus, /* Nouveau */ /* Renommé function en fonction */
+#fonctionsCheckboxes input[type="checkbox"]:focus { /* Nouveau */ /* Renommé functions en fonctions */
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Anneau de focus */
+}
+
+
+#newAgentGradesCheckboxes label, /* Nouveau */
+#gradesCheckboxes label, /* Nouveau */
+#newAgentFonctionsCheckboxes label, /* Nouveau */ /* Renommé function en fonction */
+#fonctionsCheckboxes label { /* Nouveau */ /* Renommé functions en fonctions */
+    margin-bottom: 0; /* Réinitialise le margin-bottom du label de formulaire */
+    font-weight: normal;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 0.95rem; /* Ajuste la taille de la police */
+}
+
+
+/* Media Queries pour la réactivité */
+@media (max-width: 1024px) {
+  .agent-container {
+    padding: 20px;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .header-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+  .week-info {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .btn {
+    width: 100%;
+  }
+  .main-tab {
+    font-size: 1rem;
+    padding: 10px 15px;
+  }
+}
+
 @media (max-width: 768px) {
-  .container {
-    margin: 10px auto;
+  body {
+    padding: 15px;
+  }
+  .agent-container {
+    padding: 15px;
+  }
+  .welcome-message {
+    font-size: 1.8rem;
+  }
+  .main-tabs-navigation, .tabs-navigation {
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px; /* Espace pour le scrollbar */
+  }
+  .main-tabs-navigation::-webkit-scrollbar,
+  .tabs-navigation::-webkit-scrollbar {
+    height: 4px;
+  }
+  .main-tabs-navigation::-webkit-scrollbar-thumb,
+  .tabs-navigation::-webkit-scrollbar-thumb {
+    background: var(--light-gray);
+    border-radius: 5px;
+  }
+  .main-tab {
+    min-width: fit-content; /* Pour éviter que les onglets ne se réduisent trop */
+  }
+
+  .planning-table th,
+  .planning-table td {
+      padding: 6px 2px;
+      font-size: 0.8rem;
+  }
+  .planning-table th:first-child,
+  .planning-table td:first-child {
+      min-width: 120px;
+      width: 120px;
+      padding-left: 10px;
+  }
+  .planning-table td.slot-cell {
+      width: 20px;
+      min-width: 20px;
+      height: 20px;
+  }
+
+  .modal-content {
+      padding: 20px;
+  }
+  .close-button {
+      font-size: 28px;
+      top: 5px;
+      right: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 10px;
+  }
+  .agent-container {
     padding: 10px;
     border-radius: 0;
     box-shadow: none;
   }
-  .admin-page-header {
-      padding: 15px;
-      margin-bottom: 15px;
-  }
-  .header-top-content {
-      flex-direction: column;
-      align-items: flex-start;
-      margin-bottom: 10px;
-      gap: 10px;
-  }
   .welcome-message {
-    font-size: 1.8em;
-  }
-  .header-controls-permanent { /* Ciblé pour les mobiles */
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 15px;
-      padding-top: 10px;
-  }
-  .week-selector-group {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 5px;
-  }
-  .action-buttons-header {
-      flex-direction: column;
-      width: 100%;
-  }
-  .action-buttons-header .btn {
-      width: 100%;
-  }
-
-  .main-tabs-nav {
-      flex-direction: column;
-      gap: 0;
+    font-size: 1.5rem;
   }
   .main-tab {
-      width: 100%;
-      text-align: center;
-      border-bottom: 1px solid var(--light-gray);
-      border-top-left-radius: 0;
-      border-top-right-radius: 0;
-  }
-  .main-tab:first-child {
-      border-top-left-radius: var(--border-radius-small);
-      border-top-right-radius: var(--border-radius-small);
-  }
-  .main-tab.active {
-      border-bottom: 2px solid var(--primary-color);
-  }
-
-  .day-tabs {
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 5px;
-      padding: 5px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
   }
   .tab {
-      width: calc(33% - 10px); /* 3 boutons par ligne */
-      font-size: 0.9em;
-      padding: 8px 10px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
   }
+
   .planning-table th:first-child,
   .planning-table td:first-child {
-      min-width: 80px;
-      width: 80px;
-      padding-left: 10px;
+      min-width: 100px;
+      width: 100px;
+      padding-left: 8px;
   }
   .planning-table td.slot-cell {
       width: 18px;
       min-width: 18px;
       height: 18px;
   }
-  .planning-table td.actions-cell {
-      min-width: 120px;
-      width: 120px;
-      flex-direction: column;
+
+  #add-agent-section h3, #list-agents-section h3, .modal-content h3,
+  #add-grade-section h3, #list-grades-section h3, /* Mis à jour */
+  #add-fonction-section h3, #list-fonctions-section h3 { /* Mis à jour */
+      font-size: 1.3rem;
+  }
+
+  form input[type="text"],
+  form input[type="password"] {
+      font-size: 0.9rem;
+      padding: 8px;
+  }
+
+  .btn {
+      padding: 8px 15px;
+      font-size: 0.85rem;
+  }
+
+  /* Styles pour les checkboxes (grades, fonctions) sur petits écrans */
+  #newAgentGradesCheckboxes > div,
+  #gradesCheckboxes > div,
+  #newAgentFonctionsCheckboxes > div, /* Mis à jour */
+  #fonctionsCheckboxes > div { /* Mis à jour */
+      font-size: 0.9rem;
       gap: 5px;
-      padding: 8px 5px;
   }
-  .planning-table td.actions-cell .btn {
-      width: 100%;
-      margin: 0;
+  #newAgentGradesCheckboxes input[type="checkbox"],
+  #gradesCheckboxes input[type="checkbox"],
+  #newAgentFonctionsCheckboxes input[type="checkbox"], /* Mis à jour */
+  #fonctionsCheckboxes input[type="checkbox"] { /* Mis à jour */
+      width: 16px;
+      height: 16px;
   }
-
-  .form-container, .table-container {
-      padding: 15px;
-  }
-  .form-container h3, .table-container h3 {
-      font-size: 1.2em;
-  }
-  .modal-content {
-      width: 95%;
-      margin: 2% auto;
-      padding: 20px;
-  }
-  .modal-content h3 {
-      font-size: 1.4em;
-  }
-  footer {
-      padding: 15px;
-      margin-top: 20px;
-      text-align: center;
-  }
-  footer .btn-danger {
-      width: 100%;
-      padding: 10px;
-  }
-}
-
-/* Styles pour le mode édition d'une ligne de planning */
-.planning-table tr.editing-row {
-    background-color: #f7faff; /* Légère couleur de fond pour indiquer l'édition */
-    box-shadow: inset 0 0 5px rgba(0, 123, 255, 0.1);
-}
-
-.planning-table tr.editing-row td.slot-cell {
-    border-color: var(--primary-color); /* Bordure colorée pour les cellules éditables */
 }
