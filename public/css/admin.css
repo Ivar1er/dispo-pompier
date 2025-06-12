@@ -60,7 +60,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px; /* Espace sous le titre et avant les contrôles de planning */
+    margin-bottom: 15px; /* Espace sous le titre et avant les contrôles permanents */
 }
 
 .welcome-message {
@@ -69,7 +69,8 @@ body {
     margin: 0; /* Supprime les marges par défaut */
 }
 
-.header-controls-planning { /* Nouveau conteneur pour les contrôles de planning */
+/* Nouveau conteneur pour les contrôles de semaine et export qui restent toujours dans le header */
+.header-controls-permanent {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -715,7 +716,7 @@ form button[type="submit"] {
   .welcome-message {
     font-size: 1.8em;
   }
-  .header-controls-planning {
+  .header-controls-permanent { /* Ciblé pour les mobiles */
       flex-direction: column;
       align-items: flex-start;
       gap: 15px;
@@ -771,9 +772,9 @@ form button[type="submit"] {
       padding-left: 10px;
   }
   .planning-table td.slot-cell {
-      width: 20px;
-      min-width: 20px;
-      height: 20px;
+      width: 18px;
+      min-width: 18px;
+      height: 18px;
   }
   .planning-table td.actions-cell {
       min-width: 120px;
