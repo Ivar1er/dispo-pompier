@@ -24,10 +24,11 @@
   --border-radius-medium: 8px;
   --border-radius-small: 6px;
 
-  --box-shadow-subtle: 0 2px 5px rgba(0, 0, 0, 0.05);
-  --box-shadow-medium: 0 4px 10px rgba(0, 0, 0, 0.1);
+  --box-shadow-subtle: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --box-shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Styles généraux du corps */
 body {
   font-family: 'Poppins', sans-serif;
   margin: 0;
@@ -35,551 +36,435 @@ body {
   background-color: var(--background-color);
   color: var(--text-color);
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .container {
-  max-width: 1400px; /* Augmenté pour donner plus d'espace */
+  max-width: 1300px; /* Augmenté pour un meilleur affichage du planning */
   margin: 20px auto;
+  padding: 20px;
   background-color: var(--card-background);
   border-radius: var(--border-radius-large);
   box-shadow: var(--box-shadow-medium);
-  padding: 20px;
 }
 
-/* -------------------- Styles de l'en-tête (modifié) -------------------- */
-.admin-page-header {
-    background-color: #f8f9fa; /* Couleur de fond légère pour l'en-tête */
-    padding: 20px 25px; /* Augmenté le padding pour plus d'espace */
-    border-bottom: 1px solid #e0e0e0;
-    margin-bottom: 25px; /* Espace sous l'en-tête et avant les onglets principaux */
-    border-radius: var(--border-radius-medium);
-    box-shadow: var(--box-shadow-subtle);
-}
-
-.header-top-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px; /* Espace sous le titre et avant les contrôles permanents */
+/* Header de la page d'administration */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--light-gray);
+  flex-wrap: wrap; /* Permet le wrap sur petits écrans */
+  gap: 15px; /* Espace entre les éléments du header */
 }
 
 .welcome-message {
-    font-size: 2.2em; /* Taille de police du titre */
-    color: var(--primary-color);
-    margin: 0; /* Supprime les marges par défaut */
+  color: var(--primary-color);
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+  flex-grow: 1; /* Permet au titre de prendre de la place */
 }
 
-/* Nouveau conteneur pour les contrôles de semaine et export qui restent toujours dans le header */
+/* NOUVEAU: Styles pour les contrôles de semaine et export toujours visibles dans le header */
 .header-controls-permanent {
-    display: flex;
-    justify-content: space-between;
+    display: flex; /* Par défaut, ils sont affichés. Le JS les masque si pas sur la vue planning. */
     align-items: center;
-    flex-wrap: wrap; /* Permet aux éléments de passer à la ligne sur petits écrans */
-    gap: 20px; /* Espace entre les groupes d'éléments */
-    padding-top: 15px; /* Espace interne au-dessus des contrôles */
-    border-top: 1px dashed var(--light-gray); /* Ligne de séparation subtile */
+    gap: 15px;
+    flex-wrap: wrap;
 }
 
-.week-selector-group {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.week-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  color: var(--dark-gray);
 }
 
-.week-display-label {
-    font-weight: 600;
-    color: var(--text-color);
-    font-size: 1.1em;
+.week-info select {
+  padding: 8px 12px;
+  border: 1px solid var(--medium-gray);
+  border-radius: var(--border-radius-small);
+  background-color: #f9f9f9;
+  cursor: pointer;
+  font-size: 1rem;
 }
 
-#week-select {
-    padding: 8px 12px;
-    border: 1px solid var(--medium-gray);
-    border-radius: var(--border-radius-small);
-    font-size: 1em;
-    background-color: #fff;
-    cursor: pointer;
+.week-info select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-#date-range {
-    font-weight: 400;
-    color: var(--dark-gray);
-    font-size: 0.95em;
+.date-range {
+  font-weight: 600;
+  margin: 0;
 }
 
-.action-buttons-header {
-    display: flex;
-    gap: 10px; /* Espace entre les boutons d'export */
-}
-/* -------------------- Fin des styles de l'en-tête -------------------- */
-
-
-/* -------------------- Styles du pied de page (nouveau) -------------------- */
-footer {
-    text-align: right; /* Aligne le bouton de déconnexion à droite */
-    padding: 20px 25px;
-    margin-top: 40px; /* Espace au-dessus du pied de page */
-    border-top: 1px solid #e0e0e0;
-    background-color: #f8f9fa;
-    border-radius: var(--border-radius-medium);
-    box-shadow: var(--box-shadow-subtle);
-}
-
-footer .btn-danger {
-    padding: 12px 25px;
-    font-size: 1em;
-}
-/* -------------------- Fin des styles du pied de page -------------------- */
-
-
-/* Styles globaux pour les boutons */
+/* Boutons et formulaires généraux */
 .btn {
-  padding: 10px 15px;
+  padding: 10px 20px;
   border: none;
   border-radius: var(--border-radius-small);
   cursor: pointer;
-  font-size: 0.9em;
+  font-size: 1rem;
   font-weight: 600;
   transition: background-color 0.2s ease, transform 0.1s ease;
-  text-decoration: none; /* Pour les liens stylisés comme boutons */
-  display: inline-flex; /* Pour centrer le contenu si besoin */
-  align-items: center;
-  justify-content: center;
-}
-
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  white-space: nowrap; /* Empêche le texte de se casser sur plusieurs lignes */
 }
 
 .btn-primary {
   background-color: var(--primary-color);
   color: white;
 }
+
 .btn-primary:hover {
   background-color: var(--primary-hover-color);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
   background-color: var(--secondary-color);
   color: white;
 }
+
 .btn-secondary:hover {
   background-color: var(--secondary-hover-color);
+  transform: translateY(-1px);
 }
 
 .btn-success {
-    background-color: var(--success-color);
-    color: white;
+  background-color: var(--success-color);
+  color: white;
 }
+
 .btn-success:hover {
-    background-color: #218838;
+  background-color: #218838;
 }
 
 .btn-danger {
   background-color: var(--danger-color);
   color: white;
 }
+
 .btn-danger:hover {
   background-color: #c82333;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 0.85rem;
 }
 
 .disabled-link {
     pointer-events: none;
     opacity: 0.6;
+    cursor: not-allowed;
 }
 
-/* Styles pour les onglets de navigation principaux */
-.main-tabs-nav {
-    display: flex;
-    justify-content: flex-start;
-    border-bottom: 2px solid var(--light-gray);
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 5px; /* Petit espace entre les onglets */
+/* Navigation principale (onglets) */
+.main-nav {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--light-gray);
+  padding-bottom: 10px;
+  overflow-x: auto; /* Permet le défilement horizontal sur petits écrans */
 }
 
 .main-tab {
-    padding: 12px 25px;
-    border: none;
-    background-color: transparent;
-    cursor: pointer;
-    font-size: 1.1em;
-    font-weight: 600;
-    color: var(--dark-gray);
-    border-bottom: 2px solid transparent;
-    transition: all 0.3s ease;
-    border-top-left-radius: var(--border-radius-small);
-    border-top-right-radius: var(--border-radius-small);
-}
-
-.main-tab:hover {
-    color: var(--primary-color);
-    border-color: rgba(var(--primary-color), 0.5); /* Effet plus léger au survol */
+  padding: 10px 15px;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-small);
+  background-color: var(--light-gray);
+  color: var(--dark-gray);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
 }
 
 .main-tab.active {
-    color: var(--primary-color);
-    border-bottom: 2px solid var(--primary-color);
-    background-color: #e9ecef;
-    font-weight: 700;
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  box-shadow: var(--box-shadow-subtle);
 }
 
-/* Conteneur principal pour le contenu des onglets */
-.main-content-area {
-    padding: 0 10px; /* Assure un petit padding interne */
+.main-tab:hover:not(.active) {
+  background-color: var(--medium-gray);
+  color: var(--text-color);
 }
 
-/* Styles pour les messages */
-.message-banner {
-  padding: 12px 20px;
-  margin-bottom: 20px;
-  border-radius: var(--border-radius-small);
-  border: 1px solid;
-  font-weight: 500;
-  text-align: center;
-  opacity: 0.9;
+/* Contenu des onglets principaux */
+.main-tab-content {
+  display: none; /* Caché par défaut */
+  padding-top: 20px;
 }
 
-.message-box {
-    margin-top: 15px;
-    padding: 10px;
-    border-radius: var(--border-radius-small);
-    font-size: 0.9em;
-    text-align: center;
+.main-tab-content.active {
+  display: block; /* Affiché si actif */
 }
 
-/* Message de succès */
-.message-box[style*="background-color: rgb(223, 240, 216)"],
-.message-banner[style*="background-color: rgb(223, 240, 216)"] { /* Ciblage spécifique pour le JS actuel */
-    background-color: #dff0d8; /* Vert clair */
-    border-color: #d6e9c6;
-    color: #3c763d; /* Vert foncé */
+/* Section planning global */
+.planning-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-/* Message d'erreur */
-.message-box[style*="background-color: rgb(255, 230, 230)"],
-.message-banner[style*="background-color: rgb(255, 230, 230)"] { /* Ciblage spécifique pour le JS actuel */
-    background-color: #ffe6e6; /* Rouge clair */
-    border-color: #e6a4a4;
-    color: #a94442; /* Rouge foncé */
-}
-
-/* Message d'information/chargement */
-.message-banner[style*="background-color: rgb(255, 243, 205)"] { /* Ciblage spécifique pour le JS actuel */
-    background-color: #fff3cd; /* Jaune clair */
-    border-color: #ffeeba;
-    color: #856404; /* Jaune foncé */
-}
-
-
-/* Styles pour les onglets de jour (Lundi, Mardi...) */
+/* Navigation par jour */
 .day-tabs {
   display: flex;
-  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 20px;
-  background-color: #e9ecef;
-  border-radius: var(--border-radius-medium);
-  padding: 8px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
-  flex-wrap: wrap; /* Permet aux onglets de passer à la ligne */
-  gap: 5px; /* Espace entre les boutons de jour */
+  border-bottom: 1px solid var(--light-gray);
+  padding-bottom: 10px;
 }
 
 .tab {
-  padding: 10px 18px;
-  border: none;
-  background-color: transparent;
-  cursor: pointer;
-  font-size: 1em;
-  font-weight: 500;
-  color: var(--dark-gray);
+  padding: 8px 12px;
+  border: 1px solid transparent;
   border-radius: var(--border-radius-small);
-  transition: all 0.2s ease;
-}
-
-.tab:hover {
-  background-color: #dee2e6;
-  color: var(--primary-color);
+  background-color: var(--light-gray);
+  color: var(--dark-gray);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
 }
 
 .tab.active {
   background-color: var(--primary-color);
   color: white;
-  font-weight: 600;
-  box-shadow: var(--box-shadow-subtle);
+  border-color: var(--primary-color);
 }
 
-/* Conteneur pour les tables de planning */
-.day-planning-display {
-    padding: 10px 0; /* Padding pour l'intérieur du conteneur des jours */
+.tab:hover:not(.active) {
+  background-color: var(--medium-gray);
+  color: var(--text-color);
 }
 
+/* Conteneurs de planning par jour */
 .day-content {
-    display: none; /* Masqué par défaut, géré par JS */
-    background-color: var(--card-background);
-    padding: 25px;
-    border-radius: var(--border-radius-medium);
-    box-shadow: var(--box-shadow-subtle);
+    display: none; /* Caché par défaut */
 }
 
 .day-content.active {
     display: block; /* Affiché si actif */
 }
 
-.day-content h3 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    color: var(--primary-color);
-    text-align: center;
-    font-size: 1.5em;
-    border-bottom: 1px solid var(--light-gray);
-    padding-bottom: 10px;
-}
-
-.planning-table-container {
-    overflow-x: auto; /* Permet le défilement horizontal si la table est trop large */
-    -webkit-overflow-scrolling: touch; /* Améliore le défilement sur mobile */
-}
-
+/* Styles du tableau de planning */
 .planning-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
-  font-size: 0.85em;
-  min-width: 1200px; /* Pour garantir une largeur minimale pour les créneaux */
+  font-size: 0.9em;
+  min-width: 800px; /* Empêche le tableau d'être trop petit */
 }
 
-.planning-table th,
-.planning-table td {
-  border: 1px solid var(--light-gray);
-  padding: 8px 5px;
-  text-align: center;
-  white-space: nowrap; /* Empêche le texte de passer à la ligne */
-}
-
-.planning-table th {
+.planning-table thead th {
   background-color: var(--primary-color);
   color: white;
-  font-weight: 600;
-  position: sticky;
+  padding: 10px 5px;
+  text-align: center;
+  border: 1px solid var(--primary-hover-color);
+  position: sticky; /* Sticky header */
   top: 0;
   z-index: 10;
 }
 
-/* Colonne Agent, fixe */
+/* Fixe la première colonne "Agent" */
 .planning-table th:first-child,
 .planning-table td:first-child {
   position: sticky;
   left: 0;
-  background-color: var(--card-background);
-  z-index: 11;
-  font-weight: 600;
-  color: var(--text-color);
-  min-width: 120px;
-  width: 120px;
+  background-color: var(--primary-color); /* Pour l'en-tête */
+  color: white; /* Pour l'en-tête */
+  z-index: 11; /* Au-dessus des autres en-têtes */
   text-align: left;
+  min-width: 150px; /* Largeur minimale pour le nom de l'agent */
   padding-left: 15px;
 }
 
-/* Ajustement pour le header de la colonne agent */
-.planning-table th:first-child {
-  background-color: var(--primary-color);
-  color: white;
-  z-index: 12;
+.planning-table tbody td:first-child {
+    background-color: var(--card-background); /* Fond blanc pour les noms d'agents dans le corps */
+    color: var(--text-color);
+    z-index: 9; /* En dessous des en-têtes */
+    border-right: 1px solid var(--light-gray); /* Ligne de séparation */
 }
 
-.planning-table td.slot-cell {
-  width: 25px; /* Largeur de la cellule pour chaque créneau */
-  min-width: 25px;
-  height: 25px;
-  box-sizing: border-box; /* S'assure que padding et border sont inclus dans la largeur */
-  cursor: pointer;
-  transition: background-color 0.1s ease;
+/* Styles pour les cellules du planning */
+.planning-table td {
+  border: 1px solid var(--light-gray);
+  padding: 0; /* Pas de padding direct sur la td */
+  text-align: center;
+  height: 30px; /* Hauteur des cellules */
+  width: 30px; /* Largeur fixe pour les créneaux */
+  min-width: 30px; /* S'assure que les cellules ne rétrécissent pas trop */
 }
 
-.planning-table td.slot-cell.occupied {
-  background-color: var(--occupied-slot-color);
-}
-
-.planning-table td.slot-cell.free {
-  background-color: var(--free-slot-color);
-}
-
-.planning-table td.slot-cell:hover:not(.editing-row .slot-cell) {
-    opacity: 0.8;
-}
-
-.planning-table td.slot-cell input[type="checkbox"] {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    cursor: pointer;
-    vertical-align: middle;
-    appearance: none; /* Cache la checkbox par défaut */
-    -webkit-appearance: none;
-    background-color: var(--free-slot-color); /* Couleur de fond de la checkbox */
-    border: 1px solid var(--medium-gray);
-    border-radius: 3px;
-    position: relative;
-    box-sizing: border-box;
-}
-
-.planning-table td.slot-cell input[type="checkbox"]:checked {
-    background-color: var(--occupied-slot-color); /* Couleur si cochée */
-    border-color: var(--primary-hover-color);
-}
-
-.planning-table td.slot-cell input[type="checkbox"]:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-.planning-table td.slot-cell input[type="checkbox"]::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 60%;
-    height: 60%;
-    transform: translate(-50%, -50%) scale(0);
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>');
-    background-size: contain;
-    background-repeat: no-repeat;
-    opacity: 0;
-    transition: transform 0.2s ease-out, opacity 0.2s ease-out;
-}
-
-.planning-table td.slot-cell input[type="checkbox"]:checked::after {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-}
-
-/* Styles pour les actions de ligne */
-.planning-table td.actions-cell {
-    position: sticky;
-    right: 0;
-    background-color: var(--card-background);
-    z-index: 11;
-    min-width: 150px;
-    width: 150px;
+.slot-cell {
     display: flex;
     justify-content: center;
     align-items: center;
+    height: 100%;
+    width: 100%;
+}
+
+.slot-cell input[type="checkbox"] {
+    width: 20px; /* Taille de la checkbox */
+    height: 20px;
+    cursor: pointer;
+    margin: 0;
+    accent-color: var(--occupied-slot-color); /* Couleur de la checkbox cochée */
+}
+
+/* Couleurs des cellules basées sur l'état */
+.slot-cell.occupied {
+  background-color: var(--occupied-slot-color); /* Bleu pour occupé */
+}
+
+.slot-cell.free {
+  background-color: var(--free-slot-color); /* Gris clair pour libre */
+}
+
+/* Style spécifique pour la ligne en mode édition */
+.editing-row td {
+    background-color: #f9f9f9; /* Légèrement grisé en mode édition */
+}
+
+.planning-table .actions-cell {
+    width: 180px; /* Espace pour les boutons Modifier/Sauvegarder/Annuler */
+    min-width: 180px;
+    padding: 5px;
+    display: flex;
     gap: 5px;
-    box-shadow: -2px 0 5px rgba(0,0,0,0.02); /* Ombre sur le côté */
+    justify-content: center;
+    align-items: center;
+    position: sticky; /* Rend la colonne des actions collante */
+    right: 0;
+    background-color: var(--card-background); /* Fond blanc pour la colonne des actions */
+    z-index: 9; /* Au-dessus du reste du tableau */
+    border-left: 1px solid var(--light-gray);
 }
 
-/* Cacher/montrer les boutons d'action */
-.planning-table td.actions-cell .hidden {
-    display: none;
+
+/* Messages d'information */
+.info-message {
+  padding: 10px;
+  border-radius: var(--border-radius-small);
+  margin-top: 15px;
+  font-size: 0.95rem;
+  text-align: center;
+  display: none; /* Caché par défaut, affiché via JS */
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+.info-message[style*="display: block"] {
+    opacity: 1; /* Affiche avec transition quand display block est mis */
 }
 
-/* Styles pour les sections de gestion */
-.form-container, .table-container {
+/* Cartes pour les sections (Ajout, Liste) */
+.card {
   background-color: var(--card-background);
-  padding: 25px;
   border-radius: var(--border-radius-medium);
   box-shadow: var(--box-shadow-subtle);
-  margin-bottom: 25px;
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
-.form-container h3, .table-container h3 {
+.card h3 {
   color: var(--primary-color);
   margin-top: 0;
   margin-bottom: 20px;
-  font-size: 1.4em;
   border-bottom: 1px solid var(--light-gray);
   padding-bottom: 10px;
 }
 
-/* Styles pour les formulaires */
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px; /* Espace entre les éléments du formulaire */
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
+/* Formulaires */
+form div {
+  margin-bottom: 15px;
 }
 
 form label {
-  font-weight: 600;
+  display: block;
   margin-bottom: 5px;
-  color: var(--text-color);
+  font-weight: 500;
+  color: var(--dark-gray);
 }
 
 form input[type="text"],
 form input[type="password"],
 form select {
+  width: calc(100% - 20px); /* 100% moins le padding */
   padding: 10px;
   border: 1px solid var(--medium-gray);
   border-radius: var(--border-radius-small);
-  font-size: 1em;
-  width: 100%;
-  box-sizing: border-box; /* Inclure padding et border dans la largeur */
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+form input[type="text"]:focus,
+form input[type="password"]:focus,
+form select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 form button[type="submit"] {
-  align-self: flex-start; /* Aligne le bouton à gauche */
-  margin-top: 15px;
+  margin-top: 10px;
+  width: auto;
 }
 
-/* Styles pour les checkbox groups (grades et fonctions) */
 .checkbox-group {
-    margin-top: 15px;
-    border: 1px solid var(--light-gray);
-    border-radius: var(--border-radius-small);
-    padding: 15px;
-    background-color: #fcfcfc;
-}
-
-.checkbox-group p {
-    font-weight: 600;
-    margin-top: 0;
-    margin-bottom: 10px;
-    color: var(--text-color);
-}
-
-.checkbox-group > div { /* Conteneur des checkboxes */
     display: flex;
     flex-wrap: wrap;
-    gap: 10px 20px; /* Espacement entre les items */
+    gap: 10px;
+    border: 1px solid var(--medium-gray);
+    padding: 10px;
+    border-radius: var(--border-radius-small);
+    max-height: 120px; /* Limite la hauteur pour un meilleur affichage */
+    overflow-y: auto; /* Ajoute un défilement si trop d'éléments */
 }
 
-.checkbox-group div > div { /* Chaque checkbox et label */
+.checkbox-group div {
     display: flex;
     align-items: center;
-    gap: 5px;
+    margin-bottom: 0; /* Réinitialise le margin-bottom du div parent */
 }
 
 .checkbox-group input[type="checkbox"] {
-    width: auto; /* Laisser la taille par défaut du navigateur */
+    margin-right: 5px;
+    width: auto; /* Laisser le navigateur gérer la largeur native de la checkbox */
     height: auto;
-    margin: 0;
-    cursor: pointer;
+    accent-color: var(--primary-color); /* Couleur de la checkbox cochée */
 }
 
-.checkbox-group label {
-    font-weight: 400;
-    margin: 0;
-    cursor: pointer;
+/* Tableaux de données (Agents, Grades, Fonctions) */
+.table-responsive {
+    overflow-x: auto; /* Permet le défilement horizontal si le tableau est trop large */
+    margin-top: 20px;
 }
 
-
-/* Styles pour les tableaux de données (agents, grades, fonctions) */
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 20px;
-  font-size: 0.9em;
+  margin-top: 15px;
+  font-size: 0.95em;
+  min-width: 600px; /* Pour éviter que le tableau ne soit trop écrasé */
 }
 
-.data-table th, .data-table td {
+.data-table th,
+.data-table td {
   border: 1px solid var(--light-gray);
-  padding: 12px 15px;
+  padding: 12px;
   text-align: left;
 }
 
@@ -587,238 +472,254 @@ form button[type="submit"] {
   background-color: var(--primary-color);
   color: white;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .data-table tr:nth-child(even) {
-  background-color: #f8f8f8;
+  background-color: #f9f9f9;
 }
 
-.data-table td .btn {
-  padding: 6px 10px;
-  font-size: 0.85em;
-  margin-right: 5px;
+.data-table tr:hover {
+  background-color: #f1f1f1;
 }
 
-/* Modale */
+.data-table td:last-child {
+  white-space: nowrap; /* Empêche les boutons d'action de se casser */
+  display: flex; /* Permet d'aligner les boutons sur une ligne */
+  gap: 5px; /* Espace entre les boutons */
+}
+
+/* Modales */
 .modal {
-  display: none; /* Hidden by default */
-  position: fixed; /* Stay in place */
-  z-index: 1000; /* Sit on top */
+  display: none; /* Caché par défaut */
+  position: fixed; /* Reste en place même en scrollant */
+  z-index: 1000; /* Par-dessus tout */
   left: 0;
   top: 0;
-  width: 100%; /* Full width */
-  height: 100%; /* Full height */
-  overflow: auto; /* Enable scroll if needed */
-  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-  padding-top: 60px;
+  width: 100%;
+  height: 100%;
+  overflow: auto; /* Active le défilement si le contenu est trop grand */
+  background-color: rgba(0, 0, 0, 0.4); /* Fond semi-transparent noir */
+  backdrop-filter: blur(3px); /* Effet de flou sur le fond */
+  justify-content: center; /* Centrer horizontalement */
+  align-items: center; /* Centrer verticalement */
 }
 
 .modal-content {
   background-color: var(--card-background);
-  margin: 5% auto; /* 15% from the top and centered */
+  margin: auto; /* Centrage automatique avec display:block par défaut */
   padding: 30px;
-  border: 1px solid var(--light-gray);
   border-radius: var(--border-radius-large);
-  width: 90%; /* Could be more or less, depending on screen size */
-  max-width: 500px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  position: relative;
+  box-shadow: var(--box-shadow-medium);
+  width: 90%;
+  max-width: 550px;
+  position: relative; /* Pour positionner le bouton de fermeture */
+  animation: fadeIn 0.3s ease-out;
 }
 
 .modal-content h3 {
     text-align: center;
     color: var(--primary-color);
-    margin-top: 0;
     margin-bottom: 25px;
-    font-size: 1.6em;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--light-gray);
 }
 
-.modal-content form {
-    gap: 10px; /* Plus petit espace dans les modales */
-}
-.modal-content form .form-group {
-    margin-bottom: 10px;
-}
-.modal-content form button[type="submit"] {
+.modal-content form .btn {
     width: 100%;
     margin-top: 20px;
 }
 
+.modal-content form p.info-message {
+    margin-top: 15px;
+}
+
 
 .close-button {
-  color: #aaa;
+  color: var(--dark-gray);
   position: absolute;
   top: 15px;
   right: 25px;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: bold;
   cursor: pointer;
+  transition: color 0.2s ease;
 }
 
 .close-button:hover,
 .close-button:focus {
-  color: #000;
+  color: var(--danger-color);
   text-decoration: none;
-  cursor: pointer;
 }
-
 
 /* Spinner de chargement */
 .loading-spinner {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(255, 255, 255, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000; /* Au-dessus de tout */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
+  z-index: 2000;
+  font-size: 2em;
+  color: var(--primary-color);
 }
 
-.loading-spinner.hidden {
-    display: none;
+.loading-spinner::after {
+  content: '';
+  border: 5px solid var(--light-gray);
+  border-top: 5px solid var(--primary-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
 }
 
-.spinner {
-    border: 8px solid #f3f3f3;
-    border-top: 8px solid var(--primary-color);
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    animation: spin 1s linear infinite;
+.hidden {
+  display: none !important;
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-/* Responsive adjustments */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Media Queries pour la réactivité */
+@media (max-width: 992px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .header-controls-permanent {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+  }
+  .week-info {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .week-info select, .btn {
+    width: auto; /* Ou 100% si vous préférez */
+  }
+}
+
 @media (max-width: 768px) {
   .container {
     margin: 10px auto;
-    padding: 10px;
+    padding: 15px;
     border-radius: 0;
     box-shadow: none;
   }
-  .admin-page-header {
-      padding: 15px;
-      margin-bottom: 15px;
-  }
-  .header-top-content {
-      flex-direction: column;
-      align-items: flex-start;
-      margin-bottom: 10px;
-      gap: 10px;
-  }
   .welcome-message {
-    font-size: 1.8em;
+    font-size: 1.8rem;
+    text-align: center;
+    width: 100%;
   }
-  .header-controls-permanent { /* Ciblé pour les mobiles */
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 15px;
-      padding-top: 10px;
-  }
-  .week-selector-group {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 5px;
-  }
-  .action-buttons-header {
-      flex-direction: column;
-      width: 100%;
-  }
-  .action-buttons-header .btn {
-      width: 100%;
-  }
-
-  .main-tabs-nav {
-      flex-direction: column;
-      gap: 0;
+  .main-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
   }
   .main-tab {
-      width: 100%;
-      text-align: center;
-      border-bottom: 1px solid var(--light-gray);
-      border-top-left-radius: 0;
-      border-top-right-radius: 0;
+      padding: 8px 12px;
+      font-size: 0.9rem;
   }
-  .main-tab:first-child {
-      border-top-left-radius: var(--border-radius-small);
-      border-top-right-radius: var(--border-radius-small);
-  }
-  .main-tab.active {
-      border-bottom: 2px solid var(--primary-color);
-  }
-
   .day-tabs {
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 5px;
-      padding: 5px;
+    justify-content: center;
+    gap: 6px;
   }
   .tab {
-      width: calc(33% - 10px); /* 3 boutons par ligne */
-      font-size: 0.9em;
-      padding: 8px 10px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
   }
+
   .planning-table th:first-child,
   .planning-table td:first-child {
-      min-width: 80px;
-      width: 80px;
+      min-width: 120px;
+      width: 120px;
       padding-left: 10px;
   }
   .planning-table td.slot-cell {
-      width: 18px;
-      min-width: 18px;
-      height: 18px;
-  }
-  .planning-table td.actions-cell {
-      min-width: 120px;
-      width: 120px;
-      flex-direction: column;
-      gap: 5px;
-      padding: 8px 5px;
-  }
-  .planning-table td.actions-cell .btn {
-      width: 100%;
-      margin: 0;
+      width: 25px;
+      min-width: 25px;
+      height: 25px;
   }
 
-  .form-container, .table-container {
-      padding: 15px;
+  #add-agent-section h3, #list-agents-section h3, .modal-content h3,
+  #add-grade-section h3, #list-grades-section h3,
+  #add-fonction-section h3, #list-fonctions-section h3 {
+      font-size: 1.5rem;
   }
-  .form-container h3, .table-container h3 {
-      font-size: 1.2em;
+
+  form input[type="text"],
+  form input[type="password"],
+  form select {
+      font-size: 0.9rem;
+      padding: 8px;
   }
+
+  .btn {
+      padding: 8px 15px;
+      font-size: 0.9rem;
+  }
+
+  .data-table th, .data-table td {
+      padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcome-message {
+    font-size: 1.5rem;
+  }
+  .main-tab {
+      padding: 8px 10px;
+      font-size: 0.8rem;
+  }
+  .tab {
+      padding: 5px 8px;
+      font-size: 0.75rem;
+  }
+  .planning-table th:first-child,
+  .planning-table td:first-child {
+      min-width: 90px;
+      width: 90px;
+      padding-left: 5px;
+  }
+  .planning-table td.slot-cell {
+      width: 20px;
+      min-width: 20px;
+      height: 20px;
+  }
+  .planning-table .actions-cell {
+      flex-direction: column; /* Empile les boutons */
+      width: 80px; /* Plus petit */
+      min-width: 80px;
+      gap: 3px;
+  }
+  .planning-table .actions-cell .btn {
+      width: 100%; /* Les boutons prennent toute la largeur */
+      padding: 5px 8px;
+  }
+
   .modal-content {
       width: 95%;
-      margin: 2% auto;
       padding: 20px;
   }
-  .modal-content h3 {
-      font-size: 1.4em;
+  .close-button {
+      font-size: 24px;
+      top: 10px;
+      right: 15px;
   }
-  footer {
-      padding: 15px;
-      margin-top: 20px;
-      text-align: center;
-  }
-  footer .btn-danger {
-      width: 100%;
-      padding: 10px;
-  }
-}
-
-/* Styles pour le mode édition d'une ligne de planning */
-.planning-table tr.editing-row {
-    background-color: #f7faff; /* Légère couleur de fond pour indiquer l'édition */
-    box-shadow: inset 0 0 5px rgba(0, 123, 255, 0.1);
-}
-
-.planning-table tr.editing-row td.slot-cell {
-    border-color: var(--primary-color); /* Bordure colorée pour les cellules éditables */
 }
