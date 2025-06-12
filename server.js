@@ -3,7 +3,7 @@ require('dotenv').config(); // AJOUTÉ : Importation et configuration de dotenv 
 
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs').promises;
+const fs = require('fs').promises; // Utilisation des promesses pour fs
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); // Assurez-vous que cette ligne est présente
@@ -35,21 +35,22 @@ app.use(express.static(PUBLIC_DIR));
 // Utilisation d'une variable d'environnement pour la production (Render) et un chemin local pour le développement
 const PERSISTENT_DIR = process.env.NODE_ENV === 'production' ? '/mnt/storage' : path.join(__dirname, 'data');
 
-// Créer le dossier PERSISTENT_DIR s'il n'existe pas (utile pour le développement local)
-if (process.env.NODE_ENV !== 'production') {
-    fs.mkdir(PERSISTENT_DIR, { recursive: true }).catch(console.error);
-}
+// Créer le dossier PERSISTENT_DIR s'il n'existe pas (utile pour le développement local et sur Render)
+// Cette ligne doit être avant toute tentative de lecture/écriture dans ce dossier.
+// On utilise .then().catch() car fs.mkdir retourne une promesse.
+fs.mkdir(PERSISTENT_DIR, { recursive: true })
+    .then(() => console.log(`Dossier persistant créé ou déjà existant: ${PERSISTENT_DIR}`))
+    .catch(err => console.error(`Erreur lors de la création du dossier persistant: ${err}`));
+
 
 const DATA_DIR = path.join(PERSISTENT_DIR, 'plannings');
 const USERS_FILE_PATH = path.join(PERSISTENT_DIR, 'users.json');
 const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json');
-const GRADES_FILE_PATH = path.join(PERSISTENT_DIR, 'grades.json'); // Nouveau chemin pour les grades
-const FONCTIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'fonctions.json'); // Chemin mis à jour pour les fonctions
+const GRADES_FILE_PATH = path.join(PERSISTENT_DIR, 'grades.json');
+const FONCTIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'fonctions.json');
 
-// Nouveaux chemins pour la persistance de la feuille de garde (si utilisés ailleurs)
 const ROSTER_CONFIG_DIR = path.join(PERSISTENT_DIR, 'roster_configs');
 const DAILY_ROSTER_DIR = path.join(PERSISTENT_DIR, 'daily_rosters');
-
 
 // Middleware pour vérifier le jeton JWT (à utiliser sur les routes protégées)
 const verifyToken = (req, res, next) => {
@@ -112,7 +113,8 @@ app.post('/api/login', async (req, res) => {
         });
     } catch (error) {
         console.error("Erreur de connexion :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la connexion." });
+        // Si le fichier users.json n'existe pas encore ou est vide/corrompu, une erreur se produira ici
+        res.status(500).json({ message: "Erreur serveur lors de la connexion. (Vérifiez la disponibilité du fichier utilisateurs)." });
     }
 });
 
@@ -223,7 +225,8 @@ app.post('/api/agents', verifyToken, async (req, res) => {
     }
 
     try {
-        const usersData = await fs.readFile(USERS_FILE_PATH, 'utf8').catch(() => '{}'); // Si le fichier n'existe pas, retourne un objet vide
+        // Utilisez .catch(() => '{}') pour initialiser usersData à un objet vide si le fichier n'existe pas
+        const usersData = await fs.readFile(USERS_FILE_PATH, 'utf8').catch(() => '{}');
         const users = JSON.parse(usersData);
 
         if (users[id]) {
@@ -694,8 +697,49 @@ app.get('/api/test-disk-write', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server launched on http://localhost:${port}`);
+// Lancement du serveur et initialisation de users.json
+app.listen(port, async () => {
+    console.log(`Server launched on http://localhost:${port}`);
+
+    // --- LOGIQUE D'INITIALISATION DE USERS.JSON ---
+    try {
+        // Tente d'accéder au fichier users.json
+        await fs.access(USERS_FILE_PATH);
+        console.log('Fichier users.json existe déjà.');
+    } catch (error) {
+        // Si le fichier n'existe pas (code 'ENOENT'), le créer avec un admin par défaut
+        if (error.code === 'ENOENT') {
+            console.log('Fichier users.json non trouvé, création avec un compte admin par défaut...');
+            try {
+                // Hachez un mot de passe par défaut.
+                // ***************************************************************************************************
+                // ** CHANGEZ 'admin_initial_mdp' PAR UN MOT DE PASSE SÉCURISÉ QUE VOUS UTILISEREZ POUR L'ADMIN !  **
+                // ***************************************************************************************************
+                const defaultAdminPasswordHash = await bcrypt.hash('azerty45340', 10); // <<< C'EST ICI QUE VOUS DEVEZ CHANGER !
+
+                const defaultUsers = {
+                    "admin": {
+                        "id": "admin",
+                        "prenom": "Administrateur",
+                        "nom": "Système",
+                        "mdp": defaultAdminPasswordHash,
+                        "qualifications": [],
+                        "grades": [],
+                        "fonctions": [],
+                        "role": "admin"
+                    }
+                };
+                await fs.writeFile(USERS_FILE_PATH, JSON.stringify(defaultUsers, null, 2), 'utf8');
+                console.log('Fichier users.json créé avec succès avec le compte admin par défaut.');
+                console.warn('ATTENTION: Le mot de passe de l\'admin par défaut est celui que vous avez configuré. Changez-le via l\'interface admin après la première connexion pour une meilleure sécurité !');
+            } catch (writeError) {
+                console.error("Erreur lors de la création du fichier users.json par défaut :", writeError);
+            }
+        } else {
+            // Gérer d'autres erreurs d'accès au fichier
+            console.error("Erreur inattendue lors de la vérification de users.json :", error);
+        }
+    }
 });
 
 // --- Fonctions utilitaires (à inclure si elles ne sont pas déjà définies ailleurs) ---
@@ -714,7 +758,7 @@ function getDayName(date) {
     return days[date.getDay()];
 }
 
-// Fonction pour formater la date en-MM-DD
+// Fonction pour formater la date en YYYY-MM-DD
 function formatDateToYYYYMMDD(date) {
     const d = new Date(date);
     const year = d.getFullYear();
