@@ -6,7 +6,8 @@ async function login() {
   const passwordInput = document.getElementById("password");
   const password = passwordInput.value.trim();
   const errorElement = document.getElementById("error");
-  const loginButton = document.querySelector("button");
+  // Important : utilisez l'ID spécifique du bouton pour éviter de cibler n'importe quel bouton
+  const loginButton = document.getElementById("login-btn"); 
 
   // Réinitialiser les messages d'erreur et désactiver le bouton
   errorElement.textContent = "";
@@ -31,7 +32,7 @@ async function login() {
 
     if (!response.ok) {
       errorElement.textContent = data.message || "Erreur lors de la connexion.";
-      return; // Ne pas réactiver le bouton ici car il sera réactivé dans le finally
+      return; 
     }
 
     // Connexion réussie : stocker les informations de session
@@ -39,10 +40,7 @@ async function login() {
     sessionStorage.setItem("agentPrenom", data.prenom);
     sessionStorage.setItem("agentNom", data.nom);
     sessionStorage.setItem("userRole", data.role); // Stocke le rôle de l'utilisateur
-
-    // --- Ligne ajoutée/corrigée : Stocke le token reçu du serveur ---
-    sessionStorage.setItem("token", data.token); // IMPORTANT : Stocke le 'admin' pour l'admin, ou l'ID de l'agent pour les agents
-    // -----------------------------------------------------------------
+    sessionStorage.setItem("token", data.token); // IMPORTANT : Stocke le token reçu du serveur
 
     // Rediriger en fonction du rôle
     if (data.role === "admin") {
@@ -62,23 +60,31 @@ async function login() {
 }
 
 
-// --- Fonction pour charger dynamiquement la liste des agents pour la liste déroulante ---
+// --- Fonctions d'initialisation et d'écouteurs d'événements ---
 document.addEventListener("DOMContentLoaded", async () => {
   const agentSelect = document.getElementById("agent");
   const errorElement = document.getElementById("error");
+  const loginButton = document.getElementById("login-btn"); // Récupérer le bouton de connexion
+  const passwordField = document.getElementById("password"); // Récupérer le champ de mot de passe
+
+  // Désactiver temporairement le bouton de connexion tant que les agents ne sont pas chargés
+  if (loginButton) {
+    loginButton.disabled = true;
+    loginButton.textContent = "Chargement des agents...";
+  }
 
   // Vérifiez si l'élément agentSelect existe avant de tenter de le manipuler
   if (agentSelect) {
       try {
-          // MODIFICATION : Appelle la bonne route dans server.js (maintenant accessible sans authentification)
+          // Appelle la bonne route dans server.js (maintenant accessible sans authentification)
           const response = await fetch(`${API_BASE_URL}/api/agents/display-info`);
           if (!response.ok) {
               throw new Error('Erreur lors du chargement de la liste des agents.');
           }
           const agents = await response.json();
 
-          // Vider les options existantes (sauf peut-être une option par défaut si vous en avez une)
-          agentSelect.innerHTML = '<option value="">-- Sélectionnez votre identifiant --</option>';
+          // Vider les options existantes et ajouter l'option par défaut
+          agentSelect.innerHTML = '<option value="" disabled selected>-- Choisissez votre identifiant --</option>';
 
           agents.forEach(user => {
               const option = document.createElement("option");
@@ -86,13 +92,42 @@ document.addEventListener("DOMContentLoaded", async () => {
               option.textContent = `${user.prenom} ${user.nom} (${user.id})`; // Affiche Prénom Nom (identifiant)
               agentSelect.appendChild(option);
           });
+
+          // Une fois les agents chargés, réactiver le bouton de connexion
+          if (loginButton) {
+            loginButton.disabled = false;
+            loginButton.textContent = "Se connecter";
+          }
+
       } catch (err) {
           console.error("Erreur lors du chargement de la liste des agents :", err);
           if (errorElement) {
               errorElement.textContent = "Impossible de charger la liste des agents. Vérifiez la connexion au serveur.";
           }
+          // En cas d'erreur, le bouton reste désactivé ou affiche un message d'erreur approprié
+          if (loginButton) {
+            loginButton.textContent = "Erreur de chargement";
+          }
       }
   } else {
     console.warn("Élément 'agentSelect' non trouvé. Assurez-vous que l'ID 'agent' est correct dans votre HTML.");
+    if (loginButton) {
+      loginButton.textContent = "Erreur (HTML manquant)";
+    }
+  }
+
+  // Ajout de l'écouteur d'événement pour le bouton de connexion APRÈS que le DOM soit chargé
+  if (loginButton) {
+    loginButton.addEventListener("click", login);
+  }
+  
+  // Permet aussi d'appuyer sur Entrée dans le champ mot de passe pour se connecter
+  if (passwordField) {
+    passwordField.addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        event.preventDefault(); // Empêche le comportement par défaut (soumission de formulaire)
+        login(); // Appelle la fonction de connexion
+      }
+    });
   }
 });
