@@ -1,4 +1,4 @@
-const API_BASE_URL = ""; // Ancien: "https://dispo-pompier.onrender.com"
+const API_BASE_URL = "https://dispo-pompier.onrender.com"; // <-- CORRIGÉ : L'URL de base de votre API sur Render
 
 async function login() {
   const agentSelect = document.getElementById("agent"); // Cet élément est la liste déroulante d'agents
@@ -31,30 +31,36 @@ async function login() {
 
     if (!response.ok) {
       errorElement.textContent = data.message || "Erreur lors de la connexion.";
+      loginButton.disabled = false; // Réactiver le bouton si la connexion échoue
+      loginButton.textContent = "Se connecter"; // Rétablir le texte du bouton
       return;
     }
 
     // Connexion réussie
-    sessionStorage.setItem("jwtToken", data.token); // Stocker le token JWT
-    sessionStorage.setItem("agent", data.agentId); // Stocker l'identifiant de l'agent
-    sessionStorage.setItem("isAdmin", data.isAdmin); // Stocker le statut admin
+    sessionStorage.setItem('token', data.token);
+    sessionStorage.setItem('agent', data.agentId);
+    sessionStorage.setItem('isAdmin', data.isAdmin);
+    sessionStorage.setItem('agentPrenom', data.prenom); // Stocker le prénom
+    sessionStorage.setItem('agentNom', data.nom);     // Stocker le nom
 
+    // Redirection en fonction du rôle
     if (data.isAdmin) {
-      window.location.href = "admin.html"; // Rediriger vers la page admin
+      window.location.href = 'admin.html';
     } else {
-      window.location.href = "agent.html"; // Rediriger vers la page agent
+      window.location.href = 'agent.html';
     }
+
   } catch (err) {
-    console.error("Erreur de connexion :", err);
-    errorElement.textContent = "Erreur de connexion. Veuillez réessayer plus tard.";
+    console.error("Erreur lors de la connexion :", err);
+    errorElement.textContent = "Une erreur est survenue lors de la connexion. Veuillez réessayer.";
   } finally {
-    loginButton.disabled = false; // Réactiver le bouton
+    loginButton.disabled = false; // Réactiver le bouton même en cas d'erreur inattendue
     loginButton.textContent = "Se connecter"; // Rétablir le texte du bouton
   }
 }
 
-// Chargement de la liste des agents au chargement de la page
-document.addEventListener("DOMContentLoaded", async () => {
+// Fonction pour récupérer la liste des agents au chargement de la page de connexion
+document.addEventListener('DOMContentLoaded', async () => {
   const agentSelect = document.getElementById("agent");
   const errorElement = document.getElementById("error");
 
@@ -68,7 +74,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
           const agents = await response.json();
 
-          // Vider les options existantes (sauf l'option par défaut)
+          // Vider les options existantes (sauf peut-être une option par défaut si vous en avez une)
           // Laisser l'option "-- Choisissez un agent --" si elle est présente
           agentSelect.innerHTML = '<option value="" disabled selected>-- Choisissez un agent --</option>';
 
@@ -79,7 +85,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               option.textContent = `${user.prenom} ${user.nom} (${user.id})`; // Affiche Prénom Nom (identifiant)
               agentSelect.appendChild(option);
           });
-          
+
           // Note: Si l'admin n'est pas inclus dans /api/agents/display-info par défaut, vous pouvez l'ajouter ici:
           // Exemple: (Décommenter si nécessaire et si l'admin n'est pas renvoyé par display-info)
           /*
