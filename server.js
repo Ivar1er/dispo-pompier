@@ -1,15 +1,16 @@
 // server.js
-require('dotenv').config(); // AJOUTÉ : Importation et configuration de dotenv au tout début
+require('dotenv').config(); // Importation et configuration de dotenv au tout début
 
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs').promises; // Utilisation des promesses pour fs
 const path = require('path');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken'); // Assurez-vous que cette ligne est présente
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const port = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt_tres_long_et_complexe_a_changer_en_production'; // À changer absolument en production !
 
 app.use(cors());
 app.use(express.json());
@@ -18,14 +19,12 @@ app.use(express.json());
 const PUBLIC_DIR = path.join(__dirname, 'public');
 console.log('Dossier public:', PUBLIC_DIR);
 
-// *******************************************************************
 // Gérer la requête pour la racine du site
 // Sert login.html lorsque l'URL de base est demandée (par exemple, http://votresite.com/)
 app.get('/', (req, res) => {
     // Assurez-vous que login.html se trouve bien dans le dossier 'public'
     res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
 });
-// *******************************************************************
 
 // Cette ligne doit rester APRÈS la route spécifique pour '/'
 // Elle sert tous les autres fichiers statiques (CSS, JS, images, admin.html, etc.)
@@ -35,652 +34,608 @@ app.use(express.static(PUBLIC_DIR));
 // Utilisation d'une variable d'environnement pour la production (Render) et un chemin local pour le développement
 const PERSISTENT_DIR = process.env.NODE_ENV === 'production' ? '/mnt/storage' : path.join(__dirname, 'data');
 
-// Créer le dossier PERSISTENT_DIR s'il n'existe pas (utile pour le développement local et sur Render)
-// Cette ligne doit être avant toute tentative de lecture/écriture dans ce dossier.
-// On utilise .then().catch() car fs.mkdir retourne une promesse.
-fs.mkdir(PERSISTENT_DIR, { recursive: true })
-    .then(() => console.log(`Dossier persistant créé ou déjà existant: ${PERSISTENT_DIR}`))
-    .catch(err => console.error(`Erreur lors de la création du dossier persistant: ${err}`));
-
-
-const DATA_DIR = path.join(PERSISTENT_DIR, 'plannings');
 const USERS_FILE_PATH = path.join(PERSISTENT_DIR, 'users.json');
-const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json');
 const GRADES_FILE_PATH = path.join(PERSISTENT_DIR, 'grades.json');
 const FONCTIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'fonctions.json');
-
+const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json');
+const PLANNING_DATA_DIR = path.join(PERSISTENT_DIR, 'plannings'); // Renommé pour plus de clarté
 const ROSTER_CONFIG_DIR = path.join(PERSISTENT_DIR, 'roster_configs');
 const DAILY_ROSTER_DIR = path.join(PERSISTENT_DIR, 'daily_rosters');
 
-// Middleware pour vérifier le jeton JWT (à utiliser sur les routes protégées)
-const verifyToken = (req, res, next) => {
-    const token = req.headers['authorization'];
-    if (!token) {
-        return res.status(403).json({ message: 'Aucun jeton fourni.' });
-    }
-
-    // Le token est généralement envoyé au format "Bearer VOTRE_TOKEN"
-    const tokenParts = token.split(' ');
-    if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
-        return res.status(401).json({ message: 'Format du jeton invalide.' });
-    }
-    const actualToken = tokenParts[1];
-
-    jwt.verify(actualToken, process.env.JWT_SECRET, (err, decoded) => {
-        if (err) {
-            console.error("Erreur de vérification du jeton:", err);
-            return res.status(401).json({ message: 'Échec de l\'authentification du jeton.' });
+// Fonctions utilitaires pour la lecture/écriture de fichiers JSON
+async function ensureDirectoryExists(dirPath) {
+    try {
+        await fs.mkdir(dirPath, { recursive: true });
+    } catch (error) {
+        if (error.code !== 'EEXIST') {
+            console.error(`Erreur lors de la création du dossier ${dirPath}:`, error);
+            throw error; // Rendre l'erreur pour que l'appelant puisse la gérer
         }
-        req.user = decoded; // Stocke les informations de l'utilisateur décodées dans req.user
-        next();
-    });
-};
+    }
+}
 
-// Route de connexion
+async function readJsonFile(filePath, defaultValue = {}) {
+    try {
+        await ensureDirectoryExists(path.dirname(filePath)); // Assure que le répertoire existe
+        const data = await fs.readFile(filePath, 'utf8');
+        return JSON.parse(data);
+    } catch (error) {
+        if (error.code === 'ENOENT') { // Fichier non trouvé
+            return defaultValue;
+        }
+        console.error(`Erreur lors de la lecture du fichier ${filePath}:`, error);
+        throw error;
+    }
+}
+
+async function writeJsonFile(filePath, data) {
+    try {
+        await ensureDirectoryExists(path.dirname(filePath)); // Assure que le répertoire existe
+        await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (error) {
+        console.error(`Erreur lors de l'écriture du fichier ${filePath}:`, error);
+        throw error;
+    }
+}
+
+// Middleware d'authentification JWT
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Format: Bearer TOKEN
+
+    if (token == null) {
+        console.warn('Tentative d\'accès non authentifiée à une route protégée.');
+        return res.sendStatus(401); // Pas de token
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            console.warn('Token JWT invalide ou expiré:', err.message);
+            return res.sendStatus(403); // Token invalide ou expiré
+        }
+        req.user = user; // Stocke les informations de l'utilisateur décodées
+        next(); // Passe au middleware/route suivant
+    });
+}
+
+// Middleware pour vérifier que l'utilisateur est admin
+function authorizeAdmin(req, res, next) {
+    if (!req.user || !req.user.isAdmin) {
+        console.warn(`Tentative d'accès non autorisée par l'utilisateur ${req.user ? req.user.id : 'inconnu'} à une ressource admin.`);
+        return res.sendStatus(403); // Interdit
+    }
+    next();
+}
+
+// Initialisation des dossiers et des fichiers par défaut au démarrage du serveur
+(async () => {
+    try {
+        await ensureDirectoryExists(PLANNING_DATA_DIR);
+        await ensureDirectoryExists(path.dirname(USERS_FILE_PATH));
+        await ensureDirectoryExists(path.dirname(GRADES_FILE_PATH));
+        await ensureDirectoryExists(path.dirname(FONCTIONS_FILE_PATH));
+        await ensureDirectoryExists(path.dirname(QUALIFICATIONS_FILE_PATH));
+        await ensureDirectoryExists(ROSTER_CONFIG_DIR);
+        await ensureDirectoryExists(DAILY_ROSTER_DIR);
+
+        // Créer l'utilisateur admin par défaut si users.json n'existe pas
+        try {
+            await fs.access(USERS_FILE_PATH); // Vérifie si le fichier existe
+        } catch (error) {
+            if (error.code === 'ENOENT') {
+                const defaultAdminPassword = process.env.ADMIN_DEFAULT_PASSWORD || 'adminpassword';
+                const hashedPassword = await bcrypt.hash(defaultAdminPassword, 10);
+                const defaultUsers = {
+                    "admin": {
+                        "id": "admin",
+                        "nom": "Administrateur",
+                        "prenom": "",
+                        "password": hashedPassword,
+                        "isAdmin": true,
+                        "qualifications": [],
+                        "grades": [],
+                        "fonctions": []
+                    }
+                };
+                await writeJsonFile(USERS_FILE_PATH, defaultUsers);
+                console.log('Fichier users.json par défaut créé avec un utilisateur admin.');
+                console.warn('ATTENTION: Le mot de passe de l\'admin par défaut est celui que vous avez configuré ou "adminpassword". Changez-le via l\'interface admin après la première connexion pour une meilleure sécurité !');
+            } else {
+                console.error("Erreur inattendue lors de la vérification de users.json :", error);
+            }
+        }
+
+        // Créer les fichiers grades.json, fonctions.json, qualifications.json s'ils n'existent pas
+        // avec des valeurs par défaut si vous en avez, sinon des objets vides.
+        await readJsonFile(GRADES_FILE_PATH, {}); // Crée le fichier si absent
+        await readJsonFile(FONCTIONS_FILE_PATH, {}); // Crée le fichier si absent
+        await readJsonFile(QUALIFICATIONS_FILE_PATH, {}); // Crée le fichier si absent
+
+    } catch (err) {
+        console.error("Erreur critique au démarrage du serveur lors de l'initialisation des dossiers ou des utilisateurs :", err);
+        process.exit(1); // Arrête le processus si l'initialisation échoue
+    }
+})();
+
+// --- Routes d'authentification et d'accès non protégées ---
+
 app.post('/api/login', async (req, res) => {
     const { agent, mdp } = req.body;
-
     try {
-        const usersData = await fs.readFile(USERS_FILE_PATH, 'utf8');
-        const users = JSON.parse(usersData);
-
+        const users = await readJsonFile(USERS_FILE_PATH);
         const user = users[agent];
 
         if (!user) {
-            return res.status(400).json({ message: 'Identifiant d\'agent non trouvé.' });
+            return res.status(400).json({ message: 'Agent non trouvé.' });
         }
 
-        const isMatch = await bcrypt.compare(mdp, user.mdp);
-
+        const isMatch = await bcrypt.compare(mdp, user.password);
         if (!isMatch) {
             return res.status(400).json({ message: 'Mot de passe incorrect.' });
         }
 
-        // Si l'authentification réussit, générer un jeton JWT
-        // Assurez-vous que process.env.JWT_SECRET est défini dans vos variables d'environnement Render ou .env local
         const token = jwt.sign(
-            { id: user.id, role: user.role },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' } // Le jeton expire dans 1 heure
+            { id: user.id, isAdmin: user.isAdmin, nom: user.nom, prenom: user.prenom },
+            JWT_SECRET,
+            { expiresIn: '1h' } // Le token expire après 1 heure
         );
 
-        res.status(200).json({
+        res.json({
             message: 'Connexion réussie',
-            prenom: user.prenom,
+            token,
+            agentId: user.id,
+            isAdmin: user.isAdmin,
             nom: user.nom,
-            role: user.role,
-            token: token // Renvoyer le jeton
+            prenom: user.prenom
         });
+
     } catch (error) {
-        console.error("Erreur de connexion :", error);
-        // Si le fichier users.json n'existe pas encore ou est vide/corrompu, une erreur se produira ici
-        res.status(500).json({ message: "Erreur serveur lors de la connexion. (Vérifiez la disponibilité du fichier utilisateurs)." });
+        console.error('Erreur de connexion:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la connexion.' });
     }
 });
 
-
-// NOUVELLE ROUTE : Pour récupérer les informations d'affichage des agents (pour la page de connexion)
-// Cette route NE DOIT PAS être protégée par verifyToken car elle est nécessaire pour la connexion.
-app.get('/api/agents/display-info', async (req, res) => {
+// NOUVELLE ROUTE : Obtenir la liste simplifiée des agents pour le formulaire de connexion
+app.get('/api/agents-for-login', async (req, res) => {
     try {
-        // Assurez-vous que USERS_FILE_PATH pointe vers votre fichier users.json
-        const usersData = await fs.readFile(USERS_FILE_PATH, 'utf8');
-        const users = JSON.parse(usersData);
-
-        // Mapper les utilisateurs pour renvoyer seulement l'ID, le prénom et le nom
-        // Exclure l'administrateur si vous ne voulez pas qu'il apparaisse dans la liste déroulante des agents réguliers
-        // Ou incluez-le avec un libellé spécifique si nécessaire
-        const agentsDisplayInfo = Object.keys(users)
-            .filter(userId => users[userId].role !== 'admin') // Exclut l'admin de la liste des agents normaux
-            .map(userId => ({
-                id: userId,
-                prenom: users[userId].prenom,
-                nom: users[userId].nom
-            }));
-        
-        // Optionnel : Ajouter l'administrateur séparément si nécessaire pour le select
-        // Si votre 'admin' a un ID spécifique dans users.json et que vous voulez le lister
-        if (users.admin && users.admin.role === 'admin') {
-            agentsDisplayInfo.push({
-                id: users.admin.id, // Assurez-vous que l'ID est bien 'admin'
-                prenom: 'Administrateur',
-                nom: '' // Le nom peut être vide ou 'Système'
-            });
-        }
-
-
-        res.status(200).json(agentsDisplayInfo);
+        const users = await readJsonFile(USERS_FILE_PATH);
+        const agentsForLogin = Object.keys(users).map(agentId => {
+            const agent = users[agentId];
+            return { id: agentId, nom: agent.nom, prenom: agent.prenom, isAdmin: agent.isAdmin };
+        });
+        res.json(agentsForLogin);
     } catch (error) {
-        console.error("Erreur lors du chargement des agents pour l'affichage :", error);
-        // Si le fichier n'existe pas encore ou est vide, renvoyer un tableau vide au lieu d'une erreur 500
-        if (error.code === 'ENOENT' || error.name === 'SyntaxError') {
-             return res.status(200).json([]); // Renvoyer un tableau vide si le fichier n'existe pas ou est mal formé
-        }
-        res.status(500).json({ message: "Erreur serveur lors de la récupération de la liste des agents." });
+        console.error('Erreur lors de la récupération des agents pour la page de connexion:', error);
+        res.status(500).json({ message: 'Erreur serveur lors du chargement des agents.' });
     }
 });
 
+// --- Routes protégées par JWT (nécessitent authenticateToken) ---
 
-// Exemple de route protégée (nécessite un jeton valide)
-app.get('/api/protected-data', verifyToken, (req, res) => {
-    res.json({ message: `Bienvenue, ${req.user.role} ${req.user.id}! Ceci est une donnée protégée.` });
-});
-
-
-// ----------------------------------------------------------------------------------------------------
-// Routes de gestion des plannings (nécessitent d'être protégées par verifyToken)
-// Ces routes devraient être placées APRÈS la définition de verifyToken et de la route de login
-// ----------------------------------------------------------------------------------------------------
-
-// Route pour obtenir le planning d'une semaine spécifique pour tous les agents
-app.get('/api/planning/:weekNumber', verifyToken, async (req, res) => {
-    const { weekNumber } = req.params;
-    const filePath = path.join(DATA_DIR, `planning-${weekNumber}.json`);
-
+// API Agents (ADMIN SEULEMENT)
+app.get('/api/agents', authenticateToken, authorizeAdmin, async (req, res) => {
     try {
-        const data = await fs.readFile(filePath, 'utf8');
-        res.status(200).json(JSON.parse(data));
+        const users = await readJsonFile(USERS_FILE_PATH);
+        // Retourne tous les agents, mais sans les mots de passe hachés
+        const agents = Object.values(users).map(user => {
+            const { password, ...agentWithoutPassword } = user;
+            return agentWithoutPassword;
+        });
+        res.json(agents);
     } catch (error) {
-        // Si le fichier n'existe pas, renvoyer un objet vide
-        if (error.code === 'ENOENT') {
-            return res.status(200).json({});
-        }
-        console.error(`Erreur lors de la lecture du planning de la semaine ${weekNumber}:`, error);
-        res.status(500).json({ message: "Erreur serveur lors de la récupération du planning." });
+        console.error('Erreur lors de la récupération des agents:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la récupération des agents.' });
     }
 });
 
-// Route pour enregistrer le planning d'une semaine spécifique
-app.post('/api/planning/:weekNumber', verifyToken, async (req, res) => {
-    const { weekNumber } = req.params;
-    const planning = req.body; // Le planning complet pour la semaine
-    const filePath = path.join(DATA_DIR, `planning-${weekNumber}.json`);
-
+app.post('/api/agents', authenticateToken, authorizeAdmin, async (req, res) => {
+    const { id, nom, prenom, password, isAdmin, qualifications, grades, fonctions } = req.body;
+    if (!id || !nom || !prenom || !password) {
+        return res.status(400).json({ message: 'Veuillez fournir un ID, nom, prénom et mot de passe pour l\'agent.' });
+    }
     try {
-        await fs.mkdir(DATA_DIR, { recursive: true }); // Crée le répertoire si n'existe pas
-        await fs.writeFile(filePath, JSON.stringify(planning, null, 2), 'utf8');
-        res.status(200).json({ message: `Planning semaine ${weekNumber} sauvegardé avec succès.` });
-    } catch (error) {
-        console.error(`Erreur lors de la sauvegarde du planning semaine ${weekNumber}:`, error);
-        res.status(500).json({ message: "Erreur serveur lors de la sauvegarde du planning." });
-    }
-});
-
-
-// ----------------------------------------------------------------------------------------------------
-// Routes de gestion des agents (nécessitent d'être protégées par verifyToken)
-// ----------------------------------------------------------------------------------------------------
-
-// Route pour créer un nouvel agent
-app.post('/api/agents', verifyToken, async (req, res) => {
-    // Vérifier si l'utilisateur est un administrateur
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent ajouter des agents.' });
-    }
-
-    const { id, prenom, nom, mdp, qualifications = [], grades = [], fonctions = [] } = req.body;
-
-    if (!id || !prenom || !nom || !mdp) {
-        return res.status(400).json({ message: 'Tous les champs (id, prenom, nom, mdp) sont requis.' });
-    }
-
-    try {
-        // Utilisez .catch(() => '{}') pour initialiser usersData à un objet vide si le fichier n'existe pas
-        const usersData = await fs.readFile(USERS_FILE_PATH, 'utf8').catch(() => '{}');
-        const users = JSON.parse(usersData);
-
+        const users = await readJsonFile(USERS_FILE_PATH);
         if (users[id]) {
-            return res.status(409).json({ message: 'Cet identifiant d\'agent existe déjà.' });
+            return res.status(409).json({ message: 'Un agent avec cet ID existe déjà.' });
         }
-
-        const hashedPassword = await bcrypt.hash(mdp, 10); // Hacher le mot de passe
-
+        const hashedPassword = await bcrypt.hash(password, 10);
         users[id] = {
             id,
-            prenom,
             nom,
-            mdp: hashedPassword,
-            qualifications, // Assurez-vous que c'est un tableau
-            grades,       // Nouveau: grades est un tableau d'IDs
-            fonctions,    // Nouveau: fonctions est un tableau d'IDs
-            role: 'agent' // Tous les nouveaux agents sont des 'agent'
+            prenom,
+            password: hashedPassword,
+            isAdmin: isAdmin || false,
+            qualifications: qualifications || [],
+            grades: grades || [],
+            fonctions: fonctions || []
         };
-
-        await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf8');
-        res.status(201).json({ message: 'Agent ajouté avec succès.', agent: { id, prenom, nom, role: 'agent' } });
-
+        await writeJsonFile(USERS_FILE_PATH, users);
+        res.status(201).json({ message: 'Agent ajouté avec succès.', agent: { id, nom, prenom, isAdmin } });
     } catch (error) {
-        console.error("Erreur lors de l'ajout de l'agent :", error);
-        res.status(500).json({ message: "Erreur serveur lors de l'ajout de l'agent." });
+        console.error('Erreur lors de l\'ajout d\'un agent:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de l\'ajout de l\'agent.' });
     }
 });
 
-// Route pour obtenir la liste de tous les agents (pour la gestion côté admin)
-app.get('/api/agents', verifyToken, async (req, res) => {
-    // Vérifier si l'utilisateur est un administrateur pour cette route aussi si nécessaire
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent voir la liste complète des agents.' });
-    }
-
-    try {
-        const usersData = await fs.readFile(USERS_FILE_PATH, 'utf8').catch(() => '{}');
-        const users = JSON.parse(usersData);
-
-        // Exclure le mot de passe haché lors de l'envoi au client
-        const agents = Object.values(users).map(user => {
-            const { mdp, ...agentInfo } = user;
-            return agentInfo;
-        });
-
-        res.status(200).json(agents);
-    } catch (error) {
-        console.error("Erreur lors de la récupération des agents :", error);
-        if (error.code === 'ENOENT' || error.name === 'SyntaxError') {
-             return res.status(200).json([]);
-        }
-        res.status(500).json({ message: "Erreur serveur lors de la récupération des agents." });
-    }
-});
-
-// Route pour mettre à jour un agent
-app.put('/api/agents/:id', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent modifier des agents.' });
-    }
-
+app.put('/api/agents/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id } = req.params;
-    const { prenom, nom, qualifications, grades, fonctions, newPassword } = req.body; // newPassword est optionnel
-
+    const { nom, prenom, password, isAdmin, qualifications, grades, fonctions } = req.body;
+    if (!nom || !prenom) {
+        return res.status(400).json({ message: 'Veuillez fournir le nom et le prénom de l\'agent.' });
+    }
     try {
-        const usersData = await fs.readFile(USERS_FILE_PATH, 'utf8');
-        const users = JSON.parse(usersData);
-
+        const users = await readJsonFile(USERS_FILE_PATH);
         if (!users[id]) {
             return res.status(404).json({ message: 'Agent non trouvé.' });
         }
 
-        users[id].prenom = prenom || users[id].prenom;
-        users[id].nom = nom || users[id].nom;
-        users[id].qualifications = qualifications !== undefined ? qualifications : users[id].qualifications;
-        users[id].grades = grades !== undefined ? grades : users[id].grades;
-        users[id].fonctions = fonctions !== undefined ? fonctions : users[id].fonctions;
+        users[id].nom = nom;
+        users[id].prenom = prenom;
+        users[id].isAdmin = isAdmin;
+        users[id].qualifications = qualifications || [];
+        users[id].grades = grades || [];
+        users[id].fonctions = fonctions || [];
 
-        if (newPassword) {
-            users[id].mdp = await bcrypt.hash(newPassword, 10);
+        if (password) { // Permet de ne pas changer le mot de passe si non fourni
+            users[id].password = await bcrypt.hash(password, 10);
         }
 
-        await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf8');
-        const { mdp: _, ...updatedAgentInfo } = users[id]; // Exclure le mot de passe pour la réponse
-        res.status(200).json({ message: 'Agent mis à jour avec succès.', agent: updatedAgentInfo });
-
+        await writeJsonFile(USERS_FILE_PATH, users);
+        const { password: _, ...updatedAgent } = users[id]; // Ne pas renvoyer le mot de passe
+        res.json({ message: 'Agent mis à jour avec succès.', agent: updatedAgent });
     } catch (error) {
-        console.error(`Erreur lors de la mise à jour de l'agent ${id} :`, error);
-        res.status(500).json({ message: "Erreur serveur lors de la mise à jour de l'agent." });
+        console.error(`Erreur lors de la mise à jour de l'agent ${id}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la mise à jour de l\'agent.' });
     }
 });
 
-// Route pour supprimer un agent
-app.delete('/api/agents/:id', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent supprimer des agents.' });
-    }
-
+app.delete('/api/agents/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id } = req.params;
-
     try {
-        const usersData = await fs.readFile(USERS_FILE_PATH, 'utf8');
-        const users = JSON.parse(usersData);
-
+        const users = await readJsonFile(USERS_FILE_PATH);
         if (!users[id]) {
             return res.status(404).json({ message: 'Agent non trouvé.' });
         }
-        if (id === 'admin') { // Empêcher la suppression de l'administrateur
-            return res.status(403).json({ message: 'La suppression du compte administrateur n\'est pas autorisée.' });
-        }
-
         delete users[id];
-
-        await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf8');
-        res.status(200).json({ message: 'Agent supprimé avec succès.' });
-
+        await writeJsonFile(USERS_FILE_PATH, users);
+        res.json({ message: 'Agent supprimé avec succès.' });
     } catch (error) {
-        console.error(`Erreur lors de la suppression de l'agent ${id} :`, error);
-        res.status(500).json({ message: "Erreur serveur lors de la suppression de l'agent." });
+        console.error(`Erreur lors de la suppression de l'agent ${id}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la suppression de l\'agent.' });
     }
 });
 
-// ----------------------------------------------------------------------------------------------------
-// Routes de gestion des grades (nécessitent d'être protégées par verifyToken)
-// ----------------------------------------------------------------------------------------------------
-
-// Route pour obtenir tous les grades
-app.get('/api/grades', verifyToken, async (req, res) => {
+// API Grades (ADMIN SEULEMENT)
+app.get('/api/grades', authenticateToken, authorizeAdmin, async (req, res) => {
     try {
-        const gradesData = await fs.readFile(GRADES_FILE_PATH, 'utf8').catch(() => '[]');
-        const grades = JSON.parse(gradesData);
-        res.status(200).json(grades);
+        const grades = await readJsonFile(GRADES_FILE_PATH);
+        res.json(Object.values(grades));
     } catch (error) {
-        console.error("Erreur lors de la récupération des grades :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la récupération des grades." });
+        console.error('Erreur lors de la récupération des grades:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la récupération des grades.' });
     }
 });
 
-// Route pour ajouter un grade
-app.post('/api/grades', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent gérer les grades.' });
-    }
+app.post('/api/grades', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id, name } = req.body;
     if (!id || !name) {
-        return res.status(400).json({ message: 'L\'ID et le nom du grade sont requis.' });
+        return res.status(400).json({ message: 'Veuillez fournir un ID et un nom pour le grade.' });
     }
     try {
-        const gradesData = await fs.readFile(GRADES_FILE_PATH, 'utf8').catch(() => '[]');
-        const grades = JSON.parse(gradesData);
-        if (grades.some(g => g.id === id)) {
+        const grades = await readJsonFile(GRADES_FILE_PATH);
+        if (grades[id]) {
             return res.status(409).json({ message: 'Un grade avec cet ID existe déjà.' });
         }
-        grades.push({ id, name });
-        await fs.writeFile(GRADES_FILE_PATH, JSON.stringify(grades, null, 2), 'utf8');
+        grades[id] = { id, name };
+        await writeJsonFile(GRADES_FILE_PATH, grades);
         res.status(201).json({ message: 'Grade ajouté avec succès.', grade: { id, name } });
     } catch (error) {
-        console.error("Erreur lors de l'ajout du grade :", error);
-        res.status(500).json({ message: "Erreur serveur lors de l'ajout du grade." });
+        console.error('Erreur lors de l\'ajout d\'un grade:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de l\'ajout du grade.' });
     }
 });
 
-// Route pour mettre à jour un grade
-app.put('/api/grades/:id', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent gérer les grades.' });
-    }
+app.put('/api/grades/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
     if (!name) {
-        return res.status(400).json({ message: 'Le nom du grade est requis.' });
+        return res.status(400).json({ message: 'Veuillez fournir un nom pour le grade.' });
     }
     try {
-        const gradesData = await fs.readFile(GRADES_FILE_PATH, 'utf8');
-        let grades = JSON.parse(gradesData);
-        const index = grades.findIndex(g => g.id === id);
-        if (index === -1) {
+        const grades = await readJsonFile(GRADES_FILE_PATH);
+        if (!grades[id]) {
             return res.status(404).json({ message: 'Grade non trouvé.' });
         }
-        grades[index].name = name;
-        await fs.writeFile(GRADES_FILE_PATH, JSON.stringify(grades, null, 2), 'utf8');
-        res.status(200).json({ message: 'Grade mis à jour avec succès.', grade: grades[index] });
+        grades[id].name = name;
+        await writeJsonFile(GRADES_FILE_PATH, grades);
+        res.json({ message: 'Grade mis à jour avec succès.', grade: grades[id] });
     } catch (error) {
-        console.error("Erreur lors de la mise à jour du grade :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la mise à jour du grade." });
+        console.error(`Erreur lors de la mise à jour du grade ${id}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du grade.' });
     }
 });
 
-// Route pour supprimer un grade
-app.delete('/api/grades/:id', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent gérer les grades.' });
-    }
+app.delete('/api/grades/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id } = req.params;
     try {
-        const gradesData = await fs.readFile(GRADES_FILE_PATH, 'utf8');
-        let grades = JSON.parse(gradesData);
-        const initialLength = grades.length;
-        grades = grades.filter(g => g.id !== id);
-        if (grades.length === initialLength) {
+        const grades = await readJsonFile(GRADES_FILE_PATH);
+        if (!grades[id]) {
             return res.status(404).json({ message: 'Grade non trouvé.' });
         }
-        await fs.writeFile(GRADES_FILE_PATH, JSON.stringify(grades, null, 2), 'utf8');
-        res.status(200).json({ message: 'Grade supprimé avec succès.' });
+        delete grades[id];
+        await writeJsonFile(GRADES_FILE_PATH, grades);
+        res.json({ message: 'Grade supprimé avec succès.' });
     } catch (error) {
-        console.error("Erreur lors de la suppression du grade :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la suppression du grade." });
+        console.error(`Erreur lors de la suppression du grade ${id}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la suppression du grade.' });
     }
 });
 
-// ----------------------------------------------------------------------------------------------------
-// Routes de gestion des fonctions (nécessitent d'être protégées par verifyToken)
-// ----------------------------------------------------------------------------------------------------
-
-// Route pour obtenir toutes les fonctions
-app.get('/api/fonctions', verifyToken, async (req, res) => {
+// API Fonctions (ADMIN SEULEMENT)
+app.get('/api/fonctions', authenticateToken, authorizeAdmin, async (req, res) => {
     try {
-        const fonctionsData = await fs.readFile(FONCTIONS_FILE_PATH, 'utf8').catch(() => '[]');
-        const fonctions = JSON.parse(fonctionsData);
-        res.status(200).json(fonctions);
+        const fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
+        res.json(Object.values(fonctions));
     } catch (error) {
-        console.error("Erreur lors de la récupération des fonctions :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la récupération des fonctions." });
+        console.error('Erreur lors de la récupération des fonctions:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la récupération des fonctions.' });
     }
 });
 
-// Route pour ajouter une fonction
-app.post('/api/fonctions', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent gérer les fonctions.' });
-    }
+app.post('/api/fonctions', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id, name } = req.body;
     if (!id || !name) {
-        return res.status(400).json({ message: 'L\'ID et le nom de la fonction sont requis.' });
+        return res.status(400).json({ message: 'Veuillez fournir un ID et un nom pour la fonction.' });
     }
     try {
-        const fonctionsData = await fs.readFile(FONCTIONS_FILE_PATH, 'utf8').catch(() => '[]');
-        const fonctions = JSON.parse(fonctionsData);
-        if (fonctions.some(f => f.id === id)) {
+        const fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
+        if (fonctions[id]) {
             return res.status(409).json({ message: 'Une fonction avec cet ID existe déjà.' });
         }
-        fonctions.push({ id, name });
-        await fs.writeFile(FONCTIONS_FILE_PATH, JSON.stringify(fonctions, null, 2), 'utf8');
+        fonctions[id] = { id, name };
+        await writeJsonFile(FONCTIONS_FILE_PATH, fonctions);
         res.status(201).json({ message: 'Fonction ajoutée avec succès.', fonction: { id, name } });
     } catch (error) {
-        console.error("Erreur lors de l'ajout de la fonction :", error);
-        res.status(500).json({ message: "Erreur serveur lors de l'ajout de la fonction." });
+        console.error('Erreur lors de l\'ajout d\'une fonction:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de l\'ajout de la fonction.' });
     }
 });
 
-// Route pour mettre à jour une fonction
-app.put('/api/fonctions/:id', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent gérer les fonctions.' });
-    }
+app.put('/api/fonctions/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
     if (!name) {
-        return res.status(400).json({ message: 'Le nom de la fonction est requis.' });
+        return res.status(400).json({ message: 'Veuillez fournir un nom pour la fonction.' });
     }
     try {
-        const fonctionsData = await fs.readFile(FONCTIONS_FILE_PATH, 'utf8');
-        let fonctions = JSON.parse(fonctionsData);
-        const index = fonctions.findIndex(f => f.id === id);
-        if (index === -1) {
+        const fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
+        if (!fonctions[id]) {
             return res.status(404).json({ message: 'Fonction non trouvée.' });
         }
-        fonctions[index].name = name;
-        await fs.writeFile(FONCTIONS_FILE_PATH, JSON.stringify(fonctions, null, 2), 'utf8');
-        res.status(200).json({ message: 'Fonction mise à jour avec succès.', fonction: fonctions[index] });
+        fonctions[id].name = name;
+        await writeJsonFile(FONCTIONS_FILE_PATH, fonctions);
+        res.json({ message: 'Fonction mise à jour avec succès.', fonction: fonctions[id] });
     } catch (error) {
-        console.error("Erreur lors de la mise à jour de la fonction :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la mise à jour de la fonction." });
+        console.error(`Erreur lors de la mise à jour de la fonction ${id}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la mise à jour de la fonction.' });
     }
 });
 
-// Route pour supprimer une fonction
-app.delete('/api/fonctions/:id', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent gérer les fonctions.' });
-    }
+app.delete('/api/fonctions/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id } = req.params;
     try {
-        const fonctionsData = await fs.readFile(FONCTIONS_FILE_PATH, 'utf8');
-        let fonctions = JSON.parse(fonctionsData);
-        const initialLength = fonctions.length;
-        fonctions = fonctions.filter(f => f.id !== id);
-        if (fonctions.length === initialLength) {
+        const fonctions = await readJsonFile(FONCTIONS_FILE_PATH);
+        if (!fonctions[id]) {
             return res.status(404).json({ message: 'Fonction non trouvée.' });
         }
-        await fs.writeFile(FONCTIONS_FILE_PATH, JSON.stringify(fonctions, null, 2), 'utf8');
-        res.status(200).json({ message: 'Fonction supprimée avec succès.' });
+        delete fonctions[id];
+        await writeJsonFile(FONCTIONS_FILE_PATH, fonctions);
+        res.json({ message: 'Fonction supprimée avec succès.' });
     } catch (error) {
-        console.error("Erreur lors de la suppression de la fonction :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la suppression de la fonction." });
+        console.error(`Erreur lors de la suppression de la fonction ${id}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la suppression de la fonction.' });
     }
 });
 
-// ----------------------------------------------------------------------------------------------------
-// Routes pour les qualifications
-// ----------------------------------------------------------------------------------------------------
-// Route pour obtenir toutes les qualifications
-app.get('/api/qualifications', verifyToken, async (req, res) => {
+// API Qualifications (ADMIN SEULEMENT)
+app.get('/api/qualifications', authenticateToken, authorizeAdmin, async (req, res) => {
     try {
-        const qualificationsData = await fs.readFile(QUALIFICATIONS_FILE_PATH, 'utf8').catch(() => '[]');
-        const qualifications = JSON.parse(qualificationsData);
-        res.status(200).json(qualifications);
+        const qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
+        res.json(Object.values(qualifications));
     } catch (error) {
-        console.error("Erreur lors de la récupération des qualifications :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la récupération des qualifications." });
+        console.error('Erreur lors de la récupération des qualifications:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la récupération des qualifications.' });
     }
 });
 
-// Route pour ajouter une qualification
-app.post('/api/qualifications', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent gérer les qualifications.' });
-    }
+app.post('/api/qualifications', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id, name } = req.body;
     if (!id || !name) {
-        return res.status(400).json({ message: 'L\'ID et le nom de la qualification sont requis.' });
+        return res.status(400).json({ message: 'Veuillez fournir un ID et un nom pour la qualification.' });
     }
     try {
-        const qualificationsData = await fs.readFile(QUALIFICATIONS_FILE_PATH, 'utf8').catch(() => '[]');
-        const qualifications = JSON.parse(qualificationsData);
-        if (qualifications.some(q => q.id === id)) {
+        const qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
+        if (qualifications[id]) {
             return res.status(409).json({ message: 'Une qualification avec cet ID existe déjà.' });
         }
-        qualifications.push({ id, name });
-        await fs.writeFile(QUALIFICATIONS_FILE_PATH, JSON.stringify(qualifications, null, 2), 'utf8');
+        qualifications[id] = { id, name };
+        await writeJsonFile(QUALIFICATIONS_FILE_PATH, qualifications);
         res.status(201).json({ message: 'Qualification ajoutée avec succès.', qualification: { id, name } });
     } catch (error) {
-        console.error("Erreur lors de l'ajout de la qualification :", error);
-        res.status(500).json({ message: "Erreur serveur lors de l'ajout de la qualification." });
+        console.error('Erreur lors de l\'ajout d\'une qualification:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de l\'ajout de la qualification.' });
     }
 });
 
-// Route pour mettre à jour une qualification
-app.put('/api/qualifications/:id', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent gérer les qualifications.' });
-    }
+app.put('/api/qualifications/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
     if (!name) {
-        return res.status(400).json({ message: 'Le nom de la qualification est requis.' });
+        return res.status(400).json({ message: 'Veuillez fournir un nom pour la qualification.' });
     }
     try {
-        const qualificationsData = await fs.readFile(QUALIFICATIONS_FILE_PATH, 'utf8');
-        let qualifications = JSON.parse(qualificationsData);
-        const index = qualifications.findIndex(q => q.id === id);
-        if (index === -1) {
+        const qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
+        if (!qualifications[id]) {
             return res.status(404).json({ message: 'Qualification non trouvée.' });
         }
-        qualifications[index].name = name;
-        await fs.writeFile(QUALIFICATIONS_FILE_PATH, JSON.stringify(qualifications, null, 2), 'utf8');
-        res.status(200).json({ message: 'Qualification mise à jour avec succès.', qualification: qualifications[index] });
+        qualifications[id].name = name;
+        await writeJsonFile(QUALIFICATIONS_FILE_PATH, qualifications);
+        res.json({ message: 'Qualification mise à jour avec succès.', qualification: qualifications[id] });
     } catch (error) {
-        console.error("Erreur lors de la mise à jour de la qualification :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la mise à jour de la qualification." });
+        console.error(`Erreur lors de la mise à jour de la qualification ${id}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la mise à jour de la qualification.' });
     }
 });
 
-// Route pour supprimer une qualification
-app.delete('/api/qualifications/:id', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent gérer les qualifications.' });
-    }
+app.delete('/api/qualifications/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     const { id } = req.params;
     try {
-        const qualificationsData = await fs.readFile(QUALIFICATIONS_FILE_PATH, 'utf8');
-        let qualifications = JSON.parse(qualificationsData);
-        const initialLength = qualifications.length;
-        qualifications = qualifications.filter(q => q.id !== id);
-        if (qualifications.length === initialLength) {
+        const qualifications = await readJsonFile(QUALIFICATIONS_FILE_PATH);
+        if (!qualifications[id]) {
             return res.status(404).json({ message: 'Qualification non trouvée.' });
         }
-        await fs.writeFile(QUALIFICATIONS_FILE_PATH, JSON.stringify(qualifications, null, 2), 'utf8');
-        res.status(200).json({ message: 'Qualification supprimée avec succès.' });
+        delete qualifications[id];
+        await writeJsonFile(QUALIFICATIONS_FILE_PATH, qualifications);
+        res.json({ message: 'Qualification supprimée avec succès.' });
     } catch (error) {
-        console.error("Erreur lors de la suppression de la qualification :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la suppression de la qualification." });
+        console.error(`Erreur lors de la suppression de la qualification ${id}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la suppression de la qualification.' });
     }
 });
 
-
-// ----------------------------------------------------------------------------------------------------
-// Routes pour la feuille de garde
-// ----------------------------------------------------------------------------------------------------
-
-// Route pour obtenir la configuration de la feuille de garde
-app.get('/api/roster-config', verifyToken, async (req, res) => {
-    const configPath = path.join(ROSTER_CONFIG_DIR, 'config.json');
+// API Planning (ADMIN SEULEMENT)
+// Récupérer le planning pour une semaine donnée
+app.get('/api/planning/:year/:week', authenticateToken, async (req, res) => {
+    const { year, week } = req.params;
+    const filePath = path.join(PLANNING_DATA_DIR, `${year}-S${week}.json`);
     try {
-        const data = await fs.readFile(configPath, 'utf8');
-        res.status(200).json(JSON.parse(data));
+        const planning = await readJsonFile(filePath, {});
+        res.json(planning);
+    } catch (error) {
+        console.error(`Erreur lors de la récupération du planning ${year}-S${week}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la récupération du planning.' });
+    }
+});
+
+// Mettre à jour un créneau spécifique dans le planning
+app.post('/api/planning/:year/:week', authenticateToken, authorizeAdmin, async (req, res) => {
+    const { year, week } = req.params;
+    const { agentId, day, slotIndex, value } = req.body;
+    const filePath = path.join(PLANNING_DATA_DIR, `${year}-S${week}.json`);
+
+    if (!agentId || !day || slotIndex === undefined || value === undefined) {
+        return res.status(400).json({ message: 'Données de planning incomplètes.' });
+    }
+
+    try {
+        const planning = await readJsonFile(filePath, {});
+
+        if (!planning[agentId]) {
+            planning[agentId] = {};
+        }
+        if (!planning[agentId][day]) {
+            planning[agentId][day] = Array(48).fill(0); // 48 créneaux par jour
+        }
+        planning[agentId][day][slotIndex] = value; // 0 ou 1
+
+        await writeJsonFile(filePath, planning);
+        res.json({ message: 'Créneau mis à jour avec succès.', planning: planning });
+    } catch (error) {
+        console.error(`Erreur lors de la mise à jour du planning ${year}-S${week}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du planning.' });
+    }
+});
+
+// API Roster Configs (ADMIN SEULEMENT)
+// Récupérer toutes les configurations de feuille de garde
+app.get('/api/roster-configs', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        const files = await fs.readdir(ROSTER_CONFIG_DIR);
+        const configs = {};
+        for (const file of files) {
+            if (file.endsWith('.json')) {
+                const configName = path.basename(file, '.json');
+                configs[configName] = await readJsonFile(path.join(ROSTER_CONFIG_DIR, file));
+            }
+        }
+        res.json(configs);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des configurations de feuille de garde:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la récupération des configurations.' });
+    }
+});
+
+// Récupérer une configuration spécifique
+app.get('/api/roster-configs/:name', authenticateToken, authorizeAdmin, async (req, res) => {
+    const { name } = req.params;
+    const filePath = path.join(ROSTER_CONFIG_DIR, `${name}.json`);
+    try {
+        const config = await readJsonFile(filePath);
+        res.json(config);
     } catch (error) {
         if (error.code === 'ENOENT') {
-            return res.status(200).json({}); // Si pas de config, renvoyer vide
+            return res.status(404).json({ message: 'Configuration de feuille de garde non trouvée.' });
         }
-        console.error("Erreur lors de la récupération de la configuration de la feuille de garde :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la récupération de la configuration de la feuille de garde." });
+        console.error(`Erreur lors de la récupération de la configuration ${name}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la récupération de la configuration.' });
     }
 });
 
-// Route pour sauvegarder la configuration de la feuille de garde
-app.post('/api/roster-config', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent configurer la feuille de garde.' });
-    }
-    const config = req.body;
-    const configPath = path.join(ROSTER_CONFIG_DIR, 'config.json');
+// Sauvegarder/Mettre à jour une configuration
+app.post('/api/roster-configs/:name', authenticateToken, authorizeAdmin, async (req, res) => {
+    const { name } = req.params;
+    const configData = req.body;
+    const filePath = path.join(ROSTER_CONFIG_DIR, `${name}.json`);
     try {
-        await fs.mkdir(ROSTER_CONFIG_DIR, { recursive: true });
-        await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8');
-        res.status(200).json({ message: 'Configuration de la feuille de garde sauvegardée.' });
+        await writeJsonFile(filePath, configData);
+        res.json({ message: 'Configuration de feuille de garde sauvegardée avec succès.', config: configData });
     } catch (error) {
-        console.error("Erreur lors de la sauvegarde de la configuration de la feuille de garde :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la sauvegarde de la configuration de la feuille de garde." });
+        console.error(`Erreur lors de la sauvegarde de la configuration ${name}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la sauvegarde de la configuration.' });
     }
 });
 
-
-// Route pour obtenir une feuille de garde quotidienne (peut être par date ou par weekNumber/day)
-app.get('/api/daily-roster/:date', verifyToken, async (req, res) => {
-    const { date } = req.params; // Format YYYY-MM-DD
-    const filePath = path.join(DAILY_ROSTER_DIR, `roster-${date}.json`);
+// Supprimer une configuration
+app.delete('/api/roster-configs/:name', authenticateToken, authorizeAdmin, async (req, res) => {
+    const { name } = req.params;
+    const filePath = path.join(ROSTER_CONFIG_DIR, `${name}.json`);
     try {
-        const data = await fs.readFile(filePath, 'utf8');
-        res.status(200).json(JSON.parse(data));
+        await fs.unlink(filePath);
+        res.json({ message: 'Configuration de feuille de garde supprimée avec succès.' });
     } catch (error) {
         if (error.code === 'ENOENT') {
-            return res.status(200).json({}); // Si pas de feuille, renvoyer vide
+            return res.status(404).json({ message: 'Configuration de feuille de garde non trouvée.' });
         }
-        console.error(`Erreur lors de la récupération de la feuille de garde pour ${date} :`, error);
-        res.status(500).json({ message: "Erreur serveur lors de la récupération de la feuille de garde quotidienne." });
+        console.error(`Erreur lors de la suppression de la configuration ${name}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la suppression de la configuration.' });
     }
 });
 
-// Route pour sauvegarder une feuille de garde quotidienne
-app.post('/api/daily-roster/:date', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Accès non autorisé. Seuls les administrateurs peuvent enregistrer les feuilles de garde.' });
+// API Daily Roster (ADMIN SEULEMENT)
+// Récupérer une feuille de garde quotidienne pour une date spécifique
+app.get('/api/daily-roster/:date', authenticateToken, authorizeAdmin, async (req, res) => {
+    const { date } = req.params; // Format: YYYY-MM-DD
+    const filePath = path.join(DAILY_ROSTER_DIR, `${date}.json`);
+    try {
+        const roster = await readJsonFile(filePath, { date, agents: [] }); // Retourne un objet vide si non trouvé
+        res.json(roster);
+    } catch (error) {
+        console.error(`Erreur lors de la récupération de la feuille de garde quotidienne pour le ${date}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la récupération de la feuille de garde quotidienne.' });
     }
+});
+
+// Sauvegarder/Mettre à jour une feuille de garde quotidienne
+app.post('/api/daily-roster/:date', authenticateToken, authorizeAdmin, async (req, res) => {
     const { date } = req.params;
-    const roster = req.body;
-    const filePath = path.join(DAILY_ROSTER_DIR, `roster-${date}.json`);
+    const rosterData = req.body; // Doit inclure l'array `agents`
+    const filePath = path.join(DAILY_ROSTER_DIR, `${date}.json`);
     try {
-        await fs.mkdir(DAILY_ROSTER_DIR, { recursive: true });
-        await fs.writeFile(filePath, JSON.stringify(roster, null, 2), 'utf8');
-        res.status(200).json({ message: `Feuille de garde pour ${date} sauvegardée.` });
+        await writeJsonFile(filePath, rosterData);
+        res.json({ message: 'Feuille de garde quotidienne sauvegardée avec succès.', roster: rosterData });
     } catch (error) {
-        console.error(`Erreur lors de la sauvegarde de la feuille de garde pour ${date} :`, error);
-        res.status(500).json({ message: "Erreur serveur lors de la sauvegarde de la feuille de garde quotidienne." });
+        console.error(`Erreur lors de la sauvegarde de la feuille de garde quotidienne pour le ${date}:`, error);
+        res.status(500).json({ message: 'Erreur serveur lors de la sauvegarde de la feuille de garde quotidienne.' });
     }
 });
 
@@ -693,53 +648,13 @@ app.get('/api/test-disk-write', async (req, res) => {
     await fs.writeFile(testFilePath, contenu, 'utf8');
     res.status(200).send(`Fichier test.txt créé/mis à jour avec succès dans ${PERSISTENT_DIR} avec le contenu: ${contenu}`);
   } catch (err) {
-    res.status(500).send(`Disk error: ${err.message}`);
+    res.status(500).send(`Erreur disque: ${err.message}`);
   }
 });
 
-// Lancement du serveur et initialisation de users.json
-app.listen(port, async () => {
-    console.log(`Server launched on http://localhost:${port}`);
-
-    // --- LOGIQUE D'INITIALISATION DE USERS.JSON ---
-    try {
-        // Tente d'accéder au fichier users.json
-        await fs.access(USERS_FILE_PATH);
-        console.log('Fichier users.json existe déjà.');
-    } catch (error) {
-        // Si le fichier n'existe pas (code 'ENOENT'), le créer avec un admin par défaut
-        if (error.code === 'ENOENT') {
-            console.log('Fichier users.json non trouvé, création avec un compte admin par défaut...');
-            try {
-                // Hachez un mot de passe par défaut.
-                // ***************************************************************************************************
-                // ** CHANGEZ 'admin_initial_mdp' PAR UN MOT DE PASSE SÉCURISÉ QUE VOUS UTILISEREZ POUR L'ADMIN !  **
-                // ***************************************************************************************************
-                const defaultAdminPasswordHash = await bcrypt.hash('azerty45340', 10); // <<< C'EST ICI QUE VOUS DEVEZ CHANGER !
-
-                const defaultUsers = {
-                    "admin": {
-                        "id": "admin",
-                        "prenom": "Administrateur",
-                        "nom": "Système",
-                        "mdp":azerty45340 ,
-                        "qualifications": [],
-                        "grades": [],
-                        "fonctions": [],
-                        "role": "admin"
-                    }
-                };
-                await fs.writeFile(USERS_FILE_PATH, JSON.stringify(defaultUsers, null, 2), 'utf8');
-                console.log('Fichier users.json créé avec succès avec le compte admin par défaut.');
-                console.warn('ATTENTION: Le mot de passe de l\'admin par défaut est celui que vous avez configuré. Changez-le via l\'interface admin après la première connexion pour une meilleure sécurité !');
-            } catch (writeError) {
-                console.error("Erreur lors de la création du fichier users.json par défaut :", writeError);
-            }
-        } else {
-            // Gérer d'autres erreurs d'accès au fichier
-            console.error("Erreur inattendue lors de la vérification de users.json :", error);
-        }
-    }
+app.listen(port, () => {
+  console.log(`Server launched on http://localhost:${port}`);
+  console.log(`Persistent directory: ${PERSISTENT_DIR}`);
 });
 
 // --- Fonctions utilitaires (à inclure si elles ne sont pas déjà définies ailleurs) ---
