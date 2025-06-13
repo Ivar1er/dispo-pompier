@@ -3,7 +3,7 @@
   "admin": {
     "prenom": "Admin",
     "nom": "Admin",
-    "mdp": "$2b$10$7oqPC/jsGlH8xg7Re3kIzuvCLqJI/4Tc5LN4uZKRDhIDGYKhJ2VUe",
+    "mdp": "$2b$10$wuQJXw1n/W/GpMKMCkWzt.r6m/bW3oiBVT5EdZZ3mcR2YtElPeoWK",
     "role": "admin"
   },
   "marechaln": {
