@@ -152,10 +152,6 @@ async function loadAgentQualifications(agentId) {
     } catch (error) {
         console.error('Erreur de chargement des qualifications de l\'agent:', error);
         // Vous pouvez afficher un message d'erreur à l'utilisateur si nécessaire
-        if (agentQualificationsDisplay) {
-            agentQualificationsDisplay.textContent = 'Impossible de charger vos qualifications.';
-            agentQualificationsDisplay.style.color = 'red';
-        }
     }
 }
 
@@ -165,7 +161,8 @@ function displayAgentQualifications() {
         if (agentQualifications.length > 0) {
             agentQualificationsDisplay.innerHTML = 'Vos qualifications : ' + agentQualifications.map(q => `<span class="qualification-tag">${q}</span>`).join(', ');
         } else {
-            agentQualificationsDisplay.textContent = 'Vous n\'avez pas de qualifications attribuées.';
+            // Ligne commentée car elle affichait le message à supprimer
+            // agentQualificationsDisplay.textContent = 'Vous n'avez pas de qualifications attribuées.';
         }
     }
 }
@@ -250,6 +247,7 @@ function renderPlanningGrid(day) {
 // Variables pour la sélection par glisser-déposer
 let isSelecting = false;
 let startCell = null; // Référence au bouton de début de sélection
+let endCell = null; // Nouvelle variable pour le bouton de fin de sélection
 let initialSelectionState = null; // True si le bouton de départ était 'selected', False sinon
 
 function initCellSelection() {
@@ -262,8 +260,10 @@ function initCellSelection() {
       startCell = e.target;
       initialSelectionState = startCell.classList.contains('selected'); // État initial du bouton de départ
 
-      // Inverse l'état du bouton de départ
+      // Inverser l'état du premier élément cliqué
       startCell.classList.toggle('selected');
+      // Pour une sélection de plage, on ne change l'état des éléments qu'à la fin du glisser.
+      // Mais on doit quand même marquer le départ.
 
       e.preventDefault(); // Empêche la sélection de texte
     }
@@ -271,19 +271,72 @@ function initCellSelection() {
 
   planningContainer.addEventListener('mouseover', (e) => {
     if (isSelecting && e.target.classList.contains('slot-button')) {
-        // Applique le même état que le bouton de départ à tous les boutons survolés
-        if (initialSelectionState) { // Si le bouton de départ était sélectionné, on désélectionne les survolés
-            e.target.classList.remove('selected');
-        } else { // Si le bouton de départ n'était PAS sélectionné, on sélectionne les survolés
-            e.target.classList.add('selected');
+        // Supprime la sélection de prévisualisation précédente
+        if (endCell) { // Sauf si c'est le premier survol
+            const allButtons = Array.from(planningContainer.querySelectorAll('.slot-button'));
+            const startIndex = allButtons.indexOf(startCell);
+            const prevEndIndex = allButtons.indexOf(endCell);
+            // Effacer la sélection de l'ancienne plage (pour une meilleure expérience visuelle)
+            const minPrev = Math.min(startIndex, prevEndIndex);
+            const maxPrev = Math.max(startIndex, prevEndIndex);
+            for (let i = minPrev; i <= maxPrev; i++) {
+                if (allButtons[i] !== startCell) { // Ne pas toucher au startCell, il a son état initial
+                    if (initialSelectionState) { // Si le startCell était sélectionné, on le désélectionne par glisser
+                        allButtons[i].classList.remove('temp-selected');
+                    } else { // Si le startCell n'était PAS sélectionné, on le sélectionne par glisser
+                        allButtons[i].classList.remove('temp-deselected');
+                    }
+                }
+            }
+        }
+
+        endCell = e.target; // Met à jour l'élément de fin de sélection
+
+        // Applique l'état de prévisualisation à tous les éléments dans la plage
+        const allButtons = Array.from(planningContainer.querySelectorAll('.slot-button'));
+        const startIndex = allButtons.indexOf(startCell);
+        const endIndex = allButtons.indexOf(endCell);
+
+        const minIndex = Math.min(startIndex, endIndex);
+        const maxIndex = Math.max(startIndex, endIndex);
+
+        for (let i = minIndex; i <= maxIndex; i++) {
+            if (initialSelectionState) { // Si le bouton de départ était 'selected', on le désélectionne
+                allButtons[i].classList.add('temp-deselected'); // Ajout d'une classe temporaire pour le style visuel
+                allButtons[i].classList.remove('selected'); // S'assurer qu'il est désélectionné pour la prévisualisation
+            } else { // Si le bouton de départ n'était PAS 'selected', on le sélectionne
+                allButtons[i].classList.add('temp-selected'); // Ajout d'une classe temporaire pour le style visuel
+                allButtons[i].classList.add('selected'); // S'assurer qu'il est sélectionné pour la prévisualisation
+            }
         }
     }
   });
 
   // Écouteurs globaux pour gérer la fin du glisser n'importe où sur la page
   document.addEventListener('mouseup', () => {
+    if (isSelecting && startCell && endCell) {
+        const allButtons = Array.from(planningContainer.querySelectorAll('.slot-button'));
+        const startIndex = allButtons.indexOf(startCell);
+        const endIndex = allButtons.indexOf(endCell);
+
+        const minIndex = Math.min(startIndex, endIndex);
+        const maxIndex = Math.max(startIndex, endIndex);
+
+        for (let i = minIndex; i <= maxIndex; i++) {
+            const button = allButtons[i];
+            // Applique l'état final (inverse de l'état initial du premier clic)
+            if (initialSelectionState) { // Si le premier était sélectionné, on désélectionne la plage
+                button.classList.remove('selected');
+            } else { // Si le premier n'était PAS sélectionné, on sélectionne la plage
+                button.classList.add('selected');
+            }
+            // Supprime les classes temporaires
+            button.classList.remove('temp-selected', 'temp-deselected');
+        }
+    }
     isSelecting = false;
     startCell = null;
+    endCell = null;
     initialSelectionState = null;
   });
 
