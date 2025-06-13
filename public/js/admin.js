@@ -44,24 +44,6 @@ const fonctionsCheckboxesDiv = document.getElementById('fonctionsCheckboxes');
 const gradesMessage = document.getElementById('gradesMessage');
 const fonctionsMessage = document.getElementById('fonctionsMessage');
 
-// --- DOM Elements pour la vue "Gestion des Qualifications" ---
-// SUPPRIMÉ : Toutes les références aux éléments DOM pour la gestion des qualifications.
-// const addQualificationForm = document.getElementById('addQualificationForm');
-// const addQualificationMessage = document.getElementById('addQualificationMessage');
-// const qualificationsTableBody = document.getElementById('qualificationsTableBody');
-// const listQualificationsMessage = document.getElementById('listQualificationsMessage');
-// const editQualificationModal = document.getElementById('editQualificationModal');
-// const closeQualButton = editQualificationModal ? editQualificationModal.querySelector('.close-button') : null;
-// const editQualificationForm = document.getElementById('editQualificationForm');
-// const editQualId = document.getElementById('editQualId');
-// const editQualName = document.getElementById('editQualName');
-// const editQualMessage = document.getElementById('editQualMessage');
-// SUPPRIMÉ : Références aux checkboxes de qualification dans la gestion des agents
-// const newAgentQualificationsCheckboxes = document.getElementById('newAgentQualificationsCheckboxes');
-// const qualificationsCheckboxesDiv = document.getElementById('qualificationsCheckboxes');
-// const qualificationsMessage = document.getElementById('qualificationsMessage');
-
-
 // --- DOM Elements pour la vue "Gestion des Grades" ---
 const addGradeForm = document.getElementById('addGradeForm');
 const addGradeMessage = document.getElementById('addGradeMessage');
@@ -208,10 +190,7 @@ function openMainTab(tabId) {
         loadAvailableGrades(); // Recharger les grades pour le formulaire d'ajout
         loadAvailableFonctions(); // Recharger les fonctions pour le formulaire d'ajout
     }
-    // SUPPRIMÉ : Le bloc else if pour la gestion des qualifications
-    // else if (tabId === 'qualification-management-view') {
-    //     await loadQualificationsList();
-    // }
+    
     else if (tabId === 'grade-management-view') {
         loadGradesList();
     } else if (tabId === 'fonction-management-view') {
@@ -1185,10 +1164,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (event.target == editAgentModal) {
             editAgentModal.style.display = 'none';
         }
-        // SUPPRIMÉ : Fermeture de la modale de qualification
-        // if (event.target == editQualificationModal) {
-        //     editQualificationModal.style.display = 'none';
-        // }
+        
         if (event.target == editGradeModal) {
             editGradeModal.style.display = 'none';
         }
@@ -1199,22 +1175,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (editAgentForm) {
         editAgentForm.addEventListener('submit', handleEditAgent);
     }
-
-    // SUPPRIMÉ : Événements pour la gestion des qualifications
-    // if (addQualificationForm) {
-    //     addQualificationForm.addEventListener('submit', handleAddQualification);
-    // }
-    // if (qualificationsTableBody) {
-    //     qualificationsTableBody.addEventListener('click', handleQualificationActions);
-    // }
-    // if (closeQualButton) {
-    //     closeQualButton.addEventListener('click', () => {
-    //         editQualificationModal.style.display = 'none';
-    //     });
-    // }
-    // if (editQualificationForm) {
-    //     editQualificationForm.addEventListener('submit', handleEditQualification);
-    // }
 
     // Événements pour la gestion des grades
     if (addGradeForm) {

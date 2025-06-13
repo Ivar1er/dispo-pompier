@@ -1,0 +1,121 @@
+
+{
+  "admin": {
+    "prenom": "Admin",
+    "nom": "Admin",
+    "mdp": "$2b$10$7oqPC/jsGlH8xg7Re3kIzuvCLqJI/4Tc5LN4uZKRDhIDGYKhJ2VUe",
+    "role": "admin"
+  },
+  "marechaln": {
+    "prenom": "Nicolas",
+    "nom": "Maréchal",
+    "mdp": "$2b$10$8qUPpA5Y1/2Whv9WAx3PCudIkvIh9PEgnBnnHHM6OAVmUJciOQZwK",
+    "role": "agent",
+    "qualifications": [
+      "ca_vpma",
+      "cod_0",
+      "cod_1",
+      "eq_ssuap",
+      "eq_div",
+      "eq_vpma",
+      "ce_inc",
+      "eq_inc",
+      "fdf1"
+    ],
+    "grades": [
+      "cpl"
+    ],
+    "functions": [],
+    "fonctions": [
+      "EQ",
+      "COD0",
+      "EQ1_FPT",
+      "EQ2_FPT",
+      "EQ1_FDF1",
+      "EQ2_FDF1",
+      "COD1",
+      "CA_VPMA"
+    ]
+  },
+  "gesbertj": {
+    "prenom": "Jonathan",
+    "nom": "Gesbert",
+    "mdp": "$2b$10$fc8l3pNsPtPcO1eqjw915uEzRagATRaOitOJy6DPyjpSZAf1BbN3G",
+    "role": "agent",
+    "qualifications": [
+      "ca_inc",
+      "ca_ssuap",
+      "ca_div",
+      "ca_fdf2",
+      "ca_vpma",
+      "cod_0",
+      "cod_1",
+      "cod_2",
+      "eq_ssuap",
+      "eq_div",
+      "eq_vpma",
+      "ce_inc",
+      "eq_inc",
+      "fdf1"
+    ],
+    "grades": [
+      "adc"
+    ],
+    "functions": [],
+    "fonctions": [
+      "EQ",
+      "COD0",
+      "EQ1_FPT",
+      "EQ2_FPT",
+      "EQ1_FDF1",
+      "EQ2_FDF1",
+      "CA_VSAV",
+      "CA_FPT",
+      "COD1",
+      "COD2",
+      "CA_FDF2",
+      "CA_VTU",
+      "CA_VPMA"
+    ]
+  },
+  "bruneaum": {
+    "prenom": "Mathieu",
+    "nom": "Bruneau",
+    "mdp": "$2b$10$VV7fV4QPdOPqqfEWsy0gv.mAsDqVm/Esr1oObQwyVq1uGqd1/q1y2",
+    "role": "agent",
+    "qualifications": [],
+    "grades": [
+      "adc"
+    ],
+    "fonctions": [
+      "EQ",
+      "COD0",
+      "EQ1_FPT",
+      "EQ2_FPT",
+      "EQ1_FDF1",
+      "EQ2_FDF1",
+      "CA_VSAV",
+      "CA_FPT",
+      "CA_VTU",
+      "CA_VPMA"
+    ]
+  },
+  "tinseauc": {
+    "prenom": "Clément",
+    "nom": "Tinseau",
+    "mdp": "$2b$10$tkK6upigAmVFLG9mszxTQOrIkZ6qtV2eIhwm/LzWN79S2LeqmuuIu",
+    "role": "agent",
+    "qualifications": [],
+    "grades": [
+      "sap"
+    ],
+    "fonctions": [
+      "EQ",
+      "EQ1_FPT",
+      "EQ2_FPT",
+      "EQ1_FDF1",
+      "EQ2_FDF1",
+      "CA_VPMA"
+    ]
+  }
+}
