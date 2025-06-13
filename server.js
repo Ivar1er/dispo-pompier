@@ -13,7 +13,7 @@ app.use(express.json());
 
 // TRÈS IMPORTANT : Le secret JWT doit être une variable d'environnement en production !
 // Générez une chaîne longue et aléatoire et définissez-la sur Render comme JWT_SECRET_KEY.
-const JWT_SECRET = process.env.JWT_SECRET_KEY || 'un_secret_jwt_par_defaut_tres_long_et_securise_a_changer';
+const JWT_SECRET = process.env.JWT_SECRET_KEY || 'pompier_de_beaune_la_rolande_2025_marechal';
 
 // Répertoire public
 const PUBLIC_DIR = path.join(__dirname, 'public');
