@@ -445,11 +445,12 @@ body {
   border: 0;
 }
 
-/* --- STYLES POUR LA GESTION DES AGENTS, GRADES, FONCTIONS (SECTIONS ET FORMULAIRES) --- */
+/* --- STYLES POUR LA GESTION DES AGENTS, QUALIFICATIONS, GRADES, FONCTIONS (SECTIONS ET FORMULAIRES) --- */
 /* S'applique à toutes les sections d'ajout/liste similaires */
 #add-agent-section, #list-agents-section,
+#add-qualification-section, #list-qualifications-section,
 #add-grade-section, #list-grades-section,
-#add-fonction-section, #list-fonctions-section { /* Renommé function en fonction */
+#add-function-section, #list-functions-section {
     background-color: var(--card-background);
     padding: 25px;
     border-radius: var(--border-radius-medium);
@@ -458,8 +459,9 @@ body {
 }
 
 #add-agent-section h3, #list-agents-section h3,
+#add-qualification-section h3, #list-qualifications-section h3,
 #add-grade-section h3, #list-grades-section h3,
-#add-fonction-section h3, #list-fonctions-section h3 { /* Renommé function en fonction */
+#add-function-section h3, #list-functions-section h3 {
     color: var(--primary-color);
     margin-top: 0;
     margin-bottom: 20px;
@@ -488,9 +490,10 @@ form input[type="password"] {
 
 /* Styles pour les messages de feedback */
 p#addAgentMessage, p#editAgentMessage, p#listAgentsMessage,
+p#addQualificationMessage, p#editQualMessage, p#listQualificationsMessage,
 p#addGradeMessage, p#editGradeMessage, p#listGradesMessage,
-p#addFonctionMessage, p#editFonctionMessage, p#listFonctionsMessage, /* Renommé function en fonction */
-p#gradesMessage, p#fonctionsMessage { /* Renommé functions en fonctions */
+p#addFunctionMessage, p#editFunctionMessage, p#listFunctionsMessage,
+p#qualificationsMessage, p#gradesMessage, p#functionsMessage { /* Ajout des messages pour grades et fonctions */
     margin-top: 15px;
     padding: 10px 15px;
     border-radius: var(--border-radius-small);
@@ -500,43 +503,48 @@ p#gradesMessage, p#fonctionsMessage { /* Renommé functions en fonctions */
 }
 
 p#addAgentMessage[style*="green"], p#editAgentMessage[style*="green"],
+p#addQualificationMessage[style*="green"], p#editQualMessage[style*="green"],
 p#addGradeMessage[style*="green"], p#editGradeMessage[style*="green"],
-p#addFonctionMessage[style*="green"], p#editFonctionMessage[style*="green"] { /* Renommé function en fonction */
+p#addFunctionMessage[style*="green"], p#editFunctionMessage[style*="green"] {
     background-color: #e6ffe6;
     border: 1px solid #a4e6a4;
     color: #3c763d;
 }
 
 p#addAgentMessage[style*="red"], p#editAgentMessage[style*="red"], p#listAgentsMessage[style*="red"],
-p#gradesMessage[style*="red"], p#fonctionsMessage[style*="red"], /* Renommé functions en fonctions */
+p#qualificationsMessage[style*="red"], p#gradesMessage[style*="red"], p#functionsMessage[style*="red"], /* Ajout des messages pour grades et fonctions */
+p#addQualificationMessage[style*="red"], p#editQualMessage[style*="red"], p#listQualificationsMessage[style*="red"],
 p#addGradeMessage[style*="red"], p#editGradeMessage[style*="red"], p#listGradesMessage[style*="red"],
-p#addFonctionMessage[style*="red"], p#editFonctionMessage[style*="red"], p#listFonctionsMessage[style*="red"] { /* Renommé function en fonction */
+p#addFunctionMessage[style*="red"], p#editFunctionMessage[style*="red"], p#listFunctionsMessage[style*="red"] {
     background-color: #ffe6e6;
     border: 1px solid #e6a4a4;
     color: #a94442;
 }
 
 p#addAgentMessage[style*="blue"], p#editAgentMessage[style*="blue"], p#listAgentsMessage[style*="blue"],
+p#addQualificationMessage[style*="blue"], p#editQualMessage[style*="blue"], p#listQualificationsMessage[style*="blue"],
 p#addGradeMessage[style*="blue"], p#editGradeMessage[style*="blue"], p#listGradesMessage[style*="blue"],
-p#addFonctionMessage[style*="blue"], p#editFonctionMessage[style*="blue"], p#listFonctionsMessage[style*="blue"] { /* Renommé function en fonction */
+p#addFunctionMessage[style*="blue"], p#editFunctionMessage[style*="blue"], p#listFunctionsMessage[style*="blue"] {
     background-color: #e0f2f7;
     border: 1px solid #b3e0ed;
     color: #2196f3;
 }
 
 
-/* Styles pour les tableaux de liste (Agents, Grades, Fonctions) */
+/* Styles pour les tableaux de liste (Agents, Qualifications, Grades, Fonctions) */
 #list-agents-section table,
+#list-qualifications-section table,
 #list-grades-section table,
-#list-fonctions-section table { /* Renommé functions en fonctions */
+#list-functions-section table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
 }
 
 #list-agents-section th, #list-agents-section td,
+#list-qualifications-section th, #list-qualifications-section td,
 #list-grades-section th, #list-grades-section td,
-#list-fonctions-section th, #list-fonctions-section td { /* Renommé functions en fonctions */
+#list-functions-section th, #list-functions-section td {
     border: 1px solid var(--light-gray);
     padding: 12px;
     text-align: left;
@@ -544,38 +552,44 @@ p#addFonctionMessage[style*="blue"], p#editFonctionMessage[style*="blue"], p#lis
 }
 
 #list-agents-section th,
+#list-qualifications-section th,
 #list-grades-section th,
-#list-fonctions-section th { /* Renommé functions en fonctions */
+#list-functions-section th {
     background-color: var(--background-color);
     font-weight: 600;
     color: var(--dark-gray);
 }
 
 #list-agents-section tbody tr:nth-child(even),
+#list-qualifications-section tbody tr:nth-child(even),
 #list-grades-section tbody tr:nth-child(even),
-#list-fonctions-section tbody tr:nth-child(even) { /* Renommé functions en fonctions */
+#list-functions-section tbody tr:nth-child(even) {
     background-color: var(--row-even-background);
 }
 
 #list-agents-section tbody tr:nth-child(odd),
+#list-qualifications-section tbody tr:nth-child(odd),
 #list-grades-section tbody tr:nth-child(odd),
-#list-fonctions-section tbody tr:nth-child(odd) { /* Renommé functions en fonctions */
+#list-functions-section tbody tr:nth-child(odd) {
     background-color: var(--row-odd-background);
 }
 
 #list-agents-section tbody tr:hover,
+#list-qualifications-section tbody tr:hover,
 #list-grades-section tbody tr:hover,
-#list-fonctions-section tbody tr:hover { /* Renommé functions en fonctions */
+#list-functions-section tbody tr:hover {
     background-color: var(--row-hover-background);
 }
 
 /* Styles des boutons Modifier/Supprimer dans les tableaux */
 #list-agents-section .btn-secondary,
 #list-agents-section .btn-danger,
+#list-qualifications-section .btn-secondary,
+#list-qualifications-section .btn-danger,
 #list-grades-section .btn-secondary,
 #list-grades-section .btn-danger,
-#list-fonctions-section .btn-secondary,
-#list-fonctions-section .btn-danger { /* Renommé functions en fonctions */
+#list-functions-section .btn-secondary,
+#list-functions-section .btn-danger {
     padding: 6px 10px;
     font-size: 0.8rem;
     border-radius: var(--border-radius-small);
@@ -650,11 +664,13 @@ p#addFonctionMessage[style*="blue"], p#editFonctionMessage[style*="blue"], p#lis
     font-size: 1.2rem;
 }
 
-/* --- STYLES POUR LES CHECKBOXES DANS LA MODALE ET LE FORMULAIRE D'AJOUT (GRADES, FONCTIONS) --- */
+/* --- STYLES POUR LES CHECKBOXES DANS LA MODALE ET LE FORMULAIRE D'AJOUT (QUALIFICATIONS, GRADES, FONCTIONS) --- */
+#newAgentQualificationsCheckboxes,
+#qualificationsCheckboxes,
 #newAgentGradesCheckboxes, /* Nouveau */
 #gradesCheckboxes, /* Nouveau */
-#newAgentFonctionsCheckboxes, /* Nouveau */ /* Renommé function en fonction */
-#fonctionsCheckboxes { /* Nouveau */ /* Renommé functions en fonctions */
+#newAgentFunctionsCheckboxes, /* Nouveau */
+#functionsCheckboxes { /* Nouveau */
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
@@ -665,21 +681,26 @@ p#addFonctionMessage[style*="blue"], p#editFonctionMessage[style*="blue"], p#lis
     background-color: #fcfcfc;
 }
 
-/* Styles pour le conteneur de chaque checkbox */
+/* Styles pour le conteneur de chaque checkbox (qui était flex items-center) */
+/* Cible les divs enfants directs dans les conteneurs de qualifications/grades/fonctions */
+#newAgentQualificationsCheckboxes > div,
+#qualificationsCheckboxes > div,
 #newAgentGradesCheckboxes > div, /* Nouveau */
 #gradesCheckboxes > div, /* Nouveau */
-#newAgentFonctionsCheckboxes > div, /* Nouveau */ /* Renommé function en fonction */
-#fonctionsCheckboxes > div { /* Nouveau */ /* Renommé functions en fonctions */
+#newAgentFunctionsCheckboxes > div, /* Nouveau */
+#functionsCheckboxes > div { /* Nouveau */
     display: flex;
     align-items: center;
     gap: 8px; /* Espace entre le checkbox et le label */
 }
 
 /* Styles pour les checkboxes elles-mêmes */
+#newAgentQualificationsCheckboxes input[type="checkbox"],
+#qualificationsCheckboxes input[type="checkbox"],
 #newAgentGradesCheckboxes input[type="checkbox"], /* Nouveau */
 #gradesCheckboxes input[type="checkbox"], /* Nouveau */
-#newAgentFonctionsCheckboxes input[type="checkbox"], /* Nouveau */ /* Renommé function en fonction */
-#fonctionsCheckboxes input[type="checkbox"] { /* Nouveau */ /* Renommé functions en fonctions */
+#newAgentFunctionsCheckboxes input[type="checkbox"], /* Nouveau */
+#functionsCheckboxes input[type="checkbox"] { /* Nouveau */
     width: 18px;
     height: 18px;
     cursor: pointer;
@@ -689,20 +710,24 @@ p#addFonctionMessage[style*="blue"], p#editFonctionMessage[style*="blue"], p#lis
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+#newAgentQualificationsCheckboxes input[type="checkbox"]:focus,
+#qualificationsCheckboxes input[type="checkbox"]:focus,
 #newAgentGradesCheckboxes input[type="checkbox"]:focus, /* Nouveau */
 #gradesCheckboxes input[type="checkbox"]:focus, /* Nouveau */
-#newAgentFonctionsCheckboxes input[type="checkbox"]:focus, /* Nouveau */ /* Renommé function en fonction */
-#fonctionsCheckboxes input[type="checkbox"]:focus { /* Nouveau */ /* Renommé functions en fonctions */
+#newAgentFunctionsCheckboxes input[type="checkbox"]:focus, /* Nouveau */
+#functionsCheckboxes input[type="checkbox"]:focus { /* Nouveau */
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Anneau de focus */
 }
 
 
+#newAgentQualificationsCheckboxes label,
+#qualificationsCheckboxes label,
 #newAgentGradesCheckboxes label, /* Nouveau */
 #gradesCheckboxes label, /* Nouveau */
-#newAgentFonctionsCheckboxes label, /* Nouveau */ /* Renommé function en fonction */
-#fonctionsCheckboxes label { /* Nouveau */ /* Renommé functions en fonctions */
+#newAgentFunctionsCheckboxes label, /* Nouveau */
+#functionsCheckboxes label { /* Nouveau */
     margin-bottom: 0; /* Réinitialise le margin-bottom du label de formulaire */
     font-weight: normal;
     color: var(--text-color);
@@ -828,8 +853,9 @@ p#addFonctionMessage[style*="blue"], p#editFonctionMessage[style*="blue"], p#lis
   }
 
   #add-agent-section h3, #list-agents-section h3, .modal-content h3,
-  #add-grade-section h3, #list-grades-section h3, /* Mis à jour */
-  #add-fonction-section h3, #list-fonctions-section h3 { /* Mis à jour */
+  #add-qualification-section h3, #list-qualifications-section h3,
+  #add-grade-section h3, #list-grades-section h3,
+  #add-function-section h3, #list-functions-section h3 {
       font-size: 1.3rem;
   }
 
@@ -844,18 +870,22 @@ p#addFonctionMessage[style*="blue"], p#editFonctionMessage[style*="blue"], p#lis
       font-size: 0.85rem;
   }
 
-  /* Styles pour les checkboxes (grades, fonctions) sur petits écrans */
+  /* Styles pour les checkboxes (qualifications, grades, fonctions) sur petits écrans */
+  #newAgentQualificationsCheckboxes > div,
+  #qualificationsCheckboxes > div,
   #newAgentGradesCheckboxes > div,
   #gradesCheckboxes > div,
-  #newAgentFonctionsCheckboxes > div, /* Mis à jour */
-  #fonctionsCheckboxes > div { /* Mis à jour */
+  #newAgentFunctionsCheckboxes > div,
+  #functionsCheckboxes > div {
       font-size: 0.9rem;
       gap: 5px;
   }
+  #newAgentQualificationsCheckboxes input[type="checkbox"],
+  #qualificationsCheckboxes input[type="checkbox"],
   #newAgentGradesCheckboxes input[type="checkbox"],
   #gradesCheckboxes input[type="checkbox"],
-  #newAgentFonctionsCheckboxes input[type="checkbox"], /* Mis à jour */
-  #fonctionsCheckboxes input[type="checkbox"] { /* Mis à jour */
+  #newAgentFunctionsCheckboxes input[type="checkbox"],
+  #functionsCheckboxes input[type="checkbox"] {
       width: 16px;
       height: 16px;
   }
