@@ -1551,3 +1551,41 @@ function showLoading(isLoading, forPdf = false) {
         }
     }
 }
+
+
+
+// Gestion des clics sur les onglets principaux
+document.querySelectorAll('.main-tab').forEach(button => {
+  button.addEventListener('click', () => {
+    // Retirer "active" de tous les boutons
+    document.querySelectorAll('.main-tab').forEach(btn => btn.classList.remove('active'));
+    button.classList.add('active');
+
+    // Cacher toutes les vues
+    document.querySelectorAll('.main-tab-content').forEach(view => view.classList.add('hidden'));
+
+    // Afficher la vue ciblée
+    const targetId = button.getAttribute('data-main-tab');
+    const targetView = document.getElementById(targetId);
+    if (targetView) {
+      targetView.classList.remove('hidden');
+    }
+  });
+});
+
+
+
+// Remplissage du sélecteur de semaine
+function populateWeekSelect() {
+  const weekSelect = document.getElementById('week-select');
+  for (let i = 1; i <= 52; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.textContent = `Semaine ${i}`;
+    weekSelect.appendChild(option);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  populateWeekSelect();
+});
