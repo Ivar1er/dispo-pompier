@@ -39,6 +39,46 @@ let appData = {
     personnelAvailabilities: {} 
 };
 
+// -- Met à jour la date et tout l’affichage associé --
+async function updateDateDisplay() {
+  showLoading(true);
+  const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+  rosterDateInput.value = dateKey;
+
+  try {
+    await loadRosterConfig(dateKey);
+    if (!appData[dateKey] || Object.keys(appData[dateKey].timeSlots).length === 0) {
+      initializeDefaultTimeSlotsForDate(dateKey);
+    }
+    await loadDailyRoster(dateKey);
+    await loadAllPersonnelAvailabilities();
+
+    renderTimeSlotButtons(dateKey);
+    renderOnDutyAgentsGrid();
+    renderAvailablePersonnel();
+    showMainRosterGrid();
+  } catch (err) {
+    console.error("Error in updateDateDisplay:", err);
+    showAlertModal(`Erreur mise à jour date : ${err.message}`);
+  } finally {
+    showLoading(false);
+  }
+}
+
+// -- Affiche la vue principale (cacher détails engins) --
+function showMainRosterGrid() {
+  // Cache la page détails et remet la grille principale visible
+  engineDetailsPage.style.display = 'none';
+  document.querySelector('.personnel-management-section').style.display = 'grid';
+  rosterGridContainer.style.display = 'block';
+  // Déselectionne tous les boutons de créneaux
+  document.querySelectorAll('.time-slot-button').forEach(btn => {
+    btn.classList.remove('active', 'bg-blue-500', 'text-white', 'border-blue-500');
+  });
+  renderRosterGrid();
+}
+
+
 // ------------- UTILITAIRES --------------
 
 // Formate une date au format AAAA-MM-JJ
@@ -167,6 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     createOnDutySlots();
     await loadInitialData();
+    await updateDateDisplay();
 });
 
 // ---------- CHARGEMENT DES DONNÉES ----------
