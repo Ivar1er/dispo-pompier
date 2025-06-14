@@ -135,7 +135,7 @@ body {
 }
 
 /* Conteneur des boutons de créneaux horaires */
-.time-slot-buttons-container {
+#time-slot-buttons-container { /* Changé en ID pour la spécificité */
   display: flex;
   gap: 10px;
   padding: 20px 25px;
@@ -213,6 +213,11 @@ body {
 .engine-details-page {
   padding: 20px 25px;
 }
+.engine-details-header {
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
 .engine-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -225,7 +230,7 @@ body {
   padding: 15px;
   text-align: center;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
+  cursor: pointer; /* Peut être enlevé si on veut juste du drag-drop */
   transition: transform 0.2s, box-shadow 0.2s;
 }
 .engine-case:hover {
@@ -253,6 +258,7 @@ body {
   list-style: none;
   padding: 0;
   margin: 0;
+  text-align: left; /* Aligne le texte à gauche dans la liste */
 }
 .engine-case .personnel-list li {
   padding: 3px 0;
@@ -263,19 +269,82 @@ body {
 .engine-case .personnel-list li:first-child {
   border-top: none;
 }
+.engine-case .assign-engine-personnel-btn {
+    background-color: #28a745;
+    color: white;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 15px;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+.engine-case .assign-engine-personnel-btn:hover {
+    background-color: #218838;
+}
 
 /* Grille de la feuille de garde */
 .roster-grid {
   padding: 20px 25px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  /* display: grid; /* Supprimé pour utiliser le tableau */
+  /* gap: 20px;     /* Supprimé pour utiliser le tableau */
 }
 .roster-grid .loading-message {
   text-align: center;
-  grid-column: 1 / -1;
+  grid-column: 1 / -1; /* Utile si on revient au grid layout */
   color: #777;
+  padding: 40px;
+  font-size: 1.2em;
 }
+
+/* Styles du tableau principal */
+.roster-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden; /* Pour les bordures arrondies */
+}
+.roster-table th,
+.roster-table td {
+    border: 1px solid #e0e0e0;
+    padding: 12px 15px;
+    text-align: left;
+}
+.roster-table th {
+    background-color: #f2f2f2;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    font-size: 0.9em;
+}
+.roster-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+.roster-table tbody tr:hover {
+    background-color: #f0f0f0;
+}
+.roster-table .roster-cell {
+    position: relative; /* Pour le drag-over */
+}
+.roster-table .engine-personnel-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.roster-table .engine-personnel-list li {
+    font-size: 0.9em;
+    color: #444;
+    padding: 2px 0;
+}
+.roster-table .engine-personnel-list li:not(:last-child) {
+    border-bottom: 1px dotted #eee;
+    margin-bottom: 2px;
+}
+
 
 /* Bouton de retour depuis la vue engin */
 .back-to-roster-btn {
@@ -325,6 +394,11 @@ body {
   padding-bottom: 10px;
   margin-bottom: 15px;
 }
+.on-duty-info {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-bottom: 15px;
+}
 .available-personnel-list {
   max-height: 300px;
   overflow-y: auto;
@@ -349,6 +423,8 @@ body {
 }
 .available-personnel-item.dragging {
   opacity: 0.5;
+  outline: 2px dashed #007bff;
+  transform: translateY(-2px);
 }
 .on-duty-agents-grid {
   display: grid;
@@ -376,6 +452,11 @@ body {
   border: 1px solid #28a745;
   color: #333;
   font-weight: 500;
+  cursor: grab; /* Change de cursor: move; à grab pour être cohérent avec les disponibles */
+}
+.on-duty-slot .agent-name {
+    font-weight: 600;
+    margin-bottom: 5px;
 }
 .on-duty-slot .remove-agent-btn {
   position: absolute;
@@ -409,33 +490,127 @@ body {
 
 /* Styles pour les modales d'alerte/confirmation/prompt personnalisées */
 .custom-modal {
-  display: none;
+  display: none; /* Caché par défaut */
   position: fixed;
-  z-index: 2000;
+  z-index: 2000; /* Assurez-vous qu'elle est au-dessus de tout */
   left: 0;
   top: 0;
   width: 100%;
   height: 100%;
   overflow: auto;
-  background-color: rgba(0,0,0,0.6);
-  justify-content: center;
+  background-color: rgba(0,0,0,0.6); /* Fond semi-transparent */
+  display: flex; /* Permet le centrage avec align-items/justify-content */
   align-items: center;
+  justify-content: center;
 }
 .custom-modal .modal-content {
   background-color: #fefefe;
-  margin: auto;
+  margin: auto; /* Centre la modale */
   padding: 25px 30px;
   border-radius: 12px;
   box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  width: 80%;
-  max-width: 400px;
+  width: 90%; /* Prend plus de largeur sur mobile */
+  max-width: 450px; /* Largeur maximale sur desktop */
   text-align: center;
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.3s ease-out; /* Animation d'apparition */
+  position: relative; /* Pour les positions absolues des éléments internes si besoin */
 }
-/* …le reste de tes styles pour les modales personnalisées… */
+
+.custom-modal h2 {
+  color: #007bff;
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.4em;
+}
+
+.custom-modal .modal-form-group {
+  margin-bottom: 15px;
+  text-align: left;
+}
+
+.custom-modal .modal-form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: #555;
+}
+
+.custom-modal .modal-form-group select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1em;
+  appearance: none; /* Supprime le style par défaut des selects */
+  background-color: white;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22M287%2C197.9c-3.6%2C3.6-7.8%2C5.4-12.4%2C5.4s-8.8-1.8-12.4-5.4L146.2%2C75.5L30.2%2C197.9c-3.6%2C3.6-7.8%2C5.4-12.4%2C5.4s-8.8-1.8-12.4-5.4c-7.3-7.3-7.3-19.1%2C0-26.4L133.8%2C5.4c3.6-3.6%2C7.8-5.4%2C12.4-5.4s8.8%2C1.8%2C12.4%2C5.4l122.4%2C122.4C294.3%2C178.8%2C294.3%2C190.6%2C287%2C197.9z%22%2F%3E%3C%2Fsvg%3E'); /* Icône de flèche déroulante */
+  background-repeat: no-repeat;
+  background-position: right 10px top 50%;
+  background-size: 12px auto;
+}
+
+.custom-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+.custom-modal .btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 500;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.custom-modal .btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.custom-modal .btn-primary:hover {
+  background-color: #0056b3;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.custom-modal .btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.custom-modal .btn-secondary:hover {
+  background-color: #5a6268;
+  box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .roster-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .roster-title {
+    font-size: 1.3em;
+    text-align: center;
+    width: 100%;
+  }
+  .personnel-management-section {
+    flex-direction: column;
+  }
   .personnel-assignment-modal .modal-content,
   .custom-modal .modal-content {
     width: 95%;
@@ -459,9 +634,6 @@ body {
   .modal-actions button {
     width: 100%;
   }
-  .personnel-management-section {
-    flex-direction: column;
-  }
 }
 
 /* Barre de disponibilité sous chaque agent */
@@ -482,7 +654,83 @@ body {
 
 /* Surbrillance lors du drag-over */
 .on-duty-slot.drag-over,
-.roster-cell.drag-over {
+.roster-cell.drag-over,
+.engine-case.drag-over { /* Ajout de .engine-case pour la zone de drop sur les engins */
   outline: 2px dashed #4caf50;
   background: rgba(76, 175, 80, 0.1);
 }
+
+/* Styles pour la barre de disponibilité */
+.availability-bar {
+  width: 100%;
+  height: 10px; /* Hauteur de la barre */
+  background-color: #e0e0e0; /* Couleur de fond de la barre vide */
+  border-radius: 5px;
+  margin-top: 8px; /* Espace au-dessus de la barre */
+  position: relative; /* Pour positionner les segments colorés */
+  overflow: hidden; /* Assure que les segments ne dépassent pas */
+}
+
+.availability-base-bar {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: #e0e0e0; /* Assure que le fond est toujours visible si aucun segment n'est present */
+}
+
+.availability-highlight-segment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-color: #4CAF50; /* Couleur pour les plages disponibles (vert) */
+  border-radius: 2px; /* Légèrement arrondi */
+  opacity: 0.8; /* Légère transparence pour voir la base */
+  transition: background-color 0.2s ease;
+}
+
+.availability-highlight-segment:hover {
+    background-color: #388E3C; /* Vert plus foncé au survol */
+}
+
+/* Texte si aucun agent disponible */
+.no-available-personnel {
+    color: #888;
+    font-style: italic;
+    text-align: center;
+    padding: 15px;
+}
+
+/* Ajustement pour les items disponibles pour les barres */
+.available-personnel-item {
+    flex-direction: column; /* Pour empiler le nom et la barre */
+    align-items: flex-start; /* Aligne le contenu à gauche */
+    padding-bottom: 12px; /* Plus d'espace pour la barre */
+}
+
+/* Ajustement pour les slots d'astreinte pour les barres */
+.on-duty-slot.filled {
+    height: auto; /* Permet au contenu de grandir avec la barre */
+    padding-bottom: 12px;
+}
+
+.on-duty-slot .agent-name {
+    margin-bottom: 0; /* Réduire l'espace entre le nom et la barre */
+}
+
+/* Ajustement pour le spinner pour s'assurer qu'il est bien visible */
+#loading-spinner {
+    /* ... (règles existantes) ... */
+    background: rgba(255,255,255,0.9); /* Un peu plus opaque */
+}
+
+/* Cache la section de contenu principal lorsque la page de détails est affichée */
+/* Cette règle CSS n'est plus nécessaire car showMainRosterGrid() gère le display directement */
+/* .roster-content[style*="display: none"] ~ .engine-details-page {
+    display: block;
+} */
+/* Cache la page de détails lorsque le contenu principal est affiché */
+/* .roster-content:not([style*="display: none"]) ~ .engine-details-page {
+    display: none;
+} */
