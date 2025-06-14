@@ -28,7 +28,7 @@
       <button class="main-tab" data-main-tab="agent-management-view">Gestion des Agents</button>
       <button class="main-tab" data-main-tab="qualification-management-view">Gestion des Qualifications</button>
       <button class="main-tab" data-main-tab="grade-management-view">Gestion des Grades</button>
-      <button class="main-tab" data-main-tab="function-management-view">Gestion des Fonctions</button>
+      <!-- Bouton "Gestion des Fonctions" supprimé -->
     </nav>
 
     <div id="global-planning-view" class="main-tab-content active">
@@ -77,7 +77,6 @@
                 <div>
                     <h4>Qualifications de l'Agent :</h4>
                     <div id="newAgentQualificationsCheckboxes">
-                        <!-- Les cases à cocher des qualifications seront chargées ici par JavaScript -->
                         Chargement des qualifications...
                     </div>
                 </div>
@@ -85,7 +84,6 @@
                 <div>
                     <h4>Grades de l'Agent :</h4>
                     <div id="newAgentGradesCheckboxes">
-                        <!-- Les cases à cocher des grades seront chargées ici par JavaScript -->
                         Chargement des grades...
                     </div>
                 </div>
@@ -93,7 +91,6 @@
                 <div>
                     <h4>Fonctions de l'Agent :</h4>
                     <div id="newAgentFunctionsCheckboxes">
-                        <!-- Les cases à cocher des fonctions seront chargées ici par JavaScript -->
                         Chargement des fonctions...
                     </div>
                 </div>
@@ -128,7 +125,6 @@
         </section>
     </div>
 
-    <!-- NOUVEAU : Conteneur pour la vue de Gestion des Qualifications -->
     <div id="qualification-management-view" class="main-tab-content hidden">
         <section id="add-qualification-section">
             <h3>Ajouter une Nouvelle Qualification</h3>
@@ -164,7 +160,6 @@
         </section>
     </div>
 
-    <!-- NOUVEAU : Conteneur pour la vue de Gestion des Grades -->
     <div id="grade-management-view" class="main-tab-content hidden">
         <section id="add-grade-section">
             <h3>Ajouter un Nouveau Grade</h3>
@@ -200,43 +195,6 @@
         </section>
     </div>
 
-    <!-- NOUVEAU : Conteneur pour la vue de Gestion des Fonctions -->
-    <div id="function-management-view" class="main-tab-content hidden">
-        <section id="add-function-section">
-            <h3>Ajouter une Nouvelle Fonction</h3>
-            <form id="addFunctionForm">
-                <label for="newFunctionId">Identifiant (ex: standard) :</label>
-                <input type="text" id="newFunctionId" required><br><br>
-
-                <label for="newFunctionName">Nom de la Fonction (ex: Standard) :</label>
-                <input type="text" id="newFunctionName" required><br><br>
-
-                <button type="submit" class="btn btn-primary">Ajouter la Fonction</button>
-            </form>
-            <p id="addFunctionMessage"></p>
-        </section>
-
-        <hr>
-
-        <section id="list-functions-section">
-            <h3>Liste des Fonctions</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Identifiant</th>
-                        <th>Nom</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="functionsTableBody">
-                    <tr><td colspan="3">Chargement des fonctions...</td></tr>
-                </tbody>
-            </table>
-            <p id="listFunctionsMessage"></p>
-        </section>
-    </div>
-
-
     <footer class="bottom-actions">
       <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
     </footer>
@@ -262,7 +220,6 @@
               <div>
                   <h4>Qualifications de l'Agent :</h4>
                   <div id="qualificationsCheckboxes">
-                      <!-- Les cases à cocher des qualifications seront chargées ici par JavaScript -->
                       Chargement des qualifications...
                   </div>
                   <p id="qualificationsMessage" style="color: red;"></p>
@@ -271,7 +228,6 @@
               <div>
                   <h4>Grades de l'Agent :</h4>
                   <div id="gradesCheckboxes">
-                      <!-- Les cases à cocher des grades seront chargées ici par JavaScript -->
                       Chargement des grades...
                   </div>
                   <p id="gradesMessage" style="color: red;"></p>
@@ -280,7 +236,6 @@
               <div>
                   <h4>Fonctions de l'Agent :</h4>
                   <div id="functionsCheckboxes">
-                      <!-- Les cases à cocher des fonctions seront chargées ici par JavaScript -->
                       Chargement des fonctions...
                   </div>
                   <p id="functionsMessage" style="color: red;"></p>
@@ -293,7 +248,7 @@
       </div>
   </div>
 
-  <!-- Modale de modification de qualification (Nouveau) -->
+  <!-- Modale de modification de qualification -->
   <div id="editQualificationModal" class="modal" style="display: none;">
       <div class="modal-content">
           <span class="close-button">&times;</span>
@@ -310,7 +265,7 @@
       </div>
   </div>
 
-  <!-- Modale de modification de grade (Nouveau) -->
+  <!-- Modale de modification de grade -->
   <div id="editGradeModal" class="modal" style="display: none;">
       <div class="modal-content">
           <span class="close-button">&times;</span>
@@ -327,23 +282,7 @@
       </div>
   </div>
 
-  <!-- Modale de modification de fonction (Nouveau) -->
-  <div id="editFunctionModal" class="modal" style="display: none;">
-      <div class="modal-content">
-          <span class="close-button">&times;</span>
-          <h3>Modifier la Fonction</h3>
-          <form id="editFunctionForm">
-              <input type="hidden" id="editFunctionId">
-
-              <label for="editFunctionName">Nom de la Fonction :</label>
-              <input type="text" id="editFunctionName" required><br><br>
-
-              <button type="submit" class="btn btn-primary">Mettre à jour la Fonction</button>
-          </form>
-          <p id="editFunctionMessage"></p>
-      </div>
-  </div>
-
+  <!-- Script -->
   <script src="js/admin.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
