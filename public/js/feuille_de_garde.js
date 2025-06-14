@@ -207,12 +207,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (role!=="admin") return window.location.href="index.html";
 
   rosterDateInput.valueAsDate = currentRosterDate;
-  prevDayButton .addEventListener('click',/* ← jour */);
-  nextDayButton .addEventListener('click',/* → jour */);
-  rosterDateInput.addEventListener('change',/* date pick */);
+  // Bouton “<” : jour précédent
+  prevDayButton.addEventListener('click', () => {
+    currentRosterDate.setDate(currentRosterDate.getDate() - 1);
+    rosterDateInput.valueAsDate = currentRosterDate;
+    updateDateDisplay();
+  });
 
-  generateAutoBtn  .addEventListener('click',/* confirmation + generateAutomaticRoster */);
-  backToRosterBtn  .addEventListener('click', showMainRosterGrid);
+  // Bouton “>” : jour suivant
+  nextDayButton.addEventListener('click', () => {
+    currentRosterDate.setDate(currentRosterDate.getDate() + 1);
+    rosterDateInput.valueAsDate = currentRosterDate;
+    updateDateDisplay();
+  });
+
+  // Sélection de date manuelle
+  rosterDateInput.addEventListener('change', (e) => {
+    currentRosterDate = e.target.valueAsDate;
+    updateDateDisplay();
+  });
+
+  // Génération automatique
+  generateAutoBtn.addEventListener('click', async () => {
+    if (confirm("Voulez-vous vraiment générer le planning automatiquement pour ce jour ?")) {
+      await generateAutomaticRoster(formatDateToYYYYMMDD(currentRosterDate));
+    }
+  });
+
+  // Retour à la vue principale
+  backToRosterBtn.addEventListener('click', showMainRosterGrid);
 
   createOnDutySlots();
   await fetchAllAgents();
