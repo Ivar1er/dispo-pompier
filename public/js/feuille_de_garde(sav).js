@@ -62,7 +62,8 @@ const engineDetails = {
         roles: [
             { id: 'ca_vsav', name: 'Conducteur VSAV', required: true },
             { id: 'cod_0', name: 'Chef VSAV', required: true },
-            { id: 'eq_vsav', name: 'Equipier VSAV', required: true },
+            { id: 'eq_vsav', name: 'Equipier 1 VSAV', required: true },
+            { id: 'eq_vsav_2', name: 'Equipier 2 VSAV', required: false }
         ],
         criticalRoles: ['cod_0', 'ca_vsav'] // CD et CA sont critiques pour VSAV
     },
@@ -701,7 +702,7 @@ async function loadRosterConfig(dateKey) {
               let isEngineIndispo = false;
               if (engConfig.criticalRoles) {
                   for (const criticalRoleId of engConfig.criticalRoles) {
-                      const assignedAgentId = (assignment && assignment.personnel ? assignment.personnel[criticalRoleId] : undefined);
+                      const assignedAgentId = assignment.personnel[criticalRoleId];
                       const assignedAgent = allAgents.find(a => a._id === assignedAgentId);
 
                       if (!assignedAgentId || assignedAgentId === 'none' || assignedAgentId === null ||
@@ -718,7 +719,7 @@ async function loadRosterConfig(dateKey) {
                       <span class="engine-name-mini">${engConfig.name}</span>
                       <ul class="assigned-personnel-mini">
                           ${engConfig.roles.map(roleDef => {
-                              const agentId = (assignment && assignment.personnel ? assignment.personnel[roleDef.id] : undefined);
+                              const agentId = assignment.personnel[roleDef.id];
                               const agent = allAgents.find(a => a._id === agentId);
                               const agentDisplay = agent && agentId !== 'none' ? `${agent.prenom.charAt(0)}. ${agent.nom}` : '';
                               const isQualified = agent && isAgentQualifiedForRole(agent, roleDef.id);
@@ -780,18 +781,22 @@ async function loadRosterConfig(dateKey) {
                 const item = document.createElement('div');
                 item.classList.add('available-personnel-item');
                 item.innerHTML = `
-    <div class="agent-info">
-        <span class="agent-name">${agent.prenom} ${agent.nom || 'Agent Inconnu'}</span>
-    </div>
-    <div class="availability-bar-wrapper">
-        <div class="availability-bar"></div>
-    </div>
-`;
-
-            const availabilityBar = item.querySelector('.availability-bar');
-afficherBarreDisponibilite(agent.plages, availabilityBar);
-
-
+                    <div class="agent-info">
+                        <span class="agent-name">${agent.prenom} ${agent.nom || 'Agent Inconnu'}</span>
+                    </div>
+                    <div class="availability-bar-wrapper">
+                        <div class="availability-bar">
+                            <div class="availability-base-bar"></div>
+                        </div>
+                        <div class="time-legend">
+                            <span>07:00</span>
+                            <span>13:00</span>
+                            <span>19:00</span>
+                            <span>01:00</span>
+                            <span>07:00</span>
+                        </div>
+                    </div>
+                `;
                 
                 item.dataset.agentId = agent._id;
                 item.setAttribute('draggable', true);
@@ -1356,7 +1361,7 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
             let isEngineIndispo = false;
             if (engConfig.criticalRoles) {
                 for (const criticalRoleId of engConfig.criticalRoles) {
-                    const assignedAgentId = (assignment && assignment.personnel ? assignment.personnel[criticalRoleId] : undefined);
+                    const assignedAgentId = assignment.personnel[criticalRoleId];
                     const assignedAgent = allAgents.find(a => a._id === assignedAgentId);
 
                     if (!assignedAgentId || assignedAgentId === 'none' || assignedAgentId === null ||
@@ -1372,7 +1377,7 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
               <span class="places-count">${engConfig.roles.length} places</span>
               <ul class="personnel-list">
                 ${engConfig.roles.map(roleDef => {
-                  const agentId = (assignment && assignment.personnel ? assignment.personnel[roleDef.id] : undefined);
+                  const agentId = assignment.personnel[roleDef.id];
                   const agent = allAgents.find(a => a._id === agentId);
                   // Passe l'objet agent complet et l'ID du rôle à isAgentQualifiedForRole
                   const isQualified = agent && isAgentQualifiedForRole(agent, roleDef.id); 
@@ -1786,33 +1791,3 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
 
           showMainRosterGrid(); // S'assure que la grille principale est affichée au démarrage
         });
-
-        function afficherBarreDisponibilite(plages, container) {
-    container.innerHTML = '';
-    plages.forEach(plage => {
-        let segment = document.createElement('div');
-        segment.className = 'availability-highlight-segment ' + (plage.statut === 'dispo' ? 'available' : 'unavailable');
-        segment.style.position = 'absolute';
-        segment.style.left = (plage.debut / 1440 * 100) + '%';
-        segment.style.width = ((plage.fin - plage.debut) / 1440 * 100) + '%';
-        container.appendChild(segment);
-
-        // Ajout des labels heures début/fin
-        let label = document.createElement('div');
-        label.className = 'availability-label';
-        label.style.position = 'absolute';
-        label.style.left = (plage.debut / 1440 * 100) + '%';
-        label.style.top = '12px';
-        label.style.fontSize = '0.75em';
-        label.style.color = plage.statut === 'dispo' ? '#388E3C' : '#d32f2f';
-        label.style.zIndex = '10';
-        label.textContent = minutesToHeure(plage.debut) + ' - ' + minutesToHeure(plage.fin);
-        container.appendChild(label);
-    });
-    container.style.position = 'relative';
-}
-function minutesToHeure(mins) {
-    const h = Math.floor(mins / 60).toString().padStart(2, '0');
-    const m = (mins % 60).toString().padStart(2, '0');
-    return h + ':' + m;
-}

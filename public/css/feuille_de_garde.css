@@ -300,17 +300,20 @@ body {
 .engine-indispo-overlay {
     position: absolute;
     inset: 0;
-    background-color: rgba(220, 53, 69, 0.85); /* Rouge semi-transparent */
-    color: white;
+    background-color: rgba(0,0,0,0.7) !important;
+    color: #FFD600 !important;
     font-size: 2.2em;
     font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 8px;
-    pointer-events: none; /* Permet aux clics de passer à l'élément en dessous */
-    animation: pulseIndispo 1.5s infinite alternate; /* Animation de pulsation */
+    pointer-events: none;
+    animation: pulseIndispo 1.5s infinite alternate;
+    text-shadow: 1px 1px 8px #000, 0 0 6px #FFD600;
+    letter-spacing: 2px;
 }
+
 
 @keyframes pulseIndispo {
     from { transform: scale(1); opacity: 0.85; }
