@@ -7,7 +7,30 @@ const bcrypt = require('bcryptjs');
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+
+// Listez toutes les origines depuis lesquelles votre frontend peut se connecter.
+// Cela inclut votre environnement de développement local et votre déploiement sur Render.
+const allowedOrigins = [
+  'http://localhost:5500',     
+  'http://127.0.0.1:5500',    
+  'https://dispo-pompier.onrender.com'   
+  
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Permet les requêtes sans origine (ex: requêtes directes via Postman, curl, ou fichiers locaux ouverts directement par le navigateur)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true // Très important pour permettre l'envoi et la réception de cookies/sessions
+}));
+// **********************************************
+
 app.use(express.json());
 
 // Répertoire public
@@ -47,7 +70,7 @@ async function loadUsers() {
         admin: {
           prenom: "Admin",
           nom: "Admin",
-          mdp: hashedDefaultPassword,    // corrigé
+          mdp: hashedDefaultPassword,
           role: "admin",
           qualifications: [],
           grades: [],
@@ -79,10 +102,23 @@ async function loadQualifications() {
   } catch (err) {
     if (err.code === 'ENOENT') {
       AVAILABLE_QUALIFICATIONS = [
-        { id: 'chef-agr', name: "Chef d'Agrès" },
-        { id: 'conducteur', name: 'Conducteur' },
-        { id: 'equipier', name: 'Équipier' },
-        { id: 'secouriste', name: 'Secouriste' }
+        { id: 'ca_vsav', name: "CA VSAV" },
+        { id: 'ca_fpt', name: 'CA FPT' },
+        { id: 'ca_vtu', name: 'CA VTU' },
+        { id: 'ca_vpma', name: 'CA VPMA' },
+        { id: 'ca_ccf', name: 'CA CCF' },
+
+        { id: 'cod_0', name: 'CD VSAV / VTU / VPMA' },
+        { id: 'cod_1', name: 'CD FPT' },
+        { id: 'cod_2', name: 'CD CCF' },
+
+        { id: 'eq_vsav', name: 'EQ VSAV' },
+        { id: 'eq_vtu', name: 'EQ VTU' },
+        { id: 'eq_vpma', name: 'EQ VPMA' },
+        { id: 'eq1_fpt', name: 'EQ1 FPT' },
+        { id: 'eq2_fpt', name: 'EQ2 FPT' },
+        { id: 'eq1_ccf', name: 'EQ1 CCF' },
+        { id: 'eq2_ccf', name: 'EQ2 CCF' },
       ];
       await saveQualifications();
       console.log('Default qualifications created.');
@@ -111,8 +147,11 @@ async function loadGrades() {
       AVAILABLE_GRADES = [
         { id: 'sap', name: 'Sapeur' },
         { id: 'cpl', name: 'Caporal' },
+        { id: 'cch', name: 'Caporal-chef' },
         { id: 'sgt', name: 'Sergent' },
-        { id: 'adj', name: 'Adjudant' }
+        { id: 'sch', name: 'Sergent-chef' },
+        { id: 'adj', name: 'Adjudant' },
+        { id: 'adc', name: 'Adjudant-chef' }
       ];
       await saveGrades();
       console.log('Default grades created.');
@@ -139,9 +178,9 @@ async function loadFunctions() {
   } catch (err) {
     if (err.code === 'ENOENT') {
       AVAILABLE_FUNCTIONS = [
-        { id: 'standard', name: 'Standard' },
-        { id: 'maint',    name: 'Maintenance' },
-        { id: 'com',      name: 'Communication' }
+        { id: 'none', name: 'none' },
+        { id: 'none',    name: 'none' },
+        { id: 'none',      name: 'none' }
       ];
       await saveFunctions();
       console.log('Default functions created.');
@@ -185,6 +224,7 @@ async function initializeRosterFolders() {
 // --- Middleware d’admin ---
 
 const authorizeAdmin = (req, res, next) => {
+  // Cette partie pourrait nécessiter une amélioration si vous utilisez de vraies sessions/tokens
   if (req.headers['x-user-role'] === 'admin') return next();
   return res.status(403).json({ message: 'Access denied. Administrator role required.' });
 };
@@ -259,9 +299,19 @@ app.get('/api/admin/agents', authorizeAdmin, (req, res) => {
   const list = Object.entries(USERS)
     .filter(([_,u]) => u.role === 'agent' || u.role === 'admin')
     .map(([id,u]) => ({
-      id,
+      // **********************************************
+      // MISE À JOUR 3 : Utilisation de '_id' pour la cohérence avec le frontend
+      // Ceci est fortement recommandé pour un meilleur mappage
+      // **********************************************
+      _id: id,
       prenom: u.prenom,
       nom:    u.nom,
+      // NOTE: Si les noms d'utilisateur (bruneaum, etc.) ne sont pas vos _id,
+      // et que vous en avez besoin pour le mappage avec /api/planning,
+      // vous devrez peut-être ajouter un champ 'username: id' ici.
+      // Par exemple : username: id, _id: u._id_de_vrai_mongo (si vous aviez une DB)
+      // Mais pour l'instant, si `id` est "bruneaum", `_id: id` fait le travail.
+      // **********************************************
       qualifications: u.qualifications || [],
       grades:         u.grades || [],
       functions:      u.functions || []
@@ -450,7 +500,7 @@ app.delete('/api/functions/:id', authorizeAdmin, async (req,res)=>{
 app.get('/api/roster-config/:dateKey', async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. Expected Wayback-MM-DD.' });
   }
   const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
   try {
@@ -468,7 +518,7 @@ app.get('/api/roster-config/:dateKey', async (req, res) => {
 app.post('/api/roster-config/:dateKey', authorizeAdmin, async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. Expected Wayback-MM-DD.' });
   }
   const { timeSlots, onDutyAgents } = req.body;
   if (!timeSlots || !onDutyAgents) {
@@ -482,7 +532,7 @@ app.post('/api/roster-config/:dateKey', authorizeAdmin, async (req, res) => {
 app.get('/api/daily-roster/:dateKey', async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. Expected Wayback-MM-DD.' });
   }
   const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
   try {
@@ -500,14 +550,19 @@ app.get('/api/daily-roster/:dateKey', async (req, res) => {
 app.post('/api/daily-roster/:dateKey', authorizeAdmin, async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. Expected Wayback-MM-DD.' });
   }
-  const { roster } = req.body;
-  if (!roster) {
-    return res.status(400).json({ message: 'Missing roster data.' });
+  // **********************************************
+  // MISE À JOUR 2 : Attendre 'onDutyAgents' au lieu de 'roster'
+  // - Aligne le backend avec ce que le frontend est supposé envoyer
+  // **********************************************
+  const { onDutyAgents } = req.body; // Changer de 'roster' à 'onDutyAgents'
+  if (!onDutyAgents) { // Mettre à jour la condition
+    return res.status(400).json({ message: 'Missing onDutyAgents data.' }); // Mettre à jour le message
   }
   const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
-  await fs.writeFile(filePath, JSON.stringify({ roster }, null, 2), 'utf8');
+  // Sauvegarder 'onDutyAgents' dans un objet avec cette clé
+  await fs.writeFile(filePath, JSON.stringify({ onDutyAgents }, null, 2), 'utf8');
   res.json({ message: 'Daily roster saved.' });
 });
 
