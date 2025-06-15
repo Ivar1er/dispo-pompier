@@ -86,7 +86,7 @@ body {
 }
 
 /* Bouton d'actualisation (désormais Générer Auto) */
-.refresh-button {
+.refresh-button { /* Renommé en .generate-auto-btn dans le HTML */
   display: flex;
   align-items: center;
   gap: 5px;
@@ -232,6 +232,7 @@ body {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
+  position: relative; /* Ajout pour l'overlay INDISPO */
 }
 .engine-case:hover {
   transform: translateY(-3px);
@@ -269,6 +270,17 @@ body {
 .engine-case .personnel-list li:first-child {
   border-top: none;
 }
+/* Style pour agent non qualifié dans la liste de l'engin */
+.engine-case .personnel-list li.unqualified-agent {
+    color: #dc3545; /* Rouge */
+    font-weight: 600;
+}
+/* Style pour rôle obligatoire non pourvu */
+.engine-case .personnel-list li.missing-required-role {
+    color: #ffc107; /* Jaune/Orange */
+    font-weight: 600;
+}
+
 .engine-case .assign-engine-personnel-btn {
     background-color: #28a745;
     color: white;
@@ -283,6 +295,28 @@ body {
 .engine-case .assign-engine-personnel-btn:hover {
     background-color: #218838;
 }
+
+/* Overlay "INDISPO" pour les engins */
+.engine-indispo-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(220, 53, 69, 0.85); /* Rouge semi-transparent */
+    color: white;
+    font-size: 2.2em;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    pointer-events: none; /* Permet aux clics de passer à l'élément en dessous */
+    animation: pulseIndispo 1.5s infinite alternate; /* Animation de pulsation */
+}
+
+@keyframes pulseIndispo {
+    from { transform: scale(1); opacity: 0.85; }
+    to { transform: scale(1.02); opacity: 0.95; }
+}
+
 
 /* Grille de la feuille de garde */
 .roster-grid {
@@ -415,6 +449,7 @@ body {
   flex-direction: column; /* Pour empiler le nom et la barre */
   align-items: flex-start; /* Aligne le contenu à gauche */
   height: auto; /* Ajuste la hauteur en fonction du contenu */
+  position: relative; /* Pour le tooltip */
 }
 .available-personnel-item:hover {
   background-color: #d8e0e7;
@@ -458,6 +493,7 @@ body {
   flex-direction: column; /* Empile le nom, la barre, le bouton x */
   justify-content: flex-start; /* Aligne le contenu en haut */
   align-items: flex-start; /* Aligne le contenu à gauche */
+  position: relative; /* Pour le tooltip */
 }
 .on-duty-slot .agent-name {
     font-weight: 600;
@@ -674,15 +710,27 @@ body {
   position: absolute;
   top: 0;
   height: 100%;
-  background-color: #4CAF50; /* Couleur pour les plages disponibles (vert) */
   border-radius: 2px; /* Légèrement arrondi */
   opacity: 0.8; /* Légère transparence pour voir la base */
   transition: background-color 0.2s ease;
 }
 
-.availability-highlight-segment:hover {
+.availability-highlight-segment.available {
+    background-color: #4CAF50; /* Vert pour les plages disponibles */
+}
+
+.availability-highlight-segment.available:hover {
     background-color: #388E3C; /* Vert plus foncé au survol */
 }
+
+.availability-highlight-segment.unavailable {
+    background-color: #f44336; /* Rouge pour les plages indisponibles */
+}
+
+.availability-highlight-segment.unavailable:hover {
+    background-color: #d32f2f; /* Rouge plus foncé au survol */
+}
+
 
 /* Styles pour la légende horaire sous la barre de disponibilité */
 .time-legend {
@@ -720,7 +768,10 @@ body {
 /* Surbrillance lors du drag-over */
 .on-duty-slot.drag-over,
 .roster-cell.drag-over,
-.engine-case.drag-over {
+.engine-case.drag-over,
+.modal-available-agent-slot.drag-over, /* Ajout pour la modale */
+.modal-role-slot.drag-over, /* Ajout pour la modale */
+.assigned-agent-placeholder.drag-over { /* Ajout pour la modale */
   outline: 3px dashed #007bff; /* Changement de couleur et épaisseur */
   background: rgba(0, 123, 255, 0.1); /* Changement de couleur de fond */
   box-shadow: inset 0 0 0 2px #007bff; /* Ajoute une ombre interne */
@@ -737,6 +788,10 @@ body {
 } */
 
 /* Styles pour la nouvelle modale d'affectation */
+.personnel-assignment-modal .modal-content { /* Utilise la classe spécifique de la modale d'affectation */
+    max-width: 800px; /* Augmente la largeur max pour plus d'espace */
+}
+
 .modal-body-assignment {
     display: flex;
     gap: 20px;
@@ -810,6 +865,11 @@ body {
     font-weight: 600;
     color: #333;
 }
+/* Style pour les rôles obligatoires */
+.role-name.required-role {
+    color: #dc3545; /* Rouge pour un rôle obligatoire non pourvu */
+}
+
 
 .assigned-agent-placeholder {
     background-color: #fff;
@@ -837,6 +897,12 @@ body {
     padding: 5px;
     cursor: grab;
 }
+/* Style pour l'agent non qualifié dans la modale */
+.assigned-agent-placeholder .assigned-agent-name.unqualified-agent-modal {
+    color: #dc3545; /* Rouge pour agent non qualifié */
+    font-weight: 600;
+}
+
 
 .assigned-agent-placeholder .remove-assigned-agent-btn {
     position: absolute;
@@ -869,9 +935,10 @@ body {
 }
 
 /* Tooltip pour la barre de disponibilité */
-.availability-bar-wrapper {
-    position: relative; /* Pour positionner le tooltip par rapport à ce wrapper */
-}
+/* Le wrapper est déjà positionné relative */
+/* .availability-bar-wrapper {
+    position: relative;
+} */
 
 .availability-bar-tooltip {
     position: absolute;
