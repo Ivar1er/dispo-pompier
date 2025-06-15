@@ -248,23 +248,90 @@ async function saveDailyRoster(dateKey) {
   }
 }
 
+// Variable globale pour stocker les noms des jours en français
+const DAYS_OF_WEEK_FR = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+
+// --- NOUVELLE FONCTION POUR OBTENIR LE NUMÉRO DE SEMAINE ET LE NOM DU JOUR ---
+function getWeekAndDayFromDate(dateString) {
+    const date = new Date(dateString + 'T12:00:00'); // Ajout de 'T12:00:00' pour éviter les problèmes de fuseau horaire
+    date.setHours(0, 0, 0, 0); // Réinitialiser l'heure pour éviter les décalages si le jour change à minuit local.
+
+    // Calcul du numéro de semaine ISO 8601 (où la semaine 1 contient le 4 janvier)
+    const dayNr = (date.getDay() + 6) % 7; // Lundi est 0, Dimanche est 6
+    date.setDate(date.getDate() - dayNr + 3); // Aller au jeudi de la semaine courante
+    const firstThursday = date.valueOf(); // Timestamp du jeudi
+    date.setMonth(0, 1); // Aller au 1er janvier
+    if (date.getDay() !== 4) { // Si le 1er janvier n'est pas un jeudi
+        date.setMonth(0, 1 + ((4 - date.getDay()) + 7) % 7); // Aller au premier jeudi de janvier
+    }
+    const weekNo = 1 + Math.ceil((firstThursday - date) / 604800000); // 604800000 ms = 7 jours
+
+    const dayName = DAYS_OF_WEEK_FR[new Date(dateString + 'T12:00:00').getDay()]; // Utiliser la date originale pour le nom du jour
+
+    return { weekNo: `week-${weekNo}`, dayName: dayName };
+}
+
+// --- MODIFICATION DE loadAllPersonnelAvailabilities ---
 async function loadAllPersonnelAvailabilities() {
   try {
-    // Ajustement de l'API: Charger les disponibilités pour la date courante.
-    // L'API devrait idéalement prendre une date en paramètre pour filtrer côté serveur.
-    // Si votre API 'api/planning' retourne TOUTES les disponibilités,
-    // le filtrage se fera côté client dans renderPersonnelLists.
-    // Pour une meilleure performance, une API du type /api/planning?date=YYYY-MM-DD serait idéale.
-    // En attendant, nous chargeons tout et filtrons.
     const resp = await fetch(`${API_BASE_URL}/api/planning`, {
       headers: {'X-User-Role':'admin'}
     });
     if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
-    appData.personnelAvailabilities = await resp.json();
-    //console.log("Disponibilités du personnel chargées:", appData.personnelAvailabilities); // Pour le débogage
+    
+    const rawData = await resp.json(); // Réponse de l'API (avec week-XX et jour de la semaine)
+    
+    // Initialiser la structure attendue par le frontend
+    appData.personnelAvailabilities = {}; 
+
+    // Date clé actuelle pour laquelle nous voulons les disponibilités
+    const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+    const { weekNo: currentWeekNo, dayName: currentDayName } = getWeekAndDayFromDate(dateKey);
+
+    // Parcourir les données brutes et les transformer
+    for (const agentKey in rawData) {
+        const agentAvailabilitiesByWeek = rawData[agentKey]; // ex: { "week-24": { "samedi": [...] } }
+        
+        // --- IMPORTANT : Assurez-vous que agentKey (ex: "bruneaum") correspond à un champ de vos agents (ex: agent.username ou agent._id) ---
+        // Vous devez vous assurer que `agentKey` de l'API correspond à l'un des IDs dans `allAgents`.
+        // Si `agentKey` est le `username`, utilisez `a.username === agentKey`.
+        // Si `agentKey` est le `_id`, utilisez `a._id === agentKey`.
+        // Pour cet exemple, je vais chercher par `username` en priorité, puis par `_id` si `username` n'est pas trouvé ou non pertinent.
+        const agentInAllAgents = allAgents.find(a => a.username === agentKey) || allAgents.find(a => a._id === agentKey);
+        
+        if (!agentInAllAgents) {
+            console.warn(`Agent avec la clé '${agentKey}' trouvé dans /api/planning mais pas dans la liste des agents (${API_BASE_URL}/api/admin/agents). Cet agent sera ignoré.`, rawData[agentKey]);
+            continue; // Passer cet agent s'il n'est pas reconnu
+        }
+        const agentId = agentInAllAgents._id; // On utilise l'ID réel de l'agent pour la structure finale
+        
+        appData.personnelAvailabilities[agentId] = appData.personnelAvailabilities[agentId] || {};
+
+        for (const weekKey in agentAvailabilitiesByWeek) { // ex: "week-24"
+            const dailyData = agentAvailabilitiesByWeek[weekKey]; // ex: { "samedi": [...] }
+            for (const dayName in dailyData) { // ex: "samedi"
+                const timeRanges = dailyData[dayName]; // ex: ["07:00 - 07:30", ...]
+                
+                // On ne stocke les disponibilités que si la semaine et le jour correspondent à la date courante.
+                // Cela limite les données stockées pour améliorer la performance sur de grandes quantités de données.
+                if (weekKey === currentWeekNo && dayName === currentDayName) {
+                    // Convertir les chaînes de temps en objets {start: "HH:MM", end: "HH:MM"}
+                    const formattedRanges = timeRanges.map(range => {
+                        const [start, end] = range.split(' - ');
+                        return { start, end };
+                    });
+                    appData.personnelAvailabilities[agentId][dateKey] = formattedRanges;
+                }
+            }
+        }
+    }
+    
+    // CONSOLE.LOG POUR VÉRIFIER LA NOUVELLE STRUCTURE APRÈS TRANSFORMATION
+    console.log("appData.personnelAvailabilities après transformation (pour la date courante):", appData.personnelAvailabilities);
+
   } catch (error) {
-    console.error("Erreur lors du chargement des disponibilités du personnel:", error);
-    appData.personnelAvailabilities = {};
+    console.error("Erreur lors du chargement des disponibilités du personnel (API /api/planning):", error);
+    appData.personnelAvailabilities = {}; // Réinitialiser en cas d'erreur
   }
 }
 
@@ -273,7 +340,7 @@ async function loadInitialData() {
   const dateKey = formatDateToYYYYMMDD(currentRosterDate);
   await fetchAllAgents(); // Chargez tous les agents avant de charger les configs
   await loadRosterConfig(dateKey); // Charge ou initialise la config de la date
-  await loadAllPersonnelAvailabilities(); // Charge toutes les dispos
+  await loadAllPersonnelAvailabilities(); // Charge et transforme les dispos
   await loadDailyRoster(dateKey); // Charge le daily roster (agents d'astreinte)
   hideSpinner();
 }
@@ -763,6 +830,7 @@ function handleDragStart(e) {
   e.target.classList.add('dragging');
   //console.log("Drag started:", draggedAgentId);
 }
+// Correction de la faute de frappe "fonction" en "function"
 function handleDragOver(e) {
   e.preventDefault(); // Permet le drop
   if (e.target.classList.contains('on-duty-slot') || e.target.classList.contains('roster-cell') || e.target.classList.contains('engine-case')) {
@@ -796,7 +864,6 @@ async function handleDropOnDuty(e) {
         // Si vous voulez échanger, la logique serait plus complexe ici
     }
     appData[dateKey].onDutyAgents[slotIndex] = draggedAgentId; // Placer le nouvel agent
-
     await saveDailyRoster(dateKey); // Sauvegarder les modifications
     updateDateDisplay(); // Re-render pour mettre à jour les listes
   }
