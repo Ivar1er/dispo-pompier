@@ -3,10 +3,17 @@ const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que c
 
 let currentAgentId = sessionStorage.getItem("agent"); // L'identifiant de l'agent connecté
 let agentQualifications = []; // Pour stocker les qualifications de l'agent
-let currentWeekKey = `week-${getCurrentWeek()}`; // La clé de la semaine actuelle (ex: "week-24")
 let currentDay = 'lundi'; // Le jour actuellement affiché
 let agentPlanningData = {}; // Contiendra les disponibilités de l'agent pour toutes les semaines chargées
 let initialPlanningState = {}; // Pour détecter les modifications non enregistrées
+
+// PATCH : toujours la semaine en cours à l'ouverture, même après navigation
+function getCurrentWeekKey() {
+  const today = new Date();
+  return `week-${getCurrentWeek(today)}`;
+}
+let currentWeekKey = getCurrentWeekKey();
+
 
 // Génère 48 créneaux de 30 min sur 24h (07:00-07:30, 07:30-08:00, ...)
 const horaires = [];
@@ -165,7 +172,7 @@ function displayAgentQualifications() {
         if (agentQualifications.length > 0) {
             agentQualificationsDisplay.innerHTML = 'Vos qualifications : ' + agentQualifications.map(q => `<span class="qualification-tag">${q}</span>`).join(', ');
         } else {
-            agentQualificationsDisplay.textContent = 'Vous n\'avez pas de qualifications attribuées.';
+            agentQualificationsDisplay.textContent = ''; // Pas de qualification masqué
         }
     }
 }
@@ -252,48 +259,39 @@ let isSelecting = false;
 let startCell = null; // Référence au bouton de début de sélection
 let initialSelectionState = null; // True si le bouton de départ était 'selected', False sinon
 
+// PATCH : Sélection par plage (premier et dernier clic, tout sélectionné entre les deux)
+let selectionStartIndex = null;
+
 function initCellSelection() {
   if (!planningContainer) return;
 
-  // Écouteur sur le conteneur parent des boutons pour la délégation d'événements
-  planningContainer.addEventListener('mousedown', (e) => {
-    if (e.target.classList.contains('slot-button')) {
-      isSelecting = true;
-      startCell = e.target;
-      initialSelectionState = startCell.classList.contains('selected'); // État initial du bouton de départ
+  planningContainer.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('slot-button')) return;
 
-      // Inverse l'état du bouton de départ
-      startCell.classList.toggle('selected');
+    const buttons = Array.from(planningContainer.querySelectorAll('.slot-button'));
+    const clickedIndex = buttons.indexOf(e.target);
 
-      e.preventDefault(); // Empêche la sélection de texte
-    }
-  });
-
-  planningContainer.addEventListener('mouseover', (e) => {
-    if (isSelecting && e.target.classList.contains('slot-button')) {
-        // Applique le même état que le bouton de départ à tous les boutons survolés
-        if (initialSelectionState) { // Si le bouton de départ était sélectionné, on désélectionne les survolés
-            e.target.classList.remove('selected');
-        } else { // Si le bouton de départ n'était PAS sélectionné, on sélectionne les survolés
-            e.target.classList.add('selected');
+    if (selectionStartIndex === null) {
+      // Premier clic : on enregistre l’index
+      selectionStartIndex = clickedIndex;
+      e.target.classList.toggle('selected');
+    } else {
+      // Deuxième clic : on sélectionne toute la plage
+      const start = Math.min(selectionStartIndex, clickedIndex);
+      const end = Math.max(selectionStartIndex, clickedIndex);
+      const shouldSelect = !buttons[selectionStartIndex].classList.contains('selected');
+      for (let i = start; i <= end; i++) {
+        if (shouldSelect) {
+          buttons[i].classList.add('selected');
+        } else {
+          buttons[i].classList.remove('selected');
         }
-    }
-  });
-
-  // Écouteurs globaux pour gérer la fin du glisser n'importe où sur la page
-  document.addEventListener('mouseup', () => {
-    isSelecting = false;
-    startCell = null;
-    initialSelectionState = null;
-  });
-
-  // Empêche la sélection de texte pendant le glisser
-  document.addEventListener('selectstart', (e) => {
-    if (isSelecting) {
-      e.preventDefault();
+      }
+      selectionStartIndex = null; // reset pour un nouveau cycle
     }
   });
 }
+
 
 // Vérifie si des modifications non enregistrées existent pour le jour actuel
 function hasUnsavedChanges() {
