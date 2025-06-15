@@ -42,7 +42,7 @@ const editAgentMessage = document.getElementById('editAgentMessage');
 const qualificationsCheckboxesDiv = document.getElementById('qualificationsCheckboxes'); // Pour la modale de modification
 const gradesCheckboxesDiv = document.getElementById('gradesCheckboxes'); // Nouveau: Pour la modale de modification
 const functionsCheckboxesDiv = document.getElementById('functionsCheckboxes'); // Nouveau: Pour la modale de modification
-const qualificationsMessage = document.getElementById('qualificationsMessage'); // Pour la modale de modification
+const qualificationsMessage = document.getElementById('qualificationsMessage'); // For the edit modal
 const gradesMessage = document.getElementById('gradesMessage'); // Nouveau: Pour la modale de modification des grades
 const functionsMessage = document.getElementById('functionsMessage'); // Nouveau: Pour la modale de modification des fonctions
 
@@ -125,7 +125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderNewAgentGradesCheckboxes(); // Nouveau
     renderNewAgentFunctionsCheckboxes(); // Nouveau
 
-    // Ouvrir l'onglet "Planning Global" par défaut au chargement
+    // Ouvrir l'onglet "Planning Global" par default au chargement
     await openMainTab('global-planning-view'); // Attendre que le planning soit chargé avant d'afficher
 
 
@@ -313,13 +313,22 @@ async function loadPlanningAndDisplay() {
         const agentsData = await agentsResponse.json();
         agentDisplayInfos = {};
         agentsData.forEach(agent => {
-            agentDisplayInfos[agent.id] = { nom: agent.nom, prenom: agent.prenom };
+            // **********************************************
+            // MISE À JOUR 1 dans admin.js : Utiliser agent._id
+            // Le backend renvoie maintenant '_id' au lieu de 'id' pour l'identifiant unique de l'agent.
+            // **********************************************
+            agentDisplayInfos[agent._id] = { nom: agent.nom, prenom: agent.prenom };
         });
 
         const allWeeksSet = new Set();
+        // Le `agentKey` ici correspondra aux clés reçues de l'API /api/planning (ex: 'bruneaum', 'marechain')
         for (const agentKey in planningData) {
-            // Filtrer les agents qui ne sont pas dans agentDisplayInfos (ex: admin)
-            if (!agentDisplayInfos[agentKey]) continue;
+            // Filtrer les agents qui ne sont pas dans agentDisplayInfos (ex: admin, ou agents supprimés)
+            // L'agentKey doit correspondre à agent._id (qui était l'ancien agent.id)
+            if (!agentDisplayInfos[agentKey]) {
+                console.warn(`Agent avec la clé '${agentKey}' trouvé dans /api/planning mais pas dans la liste des agents ou non mappable.`);
+                continue; // Important de continuer pour ne pas bloquer le reste
+            }
             const weeks = Object.keys(planningData[agentKey]);
             weeks.forEach(w => allWeeksSet.add(w));
         }
@@ -443,12 +452,18 @@ function showDay(day) {
         tbody.appendChild(tr);
     } else {
         sortedAgentIds.forEach(agentId => {
+            // L'agentId ici est l'agent._id (ex: 'bruneaum')
             const slots = planningData[agentId]?.[weekKey]?.[day] || []; // Récupère les créneaux de l'agent pour ce jour
             const agentInfo = agentDisplayInfos[agentId]; // Récupère le nom/prénom
 
             const tr = document.createElement("tr");
             const tdAgent = document.createElement("td");
-            tdAgent.textContent = `${agentInfo.prenom} ${agentInfo.nom}`; // Affiche Prénom Nom
+            // S'assurer que agentInfo n'est pas undefined
+            if (agentInfo) {
+                tdAgent.textContent = `${agentInfo.prenom} ${agentInfo.nom}`; // Affiche Prénom Nom
+            } else {
+                tdAgent.textContent = `Agent ID: ${agentId} (Nom inconnu)`; // Fallback si info manquante
+            }
             tr.appendChild(tdAgent);
 
             allTimeSlots.forEach(slotString => {
@@ -850,7 +865,7 @@ async function loadAgents() {
 
         agentsTableBody.innerHTML = '';
         if (data.length === 0) {
-            agentsTableBody.innerHTML = '<tr><td colspan="6">Aucun agent enregistré pour le moment.</td></tr>'; // Colspan ajusté
+            agentsTableBody.innerHTML = '<tr><td colspan="7">Aucun agent enregistré pour le moment.</td></tr>'; // Colspan ajusté pour 7 colonnes (ID, Nom, Prénom, Qualifs, Grades, Fonctions, Actions)
         } else {
             data.forEach(agent => {
                 const row = agentsTableBody.insertRow();
@@ -879,15 +894,21 @@ async function loadAgents() {
                                     .join(', ');
 
                 row.innerHTML = `
-                    <td>${agent.id}</td>
+                    <td>${agent._id}</td>
                     <td>${agent.nom}</td>
                     <td>${agent.prenom}</td>
                     <td>${qualNames}</td>
-                    <td>${gradeNames}</td> <!-- Nouvelle colonne pour les grades -->
-                    <td>${functionNames}</td> <!-- Nouvelle colonne pour les fonctions -->
+                    <td>${gradeNames}</td>
+                    <td>${functionNames}</td>
                     <td>
-                        <button class="edit-btn btn-secondary" data-id="${agent.id}" data-nom="${agent.nom}" data-prenom="${agent.prenom}" data-qualifications='${JSON.stringify(agent.qualifications || [])}' data-grades='${JSON.stringify(agent.grades || [])}' data-functions='${JSON.stringify(agent.functions || [])}'>Modifier</button>
-                        <button class="delete-btn btn-danger" data-id="${agent.id}">Supprimer</button>
+                        <button class="edit-btn btn-secondary"
+                            data-id="${agent._id}"
+                            data-nom="${agent.nom}"
+                            data-prenom="${agent.prenom}"
+                            data-qualifications='${JSON.stringify(agent.qualifications || [])}'
+                            data-grades='${JSON.stringify(agent.grades || [])}'
+                            data-functions='${JSON.stringify(agent.functions || [])}'>Modifier</button>
+                        <button class="delete-btn btn-danger" data-id="${agent._id}">Supprimer</button>
                     </td>
                 `;
             });
@@ -897,7 +918,7 @@ async function loadAgents() {
         console.error('Erreur de chargement des agents:', error);
         listAgentsMessage.textContent = `Erreur : ${error.message}`;
         listAgentsMessage.style.color = 'red';
-        agentsTableBody.innerHTML = '<tr><td colspan="6">Impossible de charger la liste des agents.</td></tr>'; // Colspan ajusté
+        agentsTableBody.innerHTML = '<tr><td colspan="7">Impossible de charger la liste des agents.</td></tr>'; // Colspan ajusté
     }
 }
 
@@ -954,12 +975,17 @@ async function handleAddAgent(event) {
 
 async function handleAgentActions(event) {
     const target = event.target;
+    // MISE À JOUR 4 dans admin.js : Récupérer l'ID de l'agent depuis 'data-id'
+    // Le data-id est maintenant 'agent._id' grâce à la MISE À JOUR 3
     const agentId = target.dataset.id;
 
-    if (!agentId) return;
+    if (!agentId) {
+        console.error("Agent ID non trouvé pour l'action.");
+        return;
+    }
 
     if (target.classList.contains('edit-btn')) {
-        editAgentId.value = agentId;
+        editAgentId.value = agentId; // Ceci devrait maintenant être l'ID correct de l'agent (ex: "bruneaum")
         editAgentNom.value = target.dataset.nom;
         editAgentPrenom.value = target.dataset.prenom;
         editAgentNewPassword.value = '';
@@ -976,7 +1002,8 @@ async function handleAgentActions(event) {
 
         editAgentModal.style.display = 'block';
     } else if (target.classList.contains('delete-btn')) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agentId} ?`)) { // Confirmer avec l'utilisateur
+        // Confirmation avec l'utilisateur
+        if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agentId} ?`)) {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/admin/agents/${agentId}`, {
                     method: 'DELETE',
@@ -1002,7 +1029,7 @@ async function handleAgentActions(event) {
 
 async function handleEditAgent(event) {
     event.preventDefault();
-    const id = editAgentId.value.trim();
+    const id = editAgentId.value.trim(); // L'ID ici est correct car il vient du data-id de la ligne.
     const nom = editAgentNom.value.trim();
     const prenom = editAgentPrenom.value.trim();
     const newPassword = editAgentNewPassword.value.trim();
