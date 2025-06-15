@@ -60,49 +60,49 @@ const engineDetails = {
     'VSAV': { // Le type doit correspondre à celui dans appData.timeSlots[id].engines
         name: "VSAV",
         roles: [
-            { id: 'ca_vsav', name: 'Conducteur VSAV', required: true },
-            { id: 'cod_0', name: 'Chef VSAV', required: true },
-            { id: 'eq_vsav', name: 'Equipier VSAV', required: true },
+            { id: 'ca_vsav', name: 'CA VSAV', required: true },
+            { id: 'cod_0', name: 'CD VSAV', required: true },
+            { id: 'eq_vsav', name: 'EQ VSAV', required: true },
         ],
         criticalRoles: ['cod_0', 'ca_vsav'] // CD et CA sont critiques pour VSAV
     },
     'FPT': {
         name: "FPT",
         roles: [
-            { id: 'ca_fpt', name: 'Conducteur FPT', required: true },
-            { id: 'cod_1', name: 'Chef FPT', required: true },
-            { id: 'eq1_fpt', name: 'Equipier 1 FPT', required: true },
-            { id: 'eq2_fpt', name: 'Equipier 2 FPT', required: false }
+            { id: 'ca_fpt', name: 'CA FPT', required: true },
+            { id: 'cod_1', name: 'CD FPT', required: true },
+            { id: 'eq1_fpt', name: 'EQ1 FPT', required: true },
+            { id: 'eq2_fpt', name: 'EQ2 FPT', required: false }
         ],
         criticalRoles: ['cod_1', 'ca_fpt'] // CD et CA sont critiques pour FPT
     },
     'CCF': {
         name: "CCF",
         roles: [
-            { id: 'ca_ccf', name: 'Conducteur CCF', required: true },
-            { id: 'cod_2', name: 'Chef CCF', required: true },
-            { id: 'eq1_ccf', name: 'Equipier 1 CCF', required: true },
-            { id: 'eq2_ccf', name: 'Equipier 2 CCF', required: false }
+            { id: 'ca_ccf', name: 'CA CCF', required: true },
+            { id: 'cod_2', name: 'CD CCF', required: true },
+            { id: 'eq1_ccf', name: 'EQ1 CCF', required: true },
+            { id: 'eq2_ccf', name: 'EQ2 CCF', required: false }
         ],
         criticalRoles: ['cod_2', 'ca_ccf']
     },
     'VTU': {
         name: "VTU",
         roles: [
-            { id: 'ca_vtu', name: 'Conducteur VTU', required: true },
-            { id: 'cod_0', name: 'Chef VTU', required: true }, // Peut-être le même COD que VSAV
-            { id: 'eq_vtu', name: 'Equipier VTU', required: false }
+            { id: 'ca_vtu', name: 'CA VTU', required: true },
+            { id: 'cod_0', name: 'CD VTU', required: true }, // Peut-être le même COD que VSAV
+            { id: 'eq_vtu', name: 'EQ VTU', required: false }
         ],
-        criticalRoles: ['cod_0', 'ca_vtu']
+        criticalRoles: ['cod_0',]
     },
      'VPMA': {
         name: "VPMA",
         roles: [
-            { id: 'ca_vpma', name: 'Conducteur VPMA', required: true },
-            { id: 'cod_0', name: 'Chef VPMA', required: true },
-            { id: 'eq_vpma', name: 'Equipier VPMA', required: false }
+            { id: 'ca_vpma', name: 'CA VPMA', required: true },
+            { id: 'cod_0', name: 'CD VPMA', required: true },
+            { id: 'eq_vpma', name: 'EQ VPMA', required: false }
         ],
-        criticalRoles: ['cod_0', 'ca_vpma']
+        criticalRoles: ['none', 'none']
     }
 };
 
