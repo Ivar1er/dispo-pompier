@@ -26,10 +26,9 @@ app.use(cors({
       return callback(new Error(msg), false);
     }
     return callback(null, true);
-  }, // Suppression du backslash ici
-  credentials: true // Très important pour permettre l'envoi et la réception de cookies/sessions
+  }, 
+  credentials: true 
 }));
-// **********************************************
 
 app.use(express.json());
 
@@ -40,11 +39,11 @@ app.use(express.static(PUBLIC_DIR));
 // Répertoire persistant (./data en dev, ou défini par l'env var PERSISTENT_DIR en prod)
 const PERSISTENT_DIR = process.env.PERSISTENT_DIR || path.join(__dirname, 'data');
 
-const DATA_DIR               = path.join(PERSISTENT_DIR, 'plannings');
+const DATA_DIR               = path.join(PERSISTENT_DIR, 'plannings'); // Ancien dossier, à ne plus utiliser pour les dispo agent
 const USERS_FILE_PATH        = path.join(PERSISTENT_DIR, 'users.json');
 const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json');
 const GRADES_FILE_PATH       = path.join(PERSISTENT_DIR, 'grades.json');
-const FUNCTIONS_FILE_PATH    = path.join(PERSISTENT_DIR, 'functions.json');
+const FUNCTIONS_FILE_PATH    = path.join(PERSISTENT_DIR, 'functions.json'); // Maintenu car d'autres parties du code pourraient y faire référence (même si on l'a désactivé côté client admin)
 
 const ROSTER_CONFIG_DIR      = path.join(PERSISTENT_DIR, 'roster_configs');
 const DAILY_ROSTER_DIR       = path.join(PERSISTENT_DIR, 'daily_rosters');
@@ -58,6 +57,45 @@ let AVAILABLE_GRADES = [];
 let AVAILABLE_FUNCTIONS = [];
 
 const DEFAULT_ADMIN_PASSWORD = 'supersecureadminpassword';
+
+// --- Helpers de date (pour la structuration des plannings) ---
+// Ces fonctions doivent être en sync avec celles côté client
+function getCurrentISOWeek(date = new Date()) {
+    const _date = new Date(date.getTime());
+    _date.setHours(0, 0, 0, 0);
+    _date.setDate(_date.getDate() + 3 - ((_date.getDay() + 6) % 7));
+    const week1 = new Date(_date.getFullYear(), 0, 4);
+    return (
+        1 +
+        Math.round(
+            ((_date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
+        )
+    );
+}
+
+function getDateForDayInWeek(weekNum, dayIndex, year = new Date().getFullYear()) {
+    const daysOfWeek = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+    if (dayIndex === -1) { // dayIndex is already 0-6
+        return null;
+    }
+
+    const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
+    const dow = simple.getDay() || 7; 
+    const mondayOfISOWeek = new Date(simple);
+    mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1));
+    mondayOfISOWeek.setHours(0, 0, 0, 0);
+
+    const targetDate = new Date(mondayOfISOWeek);
+    targetDate.setDate(mondayOfISOWeek.getDate() + dayIndex);
+    return targetDate;
+}
+
+function formatDateToYYYYMMDD(d) {
+    const dt = new Date(d);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}` +
+        `-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
 
 // --- Chargement / sauvegarde des utilisateurs ---
 
@@ -172,7 +210,7 @@ async function saveGrades() {
   }
 }
 
-// --- Chargement / sauvegarde des fonctions ---
+// --- Chargement / sauvegarde des fonctions (maintenu si besoin pour d'anciennes références) ---
 
 async function loadFunctions() {
   try {
@@ -180,13 +218,9 @@ async function loadFunctions() {
     AVAILABLE_FUNCTIONS = JSON.parse(data);
   } catch (err) {
     if (err.code === 'ENOENT') {
-      AVAILABLE_FUNCTIONS = [
-        { id: 'none', name: 'none' },
-        { id: 'none',    name: 'none' },
-        { id: 'none',      name: 'none' }
-      ];
+      AVAILABLE_FUNCTIONS = []; // Vide par défaut si supprimé du frontend
       await saveFunctions();
-      console.log('Default functions created.');
+      console.log('Default functions created (empty).');
     } else {
       console.error('Error loading functions:', err);
     }
@@ -214,16 +248,15 @@ async function initializeRosterFolders() {
 
 (async () => {
   await fs.mkdir(PERSISTENT_DIR, { recursive: true }).catch(console.error);
-  await fs.mkdir(DATA_DIR,       { recursive: true }).catch(console.error);
+  // DATA_DIR n'est plus utilisé pour les dispo agent, mais peut être utile pour d'autres usages.
+  // await fs.mkdir(DATA_DIR,       { recursive: true }).catch(console.error); 
   await initializeRosterFolders();
 
   await loadUsers();
   await loadQualifications();
   await loadGrades();
-  await loadFunctions();
+  await loadFunctions(); // Maintenu pour la compatibilité, mais devrait charger vide si vous l'avez supprimé.
 
-  // Optionnel : initialiser des données d’exemple si vous le souhaitez
-  // await initializeSampleRosterDataForTesting();
 })();
 
 // --- Middleware d’admin ---
@@ -257,52 +290,115 @@ app.post("/api/login", async (req, res) => {
 
 // --- Routes de planning (disponibilités individuelles des agents) ---
 
-// Route pour obtenir le planning d'un agent spécifique
-app.get('/api/planning/:agent', async (req, res) => {
-  const agent = req.params.agent.toLowerCase();
-  const filePath = path.join(DATA_DIR, `${agent}.json`);
-  try {
-    const data = await fs.readFile(filePath, 'utf8');
-    res.json(JSON.parse(data));
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-        // Retourne un objet vide si le fichier n'existe pas, au lieu d'une erreur 404
-        console.log(`[INFO Serveur] Planning for agent ${agent} not found. Returning empty object.`);
-        return res.status(200).json({}); // Statut 200 OK ici
+// Nouvelle fonction pour charger toutes les disponibilités d'un agent et les structurer
+// Elle lira tous les fichiers de l'agent dans les sous-dossiers de dates
+async function loadAgentPlanningFromFiles(agentId) {
+    const agentPlanning = {}; // { week-X: { day: [slots] } }
+    const daysOfWeek = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+
+    try {
+        // Lire tous les dossiers de dates dans AGENT_AVAILABILITY_DIR
+        const dateFolders = await fs.readdir(AGENT_AVAILABILITY_DIR);
+
+        for (const dateFolder of dateFolders) {
+            const datePath = path.join(AGENT_AVAILABILITY_DIR, dateFolder);
+            const stats = await fs.stat(datePath);
+
+            if (stats.isDirectory()) {
+                const filePath = path.join(datePath, `${agentId}.json`);
+                try {
+                    const data = await fs.readFile(filePath, 'utf8');
+                    const availabilitiesForDate = JSON.parse(data); // C'est un tableau d'objets {start, end}
+
+                    // Déduire la semaine et le jour à partir de dateFolder (ex: 2025-06-17)
+                    const dateParts = dateFolder.split('-');
+                    if (dateParts.length === 3) {
+                        const year = parseInt(dateParts[0]);
+                        const month = parseInt(dateParts[1]) - 1; // Mois 0-indexé
+                        const day = parseInt(dateParts[2]);
+                        const dateObj = new Date(year, month, day);
+
+                        const weekNum = getCurrentISOWeek(dateObj);
+                        const dayIndex = dateObj.getDay(); // 0 pour Dimanche, 1 pour Lundi, etc.
+                        const clientDayName = daysOfWeek[(dayIndex === 0 ? 6 : dayIndex - 1)]; // Convertir 0 (Dim) en 6 (Dim), 1 (Lun) en 0 (Lun)
+
+                        const weekKey = `week-${weekNum}`;
+                        
+                        if (!agentPlanning[weekKey]) {
+                            agentPlanning[weekKey] = {};
+                        }
+                        // Convertir les objets {start, end} en chaînes "HH:MM - HH:MM" pour le client
+                        agentPlanning[weekKey][clientDayName] = availabilitiesForDate.map(slot => `${slot.start} - ${slot.end}`);
+                    }
+                } catch (readErr) {
+                    if (readErr.code === 'ENOENT') {
+                        // console.warn(`[AVERTISSEMENT Serveur] Fichier de disponibilité pour l'agent ${agentId} le ${dateFolder} non trouvé. Ignoré.`);
+                    } else {
+                        console.error(`[ERREUR Serveur] Erreur de lecture du fichier de disponibilité pour ${agentId} le ${dateFolder}:`, readErr);
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            console.log(`[INFO Serveur] Le dossier de disponibilités des agents n'existe pas ou est vide. Retourne un objet vide.`);
+        } else {
+            console.error(`[ERREUR Serveur] Erreur inattendue lors du chargement des plannings de l'agent ${agentId}:`, err);
+        }
     }
-    console.error(`[ERREUR Serveur] Erreur de lecture du planning pour l'agent ${agent}:`, err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+    return agentPlanning;
+}
 
-// Route pour sauvegarder le planning d'un agent spécifique
-app.post('/api/planning/:agent', async (req, res) => {
-  const agent = req.params.agent.toLowerCase();
-  const filePath = path.join(DATA_DIR, `${agent}.json`);
+
+// Route pour obtenir le planning d'un agent spécifique (STRUCTURÉ PAR SEMAINE/JOUR)
+app.get('/api/planning/:agentId', async (req, res) => {
+  const agentId = req.params.agentId.toLowerCase();
   try {
-    await fs.writeFile(filePath, JSON.stringify(req.body, null, 2), 'utf8');
-    res.json({ message: 'Planning saved successfully' });
+    const planning = await loadAgentPlanningFromFiles(agentId);
+    res.status(200).json(planning);
   } catch (err) {
-    console.error(`[ERREUR Serveur] Erreur de sauvegarde du planning pour l'agent ${agent}:`, err);
-    res.status(500).json({ message: 'Server error when saving planning.' });
+    console.error(`[ERREUR Serveur] Erreur de récupération du planning de l'agent ${agentId}:`, err);
+    res.status(500).json({ message: 'Erreur serveur lors de la récupération du planning.' });
   }
 });
 
-// Route pour obtenir tous les plannings (utilisé pour la feuille de garde)
+
+// Route pour sauvegarder le planning d'un agent spécifique pour UNE DATE
+app.post('/api/agent-availability/:dateKey/:agentId', async (req, res) => {
+    const dateKey = req.params.dateKey; // YYYY-MM-DD
+    const agentId = req.params.agentId.toLowerCase();
+    const availabilities = req.body; // C'est un tableau d'objets {start, end}
+
+    if (!Array.isArray(availabilities)) {
+        console.error(`[ERREUR Serveur] Availabilities doit être un tableau. Reçu type: ${typeof availabilities}, contenu:`, availabilities);
+        return res.status(400).json({ message: 'Availabilities must be an array.' });
+    }
+
+    const filePath = path.join(AGENT_AVAILABILITY_DIR, dateKey, `${agentId}.json`);
+    await fs.mkdir(path.dirname(filePath), { recursive: true }); // Crée le dossier de date si n'existe pas
+
+    try {
+        await fs.writeFile(filePath, JSON.stringify(availabilities, null, 2), 'utf8');
+        console.log(`[INFO Serveur] Disponibilités de l'agent ${agentId} enregistrées pour la date ${dateKey}.`);
+        res.status(200).json({ message: 'Disponibilités enregistrées avec succès.' });
+    } catch (err) {
+        console.error(`[ERREUR Serveur] Erreur lors de l'écriture du fichier de disponibilité pour ${agentId} sur ${dateKey}:`, err);
+        res.status(500).json({ message: 'Erreur serveur lors de l\'enregistrement des disponibilités.' });
+    }
+});
+
+// Route pour obtenir tous les plannings (utilisé pour le planning global de l'admin)
 app.get('/api/planning', async (req, res) => {
   try {
-    const files = await fs.readdir(DATA_DIR);
-    const all = {};
-    for (const file of files.filter(f => f.endsWith('.json'))) {
-      const agent = path.basename(file, '.json');
-      const content = await fs.readFile(path.join(DATA_DIR, file), 'utf8');
-      all[agent] = JSON.parse(content);
+    const allAgentIds = Object.keys(USERS).filter(id => USERS[id].role === 'agent');
+    const allPlannings = {};
+    for (const agentId of allAgentIds) {
+      allPlannings[agentId] = await loadAgentPlanningFromFiles(agentId);
     }
-    res.json(all);
-  }
-  catch (err) {
-    console.error(`[ERREUR Serveur] Erreur de récupération de tous les plannings:`, err);
-    res.status(500).json({ message: 'Error getting plannings' });
+    res.json(allPlannings);
+  } catch (err) {
+    console.error(`[ERREUR Serveur] Erreur de récupération de tous les plannings (admin):`, err);
+    res.status(500).json({ message: 'Error getting all plannings' });
   }
 });
 
@@ -312,15 +408,34 @@ app.get('/api/admin/agents', authorizeAdmin, (req, res) => {
   const list = Object.entries(USERS)
     .filter(([_,u]) => u.role === 'agent' || u.role === 'admin')
     .map(([id,u]) => ({
-      _id: id, // Utilisé pour la cohérence avec le frontend si vous utilisez _id
+      _id: id, 
       prenom: u.prenom,
       nom:    u.nom,
       qualifications: u.qualifications || [],
       grades:         u.grades || [],
-      functions:      u.functions || []
+      functions:      u.functions || [] // Maintenu pour la compatibilité
     }));
   res.json(list);
 });
+
+// NOUVEAU : Route pour obtenir les détails d'un agent spécifique par ID
+app.get('/api/admin/agents/:id', authorizeAdmin, (req, res) => {
+    const agentId = req.params.id.toLowerCase();
+    const agent = USERS[agentId];
+    if (agent && (agent.role === 'agent' || agent.role === 'admin')) {
+        res.json({
+            _id: agentId,
+            prenom: agent.prenom,
+            nom: agent.nom,
+            qualifications: agent.qualifications || [],
+            grades: agent.grades || [],
+            functions: agent.functions || [] // Maintenu pour la compatibilité
+        });
+    } else {
+        res.status(404).json({ message: 'Agent not found or not authorized.' });
+    }
+});
+
 
 app.post('/api/admin/agents', authorizeAdmin, async (req, res) => {
   const { id, nom, prenom, password, qualifications, grades, functions } = req.body;
@@ -368,8 +483,29 @@ app.delete('/api/admin/agents/:id', authorizeAdmin, async (req, res) => {
   }
   delete USERS[key];
   await saveUsers();
-  const planningFile = path.join(DATA_DIR, `${key}.json`);
-  await fs.unlink(planningFile).catch(() => {}); // Supprime le fichier de planning de l'agent si existant
+  
+  // Supprimer les fichiers de disponibilité de l'agent dans tous les dossiers de dates
+  try {
+      const dateFolders = await fs.readdir(AGENT_AVAILABILITY_DIR);
+      for (const dateFolder of dateFolders) {
+          const filePath = path.join(AGENT_AVAILABILITY_DIR, dateFolder, `${key}.json`);
+          await fs.unlink(filePath).catch((err) => {
+              if (err.code !== 'ENOENT') console.warn(`[AVERTISSEMENT Serveur] Erreur lors de la suppression du fichier de dispo de l'agent ${key} pour ${dateFolder}:`, err);
+          });
+      }
+      console.log(`[INFO Serveur] Tous les fichiers de disponibilité pour l'agent ${key} ont été supprimés.`);
+  } catch (err) {
+      if (err.code === 'ENOENT') {
+          console.log(`[INFO Serveur] Aucun dossier de disponibilité trouvé pour l'agent ${key}.`);
+      } else {
+          console.error(`[ERREUR Serveur] Erreur lors de la suppression des dossiers de disponibilité de l'agent ${key}:`, err);
+      }
+  }
+
+  // Ancien chemin de planning, ne devrait plus exister pour les nouvelles données
+  // const planningFile = path.join(DATA_DIR, `${key}.json`);
+  // await fs.unlink(planningFile).catch(() => {}); 
+  
   res.json({ message: 'Agent and planning deleted.' });
 });
 
@@ -461,7 +597,7 @@ app.delete('/api/grades/:id', authorizeAdmin, async (req,res)=>{
   res.json({message:'Deleted'});
 });
 
-// --- Gestion des fonctions ---
+// --- Gestion des fonctions (maintenu si besoin pour d'anciennes références) ---
 
 app.get('/api/functions', authorizeAdmin,    (req,res)=>res.json(AVAILABLE_FUNCTIONS));
 app.post('/api/functions', authorizeAdmin, async (req,res)=>{
@@ -588,83 +724,6 @@ app.post('/api/daily-roster/:dateKey', authorizeAdmin, async (req, res) => {
   }
 });
 
-// --- NOUVELLES ROUTES POUR LA GESTION DES DISPONIBILITÉS INDIVIDUELLES DES AGENTS ---
-
-// Permet à un agent de sauvegarder ses disponibilités pour une date donnée
-// Le body de la requête doit contenir un tableau d'objets 'disponibilites' pour la date
-app.post('/api/agent-availability/:dateKey/:agentId', async (req, res) => {
-    const dateKey = req.params.dateKey;
-    const agentId = req.params.agentId.toLowerCase();
-    const availabilities = req.body;
-
-    // --- Début du log de requête pour /api/agent-availability ---
-    console.log(`\n--- Début du log de requête pour /api/agent-availability ---`);
-    console.log(`[Serveur Debug] Reçu POST pour dateKey: ${dateKey}, agentId: ${agentId}`);
-    console.log(`[Serveur Debug] req.headers['content-type']:`, req.headers['content-type']); // Très important !
-    console.log(`[Serveur Debug] Type de req.body (après middleware express.json()) : ${typeof availabilities}`);
-    console.log(`[Serveur Debug] Est-ce un tableau ? : ${Array.isArray(availabilities)}`);
-    console.log(`[Serveur Debug] Contenu de req.body (raw) :`, availabilities); // C'est le contenu brut reçu
-    console.log(`--- Fin du log de requête ---`);
-
-    if (!Array.isArray(availabilities)) {
-        console.error(`[ERREUR Serveur] Availabilities doit être un tableau. Reçu type: ${typeof availabilities}, contenu:`, availabilities);
-        return res.status(400).json({ message: 'Availabilities must be an array.' });
-    }
-
-    const filePath = path.join(AGENT_AVAILABILITY_DIR, dateKey, `${agentId}.json`);
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-
-    try {
-        await fs.writeFile(filePath, JSON.stringify(availabilities, null, 2), 'utf8');
-        console.log(`[INFO Serveur] Disponibilités de l'agent ${agentId} enregistrées pour la date ${dateKey}.`);
-        res.status(200).json({ message: 'Disponibilités enregistrées avec succès.' });
-    } catch (err) {
-        console.error(`[ERREUR Serveur] Erreur lors de l'écriture du fichier de disponibilité pour ${agentId} sur ${dateKey}:`, err);
-        res.status(500).json({ message: 'Erreur serveur lors de l\'enregistrement des disponibilités.' });
-    }
-});
-
-// Permet de récupérer toutes les disponibilités individuelles des agents pour une date donnée
-app.get('/api/agent-availability/:dateKey', async (req, res) => {
-  const dateKey = req.params.dateKey;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    console.error(`[ERREUR Serveur] Format de date invalide pour agent-availability: ${dateKey}`);
-    return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
-  }
-
-  const dateDirPath = path.join(AGENT_AVAILABILITY_DIR, dateKey);
-  const allAgentAvailabilities = {};
-
-  try {
-    const files = await fs.readdir(dateDirPath);
-    for (const file of files.filter(f => f.endsWith('.json'))) {
-      const agentId = path.basename(file, '.json');
-      const filePath = path.join(dateDirPath, file);
-      try {
-        const data = await fs.readFile(filePath, 'utf8');
-        allAgentAvailabilities[agentId] = JSON.parse(data);
-      } catch (readErr) {
-        // This is for individual agent files being corrupt/missing within an existing directory
-        if (readErr.code === 'ENOENT') {
-             console.warn(`[AVERTISSEMENT Serveur] Fichier de disponibilité pour l'agent ${agentId} le ${dateKey} non trouvé. Ignoré.`);
-        } else {
-            console.error(`[ERREUR Serveur] Erreur de lecture du fichier de disponibilité pour ${agentId} le ${dateKey}:`, readErr);
-        }
-        // Continue to next file even if one is bad
-      }
-    }
-    console.log(`[INFO Serveur] All agent availabilities retrieved for ${dateKey}. Found ${Object.keys(allAgentAvailabilities).length} agents. Sending 200 OK.`);
-    res.json(allAgentAvailabilities);
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      // This catches if the *directory* for the date doesn't exist
-      console.log(`[INFO Serveur] Agent availabilities directory not found for ${dateKey}. Sending 200 OK with empty object.`);
-      return res.status(200).json({});
-    }
-    console.error(`[ERREUR Serveur] Erreur inattendue lors de la récupération des disponibilités de tous les agents pour ${dateKey}:`, err);
-    res.status(500).json({ message: 'Server error retrieving all agent availabilities.' });
-  }
-});
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);

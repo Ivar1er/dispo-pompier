@@ -1,19 +1,19 @@
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
-let currentWeekKey;
+let currentWeekKey; // Format: "week-XX"
 let currentAgentId = sessionStorage.getItem("agent");
-let agentQualifications = [];
-let currentDay = 'lundi';
-let agentPlanningData = {}; // Stores the planning data (week -> day -> slots)
+// let agentQualifications = []; // Remplacé - suppression des qualifications
+let currentDay = 'lundi'; // Default day for display
+let agentPlanningData = {}; // Stores the planning data (weekKey -> day -> slots)
 let initialPlanningState = {}; // Used to check for unsaved changes
 
 // --- Helpers ---
 
 /**
- * Formate un objet Date en chaîne YYYY-MM-DD.
- * @param {Date} d - L'objet Date à formater.
- * @returns {string} La date formatée (ex: "2023-01-15").
+ * Formats a Date object into a YYYY-MM-DD string.
+ * @param {Date} d - The Date object to format.
+ * @returns {string} The formatted date (e.g., "2023-01-15").
  */
 function formatDateToYYYYMMDD(d) {
     const dt = new Date(d);
@@ -22,19 +22,19 @@ function formatDateToYYYYMMDD(d) {
 }
 
 /**
- * Calcule le numéro de semaine ISO 8601 pour une date donnée.
- * La semaine 1 est celle qui contient le premier jeudi de l'année.
- * @param {Date} date - La date pour laquelle calculer le numéro de semaine.
- * @returns {number} Le numéro de semaine ISO 8601.
+ * Calculates the ISO 8601 week number for a given date.
+ * Week 1 is the one containing the first Thursday of the year.
+ * @param {Date} date - The date to calculate the week number for.
+ * @returns {number} The ISO 8601 week number.
  */
 function getCurrentISOWeek(date = new Date()) {
     const _date = new Date(date.getTime());
     _date.setHours(0, 0, 0, 0);
-    // Jeudi de la semaine
+    // Thursday of the week
     _date.setDate(_date.getDate() + 3 - ((_date.getDay() + 6) % 7));
-    // 1er Janvier
+    // January 1st
     const week1 = new Date(_date.getFullYear(), 0, 4);
-    // Ajuster au premier jeudi de l'année
+    // Adjust to the first Thursday of the year
     return (
         1 +
         Math.round(
@@ -44,26 +44,26 @@ function getCurrentISOWeek(date = new Date()) {
 }
 
 /**
- * Récupère l'objet Date pour un jour spécifique d'une semaine ISO donnée.
- * @param {string} weekKey - La clé de la semaine (ex: "week-24").
- * @param {string} dayName - Le nom du jour en français (ex: "lundi").
- * @param {number} year - L'année (par défaut l'année courante).
- * @returns {Date|null} L'objet Date correspondant, ou null si le nom du jour est invalide.
+ * Retrieves the Date object for a specific day of a given ISO week.
+ * @param {string} weekKey - The week key (e.g., "week-24").
+ * @param {string} dayName - The French name of the day (e.g., "lundi").
+ * @param {number} year - The year (defaults to current year).
+ * @returns {Date|null} The corresponding Date object, or null if the day name is invalid.
  */
 function getDateForDayInWeek(weekKey, dayName, year = new Date().getFullYear()) {
     const weekNum = parseInt(weekKey.split('-')[1]);
     
-    // Obtenir le lundi de la semaine ISO spécifique
+    // Get the Monday of the specific ISO week
     const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
     const dow = simple.getDay() || 7; // Sunday is 0, Monday is 1, ..., Saturday is 6. For ISO, Sunday is 7.
     const mondayOfISOWeek = new Date(simple);
     mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1));
-    mondayOfISOWeek.setHours(0, 0, 0, 0); // S'assurer que l'heure est minuit
+    mondayOfISOWeek.setHours(0, 0, 0, 0); // Ensure time is midnight
 
-    // Mapper dayName à l'index du jour (Lundi=0, Dimanche=6)
+    // Map dayName to day index (Lundi=0, Dimanche=6)
     const dayIndex = days.indexOf(dayName);
     if (dayIndex === -1) {
-        console.error(`Nom de jour invalide : ${dayName}`);
+        console.error(`Invalid day name: ${dayName}`);
         return null;
     }
 
@@ -73,10 +73,10 @@ function getDateForDayInWeek(weekKey, dayName, year = new Date().getFullYear()) 
 }
 
 
-// Créneaux 30 min sur 24h (affichage)
+// 30-min slots over 24h (display)
 const horaires = [];
-const startHourDisplay = 7;
-for (let i = 0; i < 48; i++) {
+const startHourDisplay = 7; // Display starts from 7 AM
+for (let i = 0; i < 48; i++) { // 48 slots for 24 hours (2 per hour)
   const currentSlotHour = (startHourDisplay + Math.floor(i / 2)) % 24;
   const currentSlotMinute = (i % 2) * 30;
   const endSlotHour = (startHourDisplay + Math.floor((i + 1) / 2)) % 24;
@@ -86,10 +86,10 @@ for (let i = 0; i < 48; i++) {
   horaires.push(`${start} - ${end}`);
 }
 
-// Eléments du DOM
+// DOM Elements
 const agentPrenomSpan = document.getElementById("agent-prenom");
 const agentNomSpan = document.getElementById("agent-nom");
-const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay');
+// const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay'); // Remplacé - suppression des qualifications
 const weekSelect = document.getElementById("week-select");
 const syntheseBtn = document.getElementById("synthese-btn");
 const tabButtons = document.querySelectorAll('.tab');
@@ -98,7 +98,8 @@ const loadingSpinner = document.getElementById("loading-spinner");
 const saveButton = document.getElementById("save-button");
 const clearSelectionBtn = document.getElementById("clear-selection-btn");
 const logoutButton = document.getElementById("logout-button");
-const selectionInfo = document.getElementById("selection-info"); // Ajouté si cet élément est dans votre HTML
+const selectionInfo = document.getElementById("selection-info"); // Added if this element is in your HTML
+
 
 document.addEventListener("DOMContentLoaded", async () => {
   const userRole = sessionStorage.getItem("userRole");
@@ -118,29 +119,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     agentNomSpan.textContent = agentNom || '';
   }
 
-  await loadAgentQualifications(currentAgentId);
-  displayAgentQualifications();
+  // await loadAgentQualifications(currentAgentId); // Remplacé - suppression des qualifications
+  // displayAgentQualifications(); // Remplacé - suppression des qualifications
 
   generateWeekOptions();
   const today = new Date();
   const currentWeekNumber = getCurrentISOWeek(today);
-  currentWeekKey = `week-${currentWeekNumber}`;
-  sessionStorage.setItem("selectedWeek", currentWeekKey); // SAUVEGARDE DANS LE SESSIONSTORAGE pour la synthèse
+  currentWeekKey = `week-${currentWeekNumber}`; // Set initial currentWeekKey
+
+  // Set the selected week in sessionStorage for the synthesis page
+  sessionStorage.setItem("selectedWeek", currentWeekKey); 
 
   if (weekSelect) {
-    for (let option of weekSelect.options) {
-      if (option.value === currentWeekKey) {
-        weekSelect.value = currentWeekKey;
-        break;
-      }
-    }
+    // Select the current week in the dropdown
+    weekSelect.value = currentWeekKey;
   }
 
+  // Load and render planning for the initial week and day
   await loadPlanningForAgent(currentAgentId, currentWeekKey, currentDay);
 
   if (weekSelect) {
     weekSelect.addEventListener("change", async () => {
-      if (await hasUnsavedChanges()) { // Utilisez await pour le confirmModal
+      if (await hasUnsavedChanges()) { 
         const confirmed = await confirmModal("Vous avez des modifications non enregistrées pour le jour actuel. Voulez-vous les enregistrer maintenant ?");
         if (!confirmed) {
           weekSelect.value = currentWeekKey; // Revert selection if not confirmed
@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await savePlanning();
       }
       currentWeekKey = weekSelect.value;
-      sessionStorage.setItem("selectedWeek", currentWeekKey); // SAUVEGARDE DANS LE SESSIONSTORAGE pour la synthèse
+      sessionStorage.setItem("selectedWeek", currentWeekKey); // Update sessionStorage for synthesis
       await loadPlanningForAgent(currentAgentId, currentWeekKey, currentDay);
     });
   }
@@ -161,7 +161,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     tabButtons.forEach(button => {
       button.addEventListener('click', async () => {
         const targetDay = button.dataset.day;
-        if (await hasUnsavedChanges()) { // Utilisez await pour le confirmModal
+        if (await hasUnsavedChanges()) { 
           const confirmed = await confirmModal("Vous avez des modifications non enregistrées pour le jour actuel. Voulez-vous les enregistrer maintenant ?");
           if (!confirmed) {
             return;
@@ -174,26 +174,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderPlanningGrid(currentDay);
       });
     });
-    // Active le bouton du jour courant au démarrage
+    // Activate the current day button on startup
     const initialActiveDayBtn = document.querySelector(`.tab[data-day="${currentDay}"]`);
     if (initialActiveDayBtn) {
         initialActiveDayBtn.classList.add('active');
     }
-    renderPlanningGrid(currentDay);
+    renderPlanningGrid(currentDay); // Initial render of the planning grid
   }
 
   initCellSelection();
   showLoading(false);
 });
 
-// --- Fonctions de gestion des qualifications ---
+// --- Qualification Management Functions (REMOVED) ---
+// La gestion des qualifications de l'agent a été supprimée de ce fichier.
+// Le code suivant est commenté ou supprimé pour alléger.
+
+/*
 async function loadAgentQualifications(agentId) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/admin/agents/${agentId}`, {
-      headers: { 'X-User-Role': 'admin' } // Assurez-vous que cette requête est autorisée pour l'admin ou via un token agent
+      headers: { 'X-User-Role': sessionStorage.getItem("userRole") } 
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Erreur lors du chargement des qualifications de l\'agent.');
+    
     agentQualifications = data.qualifications || [];
     console.log(`Qualifications de ${agentId}:`, agentQualifications);
   } catch (error) {
@@ -211,10 +216,13 @@ function displayAgentQualifications() {
     if (agentQualifications.length > 0) {
       agentQualificationsDisplay.innerHTML = 'Vos qualifications : ' + agentQualifications.map(q => `<span class="qualification-tag">${q}</span>`).join(', ');
     } else {
-      agentQualificationsDisplay.textContent = 'Aucune qualification enregistrée.'; // Message plus clair
+      agentQualificationsDisplay.textContent = 'Aucune qualification enregistrée.'; 
     }
   }
 }
+*/
+// Fin de la section de gestion des qualifications (supprimée)
+
 
 function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
   const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
@@ -238,7 +246,7 @@ function generateWeekOptions() {
   const today = new Date();
   const currentWeekNumber = getCurrentISOWeek(today);
   const currentYear = today.getFullYear();
-  for (let i = 0; i < 6; i++) { // Génère la semaine actuelle et les 5 suivantes
+  for (let i = 0; i < 6; i++) { // Generates current week and next 5
     const weekNum = currentWeekNumber + i;
     const option = document.createElement("option");
     option.value = `week-${weekNum}`;
@@ -251,8 +259,10 @@ function generateWeekOptions() {
 function renderPlanningGrid(day) {
   if (!planningContainer) return;
   planningContainer.innerHTML = '';
+  // agentPlanningData is now structured as { weekKey: { day: [slots] } }
   const currentWeekPlanning = agentPlanningData[currentWeekKey] || {};
   const dayPlanning = currentWeekPlanning[day] || [];
+  
   horaires.forEach(timeSlot => {
     const button = document.createElement("button");
     button.classList.add("slot-button");
@@ -275,13 +285,13 @@ function initCellSelection() {
     const clickedIndex = buttons.indexOf(e.target);
     if (selectionStartIndex === null) {
       selectionStartIndex = clickedIndex;
-      // Au premier clic, on change l'état de la cellule cliquée pour donner un feedback visuel immédiat
+      // On first click, toggle the clicked cell's state for immediate visual feedback
       e.target.classList.toggle('selected');
     } else {
       const start = Math.min(selectionStartIndex, clickedIndex);
       const end = Math.max(selectionStartIndex, clickedIndex);
-      // Détermine si les cellules de la sélection seront sélectionnées ou désélectionnées
-      // basé sur l'état de la première cellule cliquée
+      // Determine if cells in the selection will be selected or deselected
+      // based on the state of the first clicked cell
       const shouldSelect = buttons[selectionStartIndex].classList.contains('selected'); 
       for (let i = start; i <= end; i++) {
         if (shouldSelect) {
@@ -309,18 +319,18 @@ async function hasUnsavedChanges() {
 async function loadPlanningForAgent(agentId, weekKey, day) {
   showLoading(true);
   try {
-    // Note: This endpoint still loads the full planning object per agent,
-    // which is needed for `hasUnsavedChanges` and overall state.
+    // This endpoint now returns the agent's full planning structured by week and day
     const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`);
-    const data = await response.json();
+    const data = await response.json(); // This data should now be { week-X: { day: [slots] } }
     if (!response.ok) throw new Error(data.message || 'Erreur lors du chargement du planning.');
-    agentPlanningData = data;
+    
+    agentPlanningData = data; // Assign the fetched structured data
     initialPlanningState = JSON.parse(JSON.stringify(data)); // Deep copy for change detection
     renderPlanningGrid(day);
   } catch (error) {
     console.error('Erreur de chargement du planning:', error);
     displayMessageModal("Erreur de Chargement", `Erreur lors du chargement de votre planning : ${error.message}`, "error");
-    agentPlanningData = {};
+    agentPlanningData = {}; // Reset data on error
     initialPlanningState = {};
     renderPlanningGrid(day); // Render empty grid on error
   } finally {
@@ -331,7 +341,7 @@ async function loadPlanningForAgent(agentId, weekKey, day) {
 async function savePlanning() {
   const selectedSlotsForCurrentDay = Array.from(planningContainer.querySelectorAll('.slot-button.selected')).map(btn => btn.dataset.time);
   
-  // Convert "HH:MM - HH:MM" strings to {start: "HH:MM", end: "HH:MM"} objects
+  // Convert "HH:MM - HH:MM" strings to {start: "HH:MM", end: "HH:MM"} objects for server
   const formattedAvailabilities = selectedSlotsForCurrentDay.map(slot => {
     const [start, end] = slot.split(' - ');
     return { start, end };
@@ -346,24 +356,19 @@ async function savePlanning() {
   }
   const dateKey = formatDateToYYYYMMDD(dateObj); // Use helper function for YYYY-MM-DD
 
-  // Update local planning data for the current day
+  // Update local planning data for the current day immediately (optimistic update)
   if (!agentPlanningData[currentWeekKey]) agentPlanningData[currentWeekKey] = {};
   agentPlanningData[currentWeekKey][currentDay] = selectedSlotsForCurrentDay;
 
 
   showLoading(true, saveButton);
   try {
-    // >>> Lignes de log modifiées pour un débogage plus précis <<<
-    console.log(`[Agent App Debug] Enregistrement des disponibilités pour l'agent ${currentAgentId} à la date ${dateKey}.`);
-    console.log(`[Agent App Debug] Objet JavaScript à envoyer (formattedAvailabilities):`, formattedAvailabilities);
     const jsonBody = JSON.stringify(formattedAvailabilities);
-    console.log(`[Agent App Debug] Chaîne JSON envoyée dans le corps de la requête:`, jsonBody);
-    // >>> Fin des lignes de log modifiées <<<
 
     const response = await fetch(`${API_BASE_URL}/api/agent-availability/${dateKey}/${currentAgentId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: jsonBody, // Utilise la chaîne JSON générée
+      body: jsonBody, 
     });
     const data = await response.json();
     if (response.ok) {
@@ -425,13 +430,13 @@ document.addEventListener('focusout', function(e) {
   }
 });
 
-// --- Modale de messages (remplace alert() et confirm()) ---
+// --- Message Modals (replaces alert() and confirm()) ---
 /**
- * Affiche une modale de message personnalisée.
- * @param {string} title - Titre de la modale.
- * @param {string} message - Message à afficher.
- * @param {'info'|'success'|'error'|'warning'|'question'} type - Type de message pour le style.
- * @param {function(boolean)} [callback] - Fonction de rappel pour les confirmations.
+ * Displays a custom message modal.
+ * @param {string} title - Modal title.
+ * @param {string} message - Message to display.
+ * @param {'info'|'success'|'error'|'warning'|'question'} type - Message type for styling.
+ * @param {function(boolean)} [callback] - Callback function for confirmations.
  */
 function displayMessageModal(title, message, type = "info", callback = null) {
     let modal = document.getElementById('message-modal');
@@ -472,15 +477,15 @@ function displayMessageModal(title, message, type = "info", callback = null) {
     modal.onclick = (e) => {
         if (e.target === modal) {
             modal.style.display = 'none';
-            if (callback) callback(false); // Cliquer en dehors annule pour les confirmations
+            if (callback) callback(false); // Clicking outside cancels for confirmations
         }
     };
 }
 
 /**
- * Fonction asynchrone pour simuler confirm() avec la modale personnalisée.
- * @param {string} message - Message de confirmation.
- * @returns {Promise<boolean>} Une promesse qui résout avec true si l'utilisateur confirme, false sinon.
+ * Async function to simulate confirm() with the custom modal.
+ * @param {string} message - Confirmation message.
+ * @returns {Promise<boolean>} A promise that resolves with true if the user confirms, false otherwise.
  */
 async function confirmModal(message) {
     return new Promise((resolve) => {
@@ -490,6 +495,6 @@ async function confirmModal(message) {
     });
 }
 
-// Remplacement des fonctions natives alert et confirm pour utiliser les modales personnalisées
+// Replace native alert and confirm functions with custom modals
 window.alert = displayMessageModal.bind(null, "Information");
 window.confirm = confirmModal;
