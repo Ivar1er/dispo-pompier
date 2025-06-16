@@ -26,7 +26,7 @@ app.use(cors({
       return callback(new Error(msg), false);
     }
     return callback(null, true);
-  },
+  }, // Suppression du backslash ici
   credentials: true // Très important pour permettre l'envoi et la réception de cookies/sessions
 }));
 // **********************************************
@@ -268,7 +268,7 @@ app.get('/api/planning/:agent', async (req, res) => {
     if (err.code === 'ENOENT') {
         // Retourne un objet vide si le fichier n'existe pas, au lieu d'une erreur 404
         console.log(`[INFO Serveur] Planning for agent ${agent} not found. Returning empty object.`);
-        return res.json({});
+        return res.status(200).json({}); // Statut 200 OK ici
     }
     console.error(`[ERREUR Serveur] Erreur de lecture du planning pour l'agent ${agent}:`, err);
     res.status(500).json({ message: 'Server error' });
@@ -502,21 +502,22 @@ app.delete('/api/functions/:id', authorizeAdmin, async (req,res)=>{
 app.get('/api/roster-config/:dateKey', async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+    console.error(`[ERREUR Serveur] Format de date invalide pour roster-config: ${dateKey}`);
+    return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
   }
   const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
   try {
     const data = await fs.readFile(filePath, 'utf8');
     // Log pour le débogage : confirmation de la lecture du fichier
-    console.log(`[DEBUG Serveur] Roster config found for ${dateKey}.`);
+    console.log(`[INFO Serveur] Roster config found for ${dateKey}. Sending 200 OK.`);
     res.json(JSON.parse(data));
   } catch (err) {
     if (err.code === 'ENOENT') {
-      // NOUVEAU : Retourne un objet vide si le fichier n'existe pas, au lieu d'une erreur 404
-      console.log(`[INFO Serveur] Roster config not found for ${dateKey}. Returning empty object.`);
-      return res.json({});
+      // NOUVEAU : Retourne un objet vide si le fichier n'existe pas, avec un statut 200 OK
+      console.log(`[INFO Serveur] Roster config file not found for ${dateKey}. Sending 200 OK with empty object.`);
+      return res.status(200).json({});
     }
-    console.error(`[ERREUR Serveur] Erreur de lecture de la config de roster pour ${dateKey}:`, err);
+    console.error(`[ERREUR Serveur] Erreur inattendue de lecture de la config de roster pour ${dateKey}:`, err);
     res.status(500).json({ message: 'Server error reading roster config.' });
   }
 });
@@ -524,7 +525,7 @@ app.get('/api/roster-config/:dateKey', async (req, res) => {
 app.post('/api/roster-config/:dateKey', authorizeAdmin, async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
   }
   const { timeSlots, onDutyAgents } = req.body;
   if (!timeSlots || !onDutyAgents) {
@@ -546,21 +547,22 @@ app.post('/api/roster-config/:dateKey', authorizeAdmin, async (req, res) => {
 app.get('/api/daily-roster/:dateKey', async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+    console.error(`[ERREUR Serveur] Format de date invalide pour daily-roster: ${dateKey}`);
+    return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
   }
   const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
   try {
     const data = await fs.readFile(filePath, 'utf8');
     // Log pour le débogage : confirmation de la lecture du fichier
-    console.log(`[DEBUG Serveur] Daily roster found for ${dateKey}.`);
+    console.log(`[INFO Serveur] Daily roster found for ${dateKey}. Sending 200 OK.`);
     res.json(JSON.parse(data));
   } catch (err) {
     if (err.code === 'ENOENT') {
-      // NOUVEAU : Retourne un objet vide si le fichier n'existe pas, au lieu d'une erreur 404
-      console.log(`[INFO Serveur] Daily roster not found for ${dateKey}. Returning empty object.`);
-      return res.json({});
+      // NOUVEAU : Retourne un objet vide si le fichier n'existe pas, avec un statut 200 OK
+      console.log(`[INFO Serveur] Daily roster file not found for ${dateKey}. Sending 200 OK with empty object.`);
+      return res.status(200).json({});
     }
-    console.error(`[ERREUR Serveur] Erreur de lecture du daily roster pour ${dateKey}:`, err);
+    console.error(`[ERREUR Serveur] Erreur inattendue de lecture du daily roster pour ${dateKey}:`, err);
     res.status(500).json({ message: 'Server error reading daily roster.' });
   }
 });
@@ -568,7 +570,7 @@ app.get('/api/daily-roster/:dateKey', async (req, res) => {
 app.post('/api/daily-roster/:dateKey', authorizeAdmin, async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
   }
   const { onDutyAgents } = req.body; 
   if (!onDutyAgents) { 
@@ -594,7 +596,7 @@ app.post('/api/agent-availability/:dateKey/:agentId', async (req, res) => {
   const { availabilities } = req.body; // Supposons que le body contient { availabilities: [...] }
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
   }
   if (!agentId) {
     return res.status(400).json({ message: 'Agent ID is required.' });
@@ -621,7 +623,8 @@ app.post('/api/agent-availability/:dateKey/:agentId', async (req, res) => {
 app.get('/api/agent-availability/:dateKey', async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+    console.error(`[ERREUR Serveur] Format de date invalide pour agent-availability: ${dateKey}`);
+    return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
   }
 
   const dateDirPath = path.join(AGENT_AVAILABILITY_DIR, dateKey);
@@ -636,19 +639,24 @@ app.get('/api/agent-availability/:dateKey', async (req, res) => {
         const data = await fs.readFile(filePath, 'utf8');
         allAgentAvailabilities[agentId] = JSON.parse(data);
       } catch (readErr) {
-        console.error(`[ERREUR Serveur] Erreur de lecture du fichier de disponibilité pour ${agentId} le ${dateKey}:`, readErr);
-        // Continuer même si un fichier est corrompu, pour ne pas bloquer les autres
+        // This is for individual agent files being corrupt/missing within an existing directory
+        if (readErr.code === 'ENOENT') {
+             console.warn(`[AVERTISSEMENT Serveur] Fichier de disponibilité pour l'agent ${agentId} le ${dateKey} non trouvé. Ignoré.`);
+        } else {
+            console.error(`[ERREUR Serveur] Erreur de lecture du fichier de disponibilité pour ${agentId} le ${dateKey}:`, readErr);
+        }
+        // Continue to next file even if one is bad
       }
     }
-    console.log(`[INFO Serveur] All agent availabilities retrieved for ${dateKey}. Found ${Object.keys(allAgentAvailabilities).length} agents.`);
+    console.log(`[INFO Serveur] All agent availabilities retrieved for ${dateKey}. Found ${Object.keys(allAgentAvailabilities).length} agents. Sending 200 OK.`);
     res.json(allAgentAvailabilities);
   } catch (err) {
     if (err.code === 'ENOENT') {
-      // Si le dossier de la date n'existe pas, il n'y a pas de disponibilités pour cette date.
-      console.log(`[INFO Serveur] No agent availabilities directory found for ${dateKey}. Returning empty object.`);
-      return res.json({}); // Retourne un objet vide au lieu d'une erreur 404
+      // This catches if the *directory* for the date doesn't exist
+      console.log(`[INFO Serveur] Agent availabilities directory not found for ${dateKey}. Sending 200 OK with empty object.`);
+      return res.status(200).json({});
     }
-    console.error(`[ERREUR Serveur] Erreur lors de la récupération des disponibilités de tous les agents pour ${dateKey}:`, err);
+    console.error(`[ERREUR Serveur] Erreur inattendue lors de la récupération des disponibilités de tous les agents pour ${dateKey}:`, err);
     res.status(500).json({ message: 'Server error retrieving all agent availabilities.' });
   }
 });

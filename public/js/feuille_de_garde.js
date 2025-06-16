@@ -448,32 +448,34 @@ async function loadRosterConfig(dateKey) {
         async function loadAllPersonnelAvailabilities() {
           try {
             const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+            console.log(`[DEBUG Client] Appel de /api/agent-availability/${dateKey}`);
             const resp = await fetch(`${API_BASE_URL}/api/agent-availability/${dateKey}`, {
               headers: {'X-User-Role':'admin'} // Si l'admin a besoin d'accéder à toutes les dispos
             });
             if (!resp.ok) {
                 // Si le serveur renvoie un objet vide pour un 404, c'est déjà géré en renvoyant {}
                 // Gérer les autres erreurs HTTP comme des échecs
+                console.error(`[ERREUR Client] Erreur HTTP lors du chargement des disponibilités: ${resp.status}`);
                 throw new Error(`HTTP error! status: ${resp.status}`);
             }
             
             const rawData = await resp.json(); // La réponse est maintenant un objet { agentId: [ {start, end}, ... ] }
             
-            // Initialiser la structure attendue par le frontend
-            appData.personnelAvailabilities = {}; 
+            appData.personnelAvailabilities = {}; // Réinitialise pour la date actuelle
 
             // Parcourir les données brutes et les stocker directement
             for (const agentId in rawData) {
                 if (Object.prototype.hasOwnProperty.call(rawData, agentId)) {
-                    // Les disponibilités sont directement un tableau de plages pour cet agent et cette date
                     const availabilitiesForAgent = rawData[agentId];
                     appData.personnelAvailabilities[agentId] = {
                         [dateKey]: availabilitiesForAgent // Stocke sous la clé de la date
                     };
+                    // IMPORTANT: Loguer le contenu réel de availabilitiesForAgent
+                    console.log(`[DEBUG Client] Disponibilités chargées pour ${agentId} (${dateKey}):`, JSON.stringify(availabilitiesForAgent));
                 }
             }
             
-            console.log("DEBUG: appData.personnelAvailabilities après chargement (pour la date courante):", appData.personnelAvailabilities);
+            console.log("DEBUG: appData.personnelAvailabilities après chargement (pour la date courante):", JSON.stringify(appData.personnelAvailabilities));
 
           } catch (error) {
             console.error("Erreur lors du chargement des disponibilités du personnel (API /api/agent-availability):", error);
@@ -753,15 +755,23 @@ async function loadRosterConfig(dateKey) {
             const dateKey = formatDateToYYYYMMDD(currentRosterDate);
             const onDutyAgents = appData[dateKey]?.onDutyAgents || Array(10).fill('none');
 
+            console.log(`[DEBUG Client] Début de renderPersonnelLists pour la date: ${dateKey}`);
+            console.log("[DEBUG Client] allAgents:", allAgents.map(a => a._id));
+            console.log("[DEBUG Client] appData.personnelAvailabilities (globale):", JSON.stringify(appData.personnelAvailabilities));
+
             // Filtrer les agents réellement disponibles pour la liste de gauche
             const filteredAvailableAgents = allAgents.filter(agent => {
                 // Agent non null et non déjà d'astreinte
                 const isAlreadyOnDuty = onDutyAgents.includes(agent._id);
-                if (isAlreadyOnDuty) return false;
+                if (isAlreadyOnDuty) {
+                    console.log(`[DEBUG Client] Agent ${agent.prenom} ${agent.nom} (${agent._id}) est d'astreinte, filtré.`);
+                    return false;
+                }
 
                 // Récupérer les disponibilités de l'agent pour la date actuelle
                 const agentAvailabilities = appData.personnelAvailabilities[agent._id] || {};
                 const dailyAvailabilities = agentAvailabilities[dateKey] || [];
+                console.log(`[DEBUG Client] Agent ${agent.prenom} ${agent.nom} (${agent._id}) - dailyAvailabilities pour ${dateKey}:`, JSON.stringify(dailyAvailabilities));
                 
                 // Un agent est considéré "disponible" s'il n'est pas d'astreinte ET a des plages de disponibilité renseignées pour AU MOINS UN créneau de 30 minutes
                 // On vérifie s'il existe au moins une plage de 30 minutes où l'agent est dispo
@@ -770,57 +780,72 @@ async function loadRosterConfig(dateKey) {
                 const dayStartOffsetMinutes = 7 * 60; // La journée visuelle commence à 7h
 
                 let hasAnyAvailabilityInInterval = false;
-                for (let k = 0; k < (fullDayMinutes / thirtyMinInterval); k++) {
-                    let intervalStartMin = (dayStartOffsetMinutes + k * thirtyMinInterval) % fullDayMinutes;
-                    let intervalEndMin = (dayStartOffsetMinutes + (k + 1) * thirtyMinInterval) % fullDayMinutes;
-                    let comparisonIntervalEndMin = intervalEndMin;
-                    if (comparisonIntervalEndMin < intervalStartMin) comparisonIntervalEndMin += fullDayMinutes;
+                if (dailyAvailabilities.length > 0) { // Optimisation: ne pas boucler si déjà vide
+                    for (let k = 0; k < (fullDayMinutes / thirtyMinInterval); k++) {
+                        let intervalStartMin = (dayStartOffsetMinutes + k * thirtyMinInterval) % fullDayMinutes;
+                        let intervalEndMin = (dayStartOffsetMinutes + (k + 1) * thirtyMinInterval) % fullDayMinutes;
 
-                    const currentInterval = {
-                        start: `${String(Math.floor(intervalStartMin / 60)).padStart(2, '0')}:${String(intervalStartMin % 60).padStart(2, '0')}`,
-                        end: `${String(Math.floor(intervalEndMin / 60)).padStart(2, '0')}:${String(intervalEndMin % 60).padStart(2, '0')}`
-                    };
+                        const currentInterval = {
+                            start: `${String(Math.floor(intervalStartMin / 60)).padStart(2, '0')}:${String(intervalStartMin % 60).padStart(2, '0')}`,
+                            end: `${String(Math.floor(intervalEndMin / 60)).padStart(2, '0')}:${String(intervalEndMin % 60).padStart(2, '0')}`
+                        };
 
-                    for (const range of dailyAvailabilities) {
-                        if (doTimeRangesOverlap(currentInterval, range)) {
-                            hasAnyAvailabilityInInterval = true;
-                            break;
+                        for (const range of dailyAvailabilities) {
+                            if (doTimeRangesOverlap(currentInterval, range)) {
+                                hasAnyAvailabilityInInterval = true;
+                                console.log(`[DEBUG Client] Agent ${agent._id} disponible pour l'intervalle ${currentInterval.start}-${currentInterval.end} via plage ${range.start}-${range.end}.`);
+                                break;
+                            }
                         }
+                        if (hasAnyAvailabilityInInterval) break;
                     }
-                    if (hasAnyAvailabilityInInterval) break;
                 }
                 
+                console.log(`[DEBUG Client] Agent ${agent.prenom} ${agent.nom} (${agent._id}) - hasAnyAvailabilityInInterval: ${hasAnyAvailabilityInInterval}`);
                 return hasAnyAvailabilityInInterval;
             });
 
             if (filteredAvailableAgents.length === 0) {
                 availablePersonnelList.innerHTML = '<p class="no-available-personnel">Aucun agent disponible avec des disponibilités renseignées pour cette journée.</p>';
+            } else {
+                console.log("[DEBUG Client] Agents filtrés à afficher dans la liste Personnel Disponible:", filteredAvailableAgents.map(a => a._id));
             }
+
 
             filteredAvailableAgents.forEach(agent => {
                 const item = document.createElement('div');
                 item.classList.add('available-personnel-item');
-                item.innerHTML = `
-                    <div class="agent-info">
-                        <span class="agent-name">${agent.prenom} ${agent.nom || 'Agent Inconnu'}</span>
-                    </div>
-                    <div class="availability-bar-wrapper">
-                        <div class="availability-bar">
-                            <div class="availability-base-bar"></div> <!-- C'EST LA DIV MANQUANTE ! -->
-                        </div>
-                        <div class="time-legend">
-                            <span>07:00</span>
-                            <span>13:00</span>
-                            <span>19:00</span>
-                            <span>01:00</span>
-                            <span>07:00</span>
-                        </div>
-                    </div>
-                `;
-
-                // Récupération de la div ajoutée
-                const availabilityBarBase = item.querySelector('.availability-base-bar');
                 
+                // Création dynamique des éléments pour éviter les soucis de querySelector après innerHTML
+                const agentInfoDiv = document.createElement('div');
+                agentInfoDiv.classList.add('agent-info');
+                agentInfoDiv.innerHTML = `<span class="agent-name">${agent.prenom} ${agent.nom || 'Agent Inconnu'}</span>`;
+                item.appendChild(agentInfoDiv);
+
+                const availabilityBarWrapper = document.createElement('div');
+                availabilityBarWrapper.classList.add('availability-bar-wrapper');
+                item.appendChild(availabilityBarWrapper);
+
+                const availabilityBar = document.createElement('div');
+                availabilityBar.classList.add('availability-bar');
+                availabilityBarWrapper.appendChild(availabilityBar);
+
+                // Directement créer et ajouter la base bar, on a la référence sans querySelector
+                const availabilityBarBase = document.createElement('div');
+                availabilityBarBase.classList.add('availability-base-bar');
+                availabilityBar.appendChild(availabilityBarBase);
+
+                const timeLegend = document.createElement('div');
+                timeLegend.classList.add('time-legend');
+                timeLegend.innerHTML = `
+                    <span>07:00</span>
+                    <span>13:00</span>
+                    <span>19:00</span>
+                    <span>01:00</span>
+                    <span>07:00</span>
+                `;
+                availabilityBarWrapper.appendChild(timeLegend);
+
                 item.dataset.agentId = agent._id;
                 item.setAttribute('draggable', true);
                 item.addEventListener('dragstart', handleDragStart);
@@ -1050,10 +1075,11 @@ async function loadRosterConfig(dateKey) {
         async function updateDateDisplay() {
           showSpinner();
           const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+          console.log(`[DEBUG Client] Début de updateDateDisplay pour la date: ${dateKey}`);
           // Les agents doivent être chargés avant les configs de roster ou daily roster
           // car allAgents est utilisé pour trouver les détails des agents.
           await fetchAllAgents(); 
-          await loadRosterConfig(dateKey);
+          await loadRosterConfig(dateKey); // Charge ou initialise la config de la date
           await loadDailyRoster(dateKey); 
           await loadAllPersonnelAvailabilities(); // Charge les dispos après les configs
           initializeDefaultTimeSlotsForDate(dateKey); // Assure un créneau par défaut si aucun n'existe
@@ -1065,6 +1091,7 @@ async function loadRosterConfig(dateKey) {
           renderOnDutyAgentsGrid();
           renderRosterGrid();
           hideSpinner();
+          console.log(`[DEBUG Client] Fin de updateDateDisplay.`);
         }
 
         // --------------------------------------------------
@@ -1842,9 +1869,9 @@ async function loadRosterConfig(dateKey) {
           });
 
           generateAutoBtn.addEventListener('click', async () => {
-            if (confirm("Générer automatiquement ce planning ? Cela écrasera les affectations manuelles et pourra modifier les agents d'astreinte.")) {
+            const confirmed = await confirm("Générer automatiquement ce planning ? Cela écrasera les affectations manuelles et pourra modifier les agents d'astreinte.");
+            if (confirmed) {
               await generateAutomaticRoster(formatDateToYYYYMMDD(currentRosterDate));
-              // alert("Génération automatique terminée."); // Remplacer par modale
               displayMessageModal("Génération Automatique", "Le planning a été généré automatiquement avec succès.", "success");
             }
           });
@@ -1942,7 +1969,9 @@ async function loadRosterConfig(dateKey) {
         // Remplacement de `confirm` par `displayMessageModal`
         window.confirm = (message) => {
             return new Promise((resolve) => {
-                displayMessageModal("Confirmation", message, "question", resolve);
+                displayMessageModal("Confirmation", message, "question", (result) => {
+                    resolve(result);
+                });
             });
         };
         // Remplacement de `alert` par `displayMessageModal`
