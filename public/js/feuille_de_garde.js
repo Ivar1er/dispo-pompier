@@ -495,14 +495,20 @@ async function loadRosterConfig(dateKey) {
         }
 
         async function loadInitialData() {
-          showSpinner();
-          const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-          await fetchAllAgents(); // Chargez tous les agents avant de charger les configs
-          await loadRosterConfig(dateKey); // Charge ou initialise la config de la date
-          await loadAllPersonnelAvailabilities(); // Charge et transforme les dispos
-          await loadDailyRoster(dateKey); // Charge le daily roster (agents d'astreinte)
-          hideSpinner();
-        }
+  showSpinner();
+  const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+  try {
+    await fetchAllAgents();
+    await loadRosterConfig(dateKey);
+    await loadAllPersonnelAvailabilities();
+    await loadDailyRoster(dateKey);
+  } catch (e) {
+    console.error("Erreur lors du chargement initial :", e);
+  } finally {
+    hideSpinner();
+  }
+}
+
 
         // --------------------------------------------------
         // 3️⃣ Rendu & mise à jour de l’affichage
@@ -994,21 +1000,24 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
 
 
         async function updateDateDisplay() {
-          showSpinner();
-          const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-          await loadRosterConfig(dateKey);
-          await loadAllPersonnelAvailabilities(); // Recharger les dispo après loadRosterConfig pour s'assurer que allAgents est à jour
-          await loadDailyRoster(dateKey); // Charge le daily roster (agents d'astreinte)
-          initializeDefaultTimeSlotsForDate(dateKey); // Assure un créneau par défaut si aucun n'existe
-          
+  showSpinner();
+  try {
+    const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+    await loadRosterConfig(dateKey);
+    await loadAllPersonnelAvailabilities(); // Recharger les dispo après loadRosterConfig pour s'assurer que allAgents est à jour
+    await loadDailyRoster(dateKey); // Charge le daily roster (agents d'astreinte)
+    initializeDefaultTimeSlotsForDate(dateKey); // Assure un créneau par défaut si aucun n'existe
 
-          rosterDateInput.valueAsDate = currentRosterDate;
-          renderTimeSlotButtons(dateKey);
-          renderPersonnelLists();
-          renderOnDutyAgentsGrid();
-          renderRosterGrid();
-          hideSpinner();
-        }
+    rosterDateInput.valueAsDate = currentRosterDate;
+    renderTimeSlotButtons(dateKey);
+    renderPersonnelLists();
+    renderOnDutyAgentsGrid();
+    renderRosterGrid();
+  } finally {
+    hideSpinner();
+  }
+}
+
 
         // --------------------------------------------------
         // 4️⃣ Handlers & Bootstrap
@@ -1724,23 +1733,31 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
               console.warn("Pas de données de roster pour la date spécifiée. Impossible de générer automatiquement.");
               return;
           }
-          showSpinner();
-          // NOUVEAU: Réinitialiser toutes les affectations d'engins avant de régénérer
-          Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
-              Object.keys(appData[dateKey].timeSlots[slotId].engines).forEach(engineType => {
-                  appData[dateKey].timeSlots[slotId].engines[engineType].personnel = createEmptyEngineAssignment(engineType);
-              });
-          });
+          async function generateAutomaticRoster(dateKey) {
+  if (!appData[dateKey]) {
+      console.warn("Pas de données de roster pour la date spécifiée. Impossible de générer automatiquement.");
+      return;
+  }
+  showSpinner();
+  try {
+    // NOUVEAU: Réinitialiser toutes les affectations d'engins avant de régénérer
+    Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
+        Object.keys(appData[dateKey].timeSlots[slotId].engines).forEach(engineType => {
+            appData[dateKey].timeSlots[slotId].engines[engineType].personnel = createEmptyEngineAssignment(engineType);
+        });
+    });
 
-
-          Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
-            assignPersonnelToSlot(dateKey, slotId);
-          });
-          await saveRosterConfig(dateKey);
-          await saveDailyRoster(dateKey); // Sauvegarder aussi les modifications aux astreintes si l'auto-génération les a déplacées
-          updateDateDisplay();
-          hideSpinner();
-        }
+    Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
+      assignPersonnelToSlot(dateKey, slotId);
+    });
+    await saveRosterConfig(dateKey);
+    await saveDailyRoster(dateKey); // Sauvegarder aussi les modifications aux astreintes si l'auto-génération les a déplacées
+    updateDateDisplay();
+  } finally {
+    hideSpinner();
+  }
+}
+}
 
         function showMainRosterGrid() {
           engineDetailsPage.style.display = 'none';
@@ -1790,7 +1807,7 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
         function afficherBarreDisponibilite(plages, container) {
     container.innerHTML = '';
     if (!Array.isArray(plages)) return;
-    plages.forEach(plage => {
+    (plages || []).forEach(plage => {
         let segment = document.createElement('div');
         segment.className = 'availability-highlight-segment ' + (plage.statut === 'dispo' ? 'available' : 'unavailable');
         segment.style.position = 'absolute';
