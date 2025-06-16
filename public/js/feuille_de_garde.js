@@ -290,6 +290,22 @@ async function fetchAllAgents() {
   }
 }
 
+function renderAvailableAgents() {
+    availablePersonnelList.innerHTML = ""; // Vide la liste existante
+
+    if (allAgents.length === 0) {
+        availablePersonnelList.innerHTML = "<div style='padding:1em;color:#888'>Aucun agent disponible.</div>";
+        return;
+    }
+
+    allAgents.forEach(agent => {
+        const div = document.createElement("div");
+        div.className = "agent-card";
+        div.textContent = agent.prenom + " " + agent.nom;
+        availablePersonnelList.appendChild(div);
+    });
+}
+
 async function loadRosterConfig(dateKey) {
   try {
     const resp = await fetch(`${API_BASE_URL}/api/roster-config/${dateKey}`, {
@@ -1802,6 +1818,13 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
           await updateDateDisplay(); // Appelle une première fois pour le rendu initial
 
           showMainRosterGrid(); // S'assure que la grille principale est affichée au démarrage
+
+          showSpinner();
+          fetchAllAgents().then(() => {
+          hideSpinner();
+          renderAvailableAgents();
+    });
+
         });
 
         function afficherBarreDisponibilite(plages, container) {
