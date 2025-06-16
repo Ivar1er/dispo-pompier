@@ -1,9 +1,9 @@
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
-let currentWeek = getCurrentWeek(); // Semaine actuelle par défaut
+let currentWeek; // Ex: 25 (number)
 let currentDay = 'lundi'; // Jour actuel par défaut pour le planning
-let planningData = {}; // Contiendra le planning global chargé de l'API
+let planningData = {}; // Contiendra le planning global chargé de l'API { agentId: { week-X: { day: [slots] } } }
 let agentDisplayInfos = {}; // Mapping dynamique agentId => {nom, prenom}
 let availableQualifications = []; // Liste des qualifications disponibles chargée depuis l'API
 let availableGrades = []; // Nouvelle: Liste des grades disponibles chargée depuis l'API
@@ -16,8 +16,8 @@ const mainTabContents = document.querySelectorAll('.main-tab-content');
 // --- DOM Elements pour la vue "Planning Global" ---
 const planningControls = document.getElementById('planning-controls'); // Conteneur pour les contrôles de semaine/export
 const weekSelect = document.getElementById("week-select");
-const dateRangeDisplay = document.getElementById("date-range"); // Rétabli, car il y a un p#date-range dans le HTML
-const planningContainer = document.getElementById("global-planning");
+const dateRangeDisplay = document.getElementById("date-range"); // Élément pour afficher la plage de dates
+const planningContainer = document.getElementById("global-planning"); // Conteneur du tableau de planning
 const tabButtons = document.querySelectorAll(".tab"); // Boutons de jour (Lundi, Mardi...)
 const adminInfo = document.getElementById("admin-info");
 
@@ -31,9 +31,10 @@ const agentsTableBody = document.getElementById('agentsTableBody');
 const listAgentsMessage = document.getElementById('listAgentsMessage');
 
 // --- DOM Elements pour la Modale de modification d'agent et de qualifications ---
-const editAgentModal = document.getElementById('editAgentModal');
-const closeButton = editAgentModal.querySelector('.close-button');
-const editAgentForm = document.getElementById('editAgentForm');
+// IMPORTANT: Renommé pour éviter le conflit avec addAgentForm et editAgentForm globaux
+const editAgentModalElement = document.getElementById('editAgentModal'); // Renommé
+const closeEditAgentModalButton = editAgentModalElement ? editAgentModalElement.querySelector('.close-button') : null; // Renommé
+const editAgentFormElement = document.getElementById('editAgentForm'); // Renommé
 const editAgentId = document.getElementById('editAgentId');
 const editAgentNom = document.getElementById('editAgentNom');
 const editAgentPrenom = document.getElementById('editAgentPrenom');
@@ -48,37 +49,37 @@ const functionsMessage = document.getElementById('functionsMessage'); // Nouveau
 
 
 // --- DOM Elements pour la vue "Gestion des Qualifications" ---
-const addQualificationForm = document.getElementById('addQualificationForm');
+const addQualificationFormElement = document.getElementById('addQualificationForm'); // Renommé
 const addQualificationMessage = document.getElementById('addQualificationMessage');
 const qualificationsTableBody = document.getElementById('qualificationsTableBody');
 const listQualificationsMessage = document.getElementById('listQualificationsMessage');
-const editQualificationModal = document.getElementById('editQualificationModal'); // Nouvelle modale
-const closeQualButton = editQualificationModal ? editQualificationModal.querySelector('.close-button') : null;
-const editQualificationForm = document.getElementById('editQualificationForm');
+const editQualificationModalElement = document.getElementById('editQualificationModal'); // Nouvelle modale, renommé
+const closeQualButton = editQualificationModalElement ? editQualificationModalElement.querySelector('.close-button') : null;
+const editQualificationFormElement = document.getElementById('editQualificationForm'); // Renommé
 const editQualId = document.getElementById('editQualId');
 const editQualName = document.getElementById('editQualName');
 const editQualMessage = document.getElementById('editQualMessage');
 
 // --- DOM Elements pour la vue "Gestion des Grades" (Nouveau) ---
-const addGradeForm = document.getElementById('addGradeForm');
+const addGradeFormElement = document.getElementById('addGradeForm'); // Renommé
 const addGradeMessage = document.getElementById('addGradeMessage');
 const gradesTableBody = document.getElementById('gradesTableBody');
 const listGradesMessage = document.getElementById('listGradesMessage');
-const editGradeModal = document.getElementById('editGradeModal');
-const closeGradeButton = editGradeModal ? editGradeModal.querySelector('.close-button') : null;
-const editGradeForm = document.getElementById('editGradeForm');
+const editGradeModalElement = document.getElementById('editGradeModal'); // Renommé
+const closeGradeButton = editGradeModalElement ? editGradeModalElement.querySelector('.close-button') : null;
+const editGradeFormElement = document.getElementById('editGradeForm'); // Renommé
 const editGradeId = document.getElementById('editGradeId');
 const editGradeName = document.getElementById('editGradeName');
 const editGradeMessage = document.getElementById('editGradeMessage');
 
 // --- DOM Elements pour la vue "Gestion des Fonctions" (Nouveau) ---
-const addFunctionForm = document.getElementById('addFunctionForm');
+const addFunctionFormElement = document.getElementById('addFunctionForm'); // Renommé
 const addFunctionMessage = document.getElementById('addFunctionMessage');
 const functionsTableBody = document.getElementById('functionsTableBody');
 const listFunctionsMessage = document.getElementById('listFunctionsMessage');
-const editFunctionModal = document.getElementById('editFunctionModal');
-const closeFunctionButton = editFunctionModal ? editFunctionModal.querySelector('.close-button') : null;
-const editFunctionForm = document.getElementById('editFunctionForm');
+const editFunctionModalElement = document.getElementById('editFunctionModal'); // Renommé
+const closeFunctionButton = editFunctionModalElement ? editFunctionModalElement.querySelector('.close-button') : null;
+const editFunctionFormElement = document.getElementById('editFunctionForm'); // Renommé
 const editFunctionId = document.getElementById('editFunctionId');
 const editFunctionName = document.getElementById('editFunctionName');
 const editFunctionMessage = document.getElementById('editFunctionMessage');
@@ -88,13 +89,344 @@ const loadingSpinner = document.getElementById("loading-spinner");
 const logoutButton = document.getElementById("logout-btn");
 
 
+// Créneaux 30 min sur 24h
+const horaires = [];
+const startHourDisplay = 7;
+for (let i = 0; i < 48; i++) {
+  const currentSlotHour = (startHourDisplay + Math.floor(i / 2)) % 24;
+  const currentSlotMinute = (i % 2) * 30;
+  const endSlotHour = (startHourDisplay + Math.floor((i + 1) / 2)) % 24;
+  const endSlotMinute = ((i + 1) % 2) * 30;
+  const start = `${String(currentSlotHour).padStart(2, '0')}:${String(currentSlotMinute).padStart(2, '0')}`;
+  const end = `${String(endSlotHour).padStart(2, '0')}:${String(endSlotMinute).padStart(2, '0')}`;
+  horaires.push(`${start} - ${end}`);
+}
+
+// --- Helpers de date ---
+
+/**
+ * Calcule le numéro de semaine ISO 8601 pour une date donnée.
+ * La semaine 1 est celle qui contient le premier jeudi de l'année.
+ * @param {Date} date - La date pour laquelle calculer le numéro de semaine.
+ * @returns {number} Le numéro de semaine ISO 8601.
+ */
+function getCurrentISOWeek(date = new Date()) {
+    const _date = new Date(date.getTime());
+    _date.setHours(0, 0, 0, 0);
+    _date.setDate(_date.getDate() + 3 - ((_date.getDay() + 6) % 7));
+    const week1 = new Date(_date.getFullYear(), 0, 4);
+    return (
+        1 +
+        Math.round(
+            ((_date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
+        )
+    );
+}
+
+/**
+ * Récupère la plage de dates (début-fin) pour un numéro de semaine ISO donné.
+ * @param {number} weekNumber - Le numéro de semaine ISO.
+ * @param {number} year - L'année.
+ * @returns {string} La plage de dates formatée (ex: "du 16/06 au 22/06").
+ */
+function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
+  const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
+  const dow = simple.getDay() || 7;
+  const ISOweekStart = new Date(simple);
+  if (dow <= 4) {
+    ISOweekStart.setDate(simple.getDate() - dow + 1);
+  } else {
+    ISOweekStart.setDate(simple.getDate() + 8 - dow);
+  }
+  const start = new Date(ISOweekStart);
+  const end = new Date(ISOweekStart);
+  end.setDate(start.getDate() + 6);
+  const format = date => date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+  return `du ${format(start)} au ${format(end)}`;
+}
+
+
+function getMondayOfWeek(weekNum, year) {
+    const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
+    const dow = simple.getDay();
+    if (dow <= 4) simple.setDate(simple.getDate() - dow + 1);
+    else simple.setDate(simple.getDate() + 8 - dow);
+    return simple;
+}
+
+// --- Fonctions de chargement des données ---
+
+async function fetchAgentNames() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/agents/names`);
+        const data = await response.json();
+        if (response.ok) {
+            agentDisplayInfos = data.reduce((acc, agent) => {
+                acc[agent.id] = { prenom: agent.prenom, nom: agent.nom };
+                return acc;
+            }, {});
+        } else {
+            console.error('Erreur lors du chargement des noms d\'agents:', data.message);
+        }
+    } catch (error) {
+        console.error('Erreur réseau lors du chargement des noms d\'agents:', error);
+    }
+}
+
+async function loadPlanningData() {
+    showLoading(true);
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/planning`); // Récupère tous les plannings de tous les agents
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Erreur lors du chargement du planning global.');
+
+        planningData = data; // planningData sera sous la forme { agentId: { week-X: { day: [slots] } } }
+        console.log("Planning Global Chargé:", planningData);
+
+        // Fetch agent names for display
+        await fetchAgentNames();
+    } catch (error) {
+        console.error('Erreur lors du chargement du planning global:', error);
+        planningData = {}; // S'assure que c'est un objet vide en cas d'échec
+        displayMessageModal("Erreur de Chargement", `Impossible de charger le planning global : ${error.message}`, "error");
+    } finally {
+        showLoading(false);
+    }
+}
+
+// --- Fonctions de rendu ---
+
+function renderPlanningGrid(day) {
+    if (!planningContainer) return;
+    planningContainer.innerHTML = ''; // Efface le contenu précédent
+
+    const table = document.createElement('table');
+    table.classList.add('global-planning-table');
+
+    // En-tête (Créneaux Horaires)
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headerRow.innerHTML = '<th>Agent</th>'; // Première colonne pour le Nom de l'Agent
+
+    horaires.forEach(slot => {
+        const th = document.createElement('th');
+        // Affiche seulement l'heure de début dans l'en-tête, sans colspan (pour une meilleure lisibilité)
+        th.textContent = slot.split(' - ')[0]; 
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Corps (Lignes d'agents)
+    const tbody = document.createElement('tbody');
+    
+    const weekKey = `week-${currentWeek}`;
+
+    // Filtrer les agents pour n'afficher que ceux ayant au moins un créneau renseigné pour le jour et la semaine actuels
+    const filteredAgentIds = Object.keys(agentDisplayInfos).filter(agentId => {
+        const agentPlanningForDay = planningData[agentId]?.[weekKey]?.[day];
+        // L'agent est affiché si :
+        // 1. Il a une entrée de planning pour la semaine et le jour, ET
+        // 2. Cette entrée est un tableau, ET
+        // 3. Ce tableau n'est pas vide (il contient au moins un créneau)
+        // Note: Si le planning contient [], cela signifie que l'agent a explicitement défini qu'il n'était pas disponible.
+        // Si l'objectif est de n'afficher QUE ceux qui ont AU MOINS UN CRENEAU DISPONIBLE, alors on ajoute .length > 0
+        // Si l'objectif est d'afficher ceux qui ont RENSEIGNÉ leur planning (même s'il est vide), on retire .length > 0
+        // Ici, on part sur "au moins un créneau renseigné comme disponible"
+        return agentPlanningForDay && agentPlanningForDay.length > 0;
+    }).sort(); // Trie les IDs des agents filtrés
+
+    if (filteredAgentIds.length === 0) {
+        const noAgentsRow = document.createElement('tr');
+        noAgentsRow.innerHTML = `<td colspan="${horaires.length + 1}">Aucun agent avec des disponibilités renseignées pour ce jour de la semaine.</td>`;
+        tbody.appendChild(noAgentsRow);
+    } else {
+        filteredAgentIds.forEach(agentId => {
+            const agentRow = document.createElement('tr');
+            const agentNameCell = document.createElement('td');
+            agentNameCell.classList.add('agent-name-cell');
+
+            const agentInfo = agentDisplayInfos[agentId];
+            agentNameCell.textContent = `${agentInfo.prenom} ${agentInfo.nom}`;
+            agentRow.appendChild(agentNameCell);
+
+            const agentSpecificDayPlanning = planningData[agentId]?.[weekKey]?.[day];
+
+            horaires.forEach(timeSlot => {
+                const slotCell = document.createElement('td');
+                slotCell.classList.add('time-slot-cell');
+                slotCell.setAttribute("data-time", timeSlot);
+                
+                if (agentSpecificDayPlanning && agentSpecificDayPlanning.includes(timeSlot)) {
+                    slotCell.classList.add('available-slot');
+                    slotCell.textContent = 'D'; // Disponible
+                } else {
+                    slotCell.classList.add('unavailable-slot');
+                    slotCell.textContent = 'I'; // Indisponible
+                }
+                agentRow.appendChild(slotCell);
+            });
+            tbody.appendChild(agentRow);
+        });
+    }
+    table.appendChild(tbody);
+    planningContainer.appendChild(table);
+
+    // Réinitialise le message d'info si tout va bien
+    adminInfo.textContent = "Vue du planning global des agents.";
+    adminInfo.style.backgroundColor = "";
+    adminInfo.style.borderColor = "";
+    adminInfo.style.color = "";
+}
+
+// Fonction pour mettre à jour l'affichage de la plage de dates
+function updateDateRangeDisplay() {
+    const weekNum = currentWeek; // currentWeek est déjà le numéro de semaine
+    const currentYear = new Date().getFullYear(); // Assurez-vous que l'année est correcte
+    dateRangeDisplay.textContent = getWeekDateRange(weekNum, currentYear);
+}
+
+// --- Fonctions de contrôle et d'initialisation ---
+
+function generateWeekOptions() {
+    const select = document.getElementById("week-select");
+    select.innerHTML = "";
+    const today = new Date();
+    const currentWeekNumber = getCurrentISOWeek(today);
+    const currentYear = today.getFullYear();
+    for (let i = -2; i < 10; i++) { // Génère quelques semaines passées et futures
+        const weekNum = currentWeekNumber + i;
+        const option = document.createElement("option");
+        option.value = `week-${weekNum}`;
+        option.textContent = `Semaine ${weekNum} (${getWeekDateRange(weekNum, currentYear)})`;
+        select.appendChild(option);
+    }
+}
+
+function showLoading(isLoading, forPdf = false) {
+    if (isLoading) {
+        loadingSpinner.classList.remove("hidden");
+        // Désactiver les contrôles globaux et ceux de l'onglet actif
+        document.querySelectorAll('button, select, input, a').forEach(el => {
+            if (el.id !== 'logout-btn') { // Ne pas désactiver le bouton de déconnexion
+                el.disabled = true;
+                if (el.tagName === 'A') el.classList.add('disabled-link'); // Ajoute une classe pour les liens
+            }
+        });
+        // Pour les boutons principaux d'onglet, on peut les désactiver aussi
+        mainTabButtons.forEach(btn => btn.disabled = true);
+
+        if (forPdf) {
+            adminInfo.textContent = "Génération du PDF en cours, veuillez patienter...";
+            adminInfo.style.backgroundColor = "#fff3cd";
+            adminInfo.style.borderColor = "#ffeeba";
+            adminInfo.style.color = "#856404";
+        }
+    } else {
+        loadingSpinner.classList.add("hidden");
+        // Réactiver les contrôles globaux et ceux de l'onglet actif
+        document.querySelectorAll('button, select, input, a').forEach(el => {
+            if (el.id !== 'logout-btn') {
+                el.disabled = false;
+                if (el.tagName === 'A') el.classList.remove('disabled-link');
+            }
+        });
+        mainTabButtons.forEach(btn => btn.disabled = false);
+
+
+        if (forPdf) {
+            adminInfo.textContent = "Vue du planning global des agents.";
+            adminInfo.style.backgroundColor = "";
+            adminInfo.style.borderColor = "";
+            adminInfo.style.color = "";
+        }
+    }
+}
+
+// --- Fonctions d'authentification et de déconnexion ---
+function logout() {
+    sessionStorage.clear();
+    window.location.href = "index.html";
+}
+
+// --- Modales (remplace alert() et confirm()) ---
+/**
+ * Affiche une modale de message personnalisée.
+ * @param {string} title - Titre de la modale.
+ * @param {string} message - Message à afficher.
+ * @param {'info'|'success'|'error'|'warning'|'question'} type - Type de message pour le style.
+ * @param {function(boolean)} [callback] - Fonction de rappel pour les confirmations.
+ */
+function displayMessageModal(title, message, type = "info", callback = null) {
+    let modal = document.getElementById('message-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'message-modal';
+        modal.classList.add('custom-modal', 'message-modal');
+        document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+        <div class="modal-content ${type}">
+            <h2 class="modal-title">${title}</h2>
+            <p class="modal-message">${message}</p>
+            <div class="modal-actions">
+                ${callback ? '<button id="modal-cancel-btn" class="btn btn-secondary">Annuler</button>' : ''}
+                <button id="modal-ok-btn" class="btn btn-primary">OK</button>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+
+    const okBtn = modal.querySelector('#modal-ok-btn');
+    okBtn.onclick = () => {
+        modal.style.display = 'none';
+        if (callback) callback(true);
+    };
+
+    if (callback) {
+        const cancelBtn = modal.querySelector('#modal-cancel-btn');
+        cancelBtn.onclick = () => {
+            modal.style.display = 'none';
+            callback(false);
+        };
+    }
+
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            if (callback) callback(false); // Cliquer en dehors annule pour les confirmations
+        }
+    };
+}
+
+/**
+ * Fonction asynchrone pour simuler confirm() avec la modale personnalisée.
+ * @param {string} message - Message de confirmation.
+ * @returns {Promise<boolean>} Une promesse qui résout avec true si l'utilisateur confirme, false sinon.
+ */
+async function confirmModal(message) {
+    return new Promise((resolve) => {
+        displayMessageModal("Confirmation", message, "question", (result) => {
+            resolve(result);
+        });
+    });
+}
+
+// Remplacement des fonctions natives alert et confirm pour utiliser les modales personnalisées
+window.alert = displayMessageModal.bind(null, "Information");
+window.confirm = confirmModal;
+
+
+// --- Initialisation au chargement du DOM ---
 document.addEventListener("DOMContentLoaded", async () => {
-    // **Vérification du rôle administrateur au chargement de la page**
     const userRole = sessionStorage.getItem("userRole");
     if (!userRole || userRole !== "admin") {
-        console.error("Accès non autorisé. Vous devez être administrateur.");
-        sessionStorage.clear();
-        window.location.href = "index.html";
+        displayMessageModal("Accès non autorisé", "Vous devez être connecté en tant qu’administrateur.", "error", () => {
+            sessionStorage.clear();
+            window.location.href = "index.html";
+        });
         return;
     }
 
@@ -125,15 +457,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderNewAgentGradesCheckboxes(); // Nouveau
     renderNewAgentFunctionsCheckboxes(); // Nouveau
 
+    // Charger les données initiales du planning global
+    await loadPlanningData();
+
+    // Définir la semaine actuelle par défaut
+    currentWeek = getCurrentISOWeek(new Date());
+    
     // Ouvrir l'onglet "Planning Global" par default au chargement
-    await openMainTab('global-planning-view'); // Attendre que le planning soit chargé avant d'afficher
+    // Cela appellera showDay qui rendra le planning pour le currentDay initial
+    await openMainTab('global-planning-view'); 
 
 
     // --- Écouteurs d'événements pour les contrôles du planning global ---
     if (weekSelect) {
         weekSelect.addEventListener("change", async () => {
             currentWeek = parseInt(weekSelect.value.split('-')[1]); // Mise à jour de currentWeek
-            await loadPlanningAndDisplay(); // Recharger et afficher le planning
+            updateDateRangeDisplay(); // Met à jour l'affichage de la plage de dates
+            await loadPlanningData(); // Recharger et afficher le planning
+            showDay(currentDay); // Affiche le planning pour le jour actuel
         });
     }
     if (document.getElementById("export-pdf")) {
@@ -149,66 +490,66 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Écouteurs d'événements pour la Modale de modification d'agent ---
-    if (closeButton) {
-        closeButton.addEventListener('click', () => {
-            editAgentModal.style.display = 'none';
+    if (closeEditAgentModalButton) { 
+        closeEditAgentModalButton.addEventListener('click', () => { 
+            editAgentModalElement.style.display = 'none'; 
         });
     }
     window.addEventListener('click', (event) => {
-        if (event.target == editAgentModal) {
-            editAgentModal.style.display = 'none';
+        if (event.target == editAgentModalElement) { 
+            editAgentModalElement.style.display = 'none'; 
         }
     });
-    if (editAgentForm) {
-        editAgentForm.addEventListener('submit', handleEditAgent);
+    if (editAgentFormElement) { 
+        editAgentFormElement.addEventListener('submit', handleEditAgent); 
     }
 
     // --- Écouteurs d'événements pour la vue "Gestion des Qualifications" ---
-    if (addQualificationForm) {
-        addQualificationForm.addEventListener('submit', handleAddQualification);
+    if (addQualificationFormElement) { 
+        addQualificationFormElement.addEventListener('submit', handleAddQualification); 
     }
     if (qualificationsTableBody) {
         qualificationsTableBody.addEventListener('click', handleQualificationActions);
     }
     if (closeQualButton) {
         closeQualButton.addEventListener('click', () => {
-            editQualificationModal.style.display = 'none';
+            editQualificationModalElement.style.display = 'none'; 
         });
     }
-    if (editQualificationForm) {
-        editQualificationForm.addEventListener('submit', handleEditQualification);
+    if (editQualificationFormElement) { 
+        editQualificationFormElement.addEventListener('submit', handleEditQualification); 
     }
 
     // --- Écouteurs d'événements pour la vue "Gestion des Grades" (Nouveau) ---
-    if (addGradeForm) {
-        addGradeForm.addEventListener('submit', handleAddGrade);
+    if (addGradeFormElement) { 
+        addGradeFormElement.addEventListener('submit', handleAddGrade); 
     }
     if (gradesTableBody) {
         gradesTableBody.addEventListener('click', handleGradeActions);
     }
     if (closeGradeButton) {
         closeGradeButton.addEventListener('click', () => {
-            editGradeModal.style.display = 'none';
+            editGradeModalElement.style.display = 'none'; 
         });
     }
-    if (editGradeForm) {
-        editGradeForm.addEventListener('submit', handleEditGrade);
+    if (editGradeFormElement) { 
+        editGradeFormElement.addEventListener('submit', handleEditGrade); 
     }
 
     // --- Écouteurs d'événements pour la vue "Gestion des Fonctions" (Nouveau) ---
-    if (addFunctionForm) {
-        addFunctionForm.addEventListener('submit', handleAddFunction);
+    if (addFunctionFormElement) { 
+        addFunctionFormElement.addEventListener('submit', handleAddFunction); 
     }
     if (functionsTableBody) {
         functionsTableBody.addEventListener('click', handleFunctionActions);
     }
     if (closeFunctionButton) {
         closeFunctionButton.addEventListener('click', () => {
-            editFunctionModal.style.display = 'none';
+            editFunctionModalElement.style.display = 'none'; 
         });
     }
-    if (editFunctionForm) {
-        editFunctionForm.addEventListener('submit', handleEditFunction);
+    if (editFunctionFormElement) { 
+        editFunctionFormElement.addEventListener('submit', handleEditFunction); 
     }
 
 
@@ -234,16 +575,16 @@ async function openMainTab(tabId) {
     // Gérer la visibilité des contrôles spécifiques au planning
     if (tabId === 'global-planning-view') {
         planningControls.style.display = 'flex'; // Affiche les contrôles
-        await loadPlanningAndDisplay(); // Recharger le planning si on revient sur cet onglet
+        showDay(currentDay); // S'assure que le jour actuel est affiché
     } else {
         planningControls.style.display = 'none'; // Cache les contrôles
         if (tabId === 'agent-management-view') {
             await loadAgents(); // Recharger la liste des agents quand on va sur cet onglet
-        } else if (tabId === 'qualification-management-view') { // Nouveau
+        } else if (tabId === 'qualification-management-view') {
             await loadQualificationsList();
-        } else if (tabId === 'grade-management-view') { // Nouveau
+        } else if (tabId === 'grade-management-view') {
             await loadGradesList();
-        } else if (tabId === 'function-management-view') { // Nouveau
+        } else if (tabId === 'function-management-view') {
             await loadFunctionsList();
         }
     }
@@ -251,43 +592,12 @@ async function openMainTab(tabId) {
 
 
 // --- Fonctions Utilitaire pour les dates et semaines ---
-function getCurrentWeek(date = new Date()) {
-    const target = new Date(date.valueOf());
-    target.setDate(target.getDate() + 3 - (target.getDay() + 6) % 7);
-    const firstThursday = new Date(target.getFullYear(), 0, 4);
-    const weekNum = 1 + Math.round(((target - firstThursday) / 86400000 - 3 + (firstThursday.getDay() + 6) % 7) / 7);
-    return weekNum;
-}
+// NOTE: `getCurrentWeek` est déjà définie plus haut comme `getCurrentISOWeek`
 
-function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
-    const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
-    const dow = simple.getDay() || 7;
-    const ISOweekStart = new Date(simple);
-    if (dow <= 4) {
-        ISOweekStart.setDate(simple.getDate() - dow + 1);
-    } else {
-        ISOweekStart.setDate(simple.getDate() + 8 - dow);
-    }
+// `getWeekDateRange` est déjà définie plus haut et utilisée correctement.
 
-    const start = new Date(ISOweekStart);
-    const end = new Date(ISOweekStart);
-    end.setDate(start.getDate() + 6);
+// `getMondayOfWeek` est déjà définie plus haut et utilisée correctement.
 
-    const format = date => date.toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "2-digit"
-    });
-
-    return `du ${format(start)} au ${format(end)}`;
-}
-
-function getMondayOfWeek(weekNum, year) {
-    const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
-    const dow = simple.getDay();
-    if (dow <= 4) simple.setDate(simple.getDate() - dow + 1);
-    else simple.setDate(simple.getDate() + 8 - dow);
-    return simple;
-}
 
 // --- Fonctions de gestion du Planning Global ---
 
@@ -313,10 +623,6 @@ async function loadPlanningAndDisplay() {
         const agentsData = await agentsResponse.json();
         agentDisplayInfos = {};
         agentsData.forEach(agent => {
-            // **********************************************
-            // MISE À JOUR 1 dans admin.js : Utiliser agent._id
-            // Le backend renvoie maintenant '_id' au lieu de 'id' pour l'identifiant unique de l'agent.
-            // **********************************************
             agentDisplayInfos[agent._id] = { nom: agent.nom, prenom: agent.prenom };
         });
 
@@ -324,7 +630,6 @@ async function loadPlanningAndDisplay() {
         // Le `agentKey` ici correspondra aux clés reçues de l'API /api/planning (ex: 'bruneaum', 'marechain')
         for (const agentKey in planningData) {
             // Filtrer les agents qui ne sont pas dans agentDisplayInfos (ex: admin, ou agents supprimés)
-            // L'agentKey doit correspondre à agent._id (qui était l'ancien agent.id)
             if (!agentDisplayInfos[agentKey]) {
                 console.warn(`Agent avec la clé '${agentKey}' trouvé dans /api/planning mais pas dans la liste des agents ou non mappable.`);
                 continue; // Important de continuer pour ne pas bloquer le reste
@@ -334,11 +639,10 @@ async function loadPlanningAndDisplay() {
         }
 
         if (allWeeksSet.size === 0) {
-            allWeeksSet.add(`week-${getCurrentWeek()}`);
+            allWeeksSet.add(`week-${getCurrentISOWeek()}`); // Utilise getCurrentISOWeek()
         }
 
         updateWeekSelector(allWeeksSet); // Met à jour le sélecteur de semaine
-        showDay(currentDay); // Affiche le planning pour le jour actuel
 
     } catch (e) {
         console.error("Erreur lors du chargement ou de l'affichage du planning :", e);
@@ -369,25 +673,25 @@ function updateWeekSelector(availableWeeks) {
     });
 
     // Sélectionne la semaine actuelle si elle existe, sinon la première semaine disponible
-    if (sortedWeeks.includes(`week-${currentWeek}`)) {
-        weekSelect.value = `week-${currentWeek}`;
+    const currentWeekAsString = `week-${currentWeek}`;
+    if (sortedWeeks.includes(currentWeekAsString)) {
+        weekSelect.value = currentWeekAsString;
     } else if (sortedWeeks.length > 0) {
         weekSelect.value = sortedWeeks[0];
         currentWeek = parseInt(sortedWeeks[0].split("-")[1]);
     } else {
         // Si aucune semaine n'est disponible (aucun planning), ajoute la semaine actuelle
-        const currentWeekKey = `week-${getCurrentWeek()}`;
+        const currentWeekKeyDefault = `week-${getCurrentISOWeek()}`;
         const opt = document.createElement("option");
-        opt.value = currentWeekKey;
-        const dateRange = getWeekDateRange(getCurrentWeek());
-        opt.textContent = `Semaine ${getCurrentWeek()} (${dateRange})`;
+        opt.value = currentWeekKeyDefault;
+        const dateRange = getWeekDateRange(getCurrentISOWeek());
+        opt.textContent = `Semaine ${getCurrentISOWeek()} (${dateRange})`;
         weekSelect.appendChild(opt);
-        weekSelect.value = currentWeekKey;
-        currentWeek = getCurrentWeek();
+        weekSelect.value = currentWeekKeyDefault;
+        currentWeek = getCurrentISOWeek();
     }
 
-    // MODIFICATION: Vider le contenu de dateRangeDisplay pour enlever les dates redondantes
-    dateRangeDisplay.textContent = "";
+    updateDateRangeDisplay(); // Met à jour l'affichage de la plage de dates après avoir sélectionné la semaine
 }
 
 // Affiche le planning pour le jour sélectionné
@@ -410,28 +714,12 @@ function showDay(day) {
     thAgent.textContent = "Agent";
     headerRow.appendChild(thAgent);
 
-    const allTimeSlots = [];
-    // Génère les créneaux horaires de 07:00 à 07:00 du jour suivant
-    const startHour = 7; // Heure de début
-    for (let i = 0; i < 48; i++) { // 48 créneaux de 30 minutes = 24 heures
-        const currentSlotHour = (startHour + Math.floor(i / 2)) % 24;
-        const currentSlotMinute = (i % 2) * 30;
-
-        const endSlotHour = (startHour + Math.floor((i + 1) / 2)) % 24;
-        const endSlotMinute = ((i + 1) % 2) * 30;
-
-        const slotString = `${String(currentSlotHour).padStart(2, '0')}:${String(currentSlotMinute).padStart(2, '0')} - ${String(endSlotHour).padStart(2, '0')}:${String(endSlotMinute).padStart(2, '0')}`;
-        allTimeSlots.push(slotString);
-
+    // Utilisez la liste `horaires` globale définie en haut du fichier pour les en-têtes
+    horaires.forEach(slotString => {
         const th = document.createElement("th");
-        if (currentSlotMinute === 0) { // Regroupe 00:00-00:30 et 00:30-01:00 sous une entête 00:00
-            th.textContent = `${String(currentSlotHour).padStart(2, '0')}:00`;
-            th.colSpan = 2; // S'étend sur deux colonnes (00 et 30 minutes)
-        } else {
-            th.style.display = "none"; // Cache la deuxième colonne du créneau horaire
-        }
+        th.textContent = slotString.split(' - ')[0]; // Affiche seulement l'heure de début
         headerRow.appendChild(th);
-    }
+    });
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
@@ -440,25 +728,33 @@ function showDay(day) {
 
     const weekKey = `week-${currentWeek}`;
 
-    // Récupère les IDs des agents à partir de agentDisplayInfos et les trie
-    const sortedAgentIds = Object.keys(agentDisplayInfos).sort();
+    // Filtrer les IDs des agents pour n'afficher que ceux qui ont AU MOINS UN créneau de disponibilité pour ce jour et cette semaine.
+    const filteredAgentIds = Object.keys(agentDisplayInfos).filter(agentId => {
+        const agentPlanningForDay = planningData[agentId]?.[weekKey]?.[day];
+        // Afficher l'agent si agentPlanningForDay existe, est un tableau, et contient au moins un élément.
+        return Array.isArray(agentPlanningForDay) && agentPlanningForDay.length > 0;
+    }).sort((a, b) => {
+        // Optionnel: Trier les agents par nom/prénom pour un affichage cohérent
+        const nameA = agentDisplayInfos[a]?.nom || '';
+        const nameB = agentDisplayInfos[b]?.nom || '';
+        return nameA.localeCompare(nameB);
+    });
 
-    if (sortedAgentIds.length === 0) {
+
+    if (filteredAgentIds.length === 0) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 1 + allTimeSlots.length;
-        td.textContent = "Aucun agent ou planning disponible.";
+        td.colSpan = 1 + horaires.length; // Utiliser horaires.length
+        td.textContent = "Aucun agent avec des disponibilités renseignées pour ce jour de la semaine.";
         tr.appendChild(td);
         tbody.appendChild(tr);
     } else {
-        sortedAgentIds.forEach(agentId => {
-            // L'agentId ici est l'agent._id (ex: 'bruneaum')
-            const slots = planningData[agentId]?.[weekKey]?.[day] || []; // Récupère les créneaux de l'agent pour ce jour
+        filteredAgentIds.forEach(agentId => {
+            const agentSpecificDayPlanning = planningData[agentId]?.[weekKey]?.[day]; // Récupère les créneaux de l'agent pour ce jour
             const agentInfo = agentDisplayInfos[agentId]; // Récupère le nom/prénom
 
             const tr = document.createElement("tr");
             const tdAgent = document.createElement("td");
-            // S'assurer que agentInfo n'est pas undefined
             if (agentInfo) {
                 tdAgent.textContent = `${agentInfo.prenom} ${agentInfo.nom}`; // Affiche Prénom Nom
             } else {
@@ -466,12 +762,18 @@ function showDay(day) {
             }
             tr.appendChild(tdAgent);
 
-            allTimeSlots.forEach(slotString => {
+            horaires.forEach(slotString => { // Utiliser horaires globale
                 const td = document.createElement("td");
                 td.classList.add('slot-cell');
                 td.setAttribute("data-time", slotString);
-                if (slots.includes(slotString)) {
-                    td.classList.add('occupied'); // Marque la cellule comme occupée
+                
+                // Si des données spécifiques existent pour cet agent et ce jour pour cette semaine
+                if (agentSpecificDayPlanning && agentSpecificDayPlanning.includes(slotString)) {
+                    td.classList.add('available-slot');
+                    td.textContent = 'D'; // Disponible
+                } else {
+                    td.classList.add('unavailable-slot');
+                    td.textContent = 'I'; // Indisponible
                 }
                 tr.appendChild(td);
             });
@@ -497,6 +799,7 @@ async function exportPdf() {
 
     if (!table) {
         console.warn("La table de planning est introuvable. Impossible d'exporter.");
+        displayMessageModal("Erreur d'Export", "La table de planning est introuvable. Assurez-vous que l'onglet 'Planning Global' est actif.", "error");
         return;
     }
 
@@ -571,11 +874,12 @@ async function exportPdf() {
 
         pdf.addImage(imgData, "PNG", x, y, pdfWidth, pdfHeight);
         pdf.save(`planning_${currentDay}_semaine${currentWeek}.pdf`);
+        displayMessageModal("Génération PDF", "Le PDF a été généré avec succès !", "success");
         console.log("Le PDF a été généré avec succès !");
 
     } catch (error) {
         console.error("Erreur lors de l'export PDF:", error);
-        console.error("Une erreur est survenue lors de la génération du PDF. Veuillez réessayer ou contacter l'administrateur. Détails: " + error.message);
+        displayMessageModal("Erreur d'Export", "Une erreur est survenue lors de la génération du PDF. Veuillez réessayer ou contacter l'administrateur. Détails: " + error.message, "error");
     } finally {
         container.style.overflowX = originalContainerOverflowX;
         table.style.whiteSpace = originalTableWhiteSpace;
@@ -975,8 +1279,6 @@ async function handleAddAgent(event) {
 
 async function handleAgentActions(event) {
     const target = event.target;
-    // MISE À JOUR 4 dans admin.js : Récupérer l'ID de l'agent depuis 'data-id'
-    // Le data-id est maintenant 'agent._id' grâce à la MISE À JOUR 3
     const agentId = target.dataset.id;
 
     if (!agentId) {
@@ -985,7 +1287,7 @@ async function handleAgentActions(event) {
     }
 
     if (target.classList.contains('edit-btn')) {
-        editAgentId.value = agentId; // Ceci devrait maintenant être l'ID correct de l'agent (ex: "bruneaum")
+        editAgentId.value = agentId;
         editAgentNom.value = target.dataset.nom;
         editAgentPrenom.value = target.dataset.prenom;
         editAgentNewPassword.value = '';
@@ -1000,10 +1302,10 @@ async function handleAgentActions(event) {
         renderGradesCheckboxes(agentGrades); // Nouveau: Remplir les checkboxes de grades
         renderFunctionsCheckboxes(agentFunctions); // Nouveau: Remplir les checkboxes de fonctions
 
-        editAgentModal.style.display = 'block';
+        editAgentModalElement.style.display = 'block'; 
     } else if (target.classList.contains('delete-btn')) {
-        // Confirmation avec l'utilisateur
-        if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agentId} ?`)) {
+        const confirmed = await confirmModal(`Êtes-vous sûr de vouloir supprimer l'agent ${agentId} ?`); 
+        if (confirmed) {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/admin/agents/${agentId}`, {
                     method: 'DELETE',
@@ -1014,14 +1316,14 @@ async function handleAgentActions(event) {
                 const data = await response.json();
 
                 if (response.ok) {
-                    console.log(data.message);
+                    displayMessageModal("Succès", data.message, "success"); 
                     loadAgents(); // Recharger la liste
                 } else {
-                    console.error(`Erreur lors de la suppression : ${data.message}`);
+                    displayMessageModal("Erreur", `Erreur lors de la suppression : ${data.message}`, "error"); 
                 }
             } catch (error) {
                 console.error('Erreur lors de la suppression de l\'agent:', error);
-                console.error('Erreur réseau lors de la suppression de l\'agent.');
+                displayMessageModal("Erreur", 'Erreur réseau lors de la suppression de l\'agent.', "error"); 
             }
         }
     }
@@ -1029,7 +1331,7 @@ async function handleAgentActions(event) {
 
 async function handleEditAgent(event) {
     event.preventDefault();
-    const id = editAgentId.value.trim(); // L'ID ici est correct car il vient du data-id de la ligne.
+    const id = editAgentId.value.trim();
     const nom = editAgentNom.value.trim();
     const prenom = editAgentPrenom.value.trim();
     const newPassword = editAgentNewPassword.value.trim();
@@ -1063,7 +1365,7 @@ async function handleEditAgent(event) {
             editAgentMessage.textContent = data.message;
             editAgentMessage.style.color = 'green';
             loadAgents(); // Recharger la liste des agents
-            // editAgentModal.style.display = 'none'; // Optionnel: fermer la modale après succès
+            // editAgentModalElement.style.display = 'none'; // Optionnel: fermer la modale après succès 
         } else {
             editAgentMessage.textContent = `Erreur : ${data.message}`;
             editAgentMessage.style.color = 'red';
@@ -1137,7 +1439,7 @@ async function handleAddQualification(event) {
         if (response.ok) {
             addQualificationMessage.textContent = data.message;
             addQualificationMessage.style.color = 'green';
-            addQualificationForm.reset();
+            addQualificationFormElement.reset(); 
             await loadAvailableQualifications(); // Recharger la liste des qualifications disponibles
             await loadQualificationsList(); // Recharger la liste affichée dans la table
             renderNewAgentQualificationsCheckboxes(); // Mettre à jour les checkboxes d'agent
@@ -1162,9 +1464,10 @@ async function handleQualificationActions(event) {
         editQualId.value = qualId;
         editQualName.value = target.dataset.name;
         editQualMessage.textContent = '';
-        editQualificationModal.style.display = 'block';
+        editQualificationModalElement.style.display = 'block'; 
     } else if (target.classList.contains('delete-btn')) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer la qualification "${qualId}" ? Cela la retirera aussi des agents qui la possèdent.`)) {
+        const confirmed = await confirmModal(`Êtes-vous sûr de vouloir supprimer la qualification "${qualId}" ? Cela la retirera aussi des agents qui la possèdent.`); 
+        if (confirmed) {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/qualifications/${qualId}`, {
                     method: 'DELETE',
@@ -1173,17 +1476,17 @@ async function handleQualificationActions(event) {
                 const data = await response.json();
 
                 if (response.ok) {
-                    console.log(data.message);
+                    displayMessageModal("Succès", data.message, "success"); 
                     await loadAvailableQualifications(); // Recharger la liste des qualifications disponibles
                     await loadQualificationsList(); // Recharger la liste affichée dans la table
                     renderNewAgentQualificationsCheckboxes(); // Mettre à jour les checkboxes d'agent
                     loadAgents(); // Recharger la liste des agents pour refléter les suppressions
                 } else {
-                    console.error(`Erreur lors de la suppression : ${data.message}`);
+                    displayMessageModal("Erreur", `Erreur lors de la suppression : ${data.message}`, "error"); 
                 }
             } catch (error) {
                 console.error('Erreur lors de la suppression de la qualification:', error);
-                console.error('Erreur réseau lors de la suppression de la qualification.');
+                displayMessageModal("Erreur", 'Erreur réseau lors de la suppression de la qualification.', "error"); 
             }
         }
     }
@@ -1215,7 +1518,7 @@ async function handleEditQualification(event) {
             await loadQualificationsList();
             renderNewAgentQualificationsCheckboxes();
             loadAgents(); // Refresh agents list to update displayed qualification names
-            // editQualificationModal.style.display = 'none';
+            // editQualificationModalElement.style.display = 'none'; 
         } else {
             editQualMessage.textContent = `Erreur : ${data.message}`;
             editQualMessage.style.color = 'red';
@@ -1259,7 +1562,8 @@ async function loadGradesList() {
             });
         }
         listGradesMessage.textContent = '';
-    } catch (error) {
+    }
+     catch (error) {
         console.error('Erreur de chargement des grades:', error);
         listGradesMessage.textContent = `Erreur : ${error.message}`;
         listGradesMessage.style.color = 'red';
@@ -1289,7 +1593,7 @@ async function handleAddGrade(event) {
         if (response.ok) {
             addGradeMessage.textContent = data.message;
             addGradeMessage.style.color = 'green';
-            addGradeForm.reset();
+            addGradeFormElement.reset(); 
             await loadAvailableGrades();
             await loadGradesList();
             renderNewAgentGradesCheckboxes(); // Mettre à jour les checkboxes d'agent
@@ -1314,9 +1618,10 @@ async function handleGradeActions(event) {
         editGradeId.value = gradeId;
         editGradeName.value = target.dataset.name;
         editGradeMessage.textContent = '';
-        editGradeModal.style.display = 'block';
+        editGradeModalElement.style.display = 'block'; 
     } else if (target.classList.contains('delete-btn')) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer le grade "${gradeId}" ? Cela le retirera aussi des agents qui le possèdent.`)) {
+        const confirmed = await confirmModal(`Êtes-vous sûr de vouloir supprimer le grade "${gradeId}" ? Cela le retirera aussi des agents qui le possèdent.`); 
+        if (confirmed) {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/grades/${gradeId}`, {
                     method: 'DELETE',
@@ -1325,17 +1630,17 @@ async function handleGradeActions(event) {
                 const data = await response.json();
 
                 if (response.ok) {
-                    console.log(data.message);
+                    displayMessageModal("Succès", data.message, "success"); 
                     await loadAvailableGrades();
                     await loadGradesList();
                     renderNewAgentGradesCheckboxes();
                     loadAgents(); // Recharger la liste des agents pour refléter les suppressions
                 } else {
-                    console.error(`Erreur lors de la suppression : ${data.message}`);
+                    displayMessageModal("Erreur", `Erreur lors de la suppression : ${data.message}`, "error"); 
                 }
             } catch (error) {
                 console.error('Erreur lors de la suppression du grade:', error);
-                console.error('Erreur réseau lors de la suppression du grade.');
+                displayMessageModal("Erreur", 'Erreur réseau lors de la suppression du grade.', "error"); 
             }
         }
     }
@@ -1367,7 +1672,7 @@ async function handleEditGrade(event) {
             await loadGradesList();
             renderNewAgentGradesCheckboxes();
             loadAgents(); // Refresh agents list to update displayed grade names
-            // editGradeModal.style.display = 'none';
+            // editGradeModalElement.style.display = 'none'; 
         } else {
             editGradeMessage.textContent = `Erreur : ${data.message}`;
             editGradeMessage.style.color = 'red';
@@ -1442,7 +1747,7 @@ async function handleAddFunction(event) {
         if (response.ok) {
             addFunctionMessage.textContent = data.message;
             addFunctionMessage.style.color = 'green';
-            addFunctionForm.reset();
+            addFunctionFormElement.reset(); 
             await loadAvailableFunctions();
             await loadFunctionsList();
             renderNewAgentFunctionsCheckboxes(); // Mettre à jour les checkboxes d'agent
@@ -1467,9 +1772,10 @@ async function handleFunctionActions(event) {
         editFunctionId.value = functionId;
         editFunctionName.value = target.dataset.name;
         editFunctionMessage.textContent = '';
-        editFunctionModal.style.display = 'block';
+        editFunctionModalElement.style.display = 'block'; 
     } else if (target.classList.contains('delete-btn')) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer la fonction "${functionId}" ? Cela la retirera aussi des agents qui la possèdent.`)) {
+        const confirmed = await confirmModal(`Êtes-vous sûr de vouloir supprimer la fonction "${functionId}" ? Cela la retirera aussi des agents qui la possèdent.`); 
+        if (confirmed) {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/functions/${functionId}`, {
                     method: 'DELETE',
@@ -1478,17 +1784,17 @@ async function handleFunctionActions(event) {
                 const data = await response.json();
 
                 if (response.ok) {
-                    console.log(data.message);
+                    displayMessageModal("Succès", data.message, "success"); 
                     await loadAvailableFunctions();
                     await loadFunctionsList();
                     renderNewAgentFunctionsCheckboxes();
                     loadAgents(); // Recharger la liste des agents pour refléter les suppressions
                 } else {
-                    console.error(`Erreur lors de la suppression : ${data.message}`);
+                    displayMessageModal("Erreur", `Erreur lors de la suppression : ${data.message}`, "error"); 
                 }
             } catch (error) {
                 console.error('Erreur lors de la suppression de la fonction:', error);
-                console.error('Erreur réseau lors de la suppression de la fonction.');
+                displayMessageModal("Erreur", 'Erreur réseau lors de la suppression de la fonction.', "error"); 
             }
         }
     }
@@ -1520,7 +1826,7 @@ async function handleEditFunction(event) {
             await loadFunctionsList();
             renderNewAgentFunctionsCheckboxes();
             loadAgents(); // Refresh agents list to update displayed function names
-            // editFunctionModal.style.display = 'none';
+            // editFunctionModalElement.style.display = 'none'; 
         } else {
             editFunctionMessage.textContent = `Erreur : ${data.message}`;
             editFunctionMessage.style.color = 'red';
