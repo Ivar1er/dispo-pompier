@@ -591,32 +591,35 @@ app.post('/api/daily-roster/:dateKey', authorizeAdmin, async (req, res) => {
 
 // Permet à un agent de sauvegarder ses disponibilités pour une date donnée
 // Le body de la requête doit contenir un tableau d'objets 'disponibilites' pour la date
+// Trouvez cette section dans votre fichier serveur.js
 app.post('/api/agent-availability/:dateKey/:agentId', async (req, res) => {
-  const { dateKey, agentId } = req.params;
-  const { availabilities } = req.body; // Supposons que le body contient { availabilities: [...] }
+    const dateKey = req.params.dateKey;
+    const agentId = req.params.agentId.toLowerCase();
+    const availabilities = req.body;
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
-  }
-  if (!agentId) {
-    return res.status(400).json({ message: 'Agent ID is required.' });
-  }
-  if (!Array.isArray(availabilities)) {
-    return res.status(400).json({ message: 'Availabilities must be an array.' });
-  }
+    // >>> Ajoutez ces 3 lignes pour le débogage <<<
+    console.log(`[Serveur] Reçu POST pour /api/agent-availability/${dateKey}/${agentId}`);
+    console.log(`[Serveur] Type de req.body : ${typeof availabilities}`);
+    console.log(`[Serveur] Contenu de req.body :`, availabilities); // Ceci est très important !
+    // >>> Fin des lignes de débogage <<<
 
-  // Crée le dossier si inexistant (devrait déjà être fait par initializeRosterFolders, mais sécurité)
-  await fs.mkdir(path.join(AGENT_AVAILABILITY_DIR, dateKey), { recursive: true }).catch(console.error);
+    if (!Array.isArray(availabilities)) {
+        console.error(`[ERREUR Serveur] Availabilities doit être un tableau. Reçu :`, typeof availabilities, availabilities);
+        return res.status(400).json({ message: 'Availabilities must be an array.' });
+    }
 
-  const filePath = path.join(AGENT_AVAILABILITY_DIR, dateKey, `${agentId}.json`);
-  try {
-    await fs.writeFile(filePath, JSON.stringify(availabilities, null, 2), 'utf8');
-    console.log(`[INFO Serveur] Availabilities for agent ${agentId} on ${dateKey} saved.`);
-    res.json({ message: 'Availabilities saved successfully.' });
-  } catch (err) {
-    console.error(`[ERREUR Serveur] Erreur de sauvegarde des disponibilités pour ${agentId} le ${dateKey}:`, err);
-    res.status(500).json({ message: 'Server error saving availabilities.' });
-  }
+    // Le reste de votre code existant...
+    const filePath = path.join(AGENT_AVAILABILITIES_DIR, dateKey, `${agentId}.json`);
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+
+    try {
+        await fs.writeFile(filePath, JSON.stringify(availabilities, null, 2), 'utf8');
+        console.log(`[INFO Serveur] Disponibilités de l'agent ${agentId} enregistrées pour la date ${dateKey}.`);
+        res.status(200).json({ message: 'Disponibilités enregistrées avec succès.' });
+    } catch (err) {
+        console.error(`[ERREUR Serveur] Erreur lors de l'écriture du fichier de disponibilité pour ${agentId} sur ${dateKey}:`, err);
+        res.status(500).json({ message: 'Erreur serveur lors de l\'enregistrement des disponibilités.' });
+    }
 });
 
 // Permet de récupérer toutes les disponibilités individuelles des agents pour une date donnée

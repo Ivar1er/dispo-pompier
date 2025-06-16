@@ -354,6 +354,7 @@ async function savePlanning() {
   showLoading(true, saveButton);
   try {
     console.log(`[Agent App] Saving availabilities for agent ${currentAgentId} on ${dateKey}. Data:`, formattedAvailabilities);
+    console.log(`[Agent App] JSON body being sent:`, JSON.stringify(formattedAvailabilities)); // <<< NOUVEAU LOG POUR LE DÉBOGAGE
     const response = await fetch(`${API_BASE_URL}/api/agent-availability/${dateKey}/${currentAgentId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
