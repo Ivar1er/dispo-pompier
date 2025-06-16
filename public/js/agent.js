@@ -353,12 +353,17 @@ async function savePlanning() {
 
   showLoading(true, saveButton);
   try {
-    console.log(`[Agent App] Saving availabilities for agent ${currentAgentId} on ${dateKey}. Data:`, formattedAvailabilities);
-    console.log(`[Agent App] JSON body being sent:`, JSON.stringify(formattedAvailabilities)); // <<< NOUVEAU LOG POUR LE DÉBOGAGE
+    // >>> Lignes de log modifiées pour un débogage plus précis <<<
+    console.log(`[Agent App Debug] Enregistrement des disponibilités pour l'agent ${currentAgentId} à la date ${dateKey}.`);
+    console.log(`[Agent App Debug] Objet JavaScript à envoyer (formattedAvailabilities):`, formattedAvailabilities);
+    const jsonBody = JSON.stringify(formattedAvailabilities);
+    console.log(`[Agent App Debug] Chaîne JSON envoyée dans le corps de la requête:`, jsonBody);
+    // >>> Fin des lignes de log modifiées <<<
+
     const response = await fetch(`${API_BASE_URL}/api/agent-availability/${dateKey}/${currentAgentId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formattedAvailabilities), // Send only the array of objects
+      body: jsonBody, // Utilise la chaîne JSON générée
     });
     const data = await response.json();
     if (response.ok) {

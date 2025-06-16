@@ -603,6 +603,14 @@ app.post('/api/agent-availability/:dateKey/:agentId', async (req, res) => {
     console.log(`[Serveur] Contenu de req.body :`, availabilities); // Ceci est très important !
     // >>> Fin des lignes de débogage <<<
 
+    console.log(`\n--- Début du log de requête pour /api/agent-availability ---`);
+    console.log(`[Serveur Debug] Reçu POST pour dateKey: ${dateKey}, agentId: ${agentId}`);
+    console.log(`[Serveur Debug] req.headers['content-type']:`, req.headers['content-type']); // Très important !
+    console.log(`[Serveur Debug] Type de req.body (après middleware express.json()) : ${typeof availabilities}`);
+    console.log(`[Serveur Debug] Est-ce un tableau ? : ${Array.isArray(availabilities)}`);
+    console.log(`[Serveur Debug] Contenu de req.body (raw) :`, availabilities); // C'est le contenu brut reçu
+    console.log(`--- Fin du log de requête ---`);
+
     if (!Array.isArray(availabilities)) {
         console.error(`[ERREUR Serveur] Availabilities doit être un tableau. Reçu :`, typeof availabilities, availabilities);
         return res.status(400).json({ message: 'Availabilities must be an array.' });
