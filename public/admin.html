@@ -28,7 +28,7 @@
       <button class="main-tab" data-main-tab="agent-management-view">Gestion des Agents</button>
       <button class="main-tab" data-main-tab="qualification-management-view">Gestion des Qualifications</button>
       <button class="main-tab" data-main-tab="grade-management-view">Gestion des Grades</button>
-      <!-- Bouton "Gestion des Fonctions" supprimé -->
+      <!-- Bouton "Gestion des Fonctions" a été supprimé -->
     </nav>
 
     <div id="global-planning-view" class="main-tab-content active">
@@ -88,6 +88,8 @@
                     </div>
                 </div>
                 <br>
+                <!-- Section "Fonctions de l'Agent" supprimée -->
+                <!--
                 <div>
                     <h4>Fonctions de l'Agent :</h4>
                     <div id="newAgentFunctionsCheckboxes">
@@ -95,6 +97,7 @@
                     </div>
                 </div>
                 <br>
+                -->
 
                 <button type="submit" class="btn btn-primary">Ajouter l'Agent</button>
             </form>
@@ -113,12 +116,13 @@
                         <th>Prénom</th>
                         <th>Qualifications</th>
                         <th>Grades</th>
-                        <th>Fonctions</th>
+                        <!-- Colonne "Fonctions" supprimée -->
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="agentsTableBody">
-                    <tr><td colspan="7">Chargement des agents...</td></tr>
+                    <!-- Colspan ajusté de 7 à 6 (ID, Nom, Prénom, Qualifs, Grades, Actions) -->
+                    <tr><td colspan="6">Chargement des agents...</td></tr>
                 </tbody>
             </table>
             <p id="listAgentsMessage"></p>
@@ -200,7 +204,7 @@
     </footer>
   </div>
 
-  <!-- Modale de modification d'agent et de qualifications, grades, fonctions -->
+  <!-- Modale de modification d'agent et de qualifications, grades -->
   <div id="editAgentModal" class="modal" style="display: none;">
       <div class="modal-content">
           <span class="close-button">&times;</span>
@@ -233,6 +237,8 @@
                   <p id="gradesMessage" style="color: red;"></p>
               </div>
               <br>
+              <!-- Section "Fonctions de l'Agent" supprimée -->
+              <!--
               <div>
                   <h4>Fonctions de l'Agent :</h4>
                   <div id="functionsCheckboxes">
@@ -241,6 +247,7 @@
                   <p id="functionsMessage" style="color: red;"></p>
               </div>
               <br>
+              -->
 
               <button type="submit" class="btn btn-primary">Mettre à jour l'Agent</button>
           </form>

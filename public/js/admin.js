@@ -7,6 +7,7 @@ let planningData = {}; // Contiendra le planning global chargé de l'API { agent
 let agentDisplayInfos = {}; // Mapping dynamique agentId => {nom, prenom}
 let availableQualifications = []; // Liste des qualifications disponibles chargée depuis l'API
 let availableGrades = []; // Nouvelle: Liste des grades disponibles chargée depuis l'API
+// Suppression de availableFunctions car la fonctionnalité "Fonctions" est retirée.
 
 // --- DOM Elements pour la navigation principale (onglets) ---
 const mainTabButtons = document.querySelectorAll('.main-tab');
@@ -41,6 +42,7 @@ const qualificationsCheckboxesDiv = document.getElementById('qualificationsCheck
 const gradesCheckboxesDiv = document.getElementById('gradesCheckboxes'); // Pour la modale de modification
 const qualificationsMessage = document.getElementById('qualificationsMessage'); 
 const gradesMessage = document.getElementById('gradesMessage'); 
+// Suppression de functionsCheckboxes et functionsMessage car la fonctionnalité est retirée.
 
 
 // --- DOM Elements pour la vue "Gestion des Qualifications" ---
@@ -166,7 +168,7 @@ async function loadPlanningData() {
         if (!response.ok) throw new Error(data.message || 'Erreur lors du chargement du planning global.');
 
         planningData = data; 
-        console.log("Planning Global Chargé:", planningData);
+        console.log("Planning Global Chargé (Admin):", planningData); // Log pour débogage
 
         await fetchAgentNames();
     } catch (error) {
@@ -190,16 +192,24 @@ function renderPlanningGrid(day) {
     // En-tête (Créneaux Horaires)
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
-    headerRow.innerHTML = '<th>Agent</th>'; // Première colonne pour le Nom de l'Agent
+    headerRow.innerHTML = '<th class="agent-header-cell">Agent</th>'; // Première colonne pour le Nom de l'Agent
 
-    // Réécrire les heures avec un format plus propre si nécessaire, et s'assurer de l'alignement
-    horaires.forEach(slot => {
+    // Génération des en-têtes d'heure (07h, 08h, etc.) qui s'étendent sur 2x30min
+    for (let h = 7; h < 24; h++) { // De 7h à 23h
         const th = document.createElement('th');
-        // Afficher seulement l'heure de début
-        th.textContent = slot.split(' - ')[0]; 
-        th.classList.add('time-header-cell'); // Ajout d'une classe pour le style
+        th.textContent = `${String(h).padStart(2, '0')}h`;
+        th.classList.add('time-header-cell');
+        th.colSpan = 2; // Un en-tête d'heure couvre deux créneaux de 30min
         headerRow.appendChild(th);
-    });
+    }
+    // Ajouter les heures de 00h à 06h (pour boucler la journée)
+    for (let h = 0; h < 7; h++) { // De 00h à 06h
+        const th = document.createElement('th');
+        th.textContent = `${String(h).padStart(2, '0')}h`;
+        th.classList.add('time-header-cell');
+        th.colSpan = 2;
+        headerRow.appendChild(th);
+    }
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
@@ -225,7 +235,8 @@ function renderPlanningGrid(day) {
 
     if (filteredAgentIds.length === 0) {
         const noAgentsRow = document.createElement('tr');
-        noAgentsRow.innerHTML = `<td colspan="${horaires.length + 1}">Aucun agent avec des disponibilités renseignées pour ce jour de la semaine.</td>`;
+        // Colspan ajusté: 1 (Agent) + (24 heures * 2 créneaux/heure) = 49
+        noAgentsRow.innerHTML = `<td colspan="49">Aucun agent avec des disponibilités renseignées pour ce jour de la semaine.</td>`;
         tbody.appendChild(noAgentsRow);
     } else {
         filteredAgentIds.forEach(agentId => {
@@ -241,7 +252,7 @@ function renderPlanningGrid(day) {
 
             horaires.forEach(timeSlot => {
                 const slotCell = document.createElement('td');
-                slotCell.classList.add('time-slot-cell');
+                slotCell.classList.add('slot-cell');
                 slotCell.setAttribute("data-time", timeSlot);
                 
                 if (agentSpecificDayPlanning && agentSpecificDayPlanning.includes(timeSlot)) {
@@ -249,7 +260,7 @@ function renderPlanningGrid(day) {
                 } else {
                     slotCell.classList.add('unavailable-slot-cell'); // Classe pour indisponible (gris/rouge pâle)
                 }
-                // Suppression du texte 'D' ou 'I' - la couleur suffit
+                // Ne pas ajouter de texte 'D' ou 'I' - la couleur suffit
                 // slotCell.textContent = ''; 
                 agentRow.appendChild(slotCell);
             });
@@ -434,31 +445,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     // --- Initialisation des fonctionnalités par défaut de la page ---
-    // Charger la liste des qualifications, grades et fonctions disponibles en premier
     await loadAvailableQualifications();
     await loadAvailableGrades(); 
 
-    // Rendre les checkboxes pour le formulaire d'ajout d'agent après le chargement des données
     renderNewAgentQualificationsCheckboxes();
     renderNewAgentGradesCheckboxes(); 
+    // Suppression de renderNewAgentFunctionsCheckboxes();
 
-    // Définir la semaine actuelle par défaut AVANT de charger les données pour que le sélecteur soit correct
+    // Définir la semaine actuelle par défaut
     currentWeek = getCurrentISOWeek(new Date());
-    // Générer les options du sélecteur de semaine
-    generateWeekOptions();
+    generateWeekOptions(); // Générer les options du sélecteur de semaine
 
-
-    // Charger les données initiales du planning global
-    await loadPlanningData(); // Ceci appellera updateWeekSelector interne
-
-    // S'assurer que le sélecteur de semaine affiche la semaine actuelle par défaut
+    // Charger les données initiales du planning global et mettre à jour le sélecteur
+    await loadPlanningData(); 
+    
+    // Assurer que le sélecteur de semaine affiche la semaine actuelle par défaut après chargement des données
     const currentWeekAsString = `week-${currentWeek}`;
-    if (weekSelect) {
+    if (weekSelect && weekSelect.querySelector(`option[value="${currentWeekAsString}"]`)) {
         weekSelect.value = currentWeekAsString;
+    } else if (weekSelect && weekSelect.options.length > 0) {
+        // Si la semaine actuelle n'est pas dans les options (pas de données pour elle), sélectionnez la première option disponible
+        weekSelect.value = weekSelect.options[0].value;
+        currentWeek = parseInt(weekSelect.value.split('-')[1]);
     }
+
 
     // Ouvrir l'onglet "Planning Global" par default au chargement
     await openMainTab('global-planning-view'); 
+
 
     // --- Écouteurs d'événements pour les contrôles du planning global ---
     if (weekSelect) {
@@ -566,56 +580,9 @@ async function openMainTab(tabId) {
 
 // --- Fonctions de gestion du Planning Global ---
 
-async function loadPlanningAndDisplay() {
-    showLoading(true);
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/planning`);
-        if (!res.ok) {
-            if (res.status === 404) {
-                console.warn("Aucun planning global trouvé (404), initialisation à vide.");
-                planningData = {};
-            } else {
-                throw new Error(`Erreur chargement planning global: HTTP ${res.status}`);
-            }
-        }
-        planningData = await res.json() || {};
+// loadPlanningAndDisplay a été refactorisé et son contenu intégré dans loadPlanningData
+// pour simplifier l'appel initial et le rechargement.
 
-        const agentsResponse = await fetch(`${API_BASE_URL}/api/admin/agents`, {
-            headers: { 'X-User-Role': 'admin' }
-        });
-        const agentsData = await agentsResponse.json();
-        agentDisplayInfos = {};
-        agentsData.forEach(agent => {
-            agentDisplayInfos[agent._id] = { nom: agent.nom, prenom: agent.prenom };
-        });
-
-        const allWeeksSet = new Set();
-        for (const agentKey in planningData) {
-            if (!agentDisplayInfos[agentKey]) {
-                console.warn(`Agent avec la clé '${agentKey}' trouvé dans /api/planning mais pas dans la liste des agents ou non mappable.`);
-                continue; 
-            }
-            const weeks = Object.keys(planningData[agentKey]);
-            weeks.forEach(w => allWeeksSet.add(w));
-        }
-
-        if (allWeeksSet.size === 0) {
-            allWeeksSet.add(`week-${getCurrentISOWeek()}`); 
-        }
-
-        updateWeekSelector(allWeeksSet); 
-
-    } catch (e) {
-        console.error("Erreur lors du chargement ou de l'affichage du planning :", e);
-        adminInfo.textContent = "Erreur lors du chargement du planning global. Veuillez réessayer.";
-        adminInfo.style.backgroundColor = "#ffe6e6";
-        adminInfo.style.borderColor = "#e6a4a4";
-        adminInfo.style.color = "#a94442";
-        planningData = {}; 
-    } finally {
-        showLoading(false);
-    }
-}
 
 function updateWeekSelector(availableWeeks) {
     weekSelect.innerHTML = "";
@@ -629,7 +596,7 @@ function updateWeekSelector(availableWeeks) {
         const weekNum = parseInt(weekKey.split("-")[1]);
         const dateRange = getWeekDateRange(weekNum);
         opt.textContent = `Semaine ${weekNum} (${dateRange})`;
-        weekSelect.appendChild(opt);
+        select.appendChild(opt);
     });
 
     // Sélectionne la semaine actuelle par défaut
@@ -638,10 +605,11 @@ function updateWeekSelector(availableWeeks) {
         weekSelect.value = currentWeekAsString;
         currentWeek = getCurrentISOWeek(); // Assurer que currentWeek est bien à jour
     } else if (sortedWeeks.length > 0) {
+        // Si la semaine actuelle n'a pas de données, sélectionne la première semaine disponible
         weekSelect.value = sortedWeeks[0];
         currentWeek = parseInt(sortedWeeks[0].split("-")[1]);
     } else {
-        // Si aucune semaine n'est disponible (aucun planning), ajoute la semaine actuelle
+        // Si aucune semaine n'est disponible (aucun planning), ajoute la semaine actuelle comme seule option
         const currentWeekKeyDefault = `week-${getCurrentISOWeek()}`;
         const opt = document.createElement("option");
         opt.value = currentWeekKeyDefault;
@@ -664,7 +632,7 @@ function showDay(day) {
     planningContainer.innerHTML = ""; 
 
     const table = document.createElement("table");
-    table.className = "planning-table";
+    table.className = "planning-table global-planning-table"; // Ajout de la classe global-planning-table pour les styles spécifiques
 
     // Header (créneaux horaires)
     const thead = document.createElement("thead");
@@ -675,12 +643,22 @@ function showDay(day) {
     thAgent.classList.add('agent-header-cell'); // Ajout d'une classe pour le style
     headerRow.appendChild(thAgent);
 
-    horaires.forEach(slotString => { 
-        const th = document.createElement("th");
-        th.textContent = slotString.split(' - ')[0]; // Affiche seulement l'heure de début (ex: "07:00")
-        th.classList.add('time-header-cell'); // Ajout d'une classe pour le style
+    // Génération des en-têtes d'heure (07h, 08h, etc.) qui s'étendent sur 2x30min
+    for (let h = 7; h < 24; h++) { // De 7h à 23h
+        const th = document.createElement('th');
+        th.textContent = `${String(h).padStart(2, '0')}h`;
+        th.classList.add('time-header-cell');
+        th.colSpan = 2; // Un en-tête d'heure couvre deux créneaux de 30min
         headerRow.appendChild(th);
-    });
+    }
+    // Ajouter les heures de 00h à 06h (pour boucler la journée si nécessaire)
+    for (let h = 0; h < 7; h++) { // De 00h à 06h
+        const th = document.createElement('th');
+        th.textContent = `${String(h).padStart(2, '0')}h`;
+        th.classList.add('time-header-cell');
+        th.colSpan = 2;
+        headerRow.appendChild(th);
+    }
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
@@ -689,6 +667,7 @@ function showDay(day) {
 
     const weekKey = `week-${currentWeek}`;
 
+    // Filtrer les agents pour n'afficher que ceux ayant au moins un créneau renseigné pour le jour et la semaine actuels
     const filteredAgentIds = Object.keys(agentDisplayInfos).filter(agentId => {
         const agentPlanningForDay = planningData[agentId]?.[weekKey]?.[day];
         return Array.isArray(agentPlanningForDay) && agentPlanningForDay.length > 0;
@@ -702,7 +681,7 @@ function showDay(day) {
     if (filteredAgentIds.length === 0) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 1 + horaires.length; 
+        td.colSpan = 1 + (24 * 2); // 1 pour Agent + 24 heures * 2 créneaux/heure = 49 colonnes
         td.textContent = "Aucun agent avec des disponibilités renseignées pour ce jour de la semaine.";
         tr.appendChild(td);
         tbody.appendChild(tr);
@@ -713,7 +692,7 @@ function showDay(day) {
 
             const tr = document.createElement("tr");
             const tdAgent = document.createElement("td");
-            tdAgent.classList.add('agent-name-cell'); // Ajout d'une classe pour le style
+            tdAgent.classList.add('agent-name-cell'); 
             if (agentInfo) {
                 tdAgent.textContent = `${agentInfo.prenom} ${agentInfo.nom}`; 
             } else {
@@ -721,17 +700,17 @@ function showDay(day) {
             }
             tr.appendChild(tdAgent);
 
-            horaires.forEach(slotString => { 
+            horaires.forEach(slotString => { // horaires contient 48 créneaux de 30 min (07:00-07:30, 07:30-08:00, etc.)
                 const td = document.createElement("td");
                 td.classList.add('slot-cell');
-                td.setAttribute("data-time", slotString);
+                td.setAttribute("data-time", slotString); // Utile pour le débogage ou futures fonctionnalités
                 
                 if (agentSpecificDayPlanning && agentSpecificDayPlanning.includes(slotString)) {
                     td.classList.add('available-slot-cell'); // Disponible (vert)
                 } else {
                     td.classList.add('unavailable-slot-cell'); // Indisponible (gris/rouge pâle)
                 }
-                // Supprime le texte 'D' ou 'I'
+                // Supprime le texte 'D' ou 'I' - la couleur suffit
                 // td.textContent = ''; 
                 tr.appendChild(td);
             });
@@ -752,7 +731,7 @@ function showDay(day) {
 // --- Fonctions d'Export PDF ---
 async function exportPdf() {
     const container = document.getElementById("global-planning");
-    const table = container.querySelector('.planning-table');
+    const table = container.querySelector('.global-planning-table'); // Cible la nouvelle classe
 
     if (!table) {
         console.warn("La table de planning est introuvable. Impossible d'exporter.");
@@ -760,16 +739,31 @@ async function exportPdf() {
         return;
     }
 
+    // Cache le spinner avant la capture HTML2Canvas
+    const wasLoading = !loadingSpinner.classList.contains("hidden");
+    loadingSpinner.classList.add("hidden");
+
+
     const originalContainerOverflowX = container.style.overflowX;
     const originalTableWhiteSpace = table.style.whiteSpace;
+    const originalTableLayout = table.style.tableLayout; // Sauvegarder le table-layout
+    const originalHeaderCellWidths = {}; // Pour stocker les largeurs d'origine
+    const headerCells = table.querySelectorAll('.time-header-cell');
+    headerCells.forEach((cell, index) => {
+        originalHeaderCellWidths[index] = cell.style.width;
+        // Définir des largeurs absolues pour HTML2Canvas
+        cell.style.width = '60px'; // 2 * 30px, ou une taille adaptée à l'impression
+    });
 
-    showLoading(true, true);
+    showLoading(true, true); // Active le spinner avec le message PDF
 
     try {
         container.style.overflowX = "visible";
         table.style.whiteSpace = "nowrap";
+        table.style.tableLayout = "auto"; // Permettre aux colonnes de s'ajuster pour l'export
 
-        await new Promise(r => setTimeout(r, 100)); 
+        // Attendre que le DOM se rende après les changements de style
+        await new Promise(r => setTimeout(r, 200)); 
 
         const { jsPDF } = window.jspdf;
 
@@ -783,11 +777,16 @@ async function exportPdf() {
         }
         const title = `Planning Semaine ${currentWeek} du ${formatDate(mondayDate)} au ${formatDate(sundayDate)}`;
 
+        // Utiliser une échelle plus élevée pour une meilleure qualité d'image
         const canvas = await html2canvas(table, {
-            scale: 2, 
+            scale: 3, // Augmenter l'échelle pour une meilleure résolution PDF
             scrollY: -window.scrollY,
             useCORS: true,
             allowTaint: true,
+            ignoreElements: (element) => {
+                // Ignore les éléments qui ne doivent pas être capturés dans le PDF
+                return element.classList.contains('loading-spinner');
+            }
         });
 
         const imgData = canvas.toDataURL("image/png");
@@ -795,7 +794,7 @@ async function exportPdf() {
         const pdf = new jsPDF({
             orientation: "landscape",
             unit: "mm",
-            format: "a3"
+            format: "a3" // Utiliser un format plus grand pour plus de détails
         });
 
         const pageWidth = pdf.internal.pageSize.getWidth();
@@ -806,6 +805,7 @@ async function exportPdf() {
         let pdfWidth = pageWidth - 2 * margin;
         let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
+        // Ajuster la hauteur si l'image est trop grande pour la page A3
         if (pdfHeight > pageHeight - (2 * margin + 30)) {
             pdfHeight = pageHeight - (2 * margin + 30);
             pdfWidth = (imgProps.width * pdfHeight) / imgProps.height;
@@ -819,6 +819,7 @@ async function exportPdf() {
         pdf.setFontSize(14);
         pdf.text(`Jour : ${currentDay.charAt(0).toUpperCase() + currentDay.slice(1)}`, margin, margin + 12);
 
+        // Message si l'image a été réduite
         if (canvas.width > pageWidth * 2) { 
             pdf.setFontSize(8);
             pdf.setTextColor(100);
@@ -835,9 +836,19 @@ async function exportPdf() {
         console.error("Erreur lors de l'export PDF:", error);
         displayMessageModal("Erreur d'Export", "Une erreur est survenue lors de la génération du PDF. Veuillez réessayer ou contacter l'administrateur. Détails: " + error.message, "error");
     } finally {
+        // Restaurer les styles originaux
         container.style.overflowX = originalContainerOverflowX;
         table.style.whiteSpace = originalTableWhiteSpace;
-        showLoading(false, true);
+        table.style.tableLayout = originalTableLayout; // Restaurer le table-layout
+        headerCells.forEach((cell, index) => { // Restaurer les largeurs des en-têtes
+            cell.style.width = originalHeaderCellWidths[index];
+        });
+
+        showLoading(false, true); // Désactive le spinner
+        // Restaurer le spinner si c'était le cas avant l'export
+        if (wasLoading) {
+            loadingSpinner.classList.remove("hidden");
+        }
     }
 }
 
@@ -1026,8 +1037,8 @@ async function loadAgents() {
 
         agentsTableBody.innerHTML = '';
         if (data.length === 0) {
-            // Colspan ajusté pour 6 colonnes (ID, Nom, Prénom, Qualifs, Grades, Actions)
-            agentsTableBody.innerHTML = '<tr><td colspan="6">Aucun agent enregistré pour le moment.</td></tr>'; 
+            // Colspan ajusté pour 5 colonnes (ID, Nom, Prénom, Qualifs, Grades, Actions)
+            agentsTableBody.innerHTML = '<tr><td colspan="5">Aucun agent enregistré pour le moment.</td></tr>'; 
         } else {
             data.forEach(agent => {
                 const row = agentsTableBody.insertRow();
@@ -1047,6 +1058,7 @@ async function loadAgents() {
                                     })
                                     .join(', ');
 
+                // Suppression de la colonne fonctions, donc le HTML ici est ajusté
                 row.innerHTML = `
                     <td>${agent._id}</td>
                     <td>${agent.nom}</td>
@@ -1070,7 +1082,7 @@ async function loadAgents() {
         console.error('Erreur de chargement des agents:', error);
         listAgentsMessage.textContent = `Erreur : ${error.message}`;
         listAgentsMessage.style.color = 'red';
-        agentsTableBody.innerHTML = '<tr><td colspan="6">Impossible de charger la liste des agents.</td></tr>'; // Colspan ajusté
+        agentsTableBody.innerHTML = '<tr><td colspan="5">Impossible de charger la liste des agents.</td></tr>'; // Colspan ajusté
     }
 }
 
@@ -1524,44 +1536,4 @@ async function handleEditGrade(event) {
 function logout() {
     sessionStorage.clear();
     window.location.href = "index.html";
-}
-
-function showLoading(isLoading, forPdf = false) {
-    if (isLoading) {
-        loadingSpinner.classList.remove("hidden");
-        // Désactiver les contrôles globaux et ceux de l'onglet actif
-        document.querySelectorAll('button, select, input, a').forEach(el => {
-            if (el.id !== 'logout-btn') { // Ne pas désactiver le bouton de déconnexion
-                el.disabled = true;
-                if (el.tagName === 'A') el.classList.add('disabled-link'); // Ajoute une classe pour les liens
-            }
-        });
-        // Pour les boutons principaux d'onglet, on peut les désactiver aussi
-        mainTabButtons.forEach(btn => btn.disabled = true);
-
-        if (forPdf) {
-            adminInfo.textContent = "Génération du PDF en cours, veuillez patienter...";
-            adminInfo.style.backgroundColor = "#fff3cd";
-            adminInfo.style.borderColor = "#ffeeba";
-            adminInfo.style.color = "#856404";
-        }
-    } else {
-        loadingSpinner.classList.add("hidden");
-        // Réactiver les contrôles globaux et ceux de l'onglet actif
-        document.querySelectorAll('button, select, input, a').forEach(el => {
-            if (el.id !== 'logout-btn') {
-                el.disabled = false;
-                if (el.tagName === 'A') el.classList.remove('disabled-link');
-            }
-        });
-        mainTabButtons.forEach(btn => btn.disabled = false);
-
-
-        if (forPdf) {
-            adminInfo.textContent = "Vue du planning global des agents.";
-            adminInfo.style.backgroundColor = "";
-            adminInfo.style.borderColor = "";
-            adminInfo.style.color = "";
-        }
-    }
 }

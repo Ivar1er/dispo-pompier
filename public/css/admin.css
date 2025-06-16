@@ -244,8 +244,8 @@ body {
     left: 0;
     z-index: 11; /* Au-dessus des en-têtes d'heure */
     box-shadow: 2px 0 5px rgba(0,0,0,0.05); /* Petite ombre pour la séparation */
-    min-width: 150px; /* Ajustez selon le contenu des noms */
-    width: 150px;
+    min-width: 180px; /* Augmenté de 150px à 180px */
+    width: 180px; /* Augmenté de 150px à 180px */
 }
 
 /* En-tête des heures (dans le planning global) */
@@ -253,7 +253,8 @@ body {
     background-color: #e0e0e0; /* Couleur légèrement différente pour les heures */
     font-weight: normal; 
     white-space: nowrap; /* Empêche le retour à la ligne des heures */
-    min-width: 60px; /* Taille minimale pour les créneaux 30min */
+    /* La largeur sera gérée par colSpan sur le TH, ici on s'assure qu'elle ne soit pas écrasée */
+    /* min-width: 60px; */ /* Décommenter si colSpan ne suffit pas */
     overflow: hidden;
     text-overflow: ellipsis; /* Ajoute des points de suspension si le texte est trop long */
     font-size: 0.75rem; /* Ajuste la taille de la police pour les heures */
@@ -266,7 +267,7 @@ body {
     cursor: default;
     width: 2.083%; /* (100% / 48 créneaux) pour une distribution égale */
     min-width: 25px; /* Assure une taille minimale */
-    padding: 0; /* Pas de padding pour les cellules de couleur */
+    padding: 0; /* Important pour que la couleur remplisse toute la cellule */
 }
 
 /* Couleurs pour les disponibilités dans le planning global */
