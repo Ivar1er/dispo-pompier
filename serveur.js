@@ -299,7 +299,8 @@ app.get('/api/planning', async (req, res) => {
       all[agent] = JSON.parse(content);
     }
     res.json(all);
-  } catch (err) {
+  }
+  catch (err) {
     console.error(`[ERREUR Serveur] Erreur de récupération de tous les plannings:`, err);
     res.status(500).json({ message: 'Error getting plannings' });
   }
@@ -591,18 +592,12 @@ app.post('/api/daily-roster/:dateKey', authorizeAdmin, async (req, res) => {
 
 // Permet à un agent de sauvegarder ses disponibilités pour une date donnée
 // Le body de la requête doit contenir un tableau d'objets 'disponibilites' pour la date
-// Trouvez cette section dans votre fichier serveur.js
 app.post('/api/agent-availability/:dateKey/:agentId', async (req, res) => {
     const dateKey = req.params.dateKey;
     const agentId = req.params.agentId.toLowerCase();
     const availabilities = req.body;
 
-    // >>> Ajoutez ces 3 lignes pour le débogage <<<
-    console.log(`[Serveur] Reçu POST pour /api/agent-availability/${dateKey}/${agentId}`);
-    console.log(`[Serveur] Type de req.body : ${typeof availabilities}`);
-    console.log(`[Serveur] Contenu de req.body :`, availabilities); // Ceci est très important !
-    // >>> Fin des lignes de débogage <<<
-
+    // --- Début du log de requête pour /api/agent-availability ---
     console.log(`\n--- Début du log de requête pour /api/agent-availability ---`);
     console.log(`[Serveur Debug] Reçu POST pour dateKey: ${dateKey}, agentId: ${agentId}`);
     console.log(`[Serveur Debug] req.headers['content-type']:`, req.headers['content-type']); // Très important !
@@ -612,12 +607,11 @@ app.post('/api/agent-availability/:dateKey/:agentId', async (req, res) => {
     console.log(`--- Fin du log de requête ---`);
 
     if (!Array.isArray(availabilities)) {
-        console.error(`[ERREUR Serveur] Availabilities doit être un tableau. Reçu :`, typeof availabilities, availabilities);
+        console.error(`[ERREUR Serveur] Availabilities doit être un tableau. Reçu type: ${typeof availabilities}, contenu:`, availabilities);
         return res.status(400).json({ message: 'Availabilities must be an array.' });
     }
 
-    // Le reste de votre code existant...
-    const filePath = path.join(AGENT_AVAILABILITIES_DIR, dateKey, `${agentId}.json`);
+    const filePath = path.join(AGENT_AVAILABILITY_DIR, dateKey, `${agentId}.json`);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
 
     try {
