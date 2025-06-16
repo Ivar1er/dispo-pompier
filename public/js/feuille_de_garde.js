@@ -102,7 +102,7 @@ const engineDetails = {
             { id: 'cod_0', name: 'CD VPMA', required: true },
             { id: 'eq_vpma', name: 'EQ VPMA', required: false }
         ],
-        criticalRoles: ['none', 'none']
+        criticalRoles: ['none', 'none'] // A revoir si des rôles critiques sont pertinents ici
     }
 };
 
@@ -128,10 +128,14 @@ const engineRolesContainer            = document.getElementById('engine-roles-co
 // États globaux
 let currentRosterDate = new Date();
 let allAgents         = [];
-let appData           = { personnelAvailabilities: {} };
+// appData contiendra maintenant la configuration du roster par date, et personnelAvailabilities par agent
+let appData           = { 
+    personnelAvailabilities: {} 
+};
 
 // NOUVEAU: Variable globale pour stocker les qualifications de l'agent en cours de drag
-let draggedAgentQualifications = []; // Cette variable n'est plus utilisée directement avec le nouveau D&D
+// Cette variable n'est plus utilisée directement avec le nouveau D&D, conservée pour référence si besoin
+let draggedAgentQualifications = []; 
 
 // Helpers
 function formatDateToYYYYMMDD(d) {
@@ -237,7 +241,7 @@ function createEmptyEngineAssignment(type) {
  */
 function isAgentQualifiedForRole(agent, roleId) {
     if (!agent || !Array.isArray(agent.qualifications)) {
-        console.warn(`isAgentQualifiedForRole: Agent ou qualifications non valides pour le rôle '${roleId}'.`, agent);
+        // console.warn(`isAgentQualifiedForRole: Agent ou qualifications non valides pour le rôle '${roleId}'.`, agent);
         return false;
     }
 
@@ -290,62 +294,48 @@ async function fetchAllAgents() {
   }
 }
 
-function renderAvailableAgents() {
-    availablePersonnelList.innerHTML = ""; // Vide la liste existante
-
-    if (allAgents.length === 0) {
-        availablePersonnelList.innerHTML = "<div style='padding:1em;color:#888'>Aucun agent disponible.</div>";
-        return;
-    }
-
-    allAgents.forEach(agent => {
-        const div = document.createElement("div");
-        div.className = "agent-card";
-        div.textContent = agent.prenom + " " + agent.nom;
-        availablePersonnelList.appendChild(div);
-    });
-}
-
 async function loadRosterConfig(dateKey) {
   try {
     const resp = await fetch(`${API_BASE_URL}/api/roster-config/${dateKey}`, {
       headers: {'X-User-Role':'admin'}
     });
+    // On ne jette plus d'erreur si c'est un 404, le serveur renvoie désormais un {}
+    // Donc on vérifie simplement si la réponse est OK
     if (!resp.ok) {
-        if (resp.status === 404) {
-            // Si la config n'existe pas, initialiser une nouvelle config par défaut
-            appData[dateKey] = {
-                timeSlots: {},
-                onDutyAgents: Array(10).fill('none')
-            };
-            initializeDefaultTimeSlotsForDate(dateKey, true); // Force la création si 404
-            console.log("Nouvelle configuration de feuille de garde initialisée pour", dateKey);
-            return;
-        }
-        throw new Error(`HTTP error! status: ${resp.status}`);
+        throw new Error(`HTTP error! status: ${resp.status}`); // Gérer les autres types d'erreurs HTTP
     }
     appData[dateKey] = await resp.json();
-    // IMPORTANT : S'assurer que chaque engin dans timeSlots.engines a une propriété 'personnel'
-    // car createEmptyEngineAssignment la crée maintenant directement, mais les données existantes
-    // de la base pourraient ne pas l'avoir si l'ancien format était différent.
-    // Cette boucle assure la compatibilité.
-    if (appData[dateKey].timeSlots) {
-        for (const slotId in appData[dateKey].timeSlots) {
-            const timeSlot = appData[dateKey].timeSlots[slotId];
-            if (timeSlot.engines) {
-                for (const engineType in timeSlot.engines) {
-                            // Si l'objet 'engines[engineType]' est directement un objet d'affectations (ancien format)
-                            // ou s'il manque la propriété 'personnel', on le met à jour.
-                            if (typeof timeSlot.engines[engineType].personnel === 'undefined') {
-                                timeSlot.engines[engineType] = { personnel: timeSlot.engines[engineType] };
-                            }
-                            // S'assurer que tous les rôles définis dans engineDetails sont présents dans personnel, sinon les initialiser à 'none'
-                            const definedRoles = engineDetails[engineType]?.roles || [];
-                            definedRoles.forEach(role => {
-                                if (typeof timeSlot.engines[engineType].personnel[role.id] === 'undefined') {
-                                    timeSlot.engines[engineType].personnel[role.id] = 'none';
+    // Si la réponse est un objet vide (car fichier non trouvé côté serveur), initialiser
+    if (Object.keys(appData[dateKey]).length === 0) {
+        appData[dateKey] = {
+            timeSlots: {},
+            onDutyAgents: Array(10).fill('none')
+        };
+        initializeDefaultTimeSlotsForDate(dateKey, true); // Force la création si le fichier était vide
+        console.log("Nouvelle configuration de feuille de garde initialisée (via réponse vide du serveur) pour", dateKey);
+    } else {
+        // IMPORTANT : S'assurer que chaque engin dans timeSlots.engines a une propriété 'personnel'
+        // car createEmptyEngineAssignment la crée maintenant directement, mais les données existantes
+        // de la base pourraient ne pas l'avoir si l'ancien format était différent.
+        // Cette boucle assure la compatibilité.
+        if (appData[dateKey].timeSlots) {
+            for (const slotId in appData[dateKey].timeSlots) {
+                const timeSlot = appData[dateKey].timeSlots[slotId];
+                if (timeSlot.engines) {
+                    for (const engineType in timeSlot.engines) {
+                                // Si l'objet 'engines[engineType]' est directement un objet d'affectations (ancien format)
+                                // ou s'il manque la propriété 'personnel', on le met à jour.
+                                if (typeof timeSlot.engines[engineType].personnel === 'undefined') {
+                                    timeSlot.engines[engineType] = { personnel: timeSlot.engines[engineType] };
                                 }
-                            });
+                                // S'assurer que tous les rôles définis dans engineDetails sont présents dans personnel, sinon les initialiser à 'none'
+                                const definedRoles = engineDetails[engineType]?.roles || [];
+                                definedRoles.forEach(role => {
+                                    if (typeof timeSlot.engines[engineType].personnel[role.id] === 'undefined') {
+                                        timeSlot.engines[engineType].personnel[role.id] = 'none';
+                                    }
+                                });
+                            }
                         }
                     }
                 }
@@ -390,19 +380,19 @@ async function loadRosterConfig(dateKey) {
               credentials: 'include'
             });
             if (!resp.ok) {
-              if (resp.status === 404) {
-                console.warn("Daily roster non trouvé pour", dateKey, ". Utilisation de la configuration par défaut.");
-                return; // Ce n'est pas une erreur si c'est vide
-              }
-              throw new Error(`HTTP error! status: ${resp.status}`);
+                throw new Error(`HTTP error! status: ${resp.status}`); // Gérer les autres types d'erreurs HTTP
             }
             const dr = await resp.json();
+            // Si la réponse est un objet vide (car fichier non trouvé côté serveur), le daily roster est vide
             if (dr && dr.onDutyAgents) {
-              appData[dateKey].onDutyAgents = dr.onDutyAgents;
+                appData[dateKey].onDutyAgents = dr.onDutyAgents;
+            } else {
+                appData[dateKey].onDutyAgents = Array(10).fill('none'); // Initialiser vide si pas de données
             }
             console.log("DEBUG: Daily roster chargé pour", dateKey, ":", dr); // Pour le débogage
           } catch (error) {
             console.error('loadDailyRoster échoué', error);
+            appData[dateKey].onDutyAgents = Array(10).fill('none'); // Assurer un état par défaut en cas d'erreur
           }
         }
 
@@ -432,6 +422,9 @@ async function loadRosterConfig(dateKey) {
         const DAYS_OF_WEEK_FR = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 
         // --- NOUVELLE FONCTION POUR OBTENIR LE NUMÉRO DE SEMAINE ET LE NOM DU JOUR ---
+        // Cette fonction n'est plus directement utilisée pour 'loadAllPersonnelAvailabilities'
+        // car la nouvelle API renvoie les dispos par date.
+        // Elle est maintenue ici au cas où d'autres parties du code en auraient besoin.
         function getWeekAndDayFromDate(dateString) {
             const date = new Date(dateString + 'T12:00:00'); // Ajout de 'T12:00:00' pour éviter les problèmes de fuseau horaire
             date.setHours(0, 0, 0, 0); // Réinitialiser l'heure pour éviter les décalages si le jour change à minuit local.
@@ -451,80 +444,53 @@ async function loadRosterConfig(dateKey) {
             return { weekNo: `week-${weekNo}`, dayName: dayName };
         }
 
-        // --- MODIFICATION DE loadAllPersonnelAvailabilities ---
+        // --- MISE À JOUR DE loadAllPersonnelAvailabilities pour utiliser la nouvelle API ---
         async function loadAllPersonnelAvailabilities() {
           try {
-            const resp = await fetch(`${API_BASE_URL}/api/planning`, {
-              headers: {'X-User-Role':'admin'}
+            const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+            const resp = await fetch(`${API_BASE_URL}/api/agent-availability/${dateKey}`, {
+              headers: {'X-User-Role':'admin'} // Si l'admin a besoin d'accéder à toutes les dispos
             });
-            if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
+            if (!resp.ok) {
+                // Si le serveur renvoie un objet vide pour un 404, c'est déjà géré en renvoyant {}
+                // Gérer les autres erreurs HTTP comme des échecs
+                throw new Error(`HTTP error! status: ${resp.status}`);
+            }
             
-            const rawData = await resp.json(); // Réponse de l'API (avec week-XX et jour de la semaine)
+            const rawData = await resp.json(); // La réponse est maintenant un objet { agentId: [ {start, end}, ... ] }
             
             // Initialiser la structure attendue par le frontend
             appData.personnelAvailabilities = {}; 
 
-            // Date clé actuelle pour laquelle nous voulons les disponibilités
-            const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-            const { weekNo: currentWeekNo, dayName: currentDayName } = getWeekAndDayFromDate(dateKey);
-
-            // Parcourir les données brutes et les transformer
-            for (const agentKey in rawData) { // agentKey sera "bruneaum", "gesbertj", etc. (vos "_id")
-                const agentAvailabilitiesByWeek = rawData[agentKey]; // ex: { "week-24": { "dimanche": [...] } }
-                
-                // CORRECTION ICI : Trouvez l'agent directement par son _id, car agentKey est déjà l'ID.
-                const agentInAllAgents = allAgents.find(a => a._id === agentKey);
-                
-                if (!agentInAllAgents) {
-                    console.warn(`Agent avec la clé '${agentKey}' (issu de /api/planning) non trouvé dans la liste des agents (allAgents). Cet agent sera ignoré.`);
-                    console.log("DEBUG: allAgents content for comparison:", allAgents.map(a => ({ _id: a._id, prenom: a.prenom, nom: a.nom })));
-                    continue; // Passer cet agent s'il n'est pas reconnu
-                }
-                const agentId = agentInAllAgents._id; // On utilise l'ID réel de l'agent pour la structure finale
-                
-                appData.personnelAvailabilities[agentId] = appData.personnelAvailabilities[agentId] || {};
-
-                for (const weekKey in agentAvailabilitiesByWeek) { // ex: "week-24"
-                    const dailyData = agentAvailabilitiesByWeek[weekKey]; // ex: { "dimanche": [...] }
-                    for (const dayName in dailyData) { // ex: "dimanche"
-                        const timeRanges = dailyData[dayName]; // ex: ["07:00 - 07:30", ...]
-                        
-                        // On ne stocke les disponibilités que si la semaine et le jour correspondent à la date courante.
-                        if (weekKey === currentWeekNo && dayName === currentDayName) {
-                            // Convertir les chaînes de temps en objets {start: "HH:MM", end: "HH:MM"}
-                            const formattedRanges = timeRanges.map(range => {
-                                const [start, end] = range.split(' - ');
-                                return { start, end };
-                            });
-                            appData.personnelAvailabilities[agentId][dateKey] = formattedRanges;
-                        }
-                    }
+            // Parcourir les données brutes et les stocker directement
+            for (const agentId in rawData) {
+                if (Object.prototype.hasOwnProperty.call(rawData, agentId)) {
+                    // Les disponibilités sont directement un tableau de plages pour cet agent et cette date
+                    const availabilitiesForAgent = rawData[agentId];
+                    appData.personnelAvailabilities[agentId] = {
+                        [dateKey]: availabilitiesForAgent // Stocke sous la clé de la date
+                    };
                 }
             }
             
-            console.log("DEBUG: appData.personnelAvailabilities après transformation (pour la date courante):", appData.personnelAvailabilities);
+            console.log("DEBUG: appData.personnelAvailabilities après chargement (pour la date courante):", appData.personnelAvailabilities);
 
           } catch (error) {
-            console.error("Erreur lors du chargement des disponibilités du personnel (API /api/planning):", error);
+            console.error("Erreur lors du chargement des disponibilités du personnel (API /api/agent-availability):", error);
             appData.personnelAvailabilities = {}; // Réinitialiser en cas d'erreur
           }
         }
 
         async function loadInitialData() {
-  showSpinner();
-  const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-  try {
-    await fetchAllAgents();
-    await loadRosterConfig(dateKey);
-    await loadAllPersonnelAvailabilities();
-    await loadDailyRoster(dateKey);
-  } catch (e) {
-    console.error("Erreur lors du chargement initial :", e);
-  } finally {
-    hideSpinner();
-  }
-}
-
+          showSpinner();
+          // Charger les agents en premier, car d'autres fonctions en dépendent
+          await fetchAllAgents(); 
+          const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+          await loadRosterConfig(dateKey); // Charge ou initialise la config de la date
+          await loadDailyRoster(dateKey); 
+          await loadAllPersonnelAvailabilities(); // Charge les dispos après les configs
+          hideSpinner();
+        }
 
         // --------------------------------------------------
         // 3️⃣ Rendu & mise à jour de l’affichage
@@ -653,6 +619,7 @@ async function loadRosterConfig(dateKey) {
               deleteBtn.classList.add('delete-time-slot-btn');
               deleteBtn.addEventListener('click', async (event) => {
                 event.stopPropagation();
+                // Utiliser une modale custom ou une alerte plus conviviale si possible
                 if (confirm(`Voulez-vous vraiment supprimer le créneau ${slot.range} ?`)) {
                   delete appData[dateKey].timeSlots[slotId];
                   await saveRosterConfig(dateKey);
@@ -689,7 +656,7 @@ async function loadRosterConfig(dateKey) {
           const dateKey = formatDateToYYYYMMDD(currentRosterDate);
 
           // Trier les créneaux horaires
-          const sortedTimeSlots = Object.entries(appData[dateKey].timeSlots).sort((a, b) => {
+          const sortedTimeSlots = Object.entries(appData[dateKey].timeSlots || {}).sort((a, b) => { // S'assurer que appData[dateKey].timeSlots existe
             const sA = parseTimeToMinutes(a[1].range.split(' - ')[0]);
             const sB = parseTimeToMinutes(b[1].range.split(' - ')[0]);
             return sA - sB;
@@ -708,13 +675,16 @@ async function loadRosterConfig(dateKey) {
               engineCell.dataset.slotId = slotId;
               engineCell.dataset.engineType = engineType;
 
-              const assignment = slot.engines[engineType];
+              // S'assurer que slot.engines[engineType] et assignment.personnel existent
+              const assignment = slot.engines[engineType] || {}; 
+              if (!assignment.personnel || typeof assignment.personnel !== 'object') {
+                  assignment.personnel = createEmptyEngineAssignment(engineType);
+              }
 
               // Obtenir la configuration détaillée de l'engin
               const engConfig = engineDetails[engineType];
               if (!engConfig) {
                   console.warn(`Configuration d'engin introuvable pour le type : ${engineType}.`);
-                  // Si pas de config, afficher un message d'erreur ou ignorer
                   engineCell.textContent = "Erreur config";
                   row.appendChild(engineCell);
                   return; 
@@ -755,7 +725,9 @@ async function loadRosterConfig(dateKey) {
                                   agentTitle = `Manquant (Rôle obligatoire ${roleDef.name})`;
                               }
 
-                              return `<li class="${agentClass}" title="${agentTitle}">${agentDisplay}</li>`;
+                              return `<li class="${agentClass}" title="${agentTitle}">
+                                        <span class="role-abbr">${roleDef.name.substring(0,2)}:</span> ${agentDisplay}
+                                     </li>`;
                           }).join('')}
                       </ul>
                   </div>
@@ -781,17 +753,44 @@ async function loadRosterConfig(dateKey) {
             const dateKey = formatDateToYYYYMMDD(currentRosterDate);
             const onDutyAgents = appData[dateKey]?.onDutyAgents || Array(10).fill('none');
 
+            // Filtrer les agents réellement disponibles pour la liste de gauche
             const filteredAvailableAgents = allAgents.filter(agent => {
+                // Agent non null et non déjà d'astreinte
                 const isAlreadyOnDuty = onDutyAgents.includes(agent._id);
                 if (isAlreadyOnDuty) return false;
 
+                // Récupérer les disponibilités de l'agent pour la date actuelle
                 const agentAvailabilities = appData.personnelAvailabilities[agent._id] || {};
                 const dailyAvailabilities = agentAvailabilities[dateKey] || [];
                 
-                // Un agent est considéré "disponible" s'il n'est pas d'astreinte ET a des disponibilités renseignées
-                const hasAnyAvailability = dailyAvailabilities.length > 0;
+                // Un agent est considéré "disponible" s'il n'est pas d'astreinte ET a des plages de disponibilité renseignées pour AU MOINS UN créneau de 30 minutes
+                // On vérifie s'il existe au moins une plage de 30 minutes où l'agent est dispo
+                const fullDayMinutes = 24 * 60; // 1440 minutes
+                const thirtyMinInterval = 30;
+                const dayStartOffsetMinutes = 7 * 60; // La journée visuelle commence à 7h
+
+                let hasAnyAvailabilityInInterval = false;
+                for (let k = 0; k < (fullDayMinutes / thirtyMinInterval); k++) {
+                    let intervalStartMin = (dayStartOffsetMinutes + k * thirtyMinInterval) % fullDayMinutes;
+                    let intervalEndMin = (dayStartOffsetMinutes + (k + 1) * thirtyMinInterval) % fullDayMinutes;
+                    let comparisonIntervalEndMin = intervalEndMin;
+                    if (comparisonIntervalEndMin < intervalStartMin) comparisonIntervalEndMin += fullDayMinutes;
+
+                    const currentInterval = {
+                        start: `${String(Math.floor(intervalStartMin / 60)).padStart(2, '0')}:${String(intervalStartMin % 60).padStart(2, '0')}`,
+                        end: `${String(Math.floor(intervalEndMin / 60)).padStart(2, '0')}:${String(intervalEndMin % 60).padStart(2, '0')}`
+                    };
+
+                    for (const range of dailyAvailabilities) {
+                        if (doTimeRangesOverlap(currentInterval, range)) {
+                            hasAnyAvailabilityInInterval = true;
+                            break;
+                        }
+                    }
+                    if (hasAnyAvailabilityInInterval) break;
+                }
                 
-                return hasAnyAvailability;
+                return hasAnyAvailabilityInInterval;
             });
 
             if (filteredAvailableAgents.length === 0) {
@@ -802,42 +801,75 @@ async function loadRosterConfig(dateKey) {
                 const item = document.createElement('div');
                 item.classList.add('available-personnel-item');
                 item.innerHTML = `
-    <div class="agent-info">
-        <span class="agent-name">${agent.prenom} ${agent.nom || 'Agent Inconnu'}</span>
-    </div>
-    <div class="availability-bar-wrapper">
-        <div class="availability-bar"></div>
-    </div>
-`;
+                    <div class="agent-info">
+                        <span class="agent-name">${agent.prenom} ${agent.nom || 'Agent Inconnu'}</span>
+                    </div>
+                    <div class="availability-bar-wrapper">
+                        <div class="availability-bar">
+                            <div class="availability-base-bar"></div> <!-- C'EST LA DIV MANQUANTE ! -->
+                        </div>
+                        <div class="time-legend">
+                            <span>07:00</span>
+                            <span>13:00</span>
+                            <span>19:00</span>
+                            <span>01:00</span>
+                            <span>07:00</span>
+                        </div>
+                    </div>
+                `;
 
-            const availabilityBar = item.querySelector('.availability-bar');
-afficherBarreDisponibilite(agent.plages, availabilityBar);
-
-
+                // Récupération de la div ajoutée
+                const availabilityBarBase = item.querySelector('.availability-base-bar');
                 
                 item.dataset.agentId = agent._id;
                 item.setAttribute('draggable', true);
                 item.addEventListener('dragstart', handleDragStart);
 
-                const availabilityBarBase = item.querySelector('.availability-base-bar');
+                // Rendu des segments de disponibilité (logique similaire à onDutyAgentsGrid)
                 const agentAvailabilities = appData.personnelAvailabilities[agent._id] || {};
                 const dailyAvailabilities = agentAvailabilities[dateKey] || [];
 
-                dailyAvailabilities.forEach(range => {
-                    const segments = getAvailabilitySegments(range.start, range.end);
-                    segments.forEach(segment => {
+                const fullDayMinutes = 24 * 60; 
+                const thirtyMinInterval = 30;
+                const dayStartOffsetMinutes = 7 * 60; 
+
+                for (let k = 0; k < (fullDayMinutes / thirtyMinInterval); k++) {
+                    let intervalStartMin = (dayStartOffsetMinutes + k * thirtyMinInterval) % fullDayMinutes;
+                    let intervalEndMin = (dayStartOffsetMinutes + (k + 1) * thirtyMinInterval) % fullDayMinutes;
+
+                    const currentInterval = {
+                        start: `${String(Math.floor(intervalStartMin / 60)).padStart(2, '0')}:${String(intervalStartMin % 60).padStart(2, '0')}`,
+                        end: `${String(Math.floor(intervalEndMin / 60)).padStart(2, '0')}:${String(intervalEndMin % 60).padStart(2, '0')}`
+                    };
+
+                    let isAvailable = false;
+                    let originalRange = null; 
+
+                    for (const range of dailyAvailabilities) {
+                        if (doTimeRangesOverlap(currentInterval, range)) {
+                            isAvailable = true;
+                            originalRange = range;
+                            break;
+                        }
+                    }
+
+                    const segmentsToRender = getAvailabilitySegments(currentInterval.start, currentInterval.end);
+
+                    segmentsToRender.forEach(segment => {
                         const highlightSegment = document.createElement('div');
-                        highlightSegment.classList.add('availability-highlight-segment', 'available'); // Toujours "available" pour la liste des disponibles
+                        highlightSegment.classList.add('availability-highlight-segment');
+                        if (isAvailable) {
+                            highlightSegment.classList.add('available');
+                            highlightSegment.title = `Disponible: ${originalRange.start} - ${originalRange.end}`;
+                        } else {
+                            highlightSegment.classList.add('unavailable');
+                            highlightSegment.title = `Indisponible: ${currentInterval.start} - ${currentInterval.end}`;
+                        }
                         highlightSegment.style.left = `${segment.left}%`;
                         highlightSegment.style.width = `${segment.width}%`;
-                        
-                        // Amélioration du tooltip
-                        highlightSegment.dataset.fullRange = `${range.start} - ${range.end}`; // Stocke la plage complète pour le survol
-                        highlightSegment.title = `Disponible: ${range.start} - ${range.end}`;
-                        
                         availabilityBarBase.appendChild(highlightSegment);
                     });
-                });
+                }
                 
                 item.appendChild(createTooltipForAvailabilityBar(dailyAvailabilities)); // Ajoute le tooltip global
 
@@ -1016,24 +1048,24 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
 
 
         async function updateDateDisplay() {
-  showSpinner();
-  try {
-    const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-    await loadRosterConfig(dateKey);
-    await loadAllPersonnelAvailabilities(); // Recharger les dispo après loadRosterConfig pour s'assurer que allAgents est à jour
-    await loadDailyRoster(dateKey); // Charge le daily roster (agents d'astreinte)
-    initializeDefaultTimeSlotsForDate(dateKey); // Assure un créneau par défaut si aucun n'existe
+          showSpinner();
+          const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+          // Les agents doivent être chargés avant les configs de roster ou daily roster
+          // car allAgents est utilisé pour trouver les détails des agents.
+          await fetchAllAgents(); 
+          await loadRosterConfig(dateKey);
+          await loadDailyRoster(dateKey); 
+          await loadAllPersonnelAvailabilities(); // Charge les dispos après les configs
+          initializeDefaultTimeSlotsForDate(dateKey); // Assure un créneau par défaut si aucun n'existe
+          
 
-    rosterDateInput.valueAsDate = currentRosterDate;
-    renderTimeSlotButtons(dateKey);
-    renderPersonnelLists();
-    renderOnDutyAgentsGrid();
-    renderRosterGrid();
-  } finally {
-    hideSpinner();
-  }
-}
-
+          rosterDateInput.valueAsDate = currentRosterDate;
+          renderTimeSlotButtons(dateKey);
+          renderPersonnelLists();
+          renderOnDutyAgentsGrid();
+          renderRosterGrid();
+          hideSpinner();
+        }
 
         // --------------------------------------------------
         // 4️⃣ Handlers & Bootstrap
@@ -1221,29 +1253,34 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
 
           // NOUVEAU: Si l'agent était affecté à un engin, le retirer de l'engin
           // Parcourir tous les créneaux et tous les engins pour cet agent
-          Object.keys(appData[dateKey].timeSlots).forEach(sId => {
-              Object.keys(appData[dateKey].timeSlots[sId].engines).forEach(eType => {
-                  for (const roleId in appData[dateKey].timeSlots[sId].engines[eType].personnel) {
-                      if (appData[dateKey].timeSlots[sId].engines[eType].personnel[roleId] === agentId) {
-                          appData[dateKey].timeSlots[sId].engines[eType].personnel[roleId] = 'none';
-                          console.log(`Agent ${agentId} removed from ${eType} / ${roleId} in slot ${sId}.`);
-                          // Sauvegarder la config des rosters car on a modifié une affectation d'engin
-                          // Pas besoin d'attendre ici, la mise à jour sera globale avec updateDateDisplay
-                          saveRosterConfig(dateKey); 
-                      }
-                  }
-              });
-          });
-
+          // S'assurer que appData[dateKey] et appData[dateKey].timeSlots existent avant de boucler
+          if (appData[dateKey] && appData[dateKey].timeSlots) {
+            Object.keys(appData[dateKey].timeSlots).forEach(sId => {
+                const currentSlotEngines = appData[dateKey].timeSlots[sId].engines;
+                if (currentSlotEngines) {
+                    Object.keys(currentSlotEngines).forEach(eType => {
+                        const personnel = currentSlotEngines[eType]?.personnel;
+                        if (personnel) {
+                            for (const roleId in personnel) {
+                                if (personnel[roleId] === agentId) {
+                                    personnel[roleId] = 'none';
+                                    console.log(`Agent ${agentId} removed from ${eType} / ${roleId} in slot ${sId}.`);
+                                    // Pas besoin d'appeler saveRosterConfig ici, updateDateDisplay le fera
+                                    // après le saveDailyRoster
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+          }
 
           appData[dateKey].onDutyAgents[slotIndex] = agentId;
           console.log("Attempting to save daily roster:", appData[dateKey].onDutyAgents);
           await saveDailyRoster(dateKey);
           console.log("SaveDailyRoster finished. Updating display...");
           
-          renderPersonnelLists();
-          renderOnDutyAgentsGrid();
-          renderRosterGrid();
+          updateDateDisplay(); // Re-render complet pour refléter tous les changements
           
           console.log("Display updated.");
           draggedAgentId = null; // Important: Réinitialiser après un drop réussi
@@ -1278,15 +1315,22 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
             }
 
             // Retirer l'agent des astreintes s'il y était
-            const onDutyAgents = appData[dateKey].onDutyAgents;
-            const onDutyIndex = onDutyAgents.indexOf(agentId);
-            if (onDutyIndex !== -1) {
-                console.log(`Agent ${agentId} was on duty at slot ${onDutyIndex}. Removing from there.`);
-                onDutyAgents[onDutyIndex] = 'none';
-                await saveDailyRoster(dateKey); // Sauvegarder immédiatement les changements d'astreinte
+            const onDutyAgents = appData[dateKey]?.onDutyAgents; // Utiliser le chaînage optionnel
+            if (onDutyAgents) { // Vérifier que onDutyAgents n'est pas null/undefined
+              const onDutyIndex = onDutyAgents.indexOf(agentId);
+              if (onDutyIndex !== -1) {
+                  console.log(`Agent ${agentId} was on duty at slot ${onDutyIndex}. Removing from there.`);
+                  onDutyAgents[onDutyIndex] = 'none';
+                  await saveDailyRoster(dateKey); // Sauvegarder immédiatement les changements d'astreinte
+              }
             }
 
-            const currentEngineAssignment = appData[dateKey].timeSlots[slotId].engines[engineType].personnel;
+
+            const currentEngineAssignment = appData[dateKey]?.timeSlots?.[slotId]?.engines?.[engineType]?.personnel;
+            if (!currentEngineAssignment) {
+                console.error(`Impossible de trouver l'affectation de l'engin pour ${engineType} dans le créneau ${slotId}.`);
+                return;
+            }
             let assigned = false;
 
             // Récupérer les détails de l'engin pour connaître les rôles attendus
@@ -1324,7 +1368,9 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
               updateDateDisplay(); // Re-render pour refléter tous les changements
               console.log("Display updated.");
             } else {
-                alert("L'agent n'a pas pu être affecté : aucun rôle libre ou l'agent n'est pas qualifié pour les rôles disponibles dans cet engin. Veuillez utiliser la modale de gestion détaillée si nécessaire.");
+                // Utiliser une modale custom au lieu d'alert
+                // alert("L'agent n'a pas pu être affecté : aucun rôle libre ou l'agent n'est pas qualifié pour les rôles disponibles dans cet engin. Veuillez utiliser la modale de gestion détaillée si nécessaire.");
+                displayMessageModal("Affectation Impossible", "L'agent n'a pas pu être affecté : aucun rôle libre ou l'agent n'est pas qualifié pour les rôles disponibles dans cet engin. Veuillez utiliser la modale de gestion détaillée si nécessaire.", "warning");
                 console.warn(`Agent ${agentId} could not be assigned to ${engineType}. All roles occupied or no suitable qualified role.`);
             }
             draggedAgentId = null; // Important: Réinitialiser après un drop réussi
@@ -1347,7 +1393,7 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
 
           engineDetailsPage.style.display = 'block';
 
-          const currentSlot = appData[dateKey].timeSlots[slotId];
+          const currentSlot = appData[dateKey]?.timeSlots?.[slotId]; // Utiliser le chaînage optionnel
           if (!currentSlot) {
             console.error("Créneau horaire non trouvé:", slotId);
             return;
@@ -1356,27 +1402,26 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
           const engineGridContainer = engineDetailsPage.querySelector('.engine-grid');
           engineGridContainer.innerHTML = '';
 
-          Object.entries(currentSlot.engines).forEach(([engineType, assignment]) => {
-    const engineCase = document.createElement('div');
-    engineCase.classList.add('engine-case');
-    engineCase.dataset.slotId = slotId;
-    engineCase.dataset.engineType = engineType;
+          Object.entries(currentSlot.engines || {}).forEach(([engineType, assignment]) => { // S'assurer que currentSlot.engines existe
+            const engineCase = document.createElement('div');
+            engineCase.classList.add('engine-case');
+            engineCase.dataset.slotId = slotId;
+            engineCase.dataset.engineType = engineType;
 
-    // S'assurer que assignment.personnel est un objet, même vide
-    if (!assignment.personnel || typeof assignment.personnel !== 'object') {
-        // Si 'assignment' lui-même était juste un objet de personnel (ancien format), on le corrige
-        // Sinon, on initialise un objet personnel vide.
-        // La fonction createEmptyEngineAssignment(engineType) doit être définie ailleurs dans votre code.
-        assignment.personnel = createEmptyEngineAssignment(engineType);
-        console.warn(`Initialisation ou correction de assignment.personnel pour ${engineType}.`);
-    }
-   
-    // Obtenir la configuration détaillée de l'engin
-    const engConfig = engineDetails[engineType];
-    if (!engConfig) {
-        console.warn(`Configuration d'engin introuvable pour le type : ${engineType}.`);
-        return; // Passer cet engin s'il n'est pas configuré
-    }
+            // S'assurer que assignment.personnel est un objet, même vide
+            if (!assignment.personnel || typeof assignment.personnel !== 'object') {
+                assignment.personnel = createEmptyEngineAssignment(engineType);
+                console.warn(`Initialisation ou correction de assignment.personnel pour ${engineType} dans la modale.`);
+            }
+           
+            // Obtenir la configuration détaillée de l'engin
+            const engConfig = engineDetails[engineType];
+            if (!engConfig) {
+                console.warn(`Configuration d'engin introuvable pour le type : ${engineType}.`);
+                engineCase.textContent = "Erreur config"; // Message visible sur l'interface
+                engineGridContainer.appendChild(engineCase);
+                return; 
+            }
 
             let isEngineIndispo = false;
             if (engConfig.criticalRoles) {
@@ -1457,10 +1502,10 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
             engineRolesContainer.innerHTML = '';
 
             // Agents d'astreinte disponibles pour cette date
-            const onDutyAgents = appData[dateKey].onDutyAgents.filter(id => id !== 'none').map(id => allAgents.find(a => a._id === id));
+            const onDutyAgents = appData[dateKey]?.onDutyAgents.filter(id => id !== 'none').map(id => allAgents.find(a => a._id === id));
             
             // Agents déjà affectés à cet engin
-            const assignedAgentsInThisEngine = Object.values(currentEngine.personnel).filter(id => id !== 'none');
+            const assignedAgentsInThisEngine = Object.values(currentEngine.personnel || {}).filter(id => id !== 'none');
 
             // Filtrer les agents d'astreinte qui ne sont PAS encore affectés à cet engin
             const agentsForModal = onDutyAgents.filter(agent => agent && !assignedAgentsInThisEngine.includes(agent._id));
@@ -1598,7 +1643,8 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
             // Vérification de la qualification
             if (!isAgentQualifiedForRole(agentToAssign, targetRoleId)) {
                 const roleName = engineDetails[engineType]?.roles.find(r => r.id === targetRoleId)?.name || targetRoleId;
-                alert(`L'agent ${agentToAssign.prenom} ${agentToAssign.nom} n'a pas la qualification requise pour le rôle "${roleName}".`);
+                // alert(`L'agent ${agentToAssign.prenom} ${agentToAssign.nom} n'a pas la qualification requise pour le rôle "${roleName}".`);
+                displayMessageModal("Qualification Requise", `L'agent ${agentToAssign.prenom} ${agentToAssign.nom} n'a pas la qualification requise pour le rôle "${roleName}".`, "error");
                 return; // Empêche l'affectation si non qualifié
             }
 
@@ -1661,7 +1707,7 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
 
           const onDutyAgents = appData[dateKey].onDutyAgents.filter(id => id !== 'none');
 
-          // Retirer tous les agents de leurs affectations d'engins précédentes dans ce créneau
+          // Retirer toutes les agents de leurs affectations d'engins précédentes dans ce créneau
           Object.keys(currentSlot.engines).forEach(engineType => {
               Object.keys(currentSlot.engines[engineType].personnel).forEach(roleId => {
                   currentSlot.engines[engineType].personnel[roleId] = 'none';
@@ -1749,31 +1795,23 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
               console.warn("Pas de données de roster pour la date spécifiée. Impossible de générer automatiquement.");
               return;
           }
-          async function generateAutomaticRoster(dateKey) {
-  if (!appData[dateKey]) {
-      console.warn("Pas de données de roster pour la date spécifiée. Impossible de générer automatiquement.");
-      return;
-  }
-  showSpinner();
-  try {
-    // NOUVEAU: Réinitialiser toutes les affectations d'engins avant de régénérer
-    Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
-        Object.keys(appData[dateKey].timeSlots[slotId].engines).forEach(engineType => {
-            appData[dateKey].timeSlots[slotId].engines[engineType].personnel = createEmptyEngineAssignment(engineType);
-        });
-    });
+          showSpinner();
+          // NOUVEAU: Réinitialiser toutes les affectations d'engins avant de régénérer
+          Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
+              Object.keys(appData[dateKey].timeSlots[slotId].engines).forEach(engineType => {
+                  appData[dateKey].timeSlots[slotId].engines[engineType].personnel = createEmptyEngineAssignment(engineType);
+              });
+          });
 
-    Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
-      assignPersonnelToSlot(dateKey, slotId);
-    });
-    await saveRosterConfig(dateKey);
-    await saveDailyRoster(dateKey); // Sauvegarder aussi les modifications aux astreintes si l'auto-génération les a déplacées
-    updateDateDisplay();
-  } finally {
-    hideSpinner();
-  }
-}
-}
+
+          Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
+            assignPersonnelToSlot(dateKey, slotId);
+          });
+          await saveRosterConfig(dateKey);
+          await saveDailyRoster(dateKey); // Sauvegarder aussi les modifications aux astreintes si l'auto-génération les a déplacées
+          updateDateDisplay();
+          hideSpinner();
+        }
 
         function showMainRosterGrid() {
           engineDetailsPage.style.display = 'none';
@@ -1806,7 +1844,8 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
           generateAutoBtn.addEventListener('click', async () => {
             if (confirm("Générer automatiquement ce planning ? Cela écrasera les affectations manuelles et pourra modifier les agents d'astreinte.")) {
               await generateAutomaticRoster(formatDateToYYYYMMDD(currentRosterDate));
-              alert("Génération automatique terminée.");
+              // alert("Génération automatique terminée."); // Remplacer par modale
+              displayMessageModal("Génération Automatique", "Le planning a été généré automatiquement avec succès.", "success");
             }
           });
 
@@ -1818,42 +1857,95 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
           await updateDateDisplay(); // Appelle une première fois pour le rendu initial
 
           showMainRosterGrid(); // S'assure que la grille principale est affichée au démarrage
-
-          showSpinner();
-          fetchAllAgents().then(() => {
-          hideSpinner();
-          renderAvailableAgents();
-    });
-
         });
 
+        // NOTE: La fonction `afficherBarreDisponibilite` existante semble être conçue pour un format `plages`
+        // avec `debut`, `fin`, et `statut`. Le nouveau `dailyAvailabilities` contient `start`, `end`.
+        // Cette fonction n'est plus appelée directement dans `renderPersonnelLists` ni `renderOnDutyAgentsGrid`
+        // car la logique d'affichage des barres est maintenant intégrée directement.
+        // Je la conserve au cas où d'autres parties de votre code l'utiliseraient.
         function afficherBarreDisponibilite(plages, container) {
-    container.innerHTML = '';
-    if (!Array.isArray(plages)) return;
-    (plages || []).forEach(plage => {
-        let segment = document.createElement('div');
-        segment.className = 'availability-highlight-segment ' + (plage.statut === 'dispo' ? 'available' : 'unavailable');
-        segment.style.position = 'absolute';
-        segment.style.left = (plage.debut / 1440 * 100) + '%';
-        segment.style.width = ((plage.fin - plage.debut) / 1440 * 100) + '%';
-        container.appendChild(segment);
+            container.innerHTML = '';
+            if (!Array.isArray(plages)) return;
+            plages.forEach(plage => {
+                let segment = document.createElement('div');
+                segment.className = 'availability-highlight-segment ' + (plage.statut === 'dispo' ? 'available' : 'unavailable');
+                segment.style.position = 'absolute';
+                segment.style.left = (plage.debut / 1440 * 100) + '%';
+                segment.style.width = ((plage.fin - plage.debut) / 1440 * 100) + '%';
+                container.appendChild(segment);
 
-        // Ajout des labels heures début/fin
-        let label = document.createElement('div');
-        label.className = 'availability-label';
-        label.style.position = 'absolute';
-        label.style.left = (plage.debut / 1440 * 100) + '%';
-        label.style.top = '12px';
-        label.style.fontSize = '0.75em';
-        label.style.color = plage.statut === 'dispo' ? '#388E3C' : '#d32f2f';
-        label.style.zIndex = '10';
-        label.textContent = minutesToHeure(plage.debut) + ' - ' + minutesToHeure(plage.fin);
-        container.appendChild(label);
-    });
-    container.style.position = 'relative';
-}
-function minutesToHeure(mins) {
-    const h = Math.floor(mins / 60).toString().padStart(2, '0');
-    const m = (mins % 60).toString().padStart(2, '0');
-    return h + ':' + m;
-}
+                // Ajout des labels heures début/fin
+                let label = document.createElement('div');
+                label.className = 'availability-label';
+                label.style.position = 'absolute';
+                label.style.left = (plage.debut / 1440 * 100) + '%';
+                label.style.top = '12px';
+                label.style.fontSize = '0.75em';
+                label.style.color = plage.statut === 'dispo' ? '#388E3C' : '#d32f2f';
+                label.style.zIndex = '10';
+                label.textContent = minutesToHeure(plage.debut) + ' - ' + minutesToHeure(plage.fin);
+                container.appendChild(label);
+            });
+            container.style.position = 'relative';
+        }
+        function minutesToHeure(mins) {
+            const h = Math.floor(mins / 60).toString().padStart(2, '0');
+            const m = (mins % 60).toString().padStart(2, '0');
+            return h + ':' + m;
+        }
+
+        // --- Modale de messages (remplace alert() et confirm()) ---
+        function displayMessageModal(title, message, type = "info", callback = null) {
+            let modal = document.getElementById('message-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'message-modal';
+                modal.classList.add('custom-modal', 'message-modal');
+                document.body.appendChild(modal);
+            }
+
+            modal.innerHTML = `
+                <div class="modal-content ${type}">
+                    <h2 class="modal-title">${title}</h2>
+                    <p class="modal-message">${message}</p>
+                    <div class="modal-actions">
+                        ${callback ? '<button id="modal-cancel-btn" class="btn btn-secondary">Annuler</button>' : ''}
+                        <button id="modal-ok-btn" class="btn btn-primary">OK</button>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+
+            const okBtn = modal.querySelector('#modal-ok-btn');
+            okBtn.onclick = () => {
+                modal.style.display = 'none';
+                if (callback) callback(true);
+            };
+
+            if (callback) {
+                const cancelBtn = modal.querySelector('#modal-cancel-btn');
+                cancelBtn.onclick = () => {
+                    modal.style.display = 'none';
+                    callback(false);
+                };
+            }
+
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                    if (callback) callback(false); // Consider clicking outside as cancel for confirms
+                }
+            };
+        }
+        // Remplacement de `confirm` par `displayMessageModal`
+        window.confirm = (message) => {
+            return new Promise((resolve) => {
+                displayMessageModal("Confirmation", message, "question", resolve);
+            });
+        };
+        // Remplacement de `alert` par `displayMessageModal`
+        window.alert = (message) => {
+            displayMessageModal("Information", message, "info");
+        };

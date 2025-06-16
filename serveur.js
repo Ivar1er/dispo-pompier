@@ -48,6 +48,9 @@ const FUNCTIONS_FILE_PATH    = path.join(PERSISTENT_DIR, 'functions.json');
 
 const ROSTER_CONFIG_DIR      = path.join(PERSISTENT_DIR, 'roster_configs');
 const DAILY_ROSTER_DIR       = path.join(PERSISTENT_DIR, 'daily_rosters');
+// NOUVEAU : Répertoire pour les disponibilités individuelles des agents
+const AGENT_AVAILABILITY_DIR = path.join(PERSISTENT_DIR, 'agent_availabilities'); 
+
 
 let USERS = {};
 let AVAILABLE_QUALIFICATIONS = [];
@@ -203,6 +206,8 @@ async function saveFunctions() {
 async function initializeRosterFolders() {
   await fs.mkdir(ROSTER_CONFIG_DIR, { recursive: true }).catch(console.error);
   await fs.mkdir(DAILY_ROSTER_DIR,  { recursive: true }).catch(console.error);
+  // NOUVEAU : Création du dossier pour les disponibilités individuelles
+  await fs.mkdir(AGENT_AVAILABILITY_DIR, { recursive: true }).catch(console.error);
 }
 
 // --- Initialisation globale au démarrage ---
@@ -250,8 +255,9 @@ app.post("/api/login", async (req, res) => {
   });
 });
 
-// --- Routes de planning ---
+// --- Routes de planning (disponibilités individuelles des agents) ---
 
+// Route pour obtenir le planning d'un agent spécifique
 app.get('/api/planning/:agent', async (req, res) => {
   const agent = req.params.agent.toLowerCase();
   const filePath = path.join(DATA_DIR, `${agent}.json`);
@@ -259,12 +265,17 @@ app.get('/api/planning/:agent', async (req, res) => {
     const data = await fs.readFile(filePath, 'utf8');
     res.json(JSON.parse(data));
   } catch (err) {
-    if (err.code === 'ENOENT') return res.json({});
-    console.error(err);
+    if (err.code === 'ENOENT') {
+        // Retourne un objet vide si le fichier n'existe pas, au lieu d'une erreur 404
+        console.log(`[INFO Serveur] Planning for agent ${agent} not found. Returning empty object.`);
+        return res.json({});
+    }
+    console.error(`[ERREUR Serveur] Erreur de lecture du planning pour l'agent ${agent}:`, err);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
+// Route pour sauvegarder le planning d'un agent spécifique
 app.post('/api/planning/:agent', async (req, res) => {
   const agent = req.params.agent.toLowerCase();
   const filePath = path.join(DATA_DIR, `${agent}.json`);
@@ -272,11 +283,12 @@ app.post('/api/planning/:agent', async (req, res) => {
     await fs.writeFile(filePath, JSON.stringify(req.body, null, 2), 'utf8');
     res.json({ message: 'Planning saved successfully' });
   } catch (err) {
-    console.error(err);
+    console.error(`[ERREUR Serveur] Erreur de sauvegarde du planning pour l'agent ${agent}:`, err);
     res.status(500).json({ message: 'Server error when saving planning.' });
   }
 });
 
+// Route pour obtenir tous les plannings (utilisé pour la feuille de garde)
 app.get('/api/planning', async (req, res) => {
   try {
     const files = await fs.readdir(DATA_DIR);
@@ -288,7 +300,7 @@ app.get('/api/planning', async (req, res) => {
     }
     res.json(all);
   } catch (err) {
-    console.error(err);
+    console.error(`[ERREUR Serveur] Erreur de récupération de tous les plannings:`, err);
     res.status(500).json({ message: 'Error getting plannings' });
   }
 });
@@ -299,19 +311,9 @@ app.get('/api/admin/agents', authorizeAdmin, (req, res) => {
   const list = Object.entries(USERS)
     .filter(([_,u]) => u.role === 'agent' || u.role === 'admin')
     .map(([id,u]) => ({
-      // **********************************************
-      // MISE À JOUR 3 : Utilisation de '_id' pour la cohérence avec le frontend
-      // Ceci est fortement recommandé pour un meilleur mappage
-      // **********************************************
-      _id: id,
+      _id: id, // Utilisé pour la cohérence avec le frontend si vous utilisez _id
       prenom: u.prenom,
       nom:    u.nom,
-      // NOTE: Si les noms d'utilisateur (bruneaum, etc.) ne sont pas vos _id,
-      // et que vous en avez besoin pour le mappage avec /api/planning,
-      // vous devrez peut-être ajouter un champ 'username: id' ici.
-      // Par exemple : username: id, _id: u._id_de_vrai_mongo (si vous aviez une DB)
-      // Mais pour l'instant, si `id` est "bruneaum", `_id: id` fait le travail.
-      // **********************************************
       qualifications: u.qualifications || [],
       grades:         u.grades || [],
       functions:      u.functions || []
@@ -366,7 +368,7 @@ app.delete('/api/admin/agents/:id', authorizeAdmin, async (req, res) => {
   delete USERS[key];
   await saveUsers();
   const planningFile = path.join(DATA_DIR, `${key}.json`);
-  await fs.unlink(planningFile).catch(() => {});
+  await fs.unlink(planningFile).catch(() => {}); // Supprime le fichier de planning de l'agent si existant
   res.json({ message: 'Agent and planning deleted.' });
 });
 
@@ -495,22 +497,26 @@ app.delete('/api/functions/:id', authorizeAdmin, async (req,res)=>{
   res.json({message:'Deleted'});
 });
 
-// --- Routes de la feuille de garde ---
+// --- Routes de la feuille de garde (Configuration Admin) ---
 
 app.get('/api/roster-config/:dateKey', async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected Wayback-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
   }
   const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
   try {
     const data = await fs.readFile(filePath, 'utf8');
+    // Log pour le débogage : confirmation de la lecture du fichier
+    console.log(`[DEBUG Serveur] Roster config found for ${dateKey}.`);
     res.json(JSON.parse(data));
   } catch (err) {
     if (err.code === 'ENOENT') {
-      return res.status(404).json({ message: 'Roster config not found for this date.' });
+      // NOUVEAU : Retourne un objet vide si le fichier n'existe pas, au lieu d'une erreur 404
+      console.log(`[INFO Serveur] Roster config not found for ${dateKey}. Returning empty object.`);
+      return res.json({});
     }
-    console.error(err);
+    console.error(`[ERREUR Serveur] Erreur de lecture de la config de roster pour ${dateKey}:`, err);
     res.status(500).json({ message: 'Server error reading roster config.' });
   }
 });
@@ -518,31 +524,43 @@ app.get('/api/roster-config/:dateKey', async (req, res) => {
 app.post('/api/roster-config/:dateKey', authorizeAdmin, async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected Wayback-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
   }
   const { timeSlots, onDutyAgents } = req.body;
   if (!timeSlots || !onDutyAgents) {
     return res.status(400).json({ message: 'Missing timeSlots or onDutyAgents.' });
   }
   const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
-  await fs.writeFile(filePath, JSON.stringify({ timeSlots, onDutyAgents }, null, 2), 'utf8');
-  res.json({ message: 'Roster config saved.' });
+  try {
+    await fs.writeFile(filePath, JSON.stringify({ timeSlots, onDutyAgents }, null, 2), 'utf8');
+    console.log(`[INFO Serveur] Roster config saved for ${dateKey}.`);
+    res.json({ message: 'Roster config saved.' });
+  } catch (err) {
+    console.error(`[ERREUR Serveur] Erreur de sauvegarde de la config de roster pour ${dateKey}:`, err);
+    res.status(500).json({ message: 'Server error saving roster config.' });
+  }
 });
+
+// --- Routes de la feuille de garde (Daily Roster Admin - agents réellement en poste) ---
 
 app.get('/api/daily-roster/:dateKey', async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected Wayback-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
   }
   const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
   try {
     const data = await fs.readFile(filePath, 'utf8');
+    // Log pour le débogage : confirmation de la lecture du fichier
+    console.log(`[DEBUG Serveur] Daily roster found for ${dateKey}.`);
     res.json(JSON.parse(data));
   } catch (err) {
     if (err.code === 'ENOENT') {
-      return res.status(404).json({ message: "Daily roster not found for this date." });
+      // NOUVEAU : Retourne un objet vide si le fichier n'existe pas, au lieu d'une erreur 404
+      console.log(`[INFO Serveur] Daily roster not found for ${dateKey}. Returning empty object.`);
+      return res.json({});
     }
-    console.error(err);
+    console.error(`[ERREUR Serveur] Erreur de lecture du daily roster pour ${dateKey}:`, err);
     res.status(500).json({ message: 'Server error reading daily roster.' });
   }
 });
@@ -550,20 +568,89 @@ app.get('/api/daily-roster/:dateKey', async (req, res) => {
 app.post('/api/daily-roster/:dateKey', authorizeAdmin, async (req, res) => {
   const dateKey = req.params.dateKey;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    return res.status(400).json({ message: 'Invalid date format. Expected Wayback-MM-DD.' });
+    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
   }
-  // **********************************************
-  // MISE À JOUR 2 : Attendre 'onDutyAgents' au lieu de 'roster'
-  // - Aligne le backend avec ce que le frontend est supposé envoyer
-  // **********************************************
-  const { onDutyAgents } = req.body; // Changer de 'roster' à 'onDutyAgents'
-  if (!onDutyAgents) { // Mettre à jour la condition
-    return res.status(400).json({ message: 'Missing onDutyAgents data.' }); // Mettre à jour le message
+  const { onDutyAgents } = req.body; 
+  if (!onDutyAgents) { 
+    return res.status(400).json({ message: 'Missing onDutyAgents data.' }); 
   }
   const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
-  // Sauvegarder 'onDutyAgents' dans un objet avec cette clé
-  await fs.writeFile(filePath, JSON.stringify({ onDutyAgents }, null, 2), 'utf8');
-  res.json({ message: 'Daily roster saved.' });
+  try {
+    await fs.writeFile(filePath, JSON.stringify({ onDutyAgents }, null, 2), 'utf8');
+    console.log(`[INFO Serveur] Daily roster saved for ${dateKey}.`);
+    res.json({ message: 'Daily roster saved.' });
+  } catch (err) {
+    console.error(`[ERREUR Serveur] Erreur de sauvegarde du daily roster pour ${dateKey}:`, err);
+    res.status(500).json({ message: 'Server error saving daily roster.' });
+  }
+});
+
+// --- NOUVELLES ROUTES POUR LA GESTION DES DISPONIBILITÉS INDIVIDUELLES DES AGENTS ---
+
+// Permet à un agent de sauvegarder ses disponibilités pour une date donnée
+// Le body de la requête doit contenir un tableau d'objets 'disponibilites' pour la date
+app.post('/api/agent-availability/:dateKey/:agentId', async (req, res) => {
+  const { dateKey, agentId } = req.params;
+  const { availabilities } = req.body; // Supposons que le body contient { availabilities: [...] }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+  }
+  if (!agentId) {
+    return res.status(400).json({ message: 'Agent ID is required.' });
+  }
+  if (!Array.isArray(availabilities)) {
+    return res.status(400).json({ message: 'Availabilities must be an array.' });
+  }
+
+  // Crée le dossier si inexistant (devrait déjà être fait par initializeRosterFolders, mais sécurité)
+  await fs.mkdir(path.join(AGENT_AVAILABILITY_DIR, dateKey), { recursive: true }).catch(console.error);
+
+  const filePath = path.join(AGENT_AVAILABILITY_DIR, dateKey, `${agentId}.json`);
+  try {
+    await fs.writeFile(filePath, JSON.stringify(availabilities, null, 2), 'utf8');
+    console.log(`[INFO Serveur] Availabilities for agent ${agentId} on ${dateKey} saved.`);
+    res.json({ message: 'Availabilities saved successfully.' });
+  } catch (err) {
+    console.error(`[ERREUR Serveur] Erreur de sauvegarde des disponibilités pour ${agentId} le ${dateKey}:`, err);
+    res.status(500).json({ message: 'Server error saving availabilities.' });
+  }
+});
+
+// Permet de récupérer toutes les disponibilités individuelles des agents pour une date donnée
+app.get('/api/agent-availability/:dateKey', async (req, res) => {
+  const dateKey = req.params.dateKey;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+  }
+
+  const dateDirPath = path.join(AGENT_AVAILABILITY_DIR, dateKey);
+  const allAgentAvailabilities = {};
+
+  try {
+    const files = await fs.readdir(dateDirPath);
+    for (const file of files.filter(f => f.endsWith('.json'))) {
+      const agentId = path.basename(file, '.json');
+      const filePath = path.join(dateDirPath, file);
+      try {
+        const data = await fs.readFile(filePath, 'utf8');
+        allAgentAvailabilities[agentId] = JSON.parse(data);
+      } catch (readErr) {
+        console.error(`[ERREUR Serveur] Erreur de lecture du fichier de disponibilité pour ${agentId} le ${dateKey}:`, readErr);
+        // Continuer même si un fichier est corrompu, pour ne pas bloquer les autres
+      }
+    }
+    console.log(`[INFO Serveur] All agent availabilities retrieved for ${dateKey}. Found ${Object.keys(allAgentAvailabilities).length} agents.`);
+    res.json(allAgentAvailabilities);
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      // Si le dossier de la date n'existe pas, il n'y a pas de disponibilités pour cette date.
+      console.log(`[INFO Serveur] No agent availabilities directory found for ${dateKey}. Returning empty object.`);
+      return res.json({}); // Retourne un objet vide au lieu d'une erreur 404
+    }
+    console.error(`[ERREUR Serveur] Erreur lors de la récupération des disponibilités de tous les agents pour ${dateKey}:`, err);
+    res.status(500).json({ message: 'Server error retrieving all agent availabilities.' });
+  }
 });
 
 app.listen(port, () => {
