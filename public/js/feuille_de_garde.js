@@ -1789,6 +1789,7 @@ afficherBarreDisponibilite(agent.plages, availabilityBar);
 
         function afficherBarreDisponibilite(plages, container) {
     container.innerHTML = '';
+    if (!Array.isArray(plages)) return;
     plages.forEach(plage => {
         let segment = document.createElement('div');
         segment.className = 'availability-highlight-segment ' + (plage.statut === 'dispo' ? 'available' : 'unavailable');
