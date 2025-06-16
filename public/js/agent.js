@@ -1,58 +1,58 @@
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que cette URL est correcte et accessible
+const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
-let currentAgentId = sessionStorage.getItem("agent"); // L'identifiant de l'agent connecté
-let agentQualifications = []; // Pour stocker les qualifications de l'agent
-let currentDay = 'lundi'; // Le jour actuellement affiché
-let agentPlanningData = {}; // Contiendra les disponibilités de l'agent pour toutes les semaines chargées
-let initialPlanningState = {}; // Pour détecter les modifications non enregistrées
+let currentWeekKey;
+let currentAgentId = sessionStorage.getItem("agent");
+let agentQualifications = [];
+let currentDay = 'lundi';
+let agentPlanningData = {};
+let initialPlanningState = {};
 
-// PATCH : toujours la semaine en cours à l'ouverture, même après navigation
-function getCurrentWeekKey() {
-  const today = new Date();
-  return `week-${getCurrentWeek(today)}`;
+function getCurrentISOWeek(date = new Date()) {
+  const _date = new Date(date.getTime());
+  _date.setHours(0, 0, 0, 0);
+  _date.setDate(_date.getDate() + 3 - ((_date.getDay() + 6) % 7));
+  const week1 = new Date(_date.getFullYear(), 0, 4);
+  return (
+    1 +
+    Math.round(
+      ((_date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
+    )
+  );
 }
-let currentWeekKey = getCurrentWeekKey();
 
-
-// Génère 48 créneaux de 30 min sur 24h (07:00-07:30, 07:30-08:00, ...)
+// Créneaux 30 min sur 24h
 const horaires = [];
-const startHourDisplay = 7; // Heure de début des créneaux affichés
-
+const startHourDisplay = 7;
 for (let i = 0; i < 48; i++) {
   const currentSlotHour = (startHourDisplay + Math.floor(i / 2)) % 24;
   const currentSlotMinute = (i % 2) * 30;
-
   const endSlotHour = (startHourDisplay + Math.floor((i + 1) / 2)) % 24;
   const endSlotMinute = ((i + 1) % 2) * 30;
-
   const start = `${String(currentSlotHour).padStart(2, '0')}:${String(currentSlotMinute).padStart(2, '0')}`;
   const end = `${String(endSlotHour).padStart(2, '0')}:${String(endSlotMinute).padStart(2, '0')}`;
-
   horaires.push(`${start} - ${end}`);
 }
 
-// Définitions des éléments du DOM (mis à jour pour correspondre à agent.html)
+// Eléments du DOM
 const agentPrenomSpan = document.getElementById("agent-prenom");
 const agentNomSpan = document.getElementById("agent-nom");
 const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay');
-const weekSelect = document.getElementById("week-select"); // ID corrigé
-const syntheseBtn = document.getElementById("synthese-btn"); // ID corrigé
-const tabButtons = document.querySelectorAll('.tab'); // Classe corrigée
-const planningContainer = document.getElementById("planning-container"); // ID corrigé (ce sera le conteneur des boutons)
+const weekSelect = document.getElementById("week-select");
+const syntheseBtn = document.getElementById("synthese-btn");
+const tabButtons = document.querySelectorAll('.tab');
+const planningContainer = document.getElementById("planning-container");
 const loadingSpinner = document.getElementById("loading-spinner");
-const saveButton = document.getElementById("save-button"); // ID corrigé
-const clearSelectionBtn = document.getElementById("clear-selection-btn"); // ID corrigé
-const logoutButton = document.getElementById("logout-button"); // ID corrigé
-const selectionInfo = document.getElementById("selection-info"); // Message d'info
-
+const saveButton = document.getElementById("save-button");
+const clearSelectionBtn = document.getElementById("clear-selection-btn");
+const logoutButton = document.getElementById("logout-button");
+const selectionInfo = document.getElementById("selection-info");
 
 document.addEventListener("DOMContentLoaded", async () => {
   const userRole = sessionStorage.getItem("userRole");
   const agentPrenom = sessionStorage.getItem("agentPrenom");
   const agentNom = sessionStorage.getItem("agentNom");
 
-  // Vérification du rôle et de l'agent connecté
   if (!userRole || userRole !== "agent" || !currentAgentId) {
     alert("Accès non autorisé. Vous devez être connecté en tant qu’agent.");
     sessionStorage.clear();
@@ -60,131 +60,101 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // Afficher le message de bienvenue
   if (agentPrenomSpan && agentNomSpan) {
     agentPrenomSpan.textContent = agentPrenom || '';
     agentNomSpan.textContent = agentNom || '';
   }
 
-  // Charger les qualifications de l'agent
   await loadAgentQualifications(currentAgentId);
   displayAgentQualifications();
 
-  generateWeekOptions(); // Génère les options pour la sélection de la semaine
-  weekSelect.value = currentWeekKey; // Sélectionne la semaine actuelle par défaut
+  generateWeekOptions();
+  const today = new Date();
+  const currentWeekNumber = getCurrentISOWeek(today);
+  currentWeekKey = `week-${currentWeekNumber}`;
+  // SAUVEGARDE DANS LE SESSIONSTORAGE pour la synthèse
+  sessionStorage.setItem("selectedWeek", currentWeekKey);
 
-  // Charge le planning pour la semaine et le jour actuels au démarrage
+  if (weekSelect) {
+    for (let option of weekSelect.options) {
+      if (option.value === currentWeekKey) {
+        weekSelect.value = currentWeekKey;
+        break;
+      }
+    }
+  }
+
   await loadPlanningForAgent(currentAgentId, currentWeekKey, currentDay);
 
-  // Écouteurs d'événements
   if (weekSelect) {
     weekSelect.addEventListener("change", async () => {
-      // Proposer d'enregistrer avant de changer de semaine
       if (hasUnsavedChanges()) {
         if (!confirm("Vous avez des modifications non enregistrées pour le jour actuel. Voulez-vous les enregistrer maintenant ?")) {
-          // Si l'utilisateur annule, réinitialiser le sélecteur à l'ancienne valeur
           weekSelect.value = currentWeekKey;
           return;
         }
-        await savePlanning(); // Tenter d'enregistrer les modifications
+        await savePlanning();
       }
       currentWeekKey = weekSelect.value;
+      // SAUVEGARDE DANS LE SESSIONSTORAGE pour la synthèse
+      sessionStorage.setItem("selectedWeek", currentWeekKey);
       await loadPlanningForAgent(currentAgentId, currentWeekKey, currentDay);
     });
   }
-  if (saveButton) {
-    saveButton.addEventListener("click", savePlanning);
-  }
-  if (clearSelectionBtn) {
-    clearSelectionBtn.addEventListener("click", clearSelectedCells);
-  }
-  if (logoutButton) {
-    logoutButton.addEventListener("click", logout);
-  }
-  if (syntheseBtn) {
-    // Déjà un lien href="synthese.html" dans l'HTML, pas besoin de JS ici à moins d'une logique complexe
-  }
+  if (saveButton) saveButton.addEventListener("click", savePlanning);
+  if (clearSelectionBtn) clearSelectionBtn.addEventListener("click", clearSelectedCells);
+  if (logoutButton) logoutButton.addEventListener("click", logout);
 
-  // Initialisation des onglets (jours de la semaine)
   if (tabButtons.length > 0) {
     tabButtons.forEach(button => {
       button.addEventListener('click', async () => {
         const targetDay = button.dataset.day;
-        // Proposer d'enregistrer avant de changer de jour
         if (hasUnsavedChanges()) {
           if (!confirm("Vous avez des modifications non enregistrées pour le jour actuel. Voulez-vous les enregistrer maintenant ?")) {
-            // Si l'utilisateur annule, ne pas changer de jour
             return;
           }
-          await savePlanning(); // Tenter d'enregistrer les modifications
+          await savePlanning();
         }
         currentDay = targetDay;
-        // Changer la classe active pour le bouton d'onglet
         tabButtons.forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
-        renderPlanningGrid(currentDay); // Afficher le planning pour le nouveau jour sous forme de grille de boutons
+        renderPlanningGrid(currentDay);
       });
     });
-    // Ouvre le premier onglet par défaut au démarrage
-    // Le HTML a déjà un .tab.active par défaut sur Lundi
-    renderPlanningGrid(currentDay); // Affiche le planning pour le jour 'lundi' initial
+    renderPlanningGrid(currentDay);
   }
 
-  // Initialise le comportement de sélection des cellules (glisser-déposer)
   initCellSelection();
-
   showLoading(false);
 });
 
-
-// --- Fonctions de gestion des qualifications de l'agent ---
-
-// Charge les qualifications de l'agent connecté depuis le serveur
+// --- Fonctions de gestion des qualifications ---
 async function loadAgentQualifications(agentId) {
-    try {
-        // Nouvelle route API pour récupérer les informations d'un agent spécifique, y compris les qualifications
-        // NOTE: Cette route est protégée par `authorizeAdmin` côté serveur. Pour un usage sécurisé
-        // en production où l'agent accède à ses propres informations, il faudrait une route séparée
-        // ou un système de token JWT pour autoriser l'agent à accéder à ses propres données sans être 'admin'.
-        const response = await fetch(`${API_BASE_URL}/api/admin/agents/${agentId}`, {
-             headers: { 'X-User-Role': 'admin' } // Temporaire: Simule un accès admin pour récupérer les infos de l'agent
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'Erreur lors du chargement des qualifications de l\'agent.');
-        }
-        agentQualifications = data.qualifications || [];
-        console.log(`Qualifications de ${agentId}:`, agentQualifications);
-    } catch (error) {
-        console.error('Erreur de chargement des qualifications de l\'agent:', error);
-        // Vous pouvez afficher un message d'erreur à l'utilisateur si nécessaire
-        if (agentQualificationsDisplay) {
-            agentQualificationsDisplay.textContent = 'Impossible de charger vos qualifications.';
-            agentQualificationsDisplay.style.color = 'red';
-        }
-    }
-}
-
-// Affiche les qualifications de l'agent sur la page
-function displayAgentQualifications() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/agents/${agentId}`, {
+      headers: { 'X-User-Role': 'admin' }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Erreur lors du chargement des qualifications de l\'agent.');
+    agentQualifications = data.qualifications || [];
+    console.log(`Qualifications de ${agentId}:`, agentQualifications);
+  } catch (error) {
+    console.error('Erreur de chargement des qualifications de l\'agent:', error);
     if (agentQualificationsDisplay) {
-        if (agentQualifications.length > 0) {
-            agentQualificationsDisplay.innerHTML = 'Vos qualifications : ' + agentQualifications.map(q => `<span class="qualification-tag">${q}</span>`).join(', ');
-        } else {
-            agentQualificationsDisplay.textContent = ''; // Pas de qualification masqué
-        }
+      agentQualificationsDisplay.textContent = 'Impossible de charger vos qualifications.';
+      agentQualificationsDisplay.style.color = 'red';
     }
+  }
 }
 
-
-// --- Fonctions Utilitaire pour les dates et semaines ---
-function getCurrentWeek(date = new Date()) {
-  const target = new Date(date.valueOf());
-  target.setDate(target.getDate() + 3 - (target.getDay() + 6) % 7);
-  const firstThursday = new Date(target.getFullYear(), 0, 4);
-  const weekNo = Math.ceil((((target - firstThursday) / 86400000) + 1) / 7);
-  return weekNo;
+function displayAgentQualifications() {
+  if (agentQualificationsDisplay) {
+    if (agentQualifications.length > 0) {
+      agentQualificationsDisplay.innerHTML = 'Vos qualifications : ' + agentQualifications.map(q => `<span class="qualification-tag">${q}</span>`).join(', ');
+    } else {
+      agentQualificationsDisplay.textContent = '';
+    }
+  }
 }
 
 function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
@@ -196,87 +166,58 @@ function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
   } else {
     ISOweekStart.setDate(simple.getDate() + 8 - dow);
   }
-
   const start = new Date(ISOweekStart);
   const end = new Date(ISOweekStart);
   end.setDate(start.getDate() + 6);
-
-  const format = date => date.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit"
-  });
-
+  const format = date => date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
   return `du ${format(start)} au ${format(end)}`;
 }
 
-
-// Génère les options de semaine (actuelle + 5 prochaines)
 function generateWeekOptions() {
   const select = document.getElementById("week-select");
-  select.innerHTML = ""; // Vide les options existantes
-
+  select.innerHTML = "";
   const today = new Date();
-  const currentWeekNumber = getCurrentWeek(today);
+  const currentWeekNumber = getCurrentISOWeek(today);
   const currentYear = today.getFullYear();
-
-  for (let i = 0; i < 6; i++) { // Génère la semaine actuelle + 5 prochaines (total 6)
+  for (let i = 0; i < 6; i++) {
     const weekNum = currentWeekNumber + i;
     const option = document.createElement("option");
-    option.value = `week-${weekNum}`; // Format de la valeur pour correspondre au backend
+    option.value = `week-${weekNum}`;
     const dateRange = getWeekDateRange(weekNum, currentYear);
     option.textContent = `Semaine ${weekNum} (${dateRange})`;
     select.appendChild(option);
   }
 }
 
-
-// Rendu des créneaux horaires sous forme de grille de boutons
 function renderPlanningGrid(day) {
-    if (!planningContainer) return;
-
-    planningContainer.innerHTML = ''; // Vide tout le contenu précédent
-
-    const currentWeekPlanning = agentPlanningData[currentWeekKey] || {};
-    const dayPlanning = currentWeekPlanning[day] || []; // Créneaux occupés pour le jour actuel
-
-    horaires.forEach(timeSlot => {
-        const button = document.createElement("button");
-        button.classList.add("slot-button"); // Applique la classe CSS
-        button.dataset.day = day;
-        button.dataset.time = timeSlot;
-        button.textContent = timeSlot; // Affiche le créneau complet (ex: 07:00 - 07:30)
-
-        if (dayPlanning.includes(timeSlot)) {
-            button.classList.add('selected'); // Marque comme sélectionné si déjà disponible
-        }
-        planningContainer.appendChild(button);
-    });
+  if (!planningContainer) return;
+  planningContainer.innerHTML = '';
+  const currentWeekPlanning = agentPlanningData[currentWeekKey] || {};
+  const dayPlanning = currentWeekPlanning[day] || [];
+  horaires.forEach(timeSlot => {
+    const button = document.createElement("button");
+    button.classList.add("slot-button");
+    button.dataset.day = day;
+    button.dataset.time = timeSlot;
+    button.textContent = timeSlot;
+    if (dayPlanning.includes(timeSlot)) {
+      button.classList.add('selected');
+    }
+    planningContainer.appendChild(button);
+  });
 }
 
-
-// Variables pour la sélection par glisser-déposer
-let isSelecting = false;
-let startCell = null; // Référence au bouton de début de sélection
-let initialSelectionState = null; // True si le bouton de départ était 'selected', False sinon
-
-// PATCH : Sélection par plage (premier et dernier clic, tout sélectionné entre les deux)
 let selectionStartIndex = null;
-
 function initCellSelection() {
   if (!planningContainer) return;
-
   planningContainer.addEventListener('click', (e) => {
     if (!e.target.classList.contains('slot-button')) return;
-
     const buttons = Array.from(planningContainer.querySelectorAll('.slot-button'));
     const clickedIndex = buttons.indexOf(e.target);
-
     if (selectionStartIndex === null) {
-      // Premier clic : on enregistre l’index
       selectionStartIndex = clickedIndex;
-      e.target.classList.toggle('selected');
+      // Pas d'action au 1er clic (on attend le 2e)
     } else {
-      // Deuxième clic : on sélectionne toute la plage
       const start = Math.min(selectionStartIndex, clickedIndex);
       const end = Math.max(selectionStartIndex, clickedIndex);
       const shouldSelect = !buttons[selectionStartIndex].classList.contains('selected');
@@ -287,94 +228,56 @@ function initCellSelection() {
           buttons[i].classList.remove('selected');
         }
       }
-      selectionStartIndex = null; // reset pour un nouveau cycle
+      selectionStartIndex = null;
     }
   });
 }
 
-
-// Vérifie si des modifications non enregistrées existent pour le jour actuel
 function hasUnsavedChanges() {
-    // Collecte les créneaux sélectionnés actuellement sur la page
-    const currentSelectedSlots = Array.from(planningContainer.querySelectorAll('.slot-button.selected')).map(btn => btn.dataset.time);
-    // Récupère l'état sauvegardé pour le jour actuel depuis initialPlanningState
-    const savedSlotsForDay = initialPlanningState[currentWeekKey]?.[currentDay] || [];
-
-    // Compare les longueurs pour une vérification rapide
-    if (currentSelectedSlots.length !== savedSlotsForDay.length) {
-        return true;
-    }
-
-    // Convertit les tableaux en Set pour une comparaison plus efficace des contenus
-    const currentSet = new Set(currentSelectedSlots);
-    const savedSet = new Set(savedSlotsForDay);
-
-    // Vérifie si tous les éléments du set actuel sont dans le set sauvegardé
-    for (const slot of currentSet) {
-        if (!savedSet.has(slot)) {
-            return true;
-        }
-    }
-    // Vérifie si tous les éléments du set sauvegardé sont dans le set actuel
-    for (const slot of savedSet) {
-        if (!currentSet.has(slot)) {
-            return true;
-        }
-    }
-    return false; // Pas de changements
+  const currentSelectedSlots = Array.from(planningContainer.querySelectorAll('.slot-button.selected')).map(btn => btn.dataset.time);
+  const savedSlotsForDay = initialPlanningState[currentWeekKey]?.[currentDay] || [];
+  if (currentSelectedSlots.length !== savedSlotsForDay.length) return true;
+  const currentSet = new Set(currentSelectedSlots);
+  const savedSet = new Set(savedSlotsForDay);
+  for (const slot of currentSet) if (!savedSet.has(slot)) return true;
+  for (const slot of savedSet) if (!currentSet.has(slot)) return true;
+  return false;
 }
 
-
-// Charge le planning de l'agent pour la semaine et le jour actuels
 async function loadPlanningForAgent(agentId, weekKey, day) {
   showLoading(true);
   try {
-    const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`); // Ne pas filtrer par semaine ici
+    const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`);
     const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Erreur lors du chargement du planning.');
-    }
-
-    agentPlanningData = data; // Stocke toutes les données de planning de l'agent
-    initialPlanningState = JSON.parse(JSON.stringify(data)); // Copie profonde pour détecter les changements
-
-    renderPlanningGrid(day); // Affiche les créneaux pour le jour sélectionné sous forme de grille de boutons
+    if (!response.ok) throw new Error(data.message || 'Erreur lors du chargement du planning.');
+    agentPlanningData = data;
+    initialPlanningState = JSON.parse(JSON.stringify(data));
+    renderPlanningGrid(day);
   } catch (error) {
     console.error('Erreur de chargement du planning:', error);
     alert(`Erreur lors du chargement du planning : ${error.message}`);
-    // Si erreur de chargement, réinitialise le planning local
     agentPlanningData = {};
     initialPlanningState = {};
-    renderPlanningGrid(day); // Afficher une grille vide ou un message
+    renderPlanningGrid(day);
   } finally {
     showLoading(false);
   }
 }
 
-// Sauvegarde le planning actuel pour l'agent
 async function savePlanning() {
   const selectedSlotsForCurrentDay = Array.from(planningContainer.querySelectorAll('.slot-button.selected')).map(btn => btn.dataset.time);
-
-  // Mettre à jour l'objet agentPlanningData avec les nouvelles sélections du jour actuel
-  if (!agentPlanningData[currentWeekKey]) {
-      agentPlanningData[currentWeekKey] = {};
-  }
+  if (!agentPlanningData[currentWeekKey]) agentPlanningData[currentWeekKey] = {};
   agentPlanningData[currentWeekKey][currentDay] = selectedSlotsForCurrentDay;
-
   showLoading(true, saveButton);
   try {
     const response = await fetch(`${API_BASE_URL}/api/planning/${currentAgentId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(agentPlanningData), // Envoie tout l'objet de planning mis à jour
+      body: JSON.stringify(agentPlanningData),
     });
-
     const data = await response.json();
-
     if (response.ok) {
       alert("Planning enregistré avec succès !");
-      // Après sauvegarde réussie, mettre à jour l'état initial pour refléter le dernier enregistrement
       initialPlanningState = JSON.parse(JSON.stringify(agentPlanningData));
     } else {
       throw new Error(data.message || "Erreur lors de l'enregistrement.");
@@ -387,7 +290,6 @@ async function savePlanning() {
   }
 }
 
-// Efface toutes les sélections de cellules sur le planning affiché
 function clearSelectedCells() {
   planningContainer.querySelectorAll('.slot-button.selected').forEach(button => {
     button.classList.remove('selected');
@@ -395,46 +297,38 @@ function clearSelectedCells() {
   alert("La sélection actuelle a été effacée. N'oubliez pas d'enregistrer vos modifications !");
 }
 
-
 function logout() {
   sessionStorage.clear();
   window.location.href = "index.html";
 }
 
-// Fonction pour gérer l'affichage du spinner de chargement et désactiver/réactiver les contrôles
 function showLoading(isLoading, button = null) {
   if (isLoading) {
     if (loadingSpinner) loadingSpinner.classList.remove("hidden");
-    // Désactiver tous les boutons et sélecteurs pertinents
     if (saveButton) saveButton.disabled = true;
     if (clearSelectionBtn) clearSelectionBtn.disabled = true;
     if (logoutButton) logoutButton.disabled = true;
     if (syntheseBtn) syntheseBtn.classList.add('disabled');
     tabButtons.forEach(btn => btn.disabled = true);
     if (weekSelect) weekSelect.disabled = true;
-    // Désactiver également les boutons de créneaux pendant le chargement
     planningContainer.querySelectorAll('.slot-button').forEach(btn => btn.disabled = true);
   } else {
     if (loadingSpinner) loadingSpinner.classList.add("hidden");
-    // Réactiver tous les boutons et sélecteurs pertinents
     if (saveButton) saveButton.disabled = false;
     if (clearSelectionBtn) clearSelectionBtn.disabled = false;
     if (logoutButton) logoutButton.disabled = false;
     if (syntheseBtn) syntheseBtn.classList.remove('disabled');
     tabButtons.forEach(btn => btn.disabled = false);
     if (weekSelect) weekSelect.disabled = false;
-    // Réactiver les boutons de créneaux après le chargement
     planningContainer.querySelectorAll('.slot-button').forEach(btn => btn.disabled = false);
   }
 }
 
-// Fonction utilitaire pour éviter l'outline sur les éléments focusables mais non cliquables par défaut
 document.addEventListener('focusin', function(e) {
   if (e.target.matches('button, select, input, a')) {
     e.target.classList.add('focused-element');
   }
 });
-
 document.addEventListener('focusout', function(e) {
   if (e.target.matches('button, select, input, a')) {
     e.target.classList.remove('focused-element');

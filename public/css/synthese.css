@@ -1,55 +1,49 @@
-/* Import de la police Google Fonts Poppins */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
 
-/* Variables de couleurs et de design pour la cohérence */
 :root {
-  --primary-color: #007bff; /* Bleu principal */
+  --primary-color: #007bff;
   --primary-hover-color: #0056b3;
-  --secondary-color: #6c757d; /* Gris pour actions secondaires */
+  --secondary-color: #6c757d;
   --secondary-hover-color: #5a6268;
-  --success-color: #28a745; /* Vert pour créneaux sélectionnés */
-  --occupied-slot-color: var(--primary-color); /* Couleur pour un créneau occupé (disponible) */
-  --free-slot-color: #e0e0e0; /* Couleur pour un créneau libre (non disponible/vide) */
-
-  --background-color: #f0f2f5; /* Fond clair */
-  --card-background: #ffffff; /* Fond des conteneurs */
+  --success-color: #28a745;
+  --occupied-slot-color: var(--primary-color);
+  --free-slot-color: #e0e0e0;
+  --background-color: #f0f2f5;
+  --card-background: #ffffff;
   --text-color: #333;
   --light-gray: #e0e0e0;
   --medium-gray: #bbb;
   --dark-gray: #666;
-
   --border-radius-large: 12px;
   --border-radius-medium: 8px;
   --border-radius-small: 6px;
-
   --box-shadow-subtle: 0 6px 20px rgba(0, 0, 0, 0.08);
 }
 
 body {
   font-family: 'Poppins', sans-serif;
   margin: 0;
-  padding: 20px; /* Padding autour du conteneur principal */
+  padding: 20px;
   background-color: var(--background-color);
   color: var(--text-color);
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: flex-start; /* Aligne le contenu en haut de la page */
-  box-sizing: border-box; /* S'assure que le padding est inclus dans la taille totale */
+  align-items: flex-start;
+  box-sizing: border-box;
 }
 
 .synthese-container {
-  /* MODIFICATION MAJEURE ICI : Augmentation de la largeur maximale pour prendre plus d'espace */
-  max-width: 1600px; /* Permet au conteneur de s'étirer jusqu'à cette largeur */
-  width: 95%; /* Prend 95% de la largeur disponible de son parent (body) */
-  margin: 0 auto; /* Centre le conteneur horizontalement */
+  max-width: 1600px;
+  width: 95%;
+  margin: 0 auto;
   background: var(--card-background);
   border-radius: var(--border-radius-large);
   box-shadow: var(--box-shadow-subtle);
-  padding: 30px; /* Padding généreux à l'intérieur du conteneur */
+  padding: 30px;
   display: flex;
   flex-direction: column;
-  gap: 25px; /* Espacement global entre sections (titre, sélecteur, planning) */
+  gap: 25px;
 }
 
 .page-title {
@@ -66,7 +60,7 @@ body {
   align-items: center;
   gap: 15px;
   margin-bottom: 25px;
-  flex-wrap: wrap; /* Permet aux éléments de passer à la ligne sur petits écrans */
+  flex-wrap: wrap;
 }
 
 .week-selection label {
@@ -82,7 +76,7 @@ body {
   background-color: #f8f8f8;
   cursor: pointer;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  min-width: 180px; /* Largeur minimale pour le sélecteur de semaine */
+  min-width: 180px;
 }
 
 #week-select:focus {
@@ -110,19 +104,22 @@ body {
   display: none;
 }
 
-
 /* --- Planning Wrapper (Conteneur pour le tableau, gère le scroll horizontal) --- */
 .planning-wrapper {
-  overflow-x: auto; /* Active le défilement horizontal si le contenu dépasse */
+  width: 100%;           /* Prend la largeur de la carte, jamais plus */
+  min-width: 0;          /* Permet de rétrécir sur petits écrans */
+  max-width: 100%;       /* Jamais plus large que le parent */
+  overflow-x: auto;      /* Scroll horizontal si besoin */
   position: relative;
   border: 1px solid var(--light-gray);
   border-radius: var(--border-radius-medium);
-  padding-bottom: 10px; /* Espace pour la scrollbar horizontale */
+  padding-bottom: 10px;
+  box-sizing: border-box;
 }
 
-/* Styles pour la scrollbar (Webkit - Chrome, Safari) */
+/* Scrollbar custom */
 .planning-wrapper::-webkit-scrollbar {
-  height: 8px; /* Hauteur de la scrollbar horizontale */
+  height: 8px;
 }
 .planning-wrapper::-webkit-scrollbar-track {
   background: #f1f1f1;
@@ -136,61 +133,57 @@ body {
   background: var(--medium-gray);
 }
 
-
-/* --- Grille du planning - En-têtes des heures et Lignes de jours --- */
-.header-hours, .planning-grid-content .day-row {
+/* --- Grille du planning --- */
+.header-hours,
+.planning-grid-content .day-row {
   display: grid;
-  /* DÉFINITION DES COLONNES : */
-  /* 120px pour la première colonne (noms des jours) */
-  /* repeat(48, 1fr) pour les 48 créneaux de 30 minutes, chacun prend une fraction égale de l'espace restant */
   grid-template-columns: 120px repeat(48, 1fr);
-  gap: 1px; /* Petits espaces entre les cellules de la grille */
-  /* LARGEUR MINIMALE DE LA GRILLE : Ceci est crucial pour que le tableau soit large. */
-  /* Calcul basé sur ~55px par slot: (48 * 55px) + 120px (day label) = 2640 + 120 = 2760px. */
-  /* J'ai arrondi à 2800px pour un peu de marge. Ajustez si vous voulez des slots plus larges ou plus étroits. */
-  min-width: 2800px;
+  gap: 1px;
+  min-width: 2600px;      /* Largeur minimale, ajustable */
+  width: 100%;            /* Prend la largeur dispo du parent */
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .header-hours {
   background-color: #f0f0f0;
   border-bottom: 1px solid var(--medium-gray);
-  position: sticky; /* L'en-tête reste visible lors du défilement vertical */
-  top: 0; /* Reste en haut du conteneur parent scrollable */
-  z-index: 5; /* Assure qu'il est au-dessus des autres éléments lors du scroll */
-  padding-bottom: 5px; /* Un peu d'espace sous les heures */
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Ombre légère pour le sticky */
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding-bottom: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
 .hour-cell {
-  /* Le `grid-column: span 2;` est appliqué par le JavaScript pour que chaque cellule d'heure couvre 2 slots de 30min */
   font-size: 0.8rem;
   text-align: center;
   padding: 4px 0;
   color: var(--dark-gray);
   font-weight: 500;
-  border-right: 1px solid #eee; /* Ligne de séparation entre les heures */
-  display: flex; /* Utilisation de flexbox pour centrer le texte verticalement */
+  border-right: 1px solid #eee;
+  display: flex;
   align-items: center;
   justify-content: center;
-  white-space: nowrap; /* Empêche le texte de l'heure de passer à la ligne */
+  white-space: nowrap;
 }
 .hour-cell:last-child {
-  border-right: none; /* Pas de bordure sur la dernière heure */
+  border-right: none;
 }
 
 .planning-grid-content {
   display: flex;
-  flex-direction: column; /* Les lignes de jours s'empilent verticalement */
+  flex-direction: column;
 }
 
 .day-row {
   align-items: center;
-  border-bottom: 1px solid #eee; /* Ligne de séparation entre les jours */
+  border-bottom: 1px solid #eee;
   padding: 4px 0;
 }
 
 .day-row:last-child {
-  border-bottom: none; /* Pas de bordure sous la dernière ligne */
+  border-bottom: none;
 }
 
 .day-label {
@@ -198,55 +191,53 @@ body {
   font-size: 0.9rem;
   padding: 0 10px;
   background-color: var(--card-background);
-  line-height: 24px; /* Hauteur de ligne cohérente avec les slots */
+  line-height: 24px;
   white-space: nowrap;
   border-right: 1px solid var(--light-gray);
-  position: sticky; /* Le label du jour reste fixe lors du défilement horizontal */
-  left: 0; /* Reste à gauche du conteneur parent scrollable */
-  z-index: 2; /* Assure qu'il est au-dessus des slots */
-  height: 100%; /* Prend toute la hauteur de la ligne */
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  height: 100%;
   display: flex;
   align-items: center;
-  justify-content: flex-start; /* Aligne le texte à gauche */
-  /* MODIFICATION : Largeur du label du jour, doit correspondre à la première colonne de grid-template-columns */
+  justify-content: flex-start;
   width: 120px;
-  box-sizing: border-box; /* Important pour que le padding soit inclus dans la largeur totale */
+  box-sizing: border-box;
 }
 
 .slot {
-  height: 24px; /* Hauteur fixe pour chaque créneau */
-  background-color: var(--free-slot-color); /* Couleur par défaut pour les créneaux libres */
+  height: 24px;
+  background-color: var(--free-slot-color);
   border-radius: 2px;
   position: relative;
   transition: background-color 0.2s;
-  cursor: default; /* Curseur standard car pas d'interaction directe ici */
-  border-right: 1px solid #f9f9f9; /* Bordure très fine pour les séparer visuellement */
+  cursor: default;
+  border-right: 1px solid #f9f9f9;
 }
 
 .slot:last-child {
-  border-right: none; /* Pas de bordure sur le dernier slot d'une ligne */
+  border-right: none;
 }
 
 /* Style pour les créneaux réellement sélectionnés/occupés */
 .slot.occupied {
-  background-color: var(--occupied-slot-color); /* Utilise la couleur principale (bleu) */
-  cursor: help; /* Indique qu'il y a plus d'informations au survol */
+  background-color: var(--occupied-slot-color);
+  cursor: help;
 }
 
-/* Tooltip affiché au survol d'un créneau occupé */
 .slot.occupied:hover::after {
-  content: attr(data-time); /* Affiche le contenu de l'attribut data-time (e.g., "07:00 - 07:30") */
+  content: attr(data-time);
   position: absolute;
-  top: -28px; /* Positionne le tooltip au-dessus du slot */
+  top: -28px;
   left: 50%;
-  transform: translateX(-50%); /* Centre le tooltip horizontalement */
+  transform: translateX(-50%);
   background: var(--dark-gray);
   color: white;
   font-size: 0.7rem;
   padding: 4px 8px;
   border-radius: var(--border-radius-small);
   white-space: nowrap;
-  z-index: 10; /* Assure que le tooltip est au-dessus de tout */
+  z-index: 10;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
@@ -279,10 +270,9 @@ body {
   transform: translateY(0);
 }
 
-/* Bouton de retour spécifique */
 .btn-return {
   margin-top: 30px;
-  align-self: center; /* Centre le bouton dans le conteneur flex (.synthese-container) */
+  align-self: center;
 }
 
 /* --- Spinner de chargement --- */
@@ -295,17 +285,15 @@ body {
   animation: spin 1s linear infinite;
   margin: 20px auto;
 }
-
 .loading-spinner.hidden {
   display: none;
 }
-
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
-/* Styles pour les lecteurs d'écran (éléments cachés visuellement mais accessibles) */
+/* Screen reader only */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -317,56 +305,38 @@ body {
   border: 0;
 }
 
-
-/* --- Media Queries pour la réactivité sur différentes tailles d'écran --- */
+/* --- Media Queries --- */
 @media (max-width: 768px) {
   body {
-    padding: 15px; /* Réduit le padding du body */
+    padding: 15px;
   }
-
   .synthese-container {
     padding: 20px;
     gap: 15px;
-    /* Sur tablettes, il prend presque toute la largeur disponible */
     max-width: 100%;
     width: 98%;
   }
-
   .page-title {
     font-size: 1.8rem;
   }
-
   .week-selection {
     gap: 10px;
   }
-
   #week-select {
     font-size: 0.9rem;
   }
-
-  /* Pour les grilles sur tablettes : la largeur minimale est ajustée */
   .header-hours, .planning-grid-content .day-row {
-    /* La largeur minimale de la grille est cruciale pour le comportement du scroll horizontal */
-    min-width: 2000px; /* Ajustez si les slots sont trop étroits sur votre appareil test */
+    min-width: 1800px;   /* Plus petit sur tablette */
+    grid-template-columns: 100px repeat(48, 1fr);
   }
-
   .hour-cell {
     font-size: 0.75rem;
   }
-
   .day-label {
     font-size: 0.8rem;
     padding: 0 8px;
-    /* MODIFICATION : La largeur du label des jours sur tablette */
-    width: 100px; /* Doit correspondre au 100px dans grid-template-columns ci-dessous */
+    width: 100px;
   }
-
-  /* Ajustement de la grille pour les en-têtes et les lignes sur tablettes (si besoin) */
-  /* Si vous voulez que la colonne day-label soit de 100px sur 768px, alors: */
-  .header-hours, .planning-grid-content .day-row {
-      grid-template-columns: 100px repeat(48, 1fr);
-  }
-
   .btn {
     padding: 10px 20px;
     font-size: 0.9rem;
@@ -377,46 +347,31 @@ body {
   body {
     padding: 10px;
   }
-
   .synthese-container {
     padding: 15px;
-    border-radius: 0; /* Retire les bordures arrondies pour maximiser l'espace */
-    box-shadow: none; /* Retire l'ombre pour un look plus "plein écran" */
-    width: 100%; /* Prend toute la largeur disponible */
+    border-radius: 0;
+    box-shadow: none;
+    width: 100%;
   }
-
   .page-title {
     font-size: 1.5rem;
   }
-
   .week-selection {
-    flex-direction: column; /* Empile les éléments de sélection verticalement */
+    flex-direction: column;
   }
-
   #week-select {
     width: 100%;
     text-align: center;
   }
-
-  /* Pour les très petits écrans : la largeur minimale de la grille est ajustée */
   .header-hours, .planning-grid-content .day-row {
-    /* Largeur minimale pour mobile. Vous devrez peut-être ajuster encore après test sur appareil réel. */
-    min-width: 1500px; /* Assure que le tableau reste scrollable et pas trop compressé */
+    min-width: 1200px;  /* Encore plus petit sur mobile */
+    grid-template-columns: 80px repeat(48, 1fr);
   }
-
   .hour-cell {
     font-size: 0.7rem;
   }
-
   .day-label {
-    /* MODIFICATION : La largeur du label des jours sur mobile */
-    width: 80px; /* Doit correspondre au 80px dans grid-template-columns ci-dessous */
+    width: 80px;
     font-size: 0.75rem;
-  }
-
-  /* Ajustement de la grille pour les en-têtes et les lignes sur mobiles (si besoin) */
-  /* Si vous voulez que la colonne day-label soit de 80px sur 480px, alors: */
-  .header-hours, .planning-grid-content .day-row {
-      grid-template-columns: 80px repeat(48, 1fr);
   }
 }

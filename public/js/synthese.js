@@ -1,14 +1,26 @@
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 const agent = sessionStorage.getItem("agent");
-const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que cette URL est correcte
+const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
-// DOM Elements
 const weekSelect = document.getElementById("week-select");
-// const dateRangeDisplay = document.getElementById("date-range"); // Supprimé car l'élément est retiré du HTML
 const planningContainer = document.getElementById("planning-container");
 const headerHours = document.getElementById("header-hours");
 const noPlanningMessage = document.getElementById("no-planning-message");
 const loadingSpinner = document.getElementById("loading-spinner");
+
+// Fonction ISO fiable
+function getCurrentISOWeek(date = new Date()) {
+  const _date = new Date(date.getTime());
+  _date.setHours(0, 0, 0, 0);
+  _date.setDate(_date.getDate() + 3 - ((_date.getDay() + 6) % 7));
+  const week1 = new Date(_date.getFullYear(), 0, 4);
+  return (
+    1 +
+    Math.round(
+      ((_date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
+    )
+  );
+}
 
 function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
   const simple = new Date(year, 0, 1 + (weekNumber - 1) * 7);
@@ -27,7 +39,7 @@ function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   if (!agent || agent === "admin") {
-    alert("Vous devez être connecté en tant qu’agent."); // Garde l'alerte pour cette vérification cruciale
+    alert("Vous devez être connecté en tant qu’agent.");
     window.location.href = "index.html";
     return;
   }
@@ -35,18 +47,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   showLoading(true);
   try {
     const response = await fetch(`${API_BASE_URL}/api/planning/${agent}`);
-    if (!response.ok) {
-        if (response.status === 404) {
-            noPlanningMessage.classList.remove("hidden");
-            planningContainer.innerHTML = "";
-            headerHours.innerHTML = "";
-            weekSelect.innerHTML = "<option value=''>Aucune semaine</option>";
-            weekSelect.disabled = true;
-            // dateRangeDisplay.textContent = ""; // Supprimé
-            return;
-        }
-        throw new Error(`Erreur HTTP ${response.status}`);
-    }
     const planningDataAgent = await response.json();
 
     if (!Object.keys(planningDataAgent).length) {
@@ -55,33 +55,38 @@ document.addEventListener("DOMContentLoaded", async () => {
       headerHours.innerHTML = "";
       weekSelect.innerHTML = "<option value=''>Aucune semaine</option>";
       weekSelect.disabled = true;
-      // dateRangeDisplay.textContent = ""; // Supprimé
       return;
     } else {
-        noPlanningMessage.classList.add("hidden");
-        weekSelect.disabled = false;
+      noPlanningMessage.classList.add("hidden");
+      weekSelect.disabled = false;
     }
 
-    const weeks = Object.keys(planningDataAgent)
-      .filter(key => key.startsWith("week-"))
-      .map(key => +key.split("-")[1])
-      .sort((a, b) => a - b);
+    // Détection des clés disponibles (compatibilité week-XX)
+    const weekKeys = Object.keys(planningDataAgent).filter(key => key.startsWith("week-"));
+    const weekNums = weekKeys.map(key => Number(key.split("-")[1])).filter(num => !isNaN(num));
 
+    // Génère le select semaine
     weekSelect.innerHTML = "";
-    weeks.forEach(week => {
+    weekNums.forEach(week => {
       const option = document.createElement("option");
-      option.value = week;
+      option.value = `week-${week}`;
       option.textContent = `Semaine ${week} (${getWeekDateRange(week)})`;
       weekSelect.appendChild(option);
     });
 
-    if (weeks.length > 0) {
-      weekSelect.value = weeks[0]; // Sélectionne la première semaine disponible
-      updateDisplay(weeks[0], planningDataAgent);
+    // --- Synchronisation avec agent.js ---
+    // Va chercher la semaine sélectionnée en sessionStorage
+    let selectedWeekKey = sessionStorage.getItem("selectedWeek");
+    if (!selectedWeekKey || !weekNums.includes(Number(selectedWeekKey.split('-')[1]))) {
+      // Si pas de semaine stockée, ou la semaine n'est pas dans la liste, prend la première dispo
+      selectedWeekKey = `week-${weekNums[0]}`;
     }
+    weekSelect.value = selectedWeekKey;
+    updateDisplay(selectedWeekKey, planningDataAgent);
 
     weekSelect.addEventListener("change", () => {
-      updateDisplay(+weekSelect.value, planningDataAgent);
+      sessionStorage.setItem("selectedWeek", weekSelect.value); // MAJ session pour l’autre page
+      updateDisplay(weekSelect.value, planningDataAgent);
     });
 
   } catch (err) {
@@ -93,15 +98,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-function updateDisplay(weekNumber, planningData) {
-  // dateRangeDisplay.textContent = getWeekDateRange(weekNumber); // Supprimé
-  showWeek(weekNumber, planningData);
+function updateDisplay(weekKey, planningData) {
+  showWeek(weekKey, planningData);
 }
 
-function showWeek(weekNumber, planningData) {
-  const weekKey = `week-${weekNumber}`;
-  const container = document.getElementById("planning-container");
-  const header = document.getElementById("header-hours");
+function showWeek(weekKey, planningData) {
+  const container = planningContainer;
+  const header = headerHours;
 
   // Créneaux 30min de 7h à 6h30 le lendemain (48 slots)
   const allSlots = [];
@@ -113,38 +116,34 @@ function showWeek(weekNumber, planningData) {
     allSlots.push(`${String(h).padStart(2, '0')}:${m} - ${String(nextH).padStart(2, '0')}:${nextM}`);
   }
 
-  // Header heures (affiche seulement les heures pleines, chaque cellule couvre 2 créneaux de 30min)
-  header.innerHTML = `<div class="day-label sticky-day-col"></div>`; // Colonne vide pour alignement
-  for (let i = 0; i < 24; i++) { // 24 heures complètes
-    const hour = (7 + i) % 24; // De 7h à 6h (le lendemain)
+  // Header heures
+  header.innerHTML = `<div class="day-label sticky-day-col"></div>`;
+  for (let i = 0; i < 24; i++) {
+    const hour = (7 + i) % 24;
     const div = document.createElement("div");
     div.className = "hour-cell";
     div.textContent = `${String(hour).padStart(2, '0')}:00`;
-    div.style.gridColumn = `span 2`; // Chaque cellule d'heure couvre 2 colonnes de créneaux (30min * 2 = 1h)
+    div.style.gridColumn = `span 2`;
     header.appendChild(div);
   }
-  // Suppression de cette ligne: header.style.gridTemplateColumns = `100px repeat(24, 2fr)`;
-  // La définition de la grille sera gérée uniquement par le CSS pour la cohérence des colonnes (48 * 1fr)
 
-  // Contenu jours + créneaux
   container.innerHTML = "";
   days.forEach(day => {
     const row = document.createElement("div");
     row.className = "day-row";
-    // row.style.gridTemplateColumns = `100px repeat(48, 1fr)`; // Cette ligne n'est pas nécessaire, déjà dans CSS
-
     const dayLabel = document.createElement("div");
     dayLabel.className = "day-label sticky-day-col";
     dayLabel.textContent = day.charAt(0).toUpperCase() + day.slice(1);
     row.appendChild(dayLabel);
 
+    // PATCH : Si la semaine n’existe pas dans le planning, ne rien afficher
     const selectedSlots = planningData[weekKey]?.[day] || [];
     allSlots.forEach(slot => {
       const div = document.createElement("div");
       div.className = "slot";
       div.setAttribute("data-time", slot);
       if (selectedSlots.includes(slot)) {
-        div.classList.add("occupied"); // Utiliser 'occupied' pour la synthèse
+        div.classList.add("occupied");
       }
       row.appendChild(div);
     });
