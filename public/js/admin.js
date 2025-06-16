@@ -159,14 +159,15 @@ async function fetchAgentNames() {
 async function loadPlanningData() {
     showLoading(true);
     try {
-        const response = await fetch(`${API_BASE_URL}/api/planning`); // Récupère tous les plannings de tous les agents
+        // Cette route /api/planning est maintenant modifiée côté serveur pour agréger les données
+        // par semaine et par jour à partir de AGENT_AVAILABILITY_DIR
+        const response = await fetch(`${API_BASE_URL}/api/planning`); 
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Erreur lors du chargement du planning global.');
 
-        planningData = data; // planningData sera sous la forme { agentId: { week-X: { day: [slots] } } }
+        planningData = data; 
         console.log("Planning Global Chargé:", planningData);
 
-        // Fetch agent names for display
         await fetchAgentNames();
     } catch (error) {
         console.error('Erreur lors du chargement du planning global:', error);
@@ -191,10 +192,12 @@ function renderPlanningGrid(day) {
     const headerRow = document.createElement('tr');
     headerRow.innerHTML = '<th>Agent</th>'; // Première colonne pour le Nom de l'Agent
 
+    // Réécrire les heures avec un format plus propre si nécessaire, et s'assurer de l'alignement
     horaires.forEach(slot => {
         const th = document.createElement('th');
-        // Affiche seulement l'heure de début dans l'en-tête, sans colspan (pour une meilleure lisibilité)
+        // Afficher seulement l'heure de début
         th.textContent = slot.split(' - ')[0]; 
+        th.classList.add('time-header-cell'); // Ajout d'une classe pour le style
         headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -212,12 +215,13 @@ function renderPlanningGrid(day) {
         // 1. Il a une entrée de planning pour la semaine et le jour, ET
         // 2. Cette entrée est un tableau, ET
         // 3. Ce tableau n'est pas vide (il contient au moins un créneau)
-        // Note: Si le planning contient [], cela signifie que l'agent a explicitement défini qu'il n'était pas disponible.
-        // Si l'objectif est de n'afficher QUE ceux qui ont AU MOINS UN CRENEAU DISPONIBLE, alors on ajoute .length > 0
-        // Si l'objectif est d'afficher ceux qui ont RENSEIGNÉ leur planning (même s'il est vide), on retire .length > 0
-        // Ici, on part sur "au moins un créneau renseigné comme disponible"
-        return agentPlanningForDay && agentPlanningForDay.length > 0;
-    }).sort(); // Trie les IDs des agents filtrés
+        return Array.isArray(agentPlanningForDay) && agentPlanningForDay.length > 0;
+    }).sort((a, b) => {
+        // Trie les agents par nom/prénom pour un affichage cohérent
+        const nameA = agentDisplayInfos[a]?.nom || '';
+        const nameB = agentDisplayInfos[b]?.nom || '';
+        return nameA.localeCompare(nameB);
+    });
 
     if (filteredAgentIds.length === 0) {
         const noAgentsRow = document.createElement('tr');
@@ -241,12 +245,12 @@ function renderPlanningGrid(day) {
                 slotCell.setAttribute("data-time", timeSlot);
                 
                 if (agentSpecificDayPlanning && agentSpecificDayPlanning.includes(timeSlot)) {
-                    slotCell.classList.add('available-slot');
-                    slotCell.textContent = 'D'; // Disponible
+                    slotCell.classList.add('available-slot-cell'); // Classe pour disponible (vert)
                 } else {
-                    slotCell.classList.add('unavailable-slot');
-                    slotCell.textContent = 'I'; // Indisponible
+                    slotCell.classList.add('unavailable-slot-cell'); // Classe pour indisponible (gris/rouge pâle)
                 }
+                // Suppression du texte 'D' ou 'I' - la couleur suffit
+                // slotCell.textContent = ''; 
                 agentRow.appendChild(slotCell);
             });
             tbody.appendChild(agentRow);
@@ -264,8 +268,8 @@ function renderPlanningGrid(day) {
 
 // Fonction pour mettre à jour l'affichage de la plage de dates
 function updateDateRangeDisplay() {
-    const weekNum = currentWeek; // currentWeek est déjà le numéro de semaine
-    const currentYear = new Date().getFullYear(); // Assurez-vous que l'année est correcte
+    const weekNum = currentWeek; 
+    const currentYear = new Date().getFullYear(); 
     dateRangeDisplay.textContent = getWeekDateRange(weekNum, currentYear);
 }
 
@@ -438,24 +442,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderNewAgentQualificationsCheckboxes();
     renderNewAgentGradesCheckboxes(); 
 
-    // Charger les données initiales du planning global
-    await loadPlanningData();
-
-    // Définir la semaine actuelle par défaut
+    // Définir la semaine actuelle par défaut AVANT de charger les données pour que le sélecteur soit correct
     currentWeek = getCurrentISOWeek(new Date());
-    
-    // Ouvrir l'onglet "Planning Global" par default au chargement
-    // Cela appellera showDay qui rendra le planning pour le currentDay initial
-    await openMainTab('global-planning-view'); 
+    // Générer les options du sélecteur de semaine
+    generateWeekOptions();
 
+
+    // Charger les données initiales du planning global
+    await loadPlanningData(); // Ceci appellera updateWeekSelector interne
+
+    // S'assurer que le sélecteur de semaine affiche la semaine actuelle par défaut
+    const currentWeekAsString = `week-${currentWeek}`;
+    if (weekSelect) {
+        weekSelect.value = currentWeekAsString;
+    }
+
+    // Ouvrir l'onglet "Planning Global" par default au chargement
+    await openMainTab('global-planning-view'); 
 
     // --- Écouteurs d'événements pour les contrôles du planning global ---
     if (weekSelect) {
         weekSelect.addEventListener("change", async () => {
-            currentWeek = parseInt(weekSelect.value.split('-')[1]); // Mise à jour de currentWeek
-            updateDateRangeDisplay(); // Met à jour l'affichage de la plage de dates
-            await loadPlanningData(); // Recharger et afficher le planning
-            showDay(currentDay); // Affiche le planning pour le jour actuel
+            currentWeek = parseInt(weekSelect.value.split('-')[1]); 
+            updateDateRangeDisplay(); 
+            await loadPlanningData(); 
+            showDay(currentDay); 
         });
     }
     if (document.getElementById("export-pdf")) {
@@ -538,27 +549,19 @@ async function openMainTab(tabId) {
 
     // Gérer la visibilité des contrôles spécifiques au planning
     if (tabId === 'global-planning-view') {
-        planningControls.style.display = 'flex'; // Affiche les contrôles
-        showDay(currentDay); // S'assure que le jour actuel est affiché
+        planningControls.style.display = 'flex'; 
+        showDay(currentDay); 
     } else {
-        planningControls.style.display = 'none'; // Cache les contrôles
+        planningControls.style.display = 'none'; 
         if (tabId === 'agent-management-view') {
-            await loadAgents(); // Recharger la liste des agents quand on va sur cet onglet
+            await loadAgents(); 
         } else if (tabId === 'qualification-management-view') {
             await loadQualificationsList();
         } else if (tabId === 'grade-management-view') {
             await loadGradesList();
         }
-        // L'onglet de gestion des fonctions a été supprimé.
     }
 }
-
-
-// --- Fonctions Utilitaire pour les dates et semaines ---
-
-// `getCurrentISOWeek` est définie plus haut et utilisée correctement.
-// `getWeekDateRange` est définie plus haut et utilisée correctement.
-// `getMondayOfWeek` est définie plus haut et utilisée correctement.
 
 
 // --- Fonctions de gestion du Planning Global ---
@@ -629,13 +632,16 @@ function updateWeekSelector(availableWeeks) {
         weekSelect.appendChild(opt);
     });
 
-    const currentWeekAsString = `week-${currentWeek}`;
+    // Sélectionne la semaine actuelle par défaut
+    const currentWeekAsString = `week-${getCurrentISOWeek()}`;
     if (sortedWeeks.includes(currentWeekAsString)) {
         weekSelect.value = currentWeekAsString;
+        currentWeek = getCurrentISOWeek(); // Assurer que currentWeek est bien à jour
     } else if (sortedWeeks.length > 0) {
         weekSelect.value = sortedWeeks[0];
         currentWeek = parseInt(sortedWeeks[0].split("-")[1]);
     } else {
+        // Si aucune semaine n'est disponible (aucun planning), ajoute la semaine actuelle
         const currentWeekKeyDefault = `week-${getCurrentISOWeek()}`;
         const opt = document.createElement("option");
         opt.value = currentWeekKeyDefault;
@@ -660,21 +666,25 @@ function showDay(day) {
     const table = document.createElement("table");
     table.className = "planning-table";
 
+    // Header (créneaux horaires)
     const thead = document.createElement("thead");
     const headerRow = document.createElement("tr");
 
     const thAgent = document.createElement("th");
     thAgent.textContent = "Agent";
+    thAgent.classList.add('agent-header-cell'); // Ajout d'une classe pour le style
     headerRow.appendChild(thAgent);
 
     horaires.forEach(slotString => { 
         const th = document.createElement("th");
-        th.textContent = slotString.split(' - ')[0]; 
+        th.textContent = slotString.split(' - ')[0]; // Affiche seulement l'heure de début (ex: "07:00")
+        th.classList.add('time-header-cell'); // Ajout d'une classe pour le style
         headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
+    // Body (planning par agent)
     const tbody = document.createElement("tbody");
 
     const weekKey = `week-${currentWeek}`;
@@ -703,6 +713,7 @@ function showDay(day) {
 
             const tr = document.createElement("tr");
             const tdAgent = document.createElement("td");
+            tdAgent.classList.add('agent-name-cell'); // Ajout d'une classe pour le style
             if (agentInfo) {
                 tdAgent.textContent = `${agentInfo.prenom} ${agentInfo.nom}`; 
             } else {
@@ -716,12 +727,12 @@ function showDay(day) {
                 td.setAttribute("data-time", slotString);
                 
                 if (agentSpecificDayPlanning && agentSpecificDayPlanning.includes(slotString)) {
-                    td.classList.add('available-slot');
-                    td.textContent = 'D'; 
+                    td.classList.add('available-slot-cell'); // Disponible (vert)
                 } else {
-                    td.classList.add('unavailable-slot');
-                    td.textContent = 'I'; 
+                    td.classList.add('unavailable-slot-cell'); // Indisponible (gris/rouge pâle)
                 }
+                // Supprime le texte 'D' ou 'I'
+                // td.textContent = ''; 
                 tr.appendChild(td);
             });
             tbody.appendChild(tr);
@@ -1515,7 +1526,6 @@ function logout() {
     window.location.href = "index.html";
 }
 
-// --- Fonction pour gérer l'affichage du spinner de chargement et désactiver/réactiver les contrôles ---
 function showLoading(isLoading, forPdf = false) {
     if (isLoading) {
         loadingSpinner.classList.remove("hidden");

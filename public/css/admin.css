@@ -10,7 +10,7 @@
   --success-color: #28a745; /* Vert pour créneaux sélectionnés / messages de succès */
   --danger-color: #dc3545; /* Rouge pour bouton déconnexion / messages d'erreur */
 
-  --occupied-slot-color: var(--primary-color); /* Bleu pour un créneau occupé */
+  --occupied-slot-color: var(--primary-color); /* Bleu pour un créneau occupé (utilisé sur la page agent) */
   --free-slot-color: #e0e0e0; /* Couleur pour un créneau libre (non disponible/vide) */
 
   --background-color: #f0f2f5; /* Fond clair */
@@ -46,7 +46,7 @@ body {
   box-sizing: border-box;
 }
 
-.agent-container {
+.agent-container { /* Note: Ce nom de classe peut être trompeur si c'est pour l'admin */
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
@@ -210,122 +210,81 @@ body {
     background-color: var(--card-background);
 }
 
-/* Tableau du planning */
-.planning-table {
+/* Tableau du planning global */
+.global-planning-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
-    table-layout: fixed;
+    table-layout: fixed; /* Rend les largeurs de colonnes plus prévisibles */
 }
 
-.planning-table th,
-.planning-table td {
-    padding: 8px 4px;
+.global-planning-table th,
+.global-planning-table td {
+    border: 1px solid #ddd; /* Bordures subtiles pour les cellules */
+    padding: 8px;
     text-align: center;
-    white-space: nowrap;
-    color: var(--text-color);
+    vertical-align: middle;
     box-sizing: border-box;
 }
 
-.planning-table th {
-    background-color: var(--background-color);
-    font-weight: 600;
-    color: var(--dark-gray);
+.global-planning-table thead th {
+    background-color: #f2f2f2;
+    font-weight: bold;
     position: sticky;
     top: 0;
-    z-index: 2;
-    font-size: 0.75rem;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    border-bottom: 1px solid var(--row-border-color);
+    z-index: 10;
 }
 
-/* Fixer la largeur de la première colonne (Agent) */
-.planning-table th:first-child,
-.planning-table td:first-child {
+/* Cellule de l'agent (première colonne) */
+.global-planning-table .agent-name-cell {
+    text-align: left;
+    font-weight: bold;
+    background-color: #f9f9f9;
     position: sticky;
     left: 0;
-    z-index: 3;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-    font-weight: 600;
-    text-align: left;
-    padding-left: 15px;
-    min-width: 150px;
+    z-index: 11; /* Au-dessus des en-têtes d'heure */
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05); /* Petite ombre pour la séparation */
+    min-width: 150px; /* Ajustez selon le contenu des noms */
     width: 150px;
-    border-right: 1px solid var(--row-border-color);
-    color: var(--text-color);
 }
 
-.planning-table tbody tr {
-    border-bottom: 1px solid var(--row-border-color);
-    transition: background-color 0.3s ease, border-color 0.3s ease;
+/* En-tête des heures (dans le planning global) */
+.global-planning-table .time-header-cell {
+    background-color: #e0e0e0; /* Couleur légèrement différente pour les heures */
+    font-weight: normal; 
+    white-space: nowrap; /* Empêche le retour à la ligne des heures */
+    min-width: 60px; /* Taille minimale pour les créneaux 30min */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Ajoute des points de suspension si le texte est trop long */
+    font-size: 0.75rem; /* Ajuste la taille de la police pour les heures */
 }
 
-.planning-table tbody tr:last-child {
-    border-bottom: none;
-}
-
-.planning-table tbody tr:nth-child(even) {
-    background-color: var(--row-even-background);
-}
-
-.planning-table tbody tr:nth-child(odd) {
-    background-color: var(--row-odd-background);
-}
-
-.planning-table tbody tr:hover {
-    background-color: var(--row-hover-background);
-    border-color: var(--row-hover-border-color);
-}
-
-.planning-table td {
-    background-color: transparent;
-    border: none;
-    border-right: 1px solid rgba(0, 0, 0, 0.05);
-}
-.planning-table td:last-child {
-    border-right: none;
-}
-
-.planning-table tbody tr:nth-child(even) td:first-child {
-    background-color: var(--row-even-background);
-}
-.planning-table tbody tr:nth-child(odd) td:first-child {
-    background-color: var(--row-odd-background);
-}
-.planning-table tbody tr:hover td:first-child {
-    background-color: var(--row-hover-background);
-}
-
-.planning-table td.slot-cell {
-    height: 25px;
-    background-color: var(--free-slot-color);
+/* Cellules de créneaux individuelles dans le planning global */
+.global-planning-table .slot-cell {
+    height: 25px; /* Hauteur fixe pour les cellules */
+    background-color: var(--free-slot-color); /* Couleur par défaut si ni disponible ni indisponible */
     cursor: default;
-    width: 25px;
-    min-width: 25px;
-    position: relative;
+    width: 2.083%; /* (100% / 48 créneaux) pour une distribution égale */
+    min-width: 25px; /* Assure une taille minimale */
+    padding: 0; /* Pas de padding pour les cellules de couleur */
 }
 
-.planning-table td.slot-cell.occupied {
-    background-color: var(--occupied-slot-color);
-    color: white;
-    cursor: help;
+/* Couleurs pour les disponibilités dans le planning global */
+.global-planning-table .available-slot-cell {
+    background-color: #d4edda; /* Vert pâle pour disponible */
+    border-color: #28a745; /* Bordure verte */
 }
 
-.planning-table td.slot-cell.occupied:hover::after {
-  content: attr(data-time);
-  position: absolute;
-  top: -28px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--dark-gray);
-  color: white;
-  font-size: 0.7rem;
-  padding: 4px 8px;
-  border-radius: var(--border-radius-small);
-  white-space: nowrap;
-  z-index: 10;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+.global-planning-table .unavailable-slot-cell {
+    background-color: #f8d7da; /* Rouge pâle pour indisponible (utilisez var(--danger-color) si vous voulez un rouge plus vif) */
+    border-color: #dc3545; /* Bordure rouge */
+}
+
+/* Style si le tableau est vide */
+.global-planning-table td[colspan] {
+    font-style: italic;
+    color: #6c757d;
+    padding: 20px;
 }
 
 
@@ -544,7 +503,7 @@ p#addFunctionMessage[style*="blue"], p#editFunctionMessage[style*="blue"], p#lis
 #list-agents-section th, #list-agents-section td,
 #list-qualifications-section th, #list-qualifications-section td,
 #list-grades-section th, #list-grades-section td,
-#list-functions-section th, #list-functions-section td {
+#list-functions-section table th, #list-functions-section table td {
     border: 1px solid var(--light-gray);
     padding: 12px;
     text-align: left;
@@ -792,18 +751,18 @@ p#addFunctionMessage[style*="blue"], p#editFunctionMessage[style*="blue"], p#lis
     min-width: fit-content; /* Pour éviter que les onglets ne se réduisent trop */
   }
 
-  .planning-table th,
-  .planning-table td {
+  .global-planning-table th,
+  .global-planning-table td {
       padding: 6px 2px;
       font-size: 0.8rem;
   }
-  .planning-table th:first-child,
-  .planning-table td:first-child {
+  .global-planning-table th:first-child,
+  .global-planning-table td:first-child {
       min-width: 120px;
       width: 120px;
       padding-left: 10px;
   }
-  .planning-table td.slot-cell {
+  .global-planning-table .slot-cell {
       width: 20px;
       min-width: 20px;
       height: 20px;
@@ -840,13 +799,13 @@ p#addFunctionMessage[style*="blue"], p#editFunctionMessage[style*="blue"], p#lis
       font-size: 0.8rem;
   }
 
-  .planning-table th:first-child,
-  .planning-table td:first-child {
+  .global-planning-table th:first-child,
+  .global-planning-table td:first-child {
       min-width: 100px;
       width: 100px;
       padding-left: 8px;
   }
-  .planning-table td.slot-cell {
+  .global-planning-table .slot-cell {
       width: 18px;
       min-width: 18px;
       height: 18px;
