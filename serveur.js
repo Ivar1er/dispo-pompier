@@ -108,6 +108,29 @@ app.get('/api/admin/agents', async (req, res) => {
   }
 });
 
+// NOUVELLE ROUTE : GET /api/agents/names pour la page de connexion
+app.get('/api/agents/names', async (req, res) => {
+  try {
+    const data = await fs.readFile(AGENTS_FILE, 'utf8');
+    const agents = JSON.parse(data);
+    // Renvoie uniquement l'ID, le prénom et le nom de chaque agent
+    const agentNames = agents.map(agent => ({
+      _id: agent._id,
+      prenom: agent.prenom,
+      nom: agent.nom
+    }));
+    res.status(200).json(agentNames);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      console.log('[INFO Serveur] Fichier agents.json non trouvé pour /api/agents/names. Envoi 200 OK avec un tableau vide.');
+      return res.status(200).json([]); // Aucun agent si le fichier n'existe pas
+    }
+    console.error('Erreur lors de la récupération des noms d\'agents:', error);
+    res.status(500).json({ message: 'Server error retrieving agent names.' });
+  }
+});
+
+
 // PUT: Mettre à jour un agent existant
 app.put('/api/admin/agents/:id', async (req, res) => {
   if (req.headers['x-user-role'] !== 'admin') {
@@ -604,7 +627,7 @@ app.get('/api/daily-roster/:dateKey', async (req, res) => {
 
   try {
     const data = await fs.readFile(filePath, 'utf8');
-    res.json(JSON.parse(data));
+    res.status(200).json(JSON.parse(data));
   } catch (err) {
     if (err.code === 'ENOENT') {
       console.log(`[INFO Serveur] Fichier de planning quotidien pour ${dateKey} non trouvé. Envoi 200 OK avec un objet vide.`);
