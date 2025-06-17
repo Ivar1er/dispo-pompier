@@ -3,18 +3,21 @@
 const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que cette URL est correcte
 
 // Références DOM pour les éléments de la page agent.html
+// Ajout de vérifications pour s'assurer que les éléments existent
 const agentNameDisplay = document.getElementById('agent-name-display');
 const currentWeekDisplay = document.getElementById('current-week-display');
 const prevWeekBtn = document.getElementById('prev-week-btn');
 const nextWeekBtn = document.getElementById('next-week-btn');
-const planningGrid = document.getElementById('planning-grid'); // La grille d'affichage du planning
+// CORRECTION ICI : Utilisez 'planning-container' pour l'ID
+const planningGrid = document.getElementById('planning-container'); // La grille d'affichage du planning
+// CORRECTION ICI : Utilisez 'save-slots-btn' pour l'ID
 const saveSlotsBtn = document.getElementById('save-slots-btn');
 const clearSelectionBtn = document.getElementById('clear-selection-btn');
+// CORRECTION ICI : Utilisez 'logout-btn' pour l'ID
 const logoutBtn = document.getElementById('logout-btn');
 
+
 // Pour le système de modales personnalisées (s'assure qu'elles sont disponibles)
-// (Ces fonctions devraient être définies dans un fichier commun comme feuille_de_garde.js ou modal.js,
-// mais les inclure ici assure leur présence si elles ne sont pas chargées ailleurs.)
 function displayMessageModal(title, message, type = "info", callback = null) {
     let modal = document.getElementById('custom-message-modal');
     if (!modal) {
@@ -235,12 +238,22 @@ async function saveAvailabilitiesForDate(dateKey, availabilities) {
 
 // --- Rendu du planning ---
 function renderPlanningGrid() {
+    // Vérification de l'existence de planningGrid avant d'y accéder
+    if (!planningGrid) {
+        console.error("Erreur DOM: L'élément 'planning-container' est introuvable. Assurez-vous que l'ID est correct dans agent.html.");
+        displayMessageModal("Erreur d'affichage", "Impossible d'afficher le planning. L'élément de grille est manquant.", "error");
+        return;
+    }
     planningGrid.innerHTML = ''; // Vide la grille actuelle
 
     const mondayOfCurrentWeek = getDateOfWeek(currentWeekNumber, currentYear);
 
-    // Mise à jour de l'affichage de la semaine
-    currentWeekDisplay.textContent = `Semaine ${currentWeekNumber} (${mondayOfCurrentWeek.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} - ${new Date(mondayOfCurrentWeek.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })})`;
+    // Vérification de l'existence de currentWeekDisplay avant d'y accéder
+    if (currentWeekDisplay) {
+        currentWeekDisplay.textContent = `Semaine ${currentWeekNumber} (${mondayOfCurrentWeek.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} - ${new Date(mondayOfCurrentWeek.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })})`;
+    } else {
+        console.warn("L'élément 'current-week-display' est introuvable dans agent.html.");
+    }
 
     const weeklyPlanning = planningData[`week-${currentWeekNumber}`] || {};
 
@@ -325,8 +338,8 @@ function handleMouseDown(e) {
     isSelecting = true;
     startCell = e.target;
     selectedCells = [];
-    planningGrid.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
-    planningGrid.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
+    if (planningGrid) planningGrid.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
+    if (planningGrid) planningGrid.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
     startCell.classList.add('selecting');
     selectedCells.push(startCell);
 }
@@ -337,18 +350,27 @@ function handleMouseOver(e) {
     const currentCell = e.target.closest('.planning-cell');
     if (!currentCell || currentCell === startCell) return;
 
-    planningGrid.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
+    if (planningGrid) planningGrid.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
     selectedCells = [];
 
-    const startRowIndex = Array.from(startCell.parentNode.parentNode.children).indexOf(startCell.parentNode);
-    const startColIndex = Array.from(startCell.parentNode.children).indexOf(startCell);
-    const currentRowIndex = Array.from(currentCell.parentNode.parentNode.children).indexOf(currentCell.parentNode);
-    const currentColIndex = Array.from(currentCell.parentNode.children).indexOf(currentCell);
+    // Vérifier si parentNode existe avant d'accéder à children
+    const startRowParent = startCell.parentNode;
+    const currentCellParent = currentCell.parentNode;
+
+    if (!startRowParent || !currentCellParent) {
+        console.error("Erreur DOM: Parent des cellules non trouvé lors de la sélection.");
+        return;
+    }
+
+    const startRowIndex = Array.from(startRowParent.parentNode.children).indexOf(startRowParent);
+    const startColIndex = Array.from(startRowParent.children).indexOf(startCell);
+    const currentRowIndex = Array.from(currentCellParent.parentNode.children).indexOf(currentCellParent);
+    const currentColIndex = Array.from(currentCellParent.children).indexOf(currentCell);
 
     const minRow = Math.min(startRowIndex, currentRowIndex);
     const maxRow = Math.max(startRowIndex, currentRowIndex);
-    const minCol = Math.min(startColIndex, currentColIndex);
-    const maxCol = Math.max(startColIndex, currentColIndex);
+    // const minCol = Math.min(startColIndex, currentColIndex); // Non utilisé car on sélectionne sur une seule colonne
+    // const maxCol = Math.max(startColIndex, currentColIndex); // Non utilisé
 
     // Assurez-vous de sélectionner uniquement dans la même colonne (même jour)
     if (startColIndex !== currentColIndex) return;
@@ -441,6 +463,10 @@ async function saveSelectedSlots() {
 }
 
 function clearSelectedSlots() {
+    if (!planningGrid) {
+        console.error("Erreur DOM: L'élément 'planning-container' est introuvable pour effacer la sélection.");
+        return;
+    }
     planningGrid.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
     selectedCells = [];
     startCell = null;
@@ -461,6 +487,11 @@ function minutesToTime(totalMinutes) {
     }
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
+function parseTimeToMinutes(timeStr) {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+}
+
 
 // --- Initialisation ---
 document.addEventListener("DOMContentLoaded", async () => {
@@ -470,15 +501,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentAgentRole = sessionStorage.getItem('userRole');
 
     // --- DEBOGAGE : Affiche les valeurs récupérées de sessionStorage ---
-    console.log("DEBUG: currentAgentId:", currentAgentId);
-    console.log("DEBUG: currentAgentName:", currentAgentName);
-    console.log("DEBUG: currentAgentRole:", currentAgentRole);
-    console.log("DEBUG: Token:", getToken() ? "Présent" : "Absent");
+    console.log("DEBUG Agent: currentAgentId:", currentAgentId);
+    console.log("DEBUG Agent: currentAgentName:", currentAgentName);
+    console.log("DEBUG Agent: currentAgentRole:", currentAgentRole);
+    console.log("DEBUG Agent: Token:", getToken() ? "Présent" : "Absent");
 
     // Vérification initiale de l'authentification et du rôle
     const token = getToken();
     if (!currentAgentId || !token) {
-        console.error("Initialisation: ID agent ou Token manquant. Redirection vers login.");
+        console.error("Initialisation Agent: ID agent ou Token manquant. Redirection vers login.");
         displayMessageModal("Session expirée", "Votre session a expiré ou n'est pas valide. Veuillez vous reconnecter.", "error", () => {
             window.location.href = "index.html"; // Redirige vers la page de connexion
         });
@@ -488,7 +519,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Si on arrive ici, l'agent est authentifié (token et ID sont là)
     // Maintenant, vérifions si le rôle est 'agent' pour cette page
     if (currentAgentRole !== 'agent') {
-        console.error("Initialisation: Rôle incorrect pour cette page. Rôle actuel:", currentAgentRole);
+        console.error("Initialisation Agent: Rôle incorrect pour cette page. Rôle actuel:", currentAgentRole);
         displayMessageModal("Accès non autorisé", "Vous devez être connecté en tant qu'agent pour accéder à cette page.", "error", () => {
             // Si c'est un admin qui arrive ici par erreur, il devrait aller à admin.html
             if (currentAgentRole === 'admin') {
@@ -503,6 +534,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Si tout est bon (authentifié et rôle 'agent')
     if (agentNameDisplay) {
         agentNameDisplay.textContent = `${currentAgentName} (${currentAgentId})`;
+    } else {
+        console.warn("L'élément 'agent-name-display' est introuvable dans agent.html. Le nom de l'agent ne sera pas affiché.");
     }
 
     // Initialiser la semaine actuelle
@@ -514,27 +547,50 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadAgentPlanning();
 
     // Configuration des événements pour la navigation entre les semaines
-    prevWeekBtn.addEventListener('click', async () => {
-        currentWeekNumber--;
-        if (currentWeekNumber < 1) { // Gérer le passage à l'année précédente
-            currentYear--;
-            currentWeekNumber = getISOWeekNumber(new Date(currentYear, 11, 31)); // Dernière semaine de l'année précédente
-        }
-        await loadAgentPlanning(); // Recharge le planning pour la nouvelle semaine
-    });
+    if (prevWeekBtn) {
+        prevWeekBtn.addEventListener('click', async () => {
+            currentWeekNumber--;
+            if (currentWeekNumber < 1) { // Gérer le passage à l'année précédente
+                currentYear--;
+                currentWeekNumber = getISOWeekNumber(new Date(currentYear, 11, 31)); // Dernière semaine de l'année précédente
+            }
+            await loadAgentPlanning(); // Recharge le planning pour la nouvelle semaine
+        });
+    } else {
+        console.warn("L'élément 'prev-week-btn' est introuvable dans agent.html. Le bouton précédent ne sera pas fonctionnel.");
+    }
 
-    nextWeekBtn.addEventListener('click', async () => {
-        currentWeekNumber++;
-        const lastWeekOfCurrentYear = getISOWeekNumber(new Date(currentYear, 11, 31));
-        if (currentWeekNumber > lastWeekOfCurrentYear) { // Gérer le passage à l'année suivante
-            currentYear++;
-            currentWeekNumber = 1;
-        }
-        await loadAgentPlanning(); // Recharge le planning pour la nouvelle semaine
-    });
+    if (nextWeekBtn) {
+        nextWeekBtn.addEventListener('click', async () => {
+            currentWeekNumber++;
+            const lastWeekOfCurrentYear = getISOWeekNumber(new Date(currentYear, 11, 31));
+            if (currentWeekNumber > lastWeekOfCurrentYear) { // Gérer le passage à l'année suivante
+                currentYear++;
+                currentWeekNumber = 1;
+            }
+            await loadAgentPlanning(); // Recharge le planning pour la nouvelle semaine
+        });
+    } else {
+        console.warn("L'élément 'next-week-btn' est introuvable dans agent.html. Le bouton suivant ne sera pas fonctionnel.");
+    }
+    
 
     // Événements pour les boutons d'action
-    saveSlotsBtn.addEventListener('click', saveSelectedSlots);
-    clearSelectionBtn.addEventListener('click', clearSelectedSlots);
-    logoutBtn.addEventListener('click', logout);
+    if (saveSlotsBtn) {
+        saveSlotsBtn.addEventListener('click', saveSelectedSlots);
+    } else {
+        console.warn("L'élément 'save-slots-btn' est introuvable dans agent.html. Le bouton de sauvegarde ne sera pas fonctionnel.");
+    }
+
+    if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', clearSelectedSlots);
+    } else {
+        console.warn("L'élément 'clear-selection-btn' est introuvable dans agent.html. Le bouton d'effacement de sélection ne sera pas fonctionnel.");
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    } else {
+        console.warn("L'élément 'logout-btn' est introuvable dans agent.html. Le bouton de déconnexion ne sera pas fonctionnel.");
+    }
 });

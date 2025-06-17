@@ -11,26 +11,31 @@
   <div class="agent-container">
 
     <header class="page-header">
-      <!-- Mise à jour pour les spans nom/prénom et suppression de l'ID welcomeMessage de la balise h2 -->
-      <h2 class="welcome-message">Bienvenue <span id="agent-prenom"></span> <span id="agent-nom"></span> !</h2>
+      <!-- Mise à jour pour une seule span pour le nom complet de l'agent -->
+      <h2 class="welcome-message">Bienvenue <span id="agent-name-display"></span> !</h2>
 
       <!-- NOUVEAU : Affichage des qualifications de l'agent -->
       <p id="agentQualificationsDisplay" class="qualifications-display-message"></p>
 
       <div class="header-controls">
+        <!-- NOUVEAU : Boutons de navigation des semaines -->
+        <button id="prev-week-btn" class="btn btn-secondary">← Semaine Précédente</button>
         <div class="week-info">
-          <!-- ID du sélecteur de semaine mis à jour -->
+          <!-- ID du sélecteur de semaine correct -->
           <label for="week-select" class="sr-only">Sélectionner la semaine</label>
           <select id="week-select"></select>
+          <!-- NOUVEAU : Élément pour afficher la plage de dates de la semaine courante -->
+          <p id="current-week-display"></p>
         </div>
+        <button id="next-week-btn" class="btn btn-secondary">Semaine Suivante →</button>
 
-        <!-- ID du bouton "Voir la Synthèse" mis à jour -->
+        <!-- ID du bouton "Voir la Synthèse" correct -->
         <a href="synthese.html" id="synthese-btn" class="btn btn-secondary">Voir la Synthèse</a>
       </div>
     </header>
 
     <nav class="tabs-navigation">
-      <!-- Classes et attributs des boutons d'onglet mis à jour -->
+      <!-- Classes et attributs des boutons d'onglet corrects -->
       <button class="tab active" data-day="lundi">Lundi</button>
       <button class="tab" data-day="mardi">Mardi</button>
       <button class="tab" data-day="mercredi">Mercredi</button>
@@ -41,22 +46,22 @@
     </nav>
 
     <section class="planning-section">
-      <!-- ID du message d'info mis à jour -->
+      <!-- ID du message d'info correct -->
       <p id="selection-info" class="info-message">
         Cliquez sur le premier créneau et glisez la souris jusqu'au dernier. Plusieurs plages de créneaux possibles.
       </p>
 
-      <!-- Conteneur du planning mis à jour (le tableau sera généré entièrement ici par JS) -->
+      <!-- Conteneur du planning : l'ID est maintenant "planning-container" et correspond au JS -->
       <div id="planning-container" class="planning-grid"></div>
 
       <div id="loading-spinner" class="loading-spinner hidden"></div>
     </section>
 
     <footer class="bottom-actions">
-      <!-- IDs des boutons d'action mis à jour -->
-      <button id="save-button" class="btn btn-primary">Enregistrer mes créneaux</button>
+      <!-- IDs des boutons d'action corrigés pour correspondre au JS -->
+      <button id="save-slots-btn" class="btn btn-primary">Enregistrer mes créneaux</button>
       <button id="clear-selection-btn" class="btn btn-secondary">Effacer la sélection</button>
-      <button id="logout-button" class="btn btn-danger">Déconnexion</button>
+      <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
     </footer>
   </div>
 
