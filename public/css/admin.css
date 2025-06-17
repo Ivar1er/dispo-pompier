@@ -140,7 +140,7 @@ body {
 
 /* Contenu des onglets principaux */
 .main-tab-content {
-  display: none; /* Masqué par défaut, affiché par JS */
+  display: none; /* Masqué par default, affiché par JS */
 }
 
 .main-tab-content.active {
@@ -202,7 +202,7 @@ body {
 
 /* Conteneur du tableau */
 .table-container {
-    overflow-x: auto;
+    overflow-x: auto; /* Permet le défilement horizontal si le contenu déborde */
     margin-top: 20px;
     border: 1px solid var(--light-gray);
     border-radius: var(--border-radius-medium);
@@ -212,10 +212,11 @@ body {
 
 /* Tableau du planning global */
 .global-planning-table {
-    width: 100%;
+    /* Suppression de width: 100%; car table-layout: auto gère la largeur */
     border-collapse: collapse;
     font-size: 0.85rem;
-    table-layout: fixed; /* Rend les largeurs de colonnes plus prévisibles */
+    table-layout: auto; /* IMPORTANT: Permet aux colonnes de s'adapter au contenu */
+    /* Suppression de min-width car table-layout: auto le gère */
 }
 
 .global-planning-table th,
@@ -244,29 +245,45 @@ body {
     left: 0;
     z-index: 11; /* Au-dessus des en-têtes d'heure */
     box-shadow: 2px 0 5px rgba(0,0,0,0.05); /* Petite ombre pour la séparation */
-    min-width: 180px; /* Augmenté de 150px à 180px */
-    width: 180px; /* Augmenté de 150px à 180px */
+    
+    /* Retire la largeur fixe pour que le contenu la définisse */
+    /* width: auto; est le comportement par défaut en table-layout: auto */
+    /* min-width est conservé pour une base, mais nowrap est clé */
+    min-width: 180px; /* Une largeur minimale de base pour éviter qu'elle ne soit trop petite */
+    white-space: nowrap; /* Empêche le retour à la ligne du texte de l'agent */
+    padding-left: 15px; /* Padding ajusté */
+    padding-right: 15px; /* Padding ajusté */
 }
+
+/* En-tête de la colonne agent */
+.global-planning-table thead th:first-child {
+    white-space: nowrap; /* Empêche le retour à la ligne du texte "Agent" */
+    padding-left: 15px; /* Padding ajusté */
+    padding-right: 15px; /* Padding ajusté */
+    /* Ces propriétés sont héritées de .global-planning-table th mais on les force ici */
+    min-width: 180px; /* Maintient une largeur minimale cohérente avec les cellules d'agent */
+}
+
 
 /* En-tête des heures (dans le planning global) */
 .global-planning-table .time-header-cell {
     background-color: #e0e0e0; /* Couleur légèrement différente pour les heures */
-    font-weight: normal; 
+    font-weight: normal;
     white-space: nowrap; /* Empêche le retour à la ligne des heures */
-    /* La largeur sera gérée par colSpan sur le TH, ici on s'assure qu'elle ne soit pas écrasée */
-    /* min-width: 60px; */ /* Décommenter si colSpan ne suffit pas */
     overflow: hidden;
     text-overflow: ellipsis; /* Ajoute des points de suspension si le texte est trop long */
     font-size: 0.75rem; /* Ajuste la taille de la police pour les heures */
+    width: 60px; /* (2 * 30px) */
+    min-width: 60px;
 }
 
 /* Cellules de créneaux individuelles dans le planning global */
 .global-planning-table .slot-cell {
     height: 25px; /* Hauteur fixe pour les cellules */
-    background-color: var(--free-slot-color); /* Couleur par défaut si ni disponible ni indisponible */
+    background-color: var(--free-slot-color); /* Couleur par default si ni disponible ni indisponible */
     cursor: default;
-    width: 2.083%; /* (100% / 48 créneaux) pour une distribution égale */
-    min-width: 25px; /* Assure une taille minimale */
+    width: 30px; /* Largeur fixe pour chaque créneau de 30min */
+    min-width: 30px; /* Assure une taille minimale */
     padding: 0; /* Important pour que la couleur remplisse toute la cellule */
 }
 
@@ -477,7 +494,7 @@ p#addQualificationMessage[style*="red"], p#editQualMessage[style*="red"], p#list
 p#addGradeMessage[style*="red"], p#editGradeMessage[style*="red"], p#listGradesMessage[style*="red"],
 p#addFunctionMessage[style*="red"], p#editFunctionMessage[style*="red"], p#listFunctionsMessage[style*="red"] {
     background-color: #ffe6e6;
-    border: 1px solid #e6a4a4;
+    border: 1px solid #e6a4e4;
     color: #a94442;
 }
 
@@ -759,13 +776,15 @@ p#addFunctionMessage[style*="blue"], p#editFunctionMessage[style*="blue"], p#lis
   }
   .global-planning-table th:first-child,
   .global-planning-table td:first-child {
-      min-width: 120px;
-      width: 120px;
+      /* Retire les largeurs fixes */
+      /* min-width: 200px; */
+      /* width: 200px; */
+      white-space: nowrap; /* Conserve le nowrap */
       padding-left: 10px;
   }
   .global-planning-table .slot-cell {
-      width: 20px;
-      min-width: 20px;
+      width: 30px; /* Conserve la largeur fixe */
+      min-width: 30px; /* Conserve la largeur fixe */
       height: 20px;
   }
 
@@ -802,13 +821,15 @@ p#addFunctionMessage[style*="blue"], p#editFunctionMessage[style*="blue"], p#lis
 
   .global-planning-table th:first-child,
   .global-planning-table td:first-child {
-      min-width: 100px;
-      width: 100px;
+      /* Retire les largeurs fixes */
+      /* min-width: 150px; */
+      /* width: 150px; */
+      white-space: nowrap; /* Conserve le nowrap */
       padding-left: 8px;
   }
   .global-planning-table .slot-cell {
-      width: 18px;
-      min-width: 18px;
+      width: 25px; /* Conserve la largeur fixe */
+      min-width: 25px; /* Conserve la largeur fixe */
       height: 18px;
   }
 
@@ -849,4 +870,5 @@ p#addFunctionMessage[style*="blue"], p#editFunctionMessage[style*="blue"], p#lis
       width: 16px;
       height: 16px;
   }
+
 }

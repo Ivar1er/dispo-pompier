@@ -83,7 +83,7 @@ const roleToQualificationMap = {
 
     // VPMA
     'ca_vpma': ['ca_vpma'],
-    // 'cod_0' est géré ci-dessus si c'est le même Chef
+    'cod_0': ['cod_0'], // CD VPMA, peut être le même que COD VSAV/VTU
     'eq_vpma': ['eq_vpma']
 };
 
@@ -182,29 +182,31 @@ function parseTimeToMinutes(t) {
 }
 
 /**
- * Vérifie si deux plages horaires se chevauchent.
- * Gère le cas où une plage traverse minuit.
+ * Vérifie si deux plages horaires se chevauchent, en tenant compte d'une journée conceptuelle
+ * commençant à `startHourOffset` (par exemple 07:00).
  * @param {{start: string, end: string}} r1 - Première plage horaire { "HH:MM", "HH:MM" }
  * @param {{start: string, end: string}} r2 - Deuxième plage horaire { "HH:MM", "HH:MM" }
  * @returns {boolean} True si les plages se chevauchent, False sinon.
  */
 function doTimeRangesOverlap(r1, r2) {
-    let s1 = parseTimeToMinutes(r1.start);
-    let e1 = parseTimeToMinutes(r1.end);
-    let s2 = parseTimeToMinutes(r2.start);
-    let e2 = parseTimeToMinutes(r2.end);
-
+    const startHourOffset = 7 * 60; // 7h en minutes, la nouvelle origine de la journée 0%
     const totalDayMinutes = 24 * 60;
 
-    // Si une plage traverse minuit, "l'étendre" sur 48h pour faciliter la comparaison.
-    // Ex: 22:00 - 02:00 devient 22:00 - 26:00
+    let s1 = (parseTimeToMinutes(r1.start) - startHourOffset + totalDayMinutes) % totalDayMinutes;
+    let e1 = (parseTimeToMinutes(r1.end) - startHourOffset + totalDayMinutes) % totalDayMinutes;
+    let s2 = (parseTimeToMinutes(r2.start) - startHourOffset + totalDayMinutes) % totalDayMinutes;
+    let e2 = (parseTimeToMinutes(r2.end) - startHourOffset + totalDayMinutes) % totalDayMinutes;
+
+    // Si une plage traverse la "nouvelle minuit" (07:00 décalée), l'étendre sur 48h.
+    // Ex: 04:00-09:00 (heure réelle) devient 21:00-02:00 (heures décalées). Ici endMinutes < startMinutes.
+    // On ajoute totalDayMinutes pour que la fin soit après le début sur une ligne temporelle continue.
     if (e1 <= s1) e1 += totalDayMinutes;
     if (e2 <= s2) e2 += totalDayMinutes;
 
-    // Un chevauchement existe si :
-    // (start1 < end2) ET (end1 > start2)
+    // Un chevauchement existe si : (start1 < end2) ET (end1 > start2)
     return s1 < e2 && e1 > s2;
 }
+
 
 /**
  * Calcule la largeur et la position d'un segment de disponibilité sur une barre de 24h,
@@ -467,6 +469,8 @@ async function loadRosterConfig(dateKey) {
             for (const agentId in rawData) {
                 if (Object.prototype.hasOwnProperty.call(rawData, agentId)) {
                     const availabilitiesForAgent = rawData[agentId];
+                    // Stocke les disponibilités sous appData.personnelAvailabilities[agentId][dateKey]
+                    // pour correspondre à la consommation dans renderPersonnelLists
                     appData.personnelAvailabilities[agentId] = {
                         [dateKey]: availabilitiesForAgent
                     };
@@ -484,7 +488,7 @@ async function loadRosterConfig(dateKey) {
           const dateKey = formatDateToYYYYMMDD(currentRosterDate);
           await loadRosterConfig(dateKey);
           await loadDailyRoster(dateKey); 
-          await loadAllPersonnelAvailabilities();
+          await loadAllPersonnelAvailabilities(); // Ceci doit charger les dispo pour TOUS les agents
           hideSpinner();
         }
 
@@ -750,32 +754,15 @@ async function loadRosterConfig(dateKey) {
                 const agentAvailabilities = appData.personnelAvailabilities[agent._id] || {};
                 const dailyAvailabilities = agentAvailabilities[dateKey] || [];
                 
-                const fullDayMinutes = 24 * 60;
-                const thirtyMinInterval = 30;
-                const dayStartOffsetMinutes = 7 * 60;
-
-                let hasAnyAvailabilityInInterval = false;
-                if (dailyAvailabilities.length > 0) {
-                    for (let k = 0; k < (fullDayMinutes / thirtyMinInterval); k++) {
-                        let intervalStartMin = (dayStartOffsetMinutes + k * thirtyMinInterval) % fullDayMinutes;
-                        let intervalEndMin = (dayStartOffsetMinutes + (k + 1) * thirtyMinInterval) % fullDayMinutes;
-
-                        const currentInterval = {
-                            start: `${String(Math.floor(intervalStartMin / 60)).padStart(2, '0')}:${String(intervalStartMin % 60).padStart(2, '0')}`,
-                            end: `${String(Math.floor(intervalEndMin / 60)).padStart(2, '0')}:${String(intervalEndMin % 60).padStart(2, '0')}`
-                        };
-
-                        for (const range of dailyAvailabilities) {
-                            if (doTimeRangesOverlap(currentInterval, range)) {
-                                hasAnyAvailabilityInInterval = true;
-                                break;
-                            }
-                        }
-                        if (hasAnyAvailabilityInInterval) break;
-                    }
+                // Si l'agent n'a pas de disponibilités renseignées pour cette date, il n'est pas "disponible"
+                if (dailyAvailabilities.length === 0) {
+                    return false;
                 }
-                
-                return hasAnyAvailabilityInInterval;
+
+                // Pour afficher l'agent, nous n'avons plus besoin de vérifier s'il a "any" disponibilité
+                // dans un intervalle de 30min, car nous affichons toute sa barre de disponibilité.
+                // L'agent est considéré comme "disponible" s'il a au moins une plage de dispo renseignée.
+                return dailyAvailabilities.length > 0;
             });
 
             if (filteredAvailableAgents.length === 0) {
@@ -827,6 +814,8 @@ async function loadRosterConfig(dateKey) {
                 const thirtyMinInterval = 30;
                 const dayStartOffsetMinutes = 7 * 60; 
 
+                // Boucle pour couvrir l'ensemble de la journée de 07:00 à 07:00 le lendemain (48 créneaux de 30min)
+                // Afin de déterminer l'état de chaque segment visuel.
                 for (let k = 0; k < (fullDayMinutes / thirtyMinInterval); k++) {
                     let intervalStartMin = (dayStartOffsetMinutes + k * thirtyMinInterval) % fullDayMinutes;
                     let intervalEndMin = (dayStartOffsetMinutes + (k + 1) * thirtyMinInterval) % fullDayMinutes;
@@ -840,44 +829,47 @@ async function loadRosterConfig(dateKey) {
                     let originalRange = null; 
 
                     for (const range of dailyAvailabilities) {
+                        // Utilise la fonction doTimeRangesOverlap modifiée
                         if (doTimeRangesOverlap(currentInterval, range)) {
                             isAvailable = true;
                             originalRange = range;
                             break;
-                            }
                         }
-
-                        const segmentsToRender = getAvailabilitySegments(currentInterval.start, currentInterval.end);
-
-                        segmentsToRender.forEach(segment => {
-                            const highlightSegment = document.createElement('div');
-                            highlightSegment.classList.add('availability-highlight-segment');
-                            
-                            const segmentText = document.createElement('span'); // Élément pour le texte
-                            segmentText.classList.add('availability-segment-text');
-
-                            if (isAvailable) {
-                                highlightSegment.classList.add('available');
-                                highlightSegment.title = `Disponible: ${originalRange.start} - ${originalRange.end}`;
-                                segmentText.textContent = `${originalRange.start} - ${originalRange.end}`; // Texte pour les segments disponibles
-                            } else {
-                                highlightSegment.classList.add('unavailable');
-                                highlightSegment.title = `Indisponible: ${currentInterval.start} - ${currentInterval.end}`;
-                                segmentText.textContent = `${currentInterval.start} - ${currentInterval.end}`; // Texte pour les segments indisponibles (intervalle de 30 min)
-                            }
-                            highlightSegment.style.left = `${segment.left}%`;
-                            highlightSegment.style.width = `${segment.width}%`;
-                            
-                            highlightSegment.appendChild(segmentText); // Ajouter le texte au segment
-                            availabilityBarBase.appendChild(highlightSegment);
-                        });
                     }
-                    
-                    item.appendChild(createTooltipForAvailabilityBar(dailyAvailabilities));
 
-                    availablePersonnelList.appendChild(item);
-                });
-            }
+                    // On utilise getAvailabilitySegments pour calculer la position et la largeur
+                    // du segment *dans la barre de 24h virtuelle* (décalée à 07:00).
+                    const segmentsToRender = getAvailabilitySegments(currentInterval.start, currentInterval.end);
+
+                    segmentsToRender.forEach(segment => {
+                        const highlightSegment = document.createElement('div');
+                        highlightSegment.classList.add('availability-highlight-segment');
+                        
+                        const segmentText = document.createElement('span'); // Élément pour le texte
+                        segmentText.classList.add('availability-segment-text');
+
+                        if (isAvailable) {
+                            highlightSegment.classList.add('available');
+                            highlightSegment.title = `Disponible: ${originalRange.start} - ${originalRange.end}`;
+                            segmentText.textContent = `${originalRange.start} - ${originalRange.end}`; // Texte pour les segments disponibles
+                        } else {
+                            highlightSegment.classList.add('unavailable');
+                            highlightSegment.title = `Indisponible: ${currentInterval.start} - ${currentInterval.end}`;
+                            segmentText.textContent = `${currentInterval.start} - ${currentInterval.end}`; // Texte pour les segments indisponibles (intervalle de 30 min)
+                        }
+                        highlightSegment.style.left = `${segment.left}%`;
+                        highlightSegment.style.width = `${segment.width}%`;
+                        
+                        highlightSegment.appendChild(segmentText); // Ajouter le texte au segment
+                        availabilityBarBase.appendChild(highlightSegment);
+                    });
+                }
+                
+                item.appendChild(createTooltipForAvailabilityBar(dailyAvailabilities));
+
+                availablePersonnelList.appendChild(item);
+            });
+        }
 
             function renderOnDutyAgentsGrid() {
                 onDutyAgentsGrid.innerHTML = '';
@@ -1049,14 +1041,14 @@ async function loadRosterConfig(dateKey) {
             await fetchAllAgents(); 
             await loadRosterConfig(dateKey);
             await loadDailyRoster(dateKey); 
-            await loadAllPersonnelAvailabilities();
+            await loadAllPersonnelAvailabilities(); // Ceci doit charger les dispo pour TOUS les agents
             initializeDefaultTimeSlotsForDate(dateKey);
             
 
             rosterDateInput.valueAsDate = currentRosterDate;
             renderTimeSlotButtons(dateKey);
-            renderPersonnelLists();
-            renderOnDutyAgentsGrid();
+            renderPersonnelLists(); // Appel pour rafraîchir la liste des agents disponibles
+            renderOnDutyAgentsGrid(); // Appel pour rafraîchir la grille des agents d'astreinte
             renderRosterGrid();
             hideSpinner();
             }
