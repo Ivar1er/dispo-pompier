@@ -1,3 +1,5 @@
+// login.js
+
 const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que cette URL est correcte
 
 async function login() {
@@ -24,7 +26,8 @@ async function login() {
     const response = await fetch(`${API_BASE_URL}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agent, mdp: password }),
+      // MODIFICATION ICI : Envoyer 'username' et 'password' au lieu de 'agent' et 'mdp'
+      body: JSON.stringify({ username: agent, password: password }),
     });
 
     const data = await response.json();
@@ -39,6 +42,7 @@ async function login() {
     sessionStorage.setItem("agentPrenom", data.prenom);
     sessionStorage.setItem("agentNom", data.nom);
     sessionStorage.setItem("userRole", data.role); // <<< NOUVEAU : Stocke le rôle de l'utilisateur
+    sessionStorage.setItem("token", data.token); // Store the JWT token
 
     // Rediriger en fonction du rôle
     if (data.role === "admin") {
