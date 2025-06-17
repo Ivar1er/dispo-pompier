@@ -29,6 +29,38 @@ const inlineCss = `
     pointer-events: none; /* Permet aux événements de souris de passer à l'élément parent (pour le tooltip) */
     box-sizing: border-box; /* Inclure padding dans la largeur/hauteur */
 }
+
+/* Styles pour le tooltip de disponibilité */
+.availability-bar-tooltip {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.8em;
+    white-space: nowrap;
+    z-index: 50; /* Au-dessus des autres éléments */
+    bottom: 100%; /* Positionne le tooltip au-dessus de la barre */
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 5px; /* Petit espace entre la barre et le tooltip */
+    pointer-events: none; /* Le tooltip ne doit pas bloquer les événements de souris sur la barre */
+}
+
+.availability-bar-tooltip ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.availability-bar-tooltip li {
+    margin-bottom: 2px;
+    font-size: 0.9em;
+}
+
+.availability-bar-tooltip li:last-child {
+    margin-bottom: 0;
+}
 `;
 
 // --------------------------------------------------
@@ -454,31 +486,44 @@ async function loadRosterConfig(dateKey) {
         async function loadAllPersonnelAvailabilities() {
           try {
             const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+            const token = localStorage.getItem('token'); // Récupère le token
+            if (!token) {
+                console.warn('loadAllPersonnelAvailabilities: Aucun token trouvé. Authentification requise.');
+                return; 
+            }
+
             const resp = await fetch(`${API_BASE_URL}/api/agent-availability/${dateKey}`, {
-              headers: {'X-User-Role':'admin'}
+              headers: {
+                'Authorization': `Bearer ${token}`, // Utilise le token pour l'authentification
+                'X-User-Role':'admin' // Garde l'en-tête de rôle si nécessaire pour le backend
+              }
             });
             if (!resp.ok) {
                 console.error(`[ERREUR Client] Erreur HTTP lors du chargement des disponibilités: ${resp.status}`);
                 throw new Error(`HTTP error! status: ${resp.status}`);
             }
             
-            const rawData = await resp.json();
+            const data = await resp.json(); // data contient { available: [...], onCall: [...] }
             
-            appData.personnelAvailabilities = {};
+            appData.personnelAvailabilities = {}; // Réinitialiser pour la date actuelle
 
-            for (const agentId in rawData) {
-                if (Object.prototype.hasOwnProperty.call(rawData, agentId)) {
-                    const availabilitiesForAgent = rawData[agentId];
-                    // Stocke les disponibilités sous appData.personnelAvailabilities[agentId][dateKey]
-                    // pour correspondre à la consommation dans renderPersonnelLists
-                    appData.personnelAvailabilities[agentId] = {
-                        [dateKey]: availabilitiesForAgent
-                    };
-                }
-            }
+            // Combiner les agents disponibles et d'astreinte pour les traiter
+            const allPersonnelForDate = [...(data.available || []), ...(data.onCall || [])];
+            
+            allPersonnelForDate.forEach(agent => {
+                // IMPORTANT: La propriété 'availabilities' doit exister sur l'objet agent renvoyé par l'API backend.
+                // Si votre API ne renvoie pas de plages de disponibilité spécifiques (ex: agent.availabilities = [{start: "09:00", end: "12:00"}]),
+                // la logique ci-dessous assignera une disponibilité de 24h (07:00 - 07:00) pour l'affichage visuel.
+                const availabilitiesForAgent = agent.availabilities || [{ start: "07:00", end: "07:00" }]; // Simule 24h si non spécifié
+
+                appData.personnelAvailabilities[agent._id] = {
+                    [dateKey]: availabilitiesForAgent
+                };
+            });
+
           } catch (error) {
             console.error("Erreur lors du chargement des disponibilités du personnel (API /api/agent-availability):", error);
-            appData.personnelAvailabilities = {};
+            appData.personnelAvailabilities = {}; // Réinitialiser en cas d'erreur
           }
         }
 
@@ -746,22 +791,18 @@ async function loadRosterConfig(dateKey) {
             const onDutyAgents = appData[dateKey]?.onDutyAgents || Array(10).fill('none');
 
             const filteredAvailableAgents = allAgents.filter(agent => {
+                // Vérifie si l'agent n'est PAS déjà dans la liste des agents d'astreinte
                 const isAlreadyOnDuty = onDutyAgents.includes(agent._id);
                 if (isAlreadyOnDuty) {
                     return false;
                 }
 
+                // Récupère les disponibilités de l'agent pour la date sélectionnée
                 const agentAvailabilities = appData.personnelAvailabilities[agent._id] || {};
                 const dailyAvailabilities = agentAvailabilities[dateKey] || [];
                 
-                // Si l'agent n'a pas de disponibilités renseignées pour cette date, il n'est pas "disponible"
-                if (dailyAvailabilities.length === 0) {
-                    return false;
-                }
-
-                // Pour afficher l'agent, nous n'avons plus besoin de vérifier s'il a "any" disponibilité
-                // dans un intervalle de 30min, car nous affichons toute sa barre de disponibilité.
-                // L'agent est considéré comme "disponible" s'il a au moins une plage de dispo renseignée.
+                // Un agent est "disponible" pour être affiché dans cette liste
+                // s'il a au moins une plage de disponibilité renseignée (même la 24h par défaut)
                 return dailyAvailabilities.length > 0;
             });
 
@@ -1773,58 +1814,150 @@ async function loadRosterConfig(dateKey) {
 
             backToRosterBtn.addEventListener('click', showMainRosterGrid);
 
-            createOnDutySlots();
+            createOnDutySlots(); // Cela initialise la grille d'astreinte
 
-            await loadInitialData();
-            await updateDateDisplay();
+            await loadInitialData(); // Charge toutes les données initiales, y compris les dispo et les agents
+            // updateDateDisplay est déjà appelée par loadInitialData en dernier, donc pas besoin de la rappeler ici.
+            // await updateDateDisplay();
 
-            showMainRosterGrid();
+            showMainRosterGrid(); // Affiche la grille principale après chargement
             });
 
-            function afficherBarreDisponibilite(plages, container) {
-                container.innerHTML = '';
-                if (!Array.isArray(plages)) return;
-                plages.forEach(plage => {
-                    let segment = document.createElement('div');
-                    segment.className = 'availability-highlight-segment ' + (plage.statut === 'dispo' ? 'available' : 'unavailable');
-                    segment.style.position = 'absolute';
-                    segment.style.left = (plage.debut / 1440 * 100) + '%';
-                    segment.style.width = ((plage.fin - plage.debut) / 1440 * 100) + '%';
-                    container.appendChild(segment);
-
-                    let label = document.createElement('div');
-                    label.className = 'availability-label';
-                    label.style.position = 'absolute';
-                    label.style.left = (plage.debut / 1440 * 100) + '%';
-                    label.style.top = '12px';
-                    label.style.fontSize = '0.75em';
-                    label.style.color = plage.statut === 'dispo' ? '#388E3C' : '#d32f2f';
-                    label.style.zIndex = '10';
-                    label.textContent = minutesToHeure(plage.debut) + ' - ' + minutesToHeure(plage.fin);
-                    container.appendChild(label);
-                });
-                container.style.position = 'relative';
-            }
+            // Fonctions utilitaires de la modale (qui étaient en commentaire dans les versions précédentes)
             function minutesToHeure(mins) {
                 const h = Math.floor(mins / 60).toString().padStart(2, '0');
                 const m = (mins % 60).toString().padStart(2, '0');
                 return h + ':' + m;
             }
 
+            // La fonction displayMessageModal est présente ici pour assurer sa disponibilité.
             function displayMessageModal(title, message, type = "info", callback = null) {
-                let modal = document.getElementById('message-modal');
+                let modal = document.getElementById('custom-message-modal');
                 if (!modal) {
                     modal = document.createElement('div');
-                    modal.id = 'message-modal';
-                    modal.classList.add('custom-modal', 'message-modal');
+                    modal.id = 'custom-message-modal';
+                    modal.className = 'modal-overlay';
                     document.body.appendChild(modal);
+
+                    // Styles CSS pour la modale (vous pouvez les déplacer dans un fichier CSS)
+                    const modalCss = `
+                        .modal-overlay {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background-color: rgba(0, 0, 0, 0.6);
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            z-index: 1000;
+                            font-family: 'Inter', sans-serif;
+                        }
+                        .modal-content {
+                            background-color: #fff;
+                            padding: 25px 35px;
+                            border-radius: 12px;
+                            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                            width: 90%;
+                            max-width: 450px;
+                            animation: fadeIn 0.3s ease-out;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 20px;
+                        }
+                        .modal-header {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            border-bottom: 1px solid #eee;
+                            padding-bottom: 15px;
+                            margin-bottom: 15px;
+                        }
+                        .modal-header h2 {
+                            margin: 0;
+                            color: #333;
+                            font-size: 1.5em;
+                        }
+                        .modal-body {
+                            color: #555;
+                            font-size: 1em;
+                            line-height: 1.6;
+                        }
+                        .modal-footer {
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: 10px;
+                            padding-top: 15px;
+                            border-top: 1px solid #eee;
+                            margin-top: 15px;
+                        }
+                        .btn {
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 0.95em;
+                            font-weight: 500;
+                            transition: background-color 0.2s ease, transform 0.1s ease;
+                        }
+                        .btn-primary {
+                            background-color: #007bff;
+                            color: white;
+                        }
+                        .btn-primary:hover {
+                            background-color: #0056b3;
+                            transform: translateY(-1px);
+                        }
+                        .btn-secondary {
+                            background-color: #6c757d;
+                            color: white;
+                        }
+                        .btn-secondary:hover {
+                            background-color: #5a6268;
+                            transform: translateY(-1px);
+                        }
+                        .modal-icon {
+                            font-size: 2em;
+                            margin-right: 15px;
+                            align-self: flex-start;
+                        }
+                        .modal-icon.info { color: #007bff; }
+                        .modal-icon.success { color: #28a745; }
+                        .modal-icon.warning { color: #ffc107; }
+                        .modal-icon.error { color: #dc3545; }
+                        .modal-icon.question { color: #6c757d; }
+
+                        @keyframes fadeIn {
+                            from { opacity: 0; transform: scale(0.9); }
+                            to { opacity: 1; transform: scale(1); }
+                        }
+                    `;
+                    const styleSheet = document.createElement("style");
+                    styleSheet.type = "text/css";
+                    styleSheet.innerText = modalCss;
+                    document.head.appendChild(styleSheet);
+                }
+
+                let iconHtml = '';
+                switch (type) {
+                    case 'info': iconHtml = '💡'; break;
+                    case 'success': iconHtml = '✅'; break;
+                    case 'warning': iconHtml = '⚠️'; break;
+                    case 'error': iconHtml = '❌'; break;
+                    case 'question': iconHtml = '❓'; break;
                 }
 
                 modal.innerHTML = `
-                    <div class="modal-content ${type}">
-                        <h2 class="modal-title">${title}</h2>
-                        <p class="modal-message">${message}</p>
-                        <div class="modal-actions">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <span class="modal-icon ${type}">${iconHtml}</span>
+                            <h2>${title}</h2>
+                        </div>
+                        <div class="modal-body">
+                            <p>${message}</p>
+                        </div>
+                        <div class="modal-footer">
                             ${callback ? '<button id="modal-cancel-btn" class="btn btn-secondary">Annuler</button>' : ''}
                             <button id="modal-ok-btn" class="btn btn-primary">OK</button>
                         </div>
