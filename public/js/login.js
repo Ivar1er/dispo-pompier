@@ -37,17 +37,17 @@ async function login() {
       return;
     }
 
-    // Connexion réussie : stocker les informations de session
-    // Utilisation de data._id au lieu de data.id pour correspondre aux conventions MongoDB
-    // Assurez-vous que votre backend renvoie bien "_id"
-    sessionStorage.setItem("agent", data._id || agent); // Stocke l'identifiant (data._id si présent, sinon l'agent sélectionné)
-    sessionStorage.setItem("agentPrenom", data.prenom || ''); // Utilise data.prenom, avec un fallback vide
-    sessionStorage.setItem("agentNom", data.nom || '');     // Utilise data.nom, avec un fallback vide
-    sessionStorage.setItem("userRole", data.role || '');   // Utilise data.role, avec un fallback vide
-    sessionStorage.setItem("token", data.token); // Store the JWT token
+    // --- MODIFICATION CRUCIALE ICI : Accéder aux propriétés via data.user ---
+    const userData = data.user || {}; // S'assurer que data.user existe, sinon utiliser un objet vide
+
+    sessionStorage.setItem("agent", userData._id || agent); // Utilise userData._id
+    sessionStorage.setItem("agentPrenom", userData.prenom || ''); // Utilise userData.prenom
+    sessionStorage.setItem("agentNom", userData.nom || '');     // Utilise userData.nom
+    sessionStorage.setItem("userRole", userData.role || '');   // Utilise userData.role
+    sessionStorage.setItem("token", data.token); // Le token est au niveau racine de la réponse
 
     // Rediriger en fonction du rôle
-    if (data.role === "admin") {
+    if (userData.role === "admin") { // Redirection basée sur userData.role
       window.location.href = "admin.html";
     } else {
       window.location.href = "agent.html";
