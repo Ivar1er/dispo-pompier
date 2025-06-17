@@ -26,22 +26,24 @@ async function login() {
     const response = await fetch(`${API_BASE_URL}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // MODIFICATION ICI : Envoyer 'username' et 'password' au lieu de 'agent' et 'mdp'
       body: JSON.stringify({ username: agent, password: password }),
     });
 
     const data = await response.json();
+    console.log("DEBUG Login: Réponse API /api/login:", data); // Ajout d'un log pour voir la réponse complète
 
     if (!response.ok) {
       errorElement.textContent = data.message || "Erreur lors de la connexion.";
-      return; // Ne pas réactiver le bouton ici car il sera réactivé dans le finally
+      return;
     }
 
     // Connexion réussie : stocker les informations de session
-    sessionStorage.setItem("agent", agent); // Stocke l'identifiant (ex: 'bruneau', 'admin')
-    sessionStorage.setItem("agentPrenom", data.prenom);
-    sessionStorage.setItem("agentNom", data.nom);
-    sessionStorage.setItem("userRole", data.role); // <<< NOUVEAU : Stocke le rôle de l'utilisateur
+    // Utilisation de data._id au lieu de data.id pour correspondre aux conventions MongoDB
+    // Assurez-vous que votre backend renvoie bien "_id"
+    sessionStorage.setItem("agent", data._id || agent); // Stocke l'identifiant (data._id si présent, sinon l'agent sélectionné)
+    sessionStorage.setItem("agentPrenom", data.prenom || ''); // Utilise data.prenom, avec un fallback vide
+    sessionStorage.setItem("agentNom", data.nom || '');     // Utilise data.nom, avec un fallback vide
+    sessionStorage.setItem("userRole", data.role || '');   // Utilise data.role, avec un fallback vide
     sessionStorage.setItem("token", data.token); // Store the JWT token
 
     // Rediriger en fonction du rôle
@@ -54,20 +56,17 @@ async function login() {
     console.error("Erreur lors de la connexion :", err);
     errorElement.textContent = "Impossible de se connecter au serveur. Veuillez vérifier votre connexion.";
   } finally {
-    // S'assure que le bouton est toujours réactivé et son texte rétabli,
-    // même en cas d'erreur ou de succès.
     loginButton.disabled = false;
     loginButton.textContent = "Se connecter";
   }
 }
 
 
-// --- NOUVEAU : Fonction pour charger dynamiquement la liste des agents pour la liste déroulante ---
+// --- Fonction pour charger dynamiquement la liste des agents pour la liste déroulante ---
 document.addEventListener("DOMContentLoaded", async () => {
   const agentSelect = document.getElementById("agent");
   const errorElement = document.getElementById("error");
 
-  // Vérifiez si l'élément agentSelect existe avant de tenter de le manipuler
   if (agentSelect) {
       try {
           const response = await fetch(`${API_BASE_URL}/api/agents/names`);
@@ -75,14 +74,15 @@ document.addEventListener("DOMContentLoaded", async () => {
               throw new Error('Erreur lors du chargement de la liste des agents.');
           }
           const agents = await response.json();
+          console.log("DEBUG Login: Agents chargés pour le sélecteur:", agents); // Log pour voir la structure des agents
 
-          // Vider les options existantes (sauf peut-être une option par défaut si vous en avez une)
           agentSelect.innerHTML = '<option value="">-- Sélectionnez votre identifiant --</option>';
 
           agents.forEach(user => {
               const option = document.createElement("option");
-              option.value = user.id; // L'identifiant est la clé de l'objet USERS (ex: 'bruneau', 'admin')
-              option.textContent = `${user.prenom} ${user.nom} (${user.id})`; // Affiche Prénom Nom (identifiant)
+              // Utilisation de user._id pour correspondre à l'ID retourné par MongoDB si votre backend utilise _id
+              option.value = user._id || user.id; // Tente _id d'abord, puis id comme fallback
+              option.textContent = `${user.prenom || ''} ${user.nom || ''} (${user._id || user.id})`; // Affiche Prénom Nom (identifiant)
               agentSelect.appendChild(option);
           });
       } catch (err) {
