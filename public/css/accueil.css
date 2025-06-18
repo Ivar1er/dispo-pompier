@@ -29,59 +29,63 @@ body {
 }
 
 .login-container {
-  background: var(--card-background);
-  padding: 2.5rem; /* Augmentation du padding pour plus d'espace */
+  background-color: var(--card-background);
+  padding: 40px; /* Plus de padding pour un look plus aéré */
   border-radius: var(--border-radius-large);
   box-shadow: var(--box-shadow-subtle);
-  width: 100%; /* Permet une meilleure adaptabilité */
-  max-width: 400px; /* Limite la largeur pour les grands écrans */
+  width: 100%;
+  max-width: 400px; /* Largeur maximale du formulaire */
   text-align: center;
-  display: flex; /* Utilisation de flexbox pour l'agencement interne */
-  flex-direction: column;
-  align-items: center;
-  gap: 15px; /* Espacement entre les éléments */
+  box-sizing: border-box;
 }
 
 .logo {
-  width: 120px; /* Légèrement plus grand */
-  height: auto;
-  margin-bottom: 20px;
+  max-width: 120px; /* Taille plus adaptée pour le logo */
+  margin-bottom: 25px;
+  display: block; /* S'assure que le logo est un bloc pour centrer */
+  margin-left: auto;
+  margin-right: auto;
 }
 
 h1 {
-  font-size: 2rem; /* Taille de titre plus moderne */
-  color: var(--primary-color); /* Couleur du titre */
-  margin-bottom: 25px;
+  color: var(--primary-color);
+  margin-bottom: 30px; /* Plus d'espace sous le titre */
+  font-size: 2.2rem; /* Taille du titre */
+  font-weight: 600;
 }
 
 .form-group {
-  width: 100%; /* Assure que le groupe prend toute la largeur */
+  margin-bottom: 20px; /* Espacement entre les groupes de formulaire */
   text-align: left;
 }
 
 label {
   display: block;
-  margin-bottom: 8px; /* Espacement sous le label */
-  font-weight: 600; /* Plus de poids pour le label */
+  margin-bottom: 8px; /* Espacement entre label et input */
+  font-weight: 500;
   color: var(--dark-gray);
-  font-size: 0.95rem;
+  font-size: 1em;
 }
 
-select,
-input {
+input[type="text"],
+input[type="password"],
+select {
   width: 100%;
-  padding: 12px 15px; /* Padding plus généreux */
-  border: 1px solid var(--light-gray); /* Bordure plus douce */
+  padding: 12px; /* Plus de padding pour les inputs */
+  border: 1px solid var(--light-gray);
   border-radius: var(--border-radius-small);
-  box-sizing: border-box;
-  font-size: 1rem; /* Taille de police légèrement augmentée */
-  transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Transitions pour les interactions */
+  font-size: 1rem;
+  color: var(--text-color);
+  box-sizing: border-box; /* Inclure padding et border dans la largeur */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background-color: #fcfcfc;
 }
 
-select:focus,
-input:focus {
-  outline: none; /* Supprime l'outline par défaut */
-  border-color: var(--primary-color); /* Bordure colorée au focus */
+input[type="text"]:focus,
+input[type="password"]:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Ombre douce au focus */
 }
 
@@ -115,18 +119,57 @@ button:active {
   font-weight: 500;
 }
 
+/* --- Styles pour le spinner de chargement sur la page de connexion --- */
+#loading-spinner-login {
+  position: fixed;
+  inset: 0; /* Prend toute la hauteur et largeur de la fenêtre */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9); /* Fond semi-transparent blanc */
+  z-index: 1000; /* Assure qu'il est au-dessus de tout */
+}
+
+#loading-spinner-login.hidden {
+  display: none;
+}
+
+#loading-spinner-login .spinner {
+  width: 50px; /* Spinner un peu plus grand */
+  height: 50px;
+  border: 5px solid #f3f3f3; /* Couleur de base du cercle */
+  border-top: 5px solid var(--primary-color); /* Couleur du segment en rotation */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+#loading-spinner-login p {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Media Queries pour la réactivité */
 @media (max-width: 480px) {
   .login-container {
     padding: 1.5rem;
-    border-radius: 0; /* Pas de bordure arrondie sur très petits écrans pour un look full-width */
-    box-shadow: none; /* Pas d'ombre sur très petits écrans */
-    max-width: 100%; /* S'adapte à la largeur complète */
-    height: 100vh; /* Prend toute la hauteur sur mobile pour centrer verticalement */
-    justify-content: center; /* Centre le contenu verticalement */
+    border-radius: 0; /* Pas de bordure arrondie sur mobile */
+    box-shadow: none; /* Pas d'ombre sur mobile */
   }
-
-  body {
-    padding: 0; /* Retire le padding du body sur petits écrans */
+  h1 {
+    font-size: 1.8rem;
+  }
+  label, input, select, button {
+    font-size: 0.95rem;
+  }
+  .logo {
+    max-width: 100px;
   }
 }

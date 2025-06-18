@@ -2,9 +2,11 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Connexion Caserne</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion Caserne</title>
   <link rel="stylesheet" href="css/accueil.css">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet"> </head>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
 
 <body>
 
@@ -16,29 +18,8 @@
     <div class="form-group">
       <label for="agent">Nom de l'agent :</label>
       <select id="agent">
-        <option value="" disabled selected>-- Choisissez un agent --</option>
-        <option value="bruneau">Bruneau Mathieu</option>
-        <option value="vatinel">Vatinel Sébastien</option>
-        <option value="gesbert">Gesbert Jonathan</option>
-        <option value="tuleu">Tuleu Kévin</option>
-        <option value="lelann">Le Lann Philippe</option>
-        <option value="cordel">Cordel Camilla</option>
-        <option value="boudet">Boudet Sébastien</option>
-        <option value="boulmé">Boulmé Grégoire</option>
-        <option value="maréchal">Maréchal Nicolas</option>
-        <option value="justice">Justice Quentin</option>
-        <option value="veniant">Veniant Mathis</option>
-        <option value="normand">Normand Stéphane</option>
-        <option value="schaeffer">Schaeffer Caroline</option>
-        <option value="boulet">Boulet Aurélie</option>
-        <option value="charenton">Chatenton Marilou</option>
-        <option value="hérédia">Hérédia Jules</option>
-        <option value="loisel">Loisel Charlotte</option>
-        <option value="mailly">Mailly Lucile</option>
-        <option value="marlin">Marlin Lilian</option>
-        <option value="savigny">Savigny Victoria</option>
-        <option value="tinseau">Tinseau Clément</option>
-        <option value="admin">👨‍💼 Administrateur</option>
+        <option value="" disabled selected>-- Chargement des agents... --</option>
+        <!-- Les options seront remplies par login.js -->
       </select>
     </div>
 
@@ -47,10 +28,17 @@
       <input type="password" id="password">
     </div>
 
-    <button type="submit" onclick="login()">Se connecter</button>
-
     <p id="error" class="error"></p>
+
+    <button type="submit" id="login-button">Se connecter</button>
   </main>
 
+  <!-- Spinner de chargement pour la page de connexion -->
+  <div id="loading-spinner-login" class="loading-spinner hidden">
+    <div class="spinner"></div>
+    <p>Chargement des agents...</p>
+  </div>
+
   <script src="js/login.js"></script>
+</body>
 </html>

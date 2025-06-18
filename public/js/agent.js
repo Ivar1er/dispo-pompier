@@ -1,383 +1,573 @@
-// script.js
+// agent.js
 
-// Firebase CDN imports (they need to be at the top of the module script)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+// const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que cette URL est correcte
+// L'API_BASE_URL n'est plus nécessaire si les appels fetch utilisent des chemins relatifs comme /api/...
+// Le navigateur résoudra cela par rapport à l'origine de la page.
 
-// Variables globales pour Firebase et l'état de l'application
-let app;
-let db;
-let auth;
-let userId = null;
-let loading = true;
-let disponibilities = {};
-let currentWeek = new Date(); // Date pour la semaine actuelle
+// Variables globales pour le suivi de l'état de l'application
+let currentWeek = ''; // Pour stocker la semaine sélectionnée
+let currentSchedule = []; // Pour stocker les données du planning
+let hasUnsavedChanges = false; // Indique si des changements non sauvegardés existent
+let isDragging = false; // Pour la sélection multiple par glisser-déposer
+let dragStartSlot = null; // Le créneau où le glisser-déposer a commencé
 
-let isDragging = false;
-let dragStartSlot = null;
-
-// Fonction utilitaire pour formater les heures
-const formatTime = (hours, minutes) => {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+// Map pour les noms des jours (peut être utile pour l'affichage)
+const dayNames = {
+    'monday': 'Lundi',
+    'tuesday': 'Mardi',
+    'wednesday': 'Mercredi',
+    'thursday': 'Jeudi',
+    'friday': 'Vendredi'
 };
 
-// Fonction pour générer tous les créneaux horaires (de 07:00 à 06:30 le lendemain)
-const generateTimeSlots = () => {
-    const slots = [];
-    let currentHour = 7;
-    let currentMinute = 0;
+// --- Début du code qui s'exécute une fois le DOM chargé ---
+document.addEventListener('DOMContentLoaded', function() {
+    // Références DOM pour les éléments de la page agent.html
+    const agentNameDisplay = document.getElementById('agent-name-display'); // Vérifier si cet ID existe dans HTML si utilisé
+    const prevWeekBtn = document.getElementById('prev-week-btn');
+    const nextWeekBtn = document.getElementById('next-week-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const weekSelect = document.getElementById('week-select');
+    const scheduleContainer = document.getElementById('schedule-container'); // Conteneur pour les onglets des jours
+    const saveSlotsBtn = document.getElementById('save-slots-btn');
+    const clearSelectionBtn = document.getElementById('clear-selection-btn');
+    const synthesisBtn = document.getElementById('synthesis-btn');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const errorMessage = document.getElementById('error-message');
+    const currentWeekSpan = document.getElementById('current-week');
 
-    for (let i = 0; i < 48; i++) { // 24 heures * 2 créneaux de 30 min = 48 créneaux
-        const startHour = currentHour;
-        const startMinute = currentMinute;
+    // --- Fonctions utilitaires pour l'interface utilisateur ---
 
-        currentMinute += 30;
-        if (currentMinute >= 60) {
-            currentMinute -= 60;
-            currentHour = (currentHour + 1) % 24;
+    /**
+     * Affiche l'indicateur de chargement et efface les messages d'erreur.
+     */
+    function showLoading() {
+        if (loadingSpinner) loadingSpinner.style.display = 'block';
+        if (errorMessage) errorMessage.textContent = '';
+    }
+
+    /**
+     * Masque l'indicateur de chargement.
+     */
+    function hideLoading() {
+        if (loadingSpinner) loadingSpinner.style.display = 'none';
+    }
+
+    /**
+     * Affiche un message d'erreur.
+     * @param {string} message - Le message d'erreur à afficher.
+     */
+    function showError(message) {
+        if (errorMessage) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block'; // S'assurer qu'il est visible
         }
-
-        const endHour = currentHour;
-        const endMinute = currentMinute;
-
-        const slotLabel = `${formatTime(startHour, startMinute)}-${formatTime(endHour, endMinute)}`;
-        slots.push(slotLabel);
-    }
-    return slots;
-};
-
-const timeSlots = generateTimeSlots();
-const daysOfWeek = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-
-// Fonction pour obtenir la date de début de la semaine (Lundi)
-const getStartOfWeek = (date) => {
-    const d = new Date(date);
-    const day = d.getDay(); // 0 pour Dimanche, 1 pour Lundi, etc.
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Ajuster au Lundi
-    return new Date(d.setDate(diff));
-};
-
-// Fonction pour obtenir la chaîne de caractères de la semaine (ex: 16/06 au 22/06)
-const getWeekString = (date) => {
-    const startOfWeek = getStartOfWeek(date);
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    return `${startOfWeek.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} au ${endOfWeek.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}`;
-};
-
-// Fonction pour obtenir l'ID unique de la semaine (ex: 2025-06-16)
-const getWeekId = (date) => {
-    const startOfWeek = getStartOfWeek(date);
-    return startOfWeek.toISOString().slice(0, 10); // Année-MM-JJ
-};
-
-// Fonction pour charger les disponibilités de Firestore
-const loadDisponibilities = () => {
-    if (!db || !userId) return;
-
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const weekId = getWeekId(currentWeek);
-    const docRef = doc(db, `artifacts/${appId}/users/${userId}/disponibilities`, weekId);
-
-    // Écouter les changements en temps réel
-    onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            disponibilities = JSON.parse(data.slots || '{}'); // Parser la chaîne JSON
-        } else {
-            // Initialiser avec des slots non disponibles si le document n'existe pas
-            const initialDispo = {};
-            daysOfWeek.forEach(day => {
-                initialDispo[day] = timeSlots.reduce((acc, slot) => ({ ...acc, [slot]: false }), {});
-            });
-            disponibilities = initialDispo;
-        }
-        renderApp(); // Mettre à jour l'interface après le chargement ou la mise à jour
-    }, (error) => {
-        console.error("Erreur de récupération des disponibilités:", error);
-    });
-};
-
-// Fonction pour enregistrer les disponibilités dans Firestore
-const saveDisponibilities = async () => {
-    if (!db || !userId) {
-        console.error("Firebase non initialisé ou utilisateur non connecté.");
-        return;
+        hideLoading(); // Masquer le spinner en cas d'erreur
     }
 
-    const saveButton = document.getElementById('saveButton');
-    if (saveButton) {
-        saveButton.disabled = true;
-        saveButton.textContent = 'Enregistrement...';
-    }
-
-    try {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const weekId = getWeekId(currentWeek);
-        const docRef = doc(db, `artifacts/${appId}/users/${userId}/disponibilities`, weekId);
-
-        // Convertir l'objet JS en chaîne JSON pour le stockage Firestore
-        await setDoc(docRef, { slots: JSON.stringify(disponibilities) }, { merge: true });
-        console.log("Disponibilités enregistrées avec succès!");
-    } catch (e) {
-        console.error("Erreur lors de l'enregistrement des disponibilités: ", e);
-    } finally {
-        if (saveButton) {
-            saveButton.disabled = false;
-            saveButton.textContent = 'Enregistrer les Disponibilités';
+    /**
+     * Masque le message d'erreur.
+     */
+    function hideError() {
+        if (errorMessage) {
+            errorMessage.textContent = '';
+            errorMessage.style.display = 'none';
         }
     }
-};
 
-// Fonction pour basculer la disponibilité d'un créneau (simple clic)
-const toggleSlot = (day, slot) => {
-    if (!disponibilities[day]) {
-        disponibilities[day] = {};
+    /**
+     * Construit l'objet d'options pour les requêtes fetch, incluant le token d'authentification.
+     * Redirige vers la page de connexion si aucun token n'est trouvé.
+     * @returns {object|null} Options de requête ou null si pas de token.
+     */
+    function getRequestOptions(method = 'GET') {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.error("Aucun token trouvé, redirection vers la page de connexion.");
+            showError("Session expirée. Veuillez vous reconnecter.");
+            setTimeout(() => window.location.href = '/', 1500); // Redirection après un court délai
+            return null;
+        }
+        return {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        };
     }
-    disponibilities[day][slot] = !disponibilities[day][slot];
-    renderApp(); // Mettre à jour l'interface
-};
 
-// Gérer le début du glisser-déposer
-const handleMouseDown = (day, slot) => {
-    isDragging = true;
-    dragStartSlot = { day, slot };
-    toggleSlot(day, slot); // Sélectionne le premier élément cliqué
-};
+    /**
+     * Gère les réponses HTTP non OK (erreurs 401, 403, etc.).
+     * @param {Response} response - La réponse de l'API.
+     * @returns {Promise<Error>} Une promesse rejetée avec un objet Error.
+     */
+    async function handleApiResponse(response) {
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                showError("Session expirée ou non autorisée. Veuillez vous reconnecter.");
+                localStorage.removeItem('token');
+                setTimeout(() => window.location.href = '/', 1500);
+            }
+            const errorText = await response.text();
+            throw new Error(`Erreur HTTP: ${response.status} - ${errorText || response.statusText}`);
+        }
+        return response.json();
+    }
 
-// Gérer le survol pendant le glisser-déposer
-const handleMouseEnter = (day, slot) => {
-    if (isDragging && dragStartSlot) {
-        const startDayIndex = daysOfWeek.indexOf(dragStartSlot.day);
-        const endDayIndex = daysOfWeek.indexOf(day);
-        const startTimeIndex = timeSlots.indexOf(dragStartSlot.slot);
-        const endTimeIndex = timeSlots.indexOf(slot);
+    // --- Fonctions d'interaction avec l'API ---
 
-        // Crée une copie profonde pour éviter les mutations directes pendant le glisser
-        const newDisponibilities = JSON.parse(JSON.stringify(disponibilities));
+    /**
+     * Récupère la liste des semaines disponibles depuis l'API.
+     */
+    async function fetchWeeks() {
+        showLoading();
+        try {
+            const options = getRequestOptions();
+            if (!options) return;
 
-        // Normaliser les indices de début et de fin pour les jours
-        const minDayIndex = Math.min(startDayIndex, endDayIndex);
-        const maxDayIndex = Math.max(startDayIndex, endDayIndex);
+            const response = await fetch('/api/weeks', options);
+            const weeks = await handleApiResponse(response);
 
-        // Normaliser les indices de début et de fin pour les créneaux
-        const minTimeIndex = Math.min(startTimeIndex, endTimeIndex);
-        const maxTimeIndex = Math.max(startTimeIndex, endTimeIndex);
+            if (weekSelect) {
+                weekSelect.innerHTML = weeks.map(week => `<option value="${week}">${week}</option>`).join('');
+                if (weeks.length > 0) {
+                    currentWeek = weekSelect.value; // Définir la semaine actuelle sur la première de la liste
+                    await fetchSchedule(currentWeek);
+                } else {
+                    showError("Aucune semaine disponible.");
+                    renderEmptySchedule();
+                }
+            }
+        } catch (error) {
+            console.error('Erreur lors de la récupération des semaines:', error);
+            showError(`Erreur: ${error.message}`);
+        } finally {
+            hideLoading();
+        }
+    }
 
-        // Appliquer l'état à tous les créneaux dans la plage de sélection
-        daysOfWeek.forEach((d, dIndex) => {
-            if (dIndex >= minDayIndex && dIndex <= maxDayIndex) {
-                timeSlots.forEach((s, sIndex) => {
-                    if (
-                        (dIndex > minDayIndex || sIndex >= minTimeIndex) &&
-                        (dIndex < maxDayIndex || sIndex <= maxTimeIndex)
-                    ) {
-                        // Appliquer l'état du slot de départ à tous les créneaux survolés
-                        // Nous inversons l'état initial car le premier clic l'a déjà basculé
-                        newDisponibilities[d] = {
-                            ...newDisponibilities[d],
-                            [s]: !disponibilities[dragStartSlot.day][dragStartSlot.slot],
-                        };
+    /**
+     * Récupère le planning d'un agent pour une semaine donnée.
+     * @param {string} week - La semaine pour laquelle récupérer le planning (ex: "2025-W25").
+     */
+    async function fetchSchedule(week) {
+        showLoading();
+        try {
+            const options = getRequestOptions();
+            if (!options) return;
+
+            const response = await fetch(`/api/schedule?week=${week}`, options);
+            const schedule = await handleApiResponse(response);
+
+            currentSchedule = schedule; // Stocke le planning actuel
+            renderSchedule(schedule); // Affiche le planning
+            if (currentWeekSpan) {
+                currentWeekSpan.textContent = `Semaine du ${week}`;
+            }
+            hideError(); // Effacer toute erreur précédente
+        } catch (error) {
+            console.error('Erreur lors de la récupération du planning:', error);
+            showError(`Erreur lors du chargement du planning: ${error.message}`);
+            renderEmptySchedule();
+        } finally {
+            hideLoading();
+        }
+    }
+
+    /**
+     * Enregistre les créneaux sélectionnés de l'agent.
+     */
+    async function saveSchedule() {
+        showLoading();
+        try {
+            const options = getRequestOptions('POST');
+            if (!options) return;
+
+            const selectedSlots = [];
+            currentSchedule.forEach(day => {
+                day.slots.forEach(slot => {
+                    if (slot.selected) { // Uniquement les créneaux marqués comme sélectionnés dans l'état
+                        selectedSlots.push({ day: day.day, time: slot.time });
                     }
                 });
+            });
+
+            const response = await fetch('/api/schedule', {
+                ...options, // Copie les headers et la méthode
+                body: JSON.stringify({ week: currentWeek, selectedSlots })
+            });
+
+            const result = await handleApiResponse(response);
+            alert(result.message); // Utiliser une modale plus tard si possible
+            hasUnsavedChanges = false; // Réinitialiser le flag
+            await fetchSchedule(currentWeek); // Recharger le planning pour voir les mises à jour
+            updateSaveClearButtonsVisibility(); // Mettre à jour la visibilité des boutons
+        } catch (error) {
+            console.error('Erreur lors de l\'enregistrement du planning:', error);
+            showError(`Erreur lors de l'enregistrement: ${error.message}`);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    /**
+     * Effectue la déconnexion de l'agent.
+     */
+    async function logout() {
+        showLoading();
+        try {
+            // Options pour la requête de déconnexion. Note: Certains serveurs peuvent ne pas nécessiter un token pour /logout.
+            const options = getRequestOptions('POST'); // Si le logout nécessite un token
+
+            // Envoyez une requête de déconnexion au serveur si nécessaire (pour invalider le token côté serveur)
+            // Sinon, la suppression locale du token est suffisante.
+            if (options) { // Si le token existe, envoyons la requête de logout
+                 await fetch('/logout', options); // Assurez-vous que votre serveur gère cette route
+            }
+
+            localStorage.removeItem('token'); // Supprime le token du stockage local
+            window.location.href = '/'; // Redirige vers la page de connexion
+        } catch (error) {
+            console.error('Erreur lors de la déconnexion:', error);
+            showError('Échec de la déconnexion. Veuillez réessayer.');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    /**
+     * Récupère et affiche la synthèse des réservations de l'agent.
+     */
+    async function showSynthesis() {
+        showLoading();
+        try {
+            const options = getRequestOptions();
+            if (!options) return;
+
+            const response = await fetch('/api/synthesis', options);
+            const synthesisData = await handleApiResponse(response);
+
+            // Afficher la synthèse des données (peut être dans une modale dédiée ou une nouvelle vue)
+            let synthesisMessage = "Synthèse des réservations :\n";
+            for (const day in synthesisData) {
+                synthesisMessage += `\n${dayNames[day] || day}:`;
+                if (synthesisData[day].length > 0) {
+                    synthesisData[day].forEach(slot => {
+                        synthesisMessage += `\n  - ${slot.time}`;
+                    });
+                } else {
+                    synthesisMessage += `\n  - Aucun créneau réservé.`;
+                }
+            }
+            alert(synthesisMessage); // Utiliser une modale pour un meilleur UX
+        } catch (error) {
+            console.error('Erreur lors de la récupération de la synthèse:', error);
+            showError(`Erreur lors de la synthèse: ${error.message}`);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // --- Fonctions de rendu et de logique de l'interface utilisateur ---
+
+    /**
+     * Rend le planning dans l'interface utilisateur.
+     * @param {Array<Object>} schedule - Le tableau de l'objet planning.
+     */
+    function renderSchedule(schedule) {
+        if (!scheduleContainer) {
+            console.error("Conteneur de planning non trouvé.");
+            return;
+        }
+
+        // Les onglets des jours sont déjà définis dans HTML.
+        // Nous allons maintenant remplir le contenu de chaque onglet.
+        const daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+
+        daysOrder.forEach(day => {
+            const daySchedule = schedule.find(s => s.day === day);
+            const dayTabPane = document.getElementById(day); // Le div 'tab-pane' pour ce jour
+
+            if (dayTabPane) {
+                dayTabPane.innerHTML = ''; // Effacer le contenu précédent
+
+                const ul = document.createElement('ul');
+                ul.className = 'list-group list-group-flush';
+
+                if (daySchedule && daySchedule.slots.length > 0) {
+                    daySchedule.slots.sort((a, b) => {
+                        const timeA = parseInt(a.time.split(':')[0]);
+                        const timeB = parseInt(b.time.split(':')[0]);
+                        // Gérer les créneaux comme "08:00" vs "08:30" correctement
+                        const [hA, mA] = a.time.split(':').map(Number);
+                        const [hB, mB] = b.time.split(':').map(Number);
+                        return (hA * 60 + mA) - (hB * 60 + mB);
+                    }).forEach(slot => {
+                        const li = document.createElement('li');
+                        li.className = `list-group-item d-flex justify-content-between align-items-center time-slot ${slot.available ? 'available' : 'booked'} ${slot.selected ? 'selected' : ''}`;
+                        li.dataset.day = day;
+                        li.dataset.time = slot.time;
+                        li.dataset.available = slot.available; // Stocke la disponibilité
+                        li.dataset.index = `${day}-${slot.time}`; // Index unique pour la sélection multiple
+
+                        const timeSpan = document.createElement('span');
+                        timeSpan.textContent = slot.time;
+                        li.appendChild(timeSpan);
+
+                        const statusSpan = document.createElement('span');
+                        statusSpan.className = `badge ${slot.available ? 'bg-success' : 'bg-danger'} rounded-pill`;
+                        statusSpan.textContent = slot.available ? 'Disponible' : 'Réservé';
+                        li.appendChild(statusSpan);
+
+                        if (slot.available) {
+                            // Ajouter les écouteurs pour la sélection
+                            li.addEventListener('click', (e) => handleSlotClick(li, day, slot.time, e));
+                            li.addEventListener('mousedown', (e) => handleSlotMouseDown(li, day, slot.time, e));
+                            li.addEventListener('mouseenter', () => handleSlotMouseEnter(li, day, slot.time));
+                        }
+
+                        ul.appendChild(li);
+                    });
+                } else {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item text-muted';
+                    li.textContent = `Aucun créneau pour ${dayNames[day]}.`;
+                    ul.appendChild(li);
+                }
+                dayTabPane.appendChild(ul);
             }
         });
-        disponibilities = newDisponibilities;
-        renderApp(); // Mettre à jour l'interface
-    }
-};
-
-// Gérer la fin du glisser-déposer (sur document pour attraper tout relâchement de souris)
-document.addEventListener('mouseup', () => {
-    isDragging = false;
-    dragStartSlot = null;
-});
-
-// Fonction pour passer à la semaine précédente/suivante
-const changeWeek = (offset) => {
-    const newDate = new Date(currentWeek);
-    newDate.setDate(currentWeek.getDate() + offset * 7);
-    currentWeek = newDate;
-    loadDisponibilities(); // Recharger les disponibilités pour la nouvelle semaine
-};
-
-// Fonction pour effacer toute la sélection de la semaine actuelle
-const clearSelection = () => {
-    const clearedDispo = {};
-    daysOfWeek.forEach(day => {
-        clearedDispo[day] = timeSlots.reduce((acc, slot) => ({ ...acc, [slot]: false }), {});
-    });
-    disponibilities = clearedDispo;
-    renderApp(); // Mettre à jour l'interface
-};
-
-// Fonction principale pour rendre l'application HTML dans le DOM
-const renderApp = () => {
-    const appRoot = document.getElementById('app-root');
-    if (!appRoot) return;
-
-    if (loading) {
-        appRoot.innerHTML = `
-            <div class="flex items-center justify-center min-h-screen bg-gray-100 font-sans p-4">
-                <p class="text-gray-700 text-lg">Chargement de l'application...</p>
-            </div>
-        `;
-        return;
+        updateSaveClearButtonsVisibility(); // Mettre à jour l'état des boutons après le rendu
+        setupMouseListenersForSelection(); // Réinitialise les écouteurs de la souris
     }
 
-    const weekString = getWeekString(currentWeek);
-    const agentIdDisplay = userId ? `<span class="text-lg font-medium text-gray-600">ID Agent: ${userId}</span>` : '';
-
-    let slotsHtml = '';
-    timeSlots.forEach((slot, slotIndex) => {
-        slotsHtml += `
-            <div class="p-2 border-b border-r border-gray-200 bg-gray-50 font-medium text-gray-700">
-                ${slot.split('-')[0]} <!-- Affiche seulement l'heure de début -->
-            </div>
-        `;
-        daysOfWeek.forEach(day => {
-            const isAvailable = disponibilities[day]?.[slot] || false;
-            slotsHtml += `
-                <div
-                    data-day="${day}"
-                    data-slot="${slot}"
-                    class="p-1 border-b border-l border-gray-200 cursor-pointer
-                        flex items-center justify-center text-xs font-semibold rounded-md m-0.5
-                        transition-all duration-150 ease-in-out transform
-                        ${isAvailable ? 'bg-green-200 text-green-800 hover:bg-green-300 shadow-inner' : 'bg-red-100 text-red-600 hover:bg-red-200'}
-                    "
-                    onmousedown="window.handleMouseDownWrapper(event, '${day}', '${slot}')"
-                    onmouseenter="window.handleMouseEnterWrapper(event, '${day}', '${slot}')"
-                >
-                    ${isAvailable ? 'Disponible' : 'Indispo'}
-                </div>
-            `;
-        });
-    });
-
-    // Injecter l'HTML de l'application dans le div #app-root
-    appRoot.innerHTML = `
-        <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6 font-sans text-gray-800">
-            <div class="max-w-7xl mx-auto bg-white shadow-2xl rounded-2xl p-8 transform transition-all duration-300 hover:scale-[1.005]">
-                <!-- En-tête -->
-                <div class="flex justify-between items-center mb-8 pb-4 border-b border-gray-200">
-                    <h1 class="text-4xl font-extrabold text-indigo-800">Bienvenue, Nicolas Maréchal !</h1>
-                    ${agentIdDisplay}
-                </div>
-
-                <!-- Navigation des semaines -->
-                <div class="flex justify-center items-center space-x-4 mb-10">
-                    <button
-                        id="prevWeekBtn"
-                        class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition-all duration-200 ease-in-out transform hover:scale-105"
-                    >
-                        Semaine Précédente
-                    </button>
-                    <span class="text-2xl font-bold text-gray-800 px-6 py-3 bg-blue-100 rounded-xl shadow-inner">
-                        Semaine (${weekString})
-                    </span>
-                    <button
-                        id="nextWeekBtn"
-                        class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition-all duration-200 ease-in-out transform hover:scale-105"
-                    >
-                        Semaine Suivante
-                    </button>
-                </div>
-
-                <h2 class="text-3xl font-bold text-center text-indigo-700 mb-8">Mes Disponibilités</h2>
-
-                <!-- Grille des disponibilités -->
-                <div
-                    class="overflow-x-auto rounded-xl shadow-lg border border-gray-200"
-                >
-                    <div class="grid grid-cols-8 bg-indigo-600 text-white font-bold text-lg rounded-t-xl sticky top-0 z-10">
-                        <div class="p-4 border-r border-indigo-700">Heure</div>
-                        ${daysOfWeek.map(day => `<div class="p-4 text-center border-l border-indigo-700">${day}</div>`).join('')}
-                    </div>
-
-                    <div class="grid grid-cols-8 text-sm bg-white">
-                        ${slotsHtml}
-                    </div>
-                </div>
-
-                <!-- Boutons d'action -->
-                <div class="flex justify-center space-x-6 mt-10">
-                    <button
-                        id="saveButton"
-                        class="px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow-lg transition-all duration-200 ease-in-out transform hover:scale-105"
-                    >
-                        Enregistrer les Disponibilités
-                    </button>
-                    <button
-                        id="clearButton"
-                        class="px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl shadow-lg transition-all duration-200 ease-in-out transform hover:scale-105"
-                    >
-                        Effacer la Sélection
-                    </button>
-                    <button
-                        id="summaryButton"
-                        class="px-8 py-4 bg-gray-700 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-lg transition-all duration-200 ease-in-out transform hover:scale-105"
-                    >
-                        Synthèse
-                    </button>
-                    <button
-                        id="logoutButton"
-                        class="px-8 py-4 bg-red-700 hover:bg-red-800 text-white font-semibold rounded-xl shadow-lg transition-all duration-200 ease-in-out transform hover:scale-105"
-                    >
-                        Déconnexion
-                    </button>
-                </div>
-
-                <p class="text-center text-gray-500 text-sm mt-8">
-                    Cliquez sur un créneau pour basculer sa disponibilité.
-                    Cliquez et faites glisser pour sélectionner une plage continue.
-                </p>
-            </div>
-        </div>
-    `;
-    // Attacher les gestionnaires d'événements après le rendu de l'HTML
-    document.getElementById('prevWeekBtn')?.addEventListener('click', () => changeWeek(-1));
-    document.getElementById('nextWeekBtn')?.addEventListener('click', () => changeWeek(1));
-    document.getElementById('saveButton')?.addEventListener('click', saveDisponibilities);
-    document.getElementById('clearButton')?.addEventListener('click', clearSelection);
-};
-
-// Initialisation de Firebase et authentification au chargement de la fenêtre
-window.onload = async () => {
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    auth = getAuth(app);
-
-    renderApp(); // Afficher l'état de chargement initial
-
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            userId = user.uid;
-        } else {
-            try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
+    /**
+     * Rend un message d'absence de planning.
+     */
+    function renderEmptySchedule() {
+        if (scheduleContainer) {
+            // Efface le contenu de tous les onglets
+            const daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+            daysOrder.forEach(day => {
+                const dayTabPane = document.getElementById(day);
+                if (dayTabPane) {
+                    dayTabPane.innerHTML = `<ul class="list-group list-group-flush"><li class="list-group-item text-muted">Aucun planning disponible pour cette semaine.</li></ul>`;
                 }
-            } catch (error) {
-                console.error("Erreur d'authentification:", error);
-                // Fallback si la connexion anonyme échoue
-                userId = crypto.randomUUID();
+            });
+        }
+        if (currentWeekSpan) {
+            currentWeekSpan.textContent = "Aucune semaine sélectionnée";
+        }
+        updateSaveClearButtonsVisibility();
+    }
+
+
+    /**
+     * Gère le clic simple sur un créneau pour la sélection.
+     * @param {HTMLElement} slotElement - L'élément DOM du créneau.
+     * @param {string} day - Le jour du créneau.
+     * @param {string} time - L'heure du créneau.
+     * @param {MouseEvent} event - L'événement de la souris.
+     */
+    function handleSlotClick(slotElement, day, time, event) {
+        if (!isDragging) { // Seulement si pas en mode glisser-déposer
+            toggleSlotSelection(slotElement, day, time);
+            hasUnsavedChanges = true;
+        }
+    }
+
+    /**
+     * Bascule l'état de sélection d'un créneau dans l'interface et dans l'état interne.
+     * @param {HTMLElement} slotElement - L'élément DOM du créneau.
+     * @param {string} day - Le jour du créneau.
+     * @param {string} time - L'heure du créneau.
+     * @param {boolean} [forceState] - Force l'état de sélection (true pour sélectionner, false pour désélectionner).
+     */
+    function toggleSlotSelection(slotElement, day, time, forceState = undefined) {
+        const isSelected = slotElement.classList.contains('selected');
+        const newState = forceState !== undefined ? forceState : !isSelected;
+
+        if (newState) {
+            slotElement.classList.add('selected');
+        } else {
+            slotElement.classList.remove('selected');
+        }
+
+        // Met à jour l'état interne de `currentSchedule`
+        const dayObj = currentSchedule.find(s => s.day === day);
+        if (dayObj) {
+            const slot = dayObj.slots.find(s => s.time === time);
+            if (slot) {
+                slot.selected = newState;
             }
         }
-        loading = false;
-        loadDisponibilities(); // Charger les disponibilités une fois authentifié
-    });
-};
+        updateSaveClearButtonsVisibility();
+        hasUnsavedChanges = true; // Un changement de sélection marque les changements non sauvegardés
+    }
 
-// Exposer les fonctions de gestion des événements au niveau global
-// C'est nécessaire pour que les attributs `onmousedown` et `onmouseenter` dans l'HTML généré puissent les appeler.
-window.handleMouseDownWrapper = (event, day, slot) => handleMouseDown(day, slot);
-window.handleMouseEnterWrapper = (event, day, slot) => handleMouseEnter(day, slot);
+    /**
+     * Initialise le processus de sélection par glisser-déposer.
+     * @param {HTMLElement} slotElement - L'élément DOM du créneau de départ.
+     * @param {string} day - Le jour du créneau de départ.
+     * @param {string} time - L'heure du créneau de départ.
+     * @param {MouseEvent} event - L'événement de la souris.
+     */
+    function handleSlotMouseDown(slotElement, day, time, event) {
+        if (event.button === 0) { // Clic gauche de la souris
+            isDragging = true;
+            dragStartSlot = { element: slotElement, day: day, time: time };
+            // Commence la sélection/désélection en fonction de l'état initial du slot de départ
+            const initialSelectionState = !slotElement.classList.contains('selected');
+            toggleSlotSelection(slotElement, day, time, initialSelectionState);
+            // Empêche la sélection de texte
+            event.preventDefault();
+        }
+    }
 
+    /**
+     * Gère le survol de la souris lors du glisser-déposer pour la sélection multiple.
+     * @param {HTMLElement} slotElement - L'élément DOM du créneau survolé.
+     * @param {string} day - Le jour du créneau survolé.
+     * @param {string} time - L'heure du créneau survolé.
+     */
+    function handleSlotMouseEnter(slotElement, day, time) {
+        if (isDragging && dragStartSlot && slotElement.dataset.available === 'true') {
+            // Sélectionne le créneau survolé avec le même état que le créneau de départ
+            const initialSelectionState = !dragStartSlot.element.classList.contains('selected'); // État appliqué au premier clic
+            toggleSlotSelection(slotElement, day, time, initialSelectionState);
+        }
+    }
+
+    /**
+     * Configure les écouteurs d'événements globaux pour la sélection par glisser-déposer.
+     */
+    function setupMouseListenersForSelection() {
+        document.removeEventListener('mouseup', handleMouseUp); // Supprimer avant d'ajouter pour éviter les doublons
+        document.addEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('mouseleave', handleMouseUp); // Pour gérer la fin du drag si la souris quitte la fenêtre
+        document.addEventListener('mouseleave', handleMouseUp);
+    }
+
+    /**
+     * Termine le processus de sélection par glisser-déposer.
+     */
+    function handleMouseUp() {
+        isDragging = false;
+        dragStartSlot = null;
+    }
+
+
+    /**
+     * Affiche ou masque les boutons "Enregistrer" et "Effacer la sélection"
+     * en fonction des créneaux sélectionnés.
+     */
+    function updateSaveClearButtonsVisibility() {
+        const hasSelected = currentSchedule.some(day =>
+            day.slots.some(slot => slot.selected)
+        );
+
+        if (saveSlotsBtn) {
+            saveSlotsBtn.style.display = hasSelected ? 'inline-block' : 'none'; // Utilisez inline-block pour les boutons côte à côte
+        }
+        if (clearSelectionBtn) {
+            clearSelectionBtn.style.display = hasSelected ? 'inline-block' : 'none';
+        }
+    }
+
+    /**
+     * Efface toutes les sélections de créneaux dans l'interface et l'état interne.
+     */
+    function clearSelection() {
+        currentSchedule.forEach(day => {
+            day.slots.forEach(slot => {
+                slot.selected = false;
+            });
+        });
+        const selectedElements = document.querySelectorAll('.time-slot.selected');
+        selectedElements.forEach(el => el.classList.remove('selected'));
+        hasUnsavedChanges = true; // Marque les changements non sauvegardés
+        updateSaveClearButtonsVisibility();
+    }
+
+    /**
+     * Configure les écouteurs d'événements pour les onglets des jours (Bootstrap).
+     */
+    function setupDayTabs() {
+        const dayTabButtons = document.querySelectorAll('.nav-link[data-bs-toggle="tab"]');
+        if (!dayTabButtons.length) {
+            console.warn("Aucun bouton d'onglet de jour trouvé. Assurez-vous que les éléments avec la classe 'nav-link' et 'data-bs-toggle=\"tab\"' sont présents dans le HTML.");
+            return;
+        }
+
+        // Pas besoin de listeners 'shown.bs.tab' pour l'instant car renderSchedule gère tous les onglets.
+        // C'est utile si vous voulez charger le planning jour par jour à l'ouverture de l'onglet.
+    }
+
+    // --- Initialisation de l'application ---
+    /**
+     * Fonction d'initialisation principale, appelée une fois le DOM chargé.
+     */
+    function init() {
+        // Ajout des écouteurs d'événements pour les contrôles de semaine et les boutons d'action
+        if (weekSelect) {
+            weekSelect.addEventListener('change', (e) => {
+                currentWeek = e.target.value;
+                fetchSchedule(currentWeek);
+            });
+        }
+        if (prevWeekBtn) {
+            prevWeekBtn.addEventListener('click', () => {
+                const options = Array.from(weekSelect.options).map(opt => opt.value);
+                const currentIndex = options.indexOf(currentWeek);
+                if (currentIndex > 0) {
+                    currentWeek = options[currentIndex - 1];
+                    weekSelect.value = currentWeek; // Mettre à jour la sélection visuelle
+                    fetchSchedule(currentWeek);
+                }
+            });
+        }
+        if (nextWeekBtn) {
+            nextWeekBtn.addEventListener('click', () => {
+                const options = Array.from(weekSelect.options).map(opt => opt.value);
+                const currentIndex = options.indexOf(currentWeek);
+                if (currentIndex < options.length - 1) {
+                    currentWeek = options[currentIndex + 1];
+                    weekSelect.value = currentWeek; // Mettre à jour la sélection visuelle
+                    fetchSchedule(currentWeek);
+                }
+            });
+        }
+        if (saveSlotsBtn) {
+            saveSlotsBtn.addEventListener('click', saveSchedule);
+        }
+        if (clearSelectionBtn) {
+            clearSelectionBtn.addEventListener('click', clearSelection);
+        }
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', logout);
+        }
+        if (synthesisBtn) {
+            synthesisBtn.addEventListener('click', showSynthesis);
+        }
+
+        // Gérer l'avertissement de fermeture de page avec des changements non sauvegardés
+        window.addEventListener('beforeunload', function(event) {
+            if (hasUnsavedChanges) {
+                const confirmationMessage = 'Vous avez des modifications non sauvegardées. Êtes-vous sûr de vouloir quitter ?';
+                event.returnValue = confirmationMessage; // Standard pour les anciens navigateurs
+                return confirmationMessage; // Pour les navigateurs modernes
+            }
+        });
+
+
+        // Chargement initial des données
+        fetchWeeks(); // Charge les semaines et le planning de la semaine par défaut
+        setupDayTabs(); // Initialise les onglets Bootstrap
+        setupMouseListenersForSelection(); // Configure les écouteurs de souris pour le glisser-déposer
+    }
+
+    // Appel de la fonction d'initialisation principale une fois le DOM entièrement chargé
+    init();
+
+}); // Fin de DOMContentLoaded
