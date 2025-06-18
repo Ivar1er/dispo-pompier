@@ -96,6 +96,45 @@ function formatDateToYYYYMMDD(d) {
         `-${String(dt.getDate()).padStart(2, '0')}`;
 }
 
+/**
+ * Calcule les dates de début et de fin d'une semaine ISO (YYYY-Wnn).
+ * @param {string} isoWeekString - L'identifiant de la semaine ISO (ex: "2025-W25").
+ * @returns {object} Un objet avec startDate et endDate formatés en JJ/MM.
+ */
+function getDatesForISOWeek(isoWeekString) {
+    const [yearStr, weekStr] = isoWeekString.split('-W');
+    const year = parseInt(yearStr);
+    const weekNum = parseInt(weekStr);
+
+    // Commencez par le 4 janvier de l'année (toujours dans la première semaine ISO de l'année)
+    const jan4 = new Date(year, 0, 4);
+    // Obtenez le jour de la semaine pour le 4 janvier (0 = Dimanche, 1 = Lundi, ..., 6 = Samedi)
+    // Ajustez pour que Lundi soit 0, Mardi 1, etc.
+    const jan4DayOfWeek = (jan4.getDay() + 6) % 7; // Lundi = 0, Mardi = 1, etc.
+
+    // Trouvez le premier lundi de l'année
+    const firstMonday = new Date(jan4);
+    firstMonday.setDate(jan4.getDate() - jan4DayOfWeek);
+
+    // Calculez le lundi de la semaine spécifiée
+    const targetMonday = new Date(firstMonday);
+    targetMonday.setDate(firstMonday.getDate() + (weekNum - 1) * 7);
+
+    const targetSunday = new Date(targetMonday);
+    targetSunday.setDate(targetMonday.getDate() + 6);
+
+    const format_dd_mm = (date) => {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        return `${day}/${month}`;
+    };
+
+    return {
+        startDate: format_dd_mm(targetMonday),
+        endDate: format_dd_mm(targetSunday)
+    };
+}
+
 
 // --- Chargement / sauvegarde des utilisateurs ---
 
@@ -110,16 +149,32 @@ async function loadUsers() {
             USERS = {
                 admin: {
                     prenom: "Admin",
-                    nom: "Admin",
+                    nom: "Principal", // Nom modifié pour être plus distinct
                     mdp: hashedDefaultPassword,
                     role: "admin",
                     qualifications: [],
                     grades: [],
                     functions: []
+                },
+                agent1: {
+                    prenom: "Jean",
+                    nom: "Dupont",
+                    mdp: await bcrypt.hash("password123", 10),
+                    role: "agent",
+                    qualifications: ["ca_vsav"],
+                    grades: ["sap"]
+                },
+                agent2: {
+                    prenom: "Marie",
+                    nom: "Curie",
+                    mdp: await bcrypt.hash("password123", 10),
+                    role: "agent",
+                    qualifications: ["eq_fpt"],
+                    grades: ["cpl"]
                 }
             };
             await saveUsers();
-            console.log(`[INFO] Admin par défaut créé (id: admin, mdp: ${DEFAULT_ADMIN_PASSWORD}).`);
+            console.log(`[INFO] Utilisateurs par défaut créés (admin, agent1, agent2). Admin: id: admin, mdp: ${DEFAULT_ADMIN_PASSWORD}.`);
         } else {
             console.error('[ERREUR] Erreur lors du chargement des utilisateurs :', err);
         }
@@ -235,7 +290,7 @@ function authenticateToken(req, res, next) {
 function authorizeAdmin(req, res, next) {
     // S'appuie sur req.user qui est défini par authenticateToken
     if (!req.user || req.user.role !== 'admin') {
-        console.warn(`[AUTH] Accès admin refusé pour l'utilisateur : ${req.user ? req.user.username : 'Non authentifié'}`);
+        console.warn(`[AUTH] Accès admin refusé pour l'utilisateur : ${req.user ? req.user.id : 'Non authentifié'}`);
         return res.status(403).json({ message: 'Accès refusé. Rôle administrateur requis.' });
     }
     next();
@@ -260,8 +315,9 @@ app.post("/api/login", async (req, res) => {
     }
 
     // Génère un token JWT si l'authentification est réussie
+    // Ajoute le prénom et le nom de l'utilisateur au payload du token
     const token = jwt.sign(
-        { id: username.toLowerCase(), username: user.prenom + ' ' + user.nom, role: user.role },
+        { id: username.toLowerCase(), prenom: user.prenom, nom: user.nom, role: user.role },
         JWT_SECRET,
         { expiresIn: '1h' } // Le token expire après 1 heure
     );
@@ -278,6 +334,22 @@ app.post("/api/login", async (req, res) => {
             functions: user.functions || []
         }
     });
+});
+
+// --- Nouvelle route pour obtenir les informations de l'agent connecté ---
+app.get('/api/agent-info', authenticateToken, (req, res) => {
+    // Les informations de l'agent sont disponibles dans req.user grâce à authenticateToken
+    // Elles incluent maintenant prenom et nom grâce à la modification dans la route /api/login
+    const { id, prenom, nom, role } = req.user;
+    res.json({ id, firstName: prenom, lastName: nom, role });
+});
+
+
+// Route de déconnexion (côté serveur, optionnel si la déconnexion est gérée uniquement côté client)
+app.post('/logout', authenticateToken, (req, res) => {
+    // Dans une vraie application, vous pourriez invalider le token côté serveur (liste noire JWT)
+    console.log(`[AUTH] Utilisateur ${req.user.id} déconnecté.`);
+    res.status(200).json({ message: 'Déconnexion réussie.' });
 });
 
 // --- Routes de gestion des agents (Admin) ---
@@ -665,20 +737,23 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
                 return agentAvailabilitiesMap[id] && agentAvailabilitiesMap[id].length > 0;
             }
             return false;
-        }).map(id => USERS[id]);
+        }).map(id => {
+            // Remplace l'ID par le nom complet pour le front-end
+            const user = USERS[id];
+            return {
+                id: id,
+                username: `${user.prenom} ${user.nom}`, // Concatène prénom et nom
+                qualifications: user.qualifications || [],
+                availabilities: agentAvailabilitiesMap[id] || []
+            };
+        });
 
 
         res.json({
-            available: availablePersonnel.map(agent => ({
-                id: agent.id, // Ou l'ID si différent du username
-                username: agent.prenom + ' ' + agent.nom,
-                qualifications: agent.qualifications || [],
-                // Ajoute les disponibilités détaillées de l'agent pour le frontend
-                availabilities: agentAvailabilitiesMap[agent.id] || []
-            })),
+            available: availablePersonnel, // Déjà mappé avec nom complet
             onCall: onCallAgents.map(agent => ({
                 id: agent.id,
-                username: agent.prenom + ' ' + agent.nom,
+                username: `${agent.prenom} ${agent.nom}`, // Concatène prénom et nom
                 qualifications: agent.qualifications || [],
                 // Ajoute aussi les disponibilités détaillées pour les agents d'astreinte
                 availabilities: agentAvailabilitiesMap[agent.id] || []
@@ -755,10 +830,21 @@ async function loadAgentPlanningFromFiles(agentId) {
                         const weekKey = `week-${weekNum}`;
 
                         if (!agentPlanning[weekKey]) {
-                            agentPlanning[weekKey] = {};
+                            agentPlanning[weekKey] = {
+                                'lundi': [], 'mardi': [], 'mercredi': [],
+                                'jeudi': [], 'vendredi': [], 'samedi': [], 'dimanche': []
+                            }; // Initialiser tous les jours
                         }
                         // Stocke les plages sous forme de chaînes "HH:MM - HH:MM"
-                        agentPlanning[weekKey][clientDayName] = availabilitiesForDate.map(slot => `${slot.start} - ${slot.end}`);
+                        // Filtrer les doublons au cas où, et trier
+                        const existingSlots = agentPlanning[weekKey][clientDayName];
+                        availabilitiesForDate.forEach(slot => {
+                            const slotString = `${slot.start} - ${slot.end}`;
+                            if (!existingSlots.includes(slotString)) {
+                                existingSlots.push(slotString);
+                            }
+                        });
+                        existingSlots.sort(); // Trie les créneaux par heure
                     }
                 } catch (readErr) {
                     if (readErr.code === 'ENOENT') {
