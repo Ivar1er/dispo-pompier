@@ -6,21 +6,22 @@ const API_BASE_URL = "https://dispo-pompier.onrender.com";
 // Références DOM pour les éléments de la page agent.html
 // Utilisation de constantes pour les éléments DOM principaux pour éviter les modifications accidentelles
 const agentNameDisplay = document.getElementById('agent-name-display');
-const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay'); // NOUVEAU
+const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay');
 const currentWeekDisplay = document.getElementById('current-week-display');
 const prevWeekBtn = document.getElementById('prev-week-btn');
 const nextWeekBtn = document.getElementById('next-week-btn');
-const planningGrid = document.getElementById('planning-container'); // La grille d'affichage du planning
+const weekSelect = document.getElementById('week-select'); // Référence au sélecteur de semaine
+const planningContainer = document.getElementById('planning-container'); // Le nouveau conteneur des colonnes de jours
 const saveSlotsBtn = document.getElementById('save-slots-btn');
 const clearSelectionBtn = document.getElementById('clear-selection-btn');
 const logoutBtn = document.getElementById('logout-btn');
-const loadingSpinner = document.getElementById('loading-spinner'); // Référence au spinner de chargement
+const loadingSpinner = document.getElementById('loading-spinner');
 
 // Variables d'état de l'application
 let currentAgentId;
 let currentAgentName;
 let currentAgentRole;
-let currentAgentQualifications = []; // NOUVEAU : pour stocker les qualifications de l'agent
+let currentAgentQualifications = [];
 let currentWeekNumber;
 let currentYear;
 let planningData = {}; // Stocke le planning complet de l'agent: { week-X: { day: [slots] } }
@@ -77,7 +78,7 @@ function getDateOfWeek(w, y) {
 }
 
 /**
- * Formate une date en chaîne YYYY-MM-DD.
+ * Formate une date en chaîne 'YYYY-MM-DD'.
  * @param {Date} d - La date à formater.
  * @returns {string} La date formatée.
  */
@@ -283,7 +284,7 @@ async function loadAgentPlanning() {
         }
 
         planningData = await response.json(); // Charge le planning complet de l'agent
-        renderPlanningGrid();
+        renderPlanningGrid(); // Rend la nouvelle grille de planning
 
     } catch (error) {
         console.error("Erreur lors du chargement du planning de l'agent:", error);
@@ -350,10 +351,9 @@ async function loadAgentQualifications() {
         });
 
         if (!response.ok) {
-            // Si 404 (non trouvé) ou autre erreur, gérer. Peut-être qu'un agent n'a pas de qualifications.
             if (response.status === 404) {
                  console.info(`Aucune qualification trouvée pour l'agent ${currentAgentId}.`);
-                 currentAgentQualifications = []; // Réinitialiser si non trouvé
+                 currentAgentQualifications = [];
             } else {
                 throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
             }
@@ -365,8 +365,6 @@ async function loadAgentQualifications() {
 
     } catch (error) {
         console.error("Erreur lors du chargement des qualifications de l'agent:", error);
-        // Afficher un message d'erreur si le chargement des qualifications échoue.
-        // displayMessageModal("Erreur", "Impossible de charger vos qualifications.", "error");
     }
 }
 
@@ -384,15 +382,70 @@ function renderAgentQualifications() {
     }
 }
 
+/**
+ * Remplit le sélecteur de semaine avec la semaine en cours, 1 semaine passée et 3 semaines futures.
+ */
+function populateWeekSelector() {
+    if (!weekSelect) {
+        console.warn("L'élément 'week-select' est introuvable.");
+        return;
+    }
+
+    weekSelect.innerHTML = ''; // Vide les options existantes
+    const today = new Date();
+    const currentISOWeek = getISOWeekNumber(today);
+    const currentYearFull = today.getFullYear();
+
+    // Boucle pour 1 semaine passée, la semaine actuelle et 3 semaines futures
+    for (let i = -1; i <= 3; i++) {
+        let year = currentYearFull;
+        let week = currentISOWeek + i;
+
+        // Gérer le passage d'année pour les semaines
+        if (week < 1) {
+            year--;
+            week = getISOWeekNumber(new Date(year, 11, 31)); // Dernière semaine de l'année précédente
+        } else {
+            const lastDayOfCurrentYear = new Date(year, 11, 31);
+            const lastWeekOfCurrentYear = getISOWeekNumber(lastDayOfCurrentYear);
+            if (week > lastWeekOfCurrentYear) {
+                year++;
+                week = 1;
+            }
+        }
+        
+        const monday = getDateOfWeek(week, year);
+        const sunday = new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000);
+        const optionText = `Semaine ${week} (${monday.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} - ${sunday.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })})`;
+        const optionValue = `${year}-${week}`;
+
+        const option = document.createElement('option');
+        option.value = optionValue;
+        option.textContent = optionText;
+        if (week === currentWeekNumber && year === currentYear) {
+            option.selected = true;
+        }
+        weekSelect.appendChild(option);
+    }
+
+    // Ajoute un écouteur d'événements pour le changement de sélection
+    weekSelect.addEventListener('change', async (event) => {
+        const [year, week] = event.target.value.split('-').map(Number);
+        currentYear = year;
+        currentWeekNumber = week;
+        await loadAgentPlanning(); // Recharge le planning pour la nouvelle semaine sélectionnée
+    });
+}
+
 
 // --- Rendu du planning ---
 function renderPlanningGrid() {
-    if (!planningGrid) {
+    if (!planningContainer) {
         console.error("Erreur DOM: L'élément 'planning-container' est introuvable. Assurez-vous que l'ID est correct dans agent.html.");
         displayMessageModal("Erreur d'affichage", "Impossible d'afficher le planning. L'élément de grille est manquant.", "error");
         return;
     }
-    planningGrid.innerHTML = ''; // Vide la grille actuelle
+    planningContainer.innerHTML = ''; // Vide le conteneur actuel
 
     const mondayOfCurrentWeek = getDateOfWeek(currentWeekNumber, currentYear);
     const sundayOfCurrentWeek = new Date(mondayOfCurrentWeek.getTime() + 6 * 24 * 60 * 60 * 1000);
@@ -405,41 +458,40 @@ function renderPlanningGrid() {
 
     const weeklyPlanning = planningData[`week-${currentWeekNumber}`] || {};
 
-    // Création des en-têtes de jour
-    const headerRow = document.createElement('div');
-    headerRow.classList.add('planning-row', 'header');
-    headerRow.innerHTML = `<div class="time-slot-header">Heure</div>`;
-    DAYS_OF_WEEK_FR.forEach(day => {
-        headerRow.innerHTML += `<div class="day-header">${day.charAt(0).toUpperCase() + day.slice(1)}</div>`;
-    });
-    planningGrid.appendChild(headerRow);
+    // Création des colonnes pour chaque jour
+    DAYS_OF_WEEK_FR.forEach((dayName, dayIndex) => {
+        const dayColumn = document.createElement('div');
+        dayColumn.classList.add('day-column');
+        dayColumn.dataset.day = dayName;
 
-    // Création des lignes de temps (créneaux de 30 min)
-    for (let i = 0; i < 48; i++) { // 48 créneaux de 30 minutes dans une journée
-        const h = Math.floor(i / 2);
-        const m = (i % 2) * 30;
-        const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        const dayHeader = document.createElement('div');
+        dayHeader.classList.add('day-header');
+        dayHeader.textContent = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+        dayColumn.appendChild(dayHeader);
 
-        // Pas de div 'row' physique car 'display: contents' est utilisé sur .planning-row
-        // Chaque time-slot-label et planning-cell se positionne dans la grille directement.
+        const slotsWrapper = document.createElement('div');
+        slotsWrapper.classList.add('slots-wrapper');
 
-        const timeLabelDiv = document.createElement('div');
-        timeLabelDiv.classList.add('time-slot-label');
-        timeLabelDiv.textContent = timeStr;
-        planningGrid.appendChild(timeLabelDiv); // Ajoute le label d'heure à la grille
+        // Création des créneaux de 30 min pour chaque jour (00:00 à 23:30)
+        for (let i = 0; i < 48; i++) {
+            const h = Math.floor(i / 2);
+            const m = (i % 2) * 30;
+            const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
-        DAYS_OF_WEEK_FR.forEach((dayName, dayIndex) => {
+            const timeLabelDiv = document.createElement('div');
+            timeLabelDiv.classList.add('time-slot-label');
+            timeLabelDiv.textContent = `${timeStr} - ${minutesToTime(h * 60 + m + 30)}`; // Ex: 07:00 - 07:30
+
             const cell = document.createElement('div');
             cell.classList.add('planning-cell');
-            cell.dataset.time = timeStr; // Heure de début du créneau (HH:MM)
-            cell.dataset.day = dayName; // Nom du jour (lundi, mardi, etc.)
-            cell.dataset.slotIndex = i; // Index du créneau pour un tri facile
+            cell.dataset.time = timeStr;
+            cell.dataset.day = dayName;
+            cell.dataset.slotIndex = i;
 
             // Vérifier si ce créneau est "disponible" dans les données de planning
             const dayAvailabilities = weeklyPlanning[dayName] || [];
             let isAvailable = false;
 
-            // Parcours les plages de disponibilité pour voir si le créneau actuel chevauche
             for (const rangeStr of dayAvailabilities) {
                 const [start, end] = rangeStr.split(' - ');
                 const cellStartMinutes = parseTimeToMinutes(timeStr);
@@ -449,11 +501,9 @@ function renderPlanningGrid() {
                 const rangeEndMinutes = parseTimeToMinutes(end);
 
                 // Logique de chevauchement : un créneau est disponible s'il chevauche une plage.
-                // Le créneau (cellStartMinutes, cellEndMinutes) chevauche (rangeStartMinutes, rangeEndMinutes)
-                // si (cellStart < rangeEnd AND cellEnd > rangeStart)
                 if (cellStartMinutes < rangeEndMinutes && cellEndMinutes > rangeStartMinutes) {
                     isAvailable = true;
-                    break; // Pas besoin de vérifier d'autres plages si un chevauchement est trouvé
+                    break;
                 }
             }
 
@@ -461,9 +511,8 @@ function renderPlanningGrid() {
                 cell.classList.add('available');
             } else {
                 cell.classList.add('unavailable');
-                // Désactive les créneaux non disponibles pour empêcher la sélection
-                cell.style.pointerEvents = 'none'; // Empêche les événements de souris
-                cell.tabIndex = -1; // Retire de l'ordre de tabulation
+                cell.style.pointerEvents = 'none';
+                cell.tabIndex = -1;
             }
 
             // Seulement les créneaux 'available' sont interactifs
@@ -473,8 +522,27 @@ function renderPlanningGrid() {
                 cell.addEventListener('mouseup', handleMouseUp);
             }
             
-            planningGrid.appendChild(cell); // Ajoute la cellule du créneau à la grille
-        });
+            slotsWrapper.appendChild(timeLabelDiv); // Ajoute le label d'heure
+            slotsWrapper.appendChild(cell); // Ajoute la cellule du créneau
+        }
+        dayColumn.appendChild(slotsWrapper);
+        planningContainer.appendChild(dayColumn);
+    });
+
+    // Sélectionne l'onglet du jour actuel ou du premier jour de la semaine si aucun onglet actif n'existe.
+    const todayDay = DAYS_OF_WEEK_FR[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]; // Ajuste Dimanche à la fin
+    const currentDayTab = document.querySelector(`.tabs-navigation .tab[data-day-index="${DAYS_OF_WEEK_FR.indexOf(todayDay)}"]`);
+    if (currentDayTab) {
+        document.querySelectorAll('.tabs-navigation .tab').forEach(t => t.classList.remove('active'));
+        currentDayTab.classList.add('active');
+        // Défilement horizontal vers le jour actif si la colonne n'est pas visible
+        const dayColumnElement = planningContainer.querySelector(`.day-column[data-day="${todayDay}"]`);
+        if (dayColumnElement) {
+            planningContainer.scroll({
+                left: dayColumnElement.offsetLeft - planningContainer.offsetLeft,
+                behavior: 'smooth' // Pour une animation de défilement fluide
+            });
+        }
     }
 }
 
@@ -485,7 +553,6 @@ let startCell = null;
 let selectedCells = [];
 
 function handleMouseDown(e) {
-    // S'assure que seul le clic gauche est pris en compte et que la cellule n'est pas "unavailable"
     if (e.button !== 0 || e.target.classList.contains('unavailable')) return;
     
     isSelecting = true;
@@ -493,9 +560,9 @@ function handleMouseDown(e) {
     selectedCells = [];
     
     // Nettoie toutes les sélections précédentes
-    if (planningGrid) {
-        planningGrid.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
-        planningGrid.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
+    if (planningContainer) {
+        planningContainer.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
+        planningContainer.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
     }
     
     startCell.classList.add('selecting');
@@ -506,14 +573,13 @@ function handleMouseOver(e) {
     if (!isSelecting || !startCell) return;
 
     const currentCell = e.target.closest('.planning-cell');
-    // Ne pas sélectionner les cellules non disponibles ou si ce n'est pas une cellule valide
     if (!currentCell || currentCell.classList.contains('unavailable')) return;
 
     // Vérifie que la sélection se fait dans la même colonne (même jour)
     if (currentCell.dataset.day !== startCell.dataset.day) return;
 
     // Réinitialise les classes 'selecting' pour une mise à jour visuelle fluide
-    if (planningGrid) planningGrid.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
+    if (planningContainer) planningContainer.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
     selectedCells = [];
 
     const startSlotIndex = parseInt(startCell.dataset.slotIndex);
@@ -524,22 +590,12 @@ function handleMouseOver(e) {
     const maxSlot = Math.max(startSlotIndex, currentSlotIndex);
 
     // Parcourt tous les créneaux de la journée sélectionnée
-    planningGrid.querySelectorAll(`.planning-cell[data-day="${selectedDay}"]`).forEach(cell => {
+    planningContainer.querySelectorAll(`.planning-cell[data-day="${selectedDay}"]`).forEach(cell => {
         const slotIndex = parseInt(cell.dataset.slotIndex);
         if (slotIndex >= minSlot && slotIndex <= maxSlot) {
-            // N'ajoute pas et ne marque pas comme 'selecting' les cellules 'unavailable'
             if (!cell.classList.contains('unavailable')) {
                 cell.classList.add('selecting');
                 selectedCells.push(cell);
-            } else {
-                // Si une cellule non disponible est rencontrée dans la plage, arrête la sélection
-                // Cela empêche la sélection à travers des créneaux non disponibles.
-                if ( (startSlotIndex < currentSlotIndex && slotIndex > startSlotIndex && slotIndex < currentSlotIndex) ||
-                     (startSlotIndex > currentSlotIndex && slotIndex < startSlotIndex && slotIndex > currentSlotIndex) ) {
-                    // Si une cellule "unavailable" est entre le début et la fin, reset la sélection.
-                    // Ou simplement ne pas la considérer. Ici, nous laissons la sélection s'arrêter à la cellule précédente.
-                    // Pour simplifier, nous permettons juste de ne pas la sélectionner.
-                }
             }
         }
     });
@@ -550,13 +606,12 @@ async function handleMouseUp() {
     isSelecting = false;
 
     if (selectedCells.length > 0) {
-        // Appliquer la classe 'selected' et supprimer 'selecting'
         selectedCells.forEach(cell => {
             cell.classList.remove('selecting');
             cell.classList.add('selected');
         });
     }
-    startCell = null; // Réinitialise la cellule de départ après la sélection
+    startCell = null;
 }
 
 
@@ -566,7 +621,6 @@ async function handleMouseUp() {
  * Sauvegarde les créneaux sélectionnés.
  */
 async function saveSelectedSlots() {
-    // Filtrer les créneaux sélectionnés qui ne sont pas "unavailable" (bien que le mouseover devrait déjà l'éviter)
     const trulySelectedCells = selectedCells.filter(cell => !cell.classList.contains('unavailable'));
 
     if (trulySelectedCells.length === 0) {
@@ -577,21 +631,17 @@ async function saveSelectedSlots() {
     const selectedDay = trulySelectedCells[0].dataset.day;
     const availabilitiesForDay = [];
 
-    // Trier les cellules sélectionnées par index de créneau pour garantir l'ordre chronologique
     trulySelectedCells.sort((a, b) => parseInt(a.dataset.slotIndex) - parseInt(b.dataset.slotIndex));
 
-    // Fusionner les créneaux contigus en plages
     if (trulySelectedCells.length > 0) {
         let currentStartMinutes = parseTimeToMinutes(trulySelectedCells[0].dataset.time);
-        let currentEndMinutes = currentStartMinutes + 30; // Chaque créneau dure 30 minutes
+        let currentEndMinutes = currentStartMinutes + 30;
 
         for (let i = 1; i < trulySelectedCells.length; i++) {
             const nextCellTimeMinutes = parseTimeToMinutes(trulySelectedCells[i].dataset.time);
-            // Si le créneau suivant est le créneau immédiatement consécutif
             if (nextCellTimeMinutes === currentEndMinutes) {
                 currentEndMinutes += 30;
             } else {
-                // Sinon, la plage actuelle est terminée, l'ajouter et commencer une nouvelle
                 availabilitiesForDay.push({
                     start: minutesToTime(currentStartMinutes),
                     end: minutesToTime(currentEndMinutes)
@@ -600,14 +650,12 @@ async function saveSelectedSlots() {
                 currentEndMinutes = currentStartMinutes + 30;
             }
         }
-        // Ajouter la dernière plage
         availabilitiesForDay.push({
             start: minutesToTime(currentStartMinutes),
             end: minutesToTime(currentEndMinutes)
         });
     }
 
-    // Récupérer la date complète pour le jour sélectionné dans la semaine actuelle
     const weekStartDate = getDateOfWeek(currentWeekNumber, currentYear);
     const dayIndex = DAYS_OF_WEEK_FR.indexOf(selectedDay.toLowerCase());
     const targetDate = new Date(weekStartDate);
@@ -615,23 +663,20 @@ async function saveSelectedSlots() {
 
     const dateKey = formatDateToYYYYMMDD(targetDate);
 
-    // Sauvegarder les disponibilités pour cette date et cet agent
     await saveAvailabilitiesForDate(dateKey, availabilitiesForDay);
-
-    // Après sauvegarde, recharger pour s'assurer que la grille est à jour
-    clearSelectedSlots(); // Nettoyer la sélection après sauvegarde
+    clearSelectedSlots();
 }
 
 /**
  * Efface la sélection courante de créneaux.
  */
 function clearSelectedSlots() {
-    if (!planningGrid) {
+    if (!planningContainer) {
         console.error("Erreur DOM: L'élément 'planning-container' est introuvable pour effacer la sélection.");
         return;
     }
-    planningGrid.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
-    planningGrid.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting')); // S'assurer que les 'selecting' sont aussi nettoyés
+    planningContainer.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
+    planningContainer.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
     selectedCells = [];
     startCell = null;
 }
@@ -640,8 +685,8 @@ function clearSelectedSlots() {
  * Déconnecte l'agent et redirige vers la page de connexion.
  */
 function logout() {
-    sessionStorage.clear(); // Supprime toutes les données de session
-    window.location.href = "index.html"; // Redirige vers la page de connexion
+    sessionStorage.clear();
+    window.location.href = "index.html";
 }
 
 
@@ -657,9 +702,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!currentAgentId || !token) {
         console.error("Initialisation Agent: ID agent ou Token manquant. Redirection vers login.");
         displayMessageModal("Session expirée", "Votre session a expiré ou n'est pas valide. Veuillez vous reconnecter.", "error", () => {
-            window.location.href = "index.html"; // Redirige vers la page de connexion
+            window.location.href = "index.html";
         });
-        return; // Arrête l'exécution si non authentifié
+        return;
     }
 
     // Vérification du rôle pour cette page spécifique
@@ -667,17 +712,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.error("Initialisation Agent: Rôle incorrect pour cette page. Rôle actuel:", currentAgentRole);
         displayMessageModal("Accès non autorisé", "Vous devez être connecté en tant qu'agent pour accéder à cette page.", "error", () => {
             if (currentAgentRole === 'admin') {
-                window.location.href = "admin.html"; // Si c'est un admin, rediriger vers sa page
+                window.location.href = "admin.html";
             } else {
-                window.location.href = "index.html"; // Autres rôles non autorisés ou incohérents
+                window.location.href = "index.html";
             }
         });
-        return; // Arrête l'exécution si le rôle n'est pas 'agent'
+        return;
     }
 
     // Si tout est bon (authentifié et rôle 'agent')
     if (agentNameDisplay) {
-        agentNameDisplay.textContent = `${currentAgentName} (ID: ${currentAgentId})`; // Ajoute l'ID pour clarification
+        agentNameDisplay.textContent = currentAgentName; // N'affiche plus l'ID
     } else {
         console.warn("L'élément 'agent-name-display' est introuvable dans agent.html. Le nom de l'agent ne sera pas affiché.");
     }
@@ -690,18 +735,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentYear = today.getFullYear();
     currentWeekNumber = getISOWeekNumber(today);
 
-    // Chargement initial du planning
-    await loadAgentPlanning();
+    // Remplir le sélecteur de semaine et configurer son écouteur
+    populateWeekSelector();
+    // Le changement de semaine via le sélecteur appellera déjà loadAgentPlanning,
+    // donc pas besoin d'un appel initial ici.
 
-    // Configuration des événements pour la navigation entre les semaines
+
+    // Configuration des événements pour la navigation entre les semaines (boutons)
     if (prevWeekBtn) {
         prevWeekBtn.addEventListener('click', async () => {
-            currentWeekNumber--;
-            if (currentWeekNumber < 1) { // Gérer le passage à l'année précédente
-                currentYear--;
-                currentWeekNumber = getISOWeekNumber(new Date(currentYear, 11, 31)); // Dernière semaine de l'année précédente
+            let newWeek = currentWeekNumber - 1;
+            let newYear = currentYear;
+            if (newWeek < 1) {
+                newYear--;
+                newWeek = getISOWeekNumber(new Date(newYear, 11, 31));
             }
-            await loadAgentPlanning(); // Recharge le planning pour la nouvelle semaine
+            currentWeekNumber = newWeek;
+            currentYear = newYear;
+            populateWeekSelector(); // Met à jour les options et sélectionne la nouvelle semaine
+            await loadAgentPlanning();
         });
     } else {
         console.warn("L'élément 'prev-week-btn' est introuvable dans agent.html. Le bouton précédent ne sera pas fonctionnel.");
@@ -709,14 +761,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (nextWeekBtn) {
         nextWeekBtn.addEventListener('click', async () => {
-            currentWeekNumber++;
+            let newWeek = currentWeekNumber + 1;
+            let newYear = currentYear;
             const lastDayOfCurrentYear = new Date(currentYear, 11, 31);
             const lastWeekOfCurrentYear = getISOWeekNumber(lastDayOfCurrentYear);
-            if (currentWeekNumber > lastWeekOfCurrentYear) { // Gérer le passage à l'année suivante
-                currentYear++;
-                currentWeekNumber = 1;
+            if (newWeek > lastWeekOfCurrentYear) {
+                newYear++;
+                newWeek = 1;
             }
-            await loadAgentPlanning(); // Recharge le planning pour la nouvelle semaine
+            currentWeekNumber = newWeek;
+            currentYear = newYear;
+            populateWeekSelector(); // Met à jour les options et sélectionne la nouvelle semaine
+            await loadAgentPlanning();
         });
     } else {
         console.warn("L'élément 'next-week-btn' est introuvable dans agent.html. Le bouton suivant ne sera pas fonctionnel.");
@@ -741,16 +797,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.warn("L'élément 'logout-btn' est introuvable dans agent.html. Le bouton de déconnexion ne sera pas fonctionnel.");
     }
     
-    // Gestion des onglets de jour (si implémenté, actuellement le planning est global)
-    // S'il y a une future intention de charger le planning par jour via onglets, la logique doit être ajoutée ici.
+    // Gestion des onglets de jour (pour le défilement horizontal vers le jour cliqué)
     document.querySelectorAll('.tabs-navigation .tab').forEach(tab => {
         tab.addEventListener('click', function() {
-            // Logique pour changer l'onglet actif et potentiellement filtrer l'affichage du planning
-            // Pour l'instant, le planning est affiché pour toute la semaine, donc ce n'est que visuel
             document.querySelectorAll('.tabs-navigation .tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
-            // Si la grille devait filtrer par jour, la logique irait ici:
-            // filterPlanningByDay(this.dataset.day);
+            
+            const targetDayName = DAYS_OF_WEEK_FR[parseInt(this.dataset.dayIndex)];
+            const dayColumnElement = planningContainer.querySelector(`.day-column[data-day="${targetDayName}"]`);
+            if (dayColumnElement) {
+                // Défilement horizontal vers la colonne du jour sélectionné
+                planningContainer.scroll({
+                    left: dayColumnElement.offsetLeft - planningContainer.offsetLeft,
+                    behavior: 'smooth' // Pour une animation de défilement fluide
+                });
+            }
         });
     });
+
+    // Chargement initial du planning une fois toutes les initialisations faites
+    // Note: populateWeekSelector déjà déclenche un loadAgentPlanning via son événement 'change' initial
+    // lors de la sélection de la semaine par défaut.
+    // Pour s'assurer que le planning est chargé même si le select ne se déclenche pas,
+    // ou si on veut charger AVANT de peupler le select (ce qui est préférable),
+    // on peut l'appeler ici et s'assurer que populateWeekSelector ne le déclenche pas deux fois.
+    // Pour l'instant, la logique est que populateWeekSelector sélectionne l'option actuelle,
+    // et si le navigateur déclenche un 'change' sur cette sélection, alors loadAgentPlanning est appelé.
+    // Si ce n'est pas le cas, on l'appelle explicitement.
+    await loadAgentPlanning(); // Appeler après populateWeekSelector pour s'assurer que la semaine est bien définie.
 });

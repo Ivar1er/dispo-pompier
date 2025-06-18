@@ -263,16 +263,14 @@ body {
   font-size: 0.95rem;
 }
 
-/* Conteneur de la grille de planning réelle (nouvelles classes pour la structure de grille) */
-.planning-grid {
-  display: grid;
-  /* La première colonne est pour les heures, les autres pour les jours */
-  grid-template-columns: 80px repeat(7, 1fr); /* Ajusté pour 7 jours + colonne d'heure */
-  gap: 6px; /* Espacement réduit pour une meilleure compacité */
+/* Nouveau conteneur pour les colonnes de jours */
+.planning-columns-container {
+  display: flex; /* Utilise flexbox pour les colonnes de jours */
+  overflow-x: auto; /* Permet le défilement horizontal si les jours ne rentrent pas */
+  gap: 15px; /* Espacement entre les colonnes de jours */
   width: 100%;
-  max-height: 500px;
-  overflow-y: auto;
-  padding-right: 5px;
+  padding-bottom: 10px; /* Pour la scrollbar horizontale */
+  -webkit-overflow-scrolling: touch; /* Lissage du scroll sur iOS */
   border: 1px solid var(--light-gray);
   border-radius: var(--border-radius-medium);
   box-shadow: 0 2px 5px rgba(0,0,0,0.05);
@@ -280,98 +278,131 @@ body {
   padding: 15px;
 }
 
-/* Style des en-têtes de la grille (heures et jours) */
-.planning-row.header {
-  font-weight: 600;
-  color: var(--primary-color);
-  border-bottom: 1px solid var(--medium-gray);
-  padding-bottom: 10px;
-  margin-bottom: 5px;
-  display: contents; /* Permet aux enfants d'être positionnés directement dans la grille */
-}
-
-.time-slot-header {
-  grid-column: 1; /* Place l'en-tête d'heure dans la première colonne */
-  text-align: left;
-  padding-left: 5px;
+/* Style de chaque colonne de jour */
+.day-column {
+  flex-shrink: 0; /* Empêche les colonnes de se réduire */
+  width: 150px; /* Largeur fixe pour chaque jour, ajuster si nécessaire */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px; /* Espacement entre l'en-tête et les créneaux */
+  background-color: var(--card-background);
+  border-radius: var(--border-radius-medium);
+  padding-bottom: 10px; /* Pour l'esthétique */
 }
 
 .day-header {
+  font-weight: 600;
+  color: var(--primary-color);
+  padding: 10px 0;
+  width: 100%;
   text-align: center;
-  padding: 0 5px;
-  /* Les day-header se placent automatiquement de la 2ème à la 8ème colonne */
+  border-bottom: 1px solid var(--light-gray);
+  margin-bottom: 5px;
 }
 
-/* Styles pour les lignes de créneaux (hors en-tête) */
-.planning-row {
-    display: contents; /* Permet aux enfants d'être positionnés directement dans la grille */
+/* Conteneur pour les créneaux d'une journée (rendu scrollable) */
+.slots-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px; /* Espacement entre les créneaux + labels */
+  max-height: 400px; /* Hauteur maximale pour le défilement vertical */
+  overflow-y: auto;
+  padding-right: 5px; /* Pour éviter que la scrollbar ne masque le contenu */
 }
 
+/* Style des labels d'heure dans chaque colonne */
 .time-slot-label {
-    grid-column: 1; /* Chaque label d'heure occupe la première colonne de sa "ligne" virtuelle */
-    text-align: right;
-    padding-right: 10px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--dark-gray);
-    align-self: center; /* Centre le texte verticalement */
+    text-align: center;
+    width: 100%;
+    margin-top: 5px; /* Espacement au-dessus de chaque créneau */
+    font-weight: 500;
 }
 
-/* Style des cellules individuelles (créneaux) */
+/* Style des cellules individuelles (créneaux de 30 min) */
 .planning-cell {
-  padding: 8px 10px; /* Ajusté pour un look plus compact */
+  padding: 8px 5px; /* Ajusté pour le nouveau layout */
   border: 1px solid var(--medium-gray);
   border-radius: var(--border-radius-small);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem; /* Taille de police légèrement réduite */
   text-align: center;
   font-weight: 500;
   white-space: nowrap;
   position: relative;
   transition: background-color 0.2s ease, border-color 0.2s ease;
-  height: 35px; /* Hauteur fixe pour les créneaux pour un alignement propre */
+  height: 30px; /* Hauteur fixe pour les créneaux */
   display: flex;
   justify-content: center;
   align-items: center;
+  width: calc(100% - 10px); /* Prend toute la largeur de la colonne moins le padding */
+  margin: 0 auto; /* Centrer dans la colonne */
 }
 
 /* Couleurs des créneaux */
 .planning-cell.available {
-  background-color: var(--free-slot-color); /* Vert pâle pour disponible */
+  background-color: var(--free-slot-color);
   border-color: var(--light-gray);
   color: var(--text-color);
 }
 
 .planning-cell.unavailable {
-  background-color: var(--unavailable-slot-color); /* Rouge pâle pour non disponible */
+  background-color: var(--unavailable-slot-color);
   border-color: var(--unavailable-slot-border);
   color: var(--danger-color);
   cursor: not-allowed;
   opacity: 0.7;
+  text-decoration: line-through; /* Barre le texte pour indiquer l'indisponibilité */
 }
 
 .planning-cell.available:hover {
-    background-color: #d1ecf1; /* Bleu clair subtil au survol */
+    background-color: #d1ecf1;
     border-color: #007bff;
 }
 
 /* Styles pour la sélection */
 .planning-cell.selecting,
 .planning-cell.selected {
-  background-color: var(--selected-slot-color); /* Vert pour sélectionné */
+  background-color: var(--selected-slot-color);
   color: white;
   border-color: var(--selected-slot-color);
   font-weight: 600;
 }
 
+/* Scrollbar stylisée pour planning-columns-container et slots-wrapper */
+.planning-columns-container::-webkit-scrollbar,
+.slots-wrapper::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.planning-columns-container::-webkit-scrollbar-track,
+.slots-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+.planning-columns-container::-webkit-scrollbar-thumb,
+.slots-wrapper::-webkit-scrollbar-thumb {
+  background: var(--light-gray);
+  border-radius: 10px;
+}
+.planning-columns-container::-webkit-scrollbar-thumb:hover,
+.slots-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--medium-gray);
+}
+
+
 /* Spinner de chargement */
 .loading-spinner {
-  border: 4px solid #f3f3f3; /* Light grey */
-  border-top: 4px solid var(--primary-color); /* Blue */
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary-color);
   border-radius: 50%;
   width: 40px;
   height: 40px;
   animation: spin 1s linear infinite;
-  margin: 20px auto; /* Centre le spinner */
+  margin: 20px auto;
 }
 
 .loading-spinner.hidden {
@@ -419,15 +450,15 @@ body {
 
   #week-select, .btn {
     width: 100%;
-    max-width: 300px; /* Limite la largeur pour ne pas être trop étendu */
+    max-width: 300px;
   }
 
   .tabs-navigation {
-    flex-direction: row; /* Garde les onglets en ligne */
-    justify-content: flex-start; /* Aligne à gauche si trop nombreux */
-    overflow-x: auto; /* Permet le défilement horizontal */
-    padding-bottom: 10px; /* Pour la scrollbar */
-    -webkit-overflow-scrolling: touch; /* Lissage du scroll sur iOS */
+    flex-direction: row;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
   }
   .tabs-navigation::-webkit-scrollbar {
     height: 6px;
@@ -438,24 +469,25 @@ body {
   }
 
   .tab {
-    flex-shrink: 0; /* Empêche les onglets de se réduire */
+    flex-shrink: 0;
     font-size: 0.9rem;
     padding: 10px 18px;
   }
 
-  /* Ajustements pour la grille sur tablette */
-  .planning-grid {
-    grid-template-columns: 70px repeat(7, 1fr); /* Heure plus petite */
-    gap: 5px;
-    max-height: 450px;
+  /* Ajustements pour les colonnes de jours sur tablette */
+  .day-column {
+    width: 130px; /* Plus étroit sur tablette */
   }
-  .time-slot-label, .time-slot-header {
-      font-size: 0.8rem;
+  .time-slot-label {
+      font-size: 0.75rem;
   }
   .planning-cell {
-    font-size: 0.85rem;
-    padding: 6px 8px;
-    height: 30px;
+    font-size: 0.8rem;
+    padding: 6px 4px;
+    height: 28px;
+  }
+  .slots-wrapper {
+      max-height: 350px; /* Ajuste la hauteur de défilement */
   }
 }
 
@@ -473,7 +505,7 @@ body {
   }
 
   #week-select, .btn {
-    max-width: none; /* Permet aux éléments de prendre toute la largeur disponible */
+    max-width: none;
   }
   .btn {
     padding: 10px 20px;
@@ -485,20 +517,20 @@ body {
     font-size: 0.85rem;
   }
 
-  /* Ajustements pour la grille sur mobile plus petits */
-  .planning-grid {
-    grid-template-columns: 60px repeat(7, 1fr); /* Encore plus petits */
-    gap: 4px;
-    max-height: 350px;
+  /* Ajustements pour les colonnes de jours sur mobile */
+  .day-column {
+    width: 110px; /* Encore plus étroit */
   }
-  .time-slot-label, .time-slot-header {
-      font-size: 0.75rem;
-      padding-right: 5px;
+  .time-slot-label {
+      font-size: 0.7rem;
   }
   .planning-cell {
-    font-size: 0.8rem;
-    padding: 5px 7px;
-    height: 28px;
+    font-size: 0.75rem;
+    padding: 5px 3px;
+    height: 25px;
+  }
+  .slots-wrapper {
+      max-height: 300px;
   }
 
   .bottom-actions {
@@ -534,17 +566,18 @@ body {
   }
 
   /* Ajustements pour les très petits écrans */
-  .planning-grid {
-    grid-template-columns: 50px repeat(7, 1fr); /* Très petits créneaux */
-    gap: 3px;
+  .day-column {
+    width: 90px; /* Très petits créneaux */
   }
-  .time-slot-label, .time-slot-header {
-      font-size: 0.7rem;
-      padding-right: 2px;
+  .time-slot-label {
+      font-size: 0.65rem;
   }
   .planning-cell {
-      font-size: 0.75rem;
-      padding: 4px 6px;
-      height: 25px;
+      font-size: 0.7rem;
+      padding: 4px 2px;
+      height: 22px;
+  }
+  .slots-wrapper {
+      max-height: 250px;
   }
 }

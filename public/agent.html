@@ -13,7 +13,7 @@
 
     <!-- Section d'en-tête de la page -->
     <header class="page-header">
-      <!-- Message de bienvenue avec le nom et l'ID de l'agent -->
+      <!-- Message de bienvenue avec le nom de l'agent (ID masqué) -->
       <h2 class="welcome-message">Bienvenue <span id="agent-name-display"></span> !</h2>
 
       <!-- Affichage des qualifications de l'agent, initialement vide -->
@@ -23,8 +23,10 @@
       <div class="header-controls">
         <button id="prev-week-btn" class="btn btn-secondary" aria-label="Semaine Précédente">← Semaine Précédente</button>
         <div class="week-info">
+          <!-- Le sélecteur de semaine sera rempli dynamiquement par JS -->
           <label for="week-select" class="sr-only">Sélectionner la semaine</label>
           <select id="week-select" aria-label="Sélectionner la semaine"></select>
+          <!-- Élément pour afficher la plage de dates de la semaine courante -->
           <p id="current-week-display" class="week-date-range"></p>
         </div>
         <button id="next-week-btn" class="btn btn-secondary" aria-label="Semaine Suivante">Semaine Suivante →</button>
@@ -34,25 +36,28 @@
       </div>
     </header>
 
-    <!-- Navigation par onglets pour les jours de la semaine -->
+    <!-- Navigation par onglets pour les jours de la semaine (peut être utilisé pour la visibilité des colonnes) -->
     <nav class="tabs-navigation" role="tablist">
-      <button class="tab active" data-day="lundi" role="tab" aria-selected="true" id="tab-lundi">Lundi</button>
-      <button class="tab" data-day="mardi" role="tab" aria-selected="false" id="tab-mardi">Mardi</button>
-      <button class="tab" data-day="mercredi" role="tab" aria-selected="false" id="tab-mercredi">Mercredi</button>
-      <button class="tab" data-day="jeudi" role="tab" aria-selected="false" id="tab-jeudi">Jeudi</button>
-      <button class="tab" data-day="vendredi" role="tab" aria-selected="false" id="tab-vendredi">Vendredi</button>
-      <button class="tab" data-day="samedi" role="tab" aria-selected="false" id="tab-samedi">Samedi</button>
-      <button class="tab" data-day="dimanche" role="tab" aria-selected="false" id="tab-dimanche">Dimanche</button>
+      <button class="tab active" data-day-index="0" role="tab" aria-selected="true" id="tab-lundi">Lundi</button>
+      <button class="tab" data-day-index="1" role="tab" aria-selected="false" id="tab-mardi">Mardi</button>
+      <button class="tab" data-day-index="2" role="tab" aria-selected="false" id="tab-mercredi">Mercredi</button>
+      <button class="tab" data-day-index="3" role="tab" aria-selected="false" id="tab-jeudi">Jeudi</button>
+      <button class="tab" data-day-index="4" role="tab" aria-selected="false" id="tab-vendredi">Vendredi</button>
+      <button class="tab" data-day-index="5" role="tab" aria-selected="false" id="tab-samedi">Samedi</button>
+      <button class="tab" data-day-index="6" role="tab" aria-selected="false" id="tab-dimanche">Dimanche</button>
     </nav>
 
-    <!-- Section principale du planning avec grille de disponibilité -->
+    <!-- Section principale du planning avec les blocs de créneaux par jour -->
     <main class="planning-section">
       <p id="selection-info" class="info-message">
         Cliquez sur le premier créneau et glisez la souris jusqu'au dernier. Plusieurs plages de créneaux possibles.
       </p>
 
-      <!-- Conteneur de la grille de planning réelle, où les créneaux seront injectés par JS -->
-      <div id="planning-container" class="planning-grid"></div>
+      <!-- Conteneur des colonnes de jours, où les créneaux seront injectés par JS -->
+      <!-- Nouvelle classe 'planning-columns-container' pour le nouveau layout -->
+      <div id="planning-container" class="planning-columns-container">
+        <!-- Les colonnes de chaque jour et leurs créneaux seront générés ici par JavaScript -->
+      </div>
 
       <!-- Spinner de chargement, initialement caché -->
       <div id="loading-spinner" class="loading-spinner hidden" role="status" aria-label="Chargement du planning..."></div>
