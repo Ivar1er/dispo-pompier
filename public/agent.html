@@ -1,71 +1,23 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mon Planning - Sapeur Pompier</title>
-  <link rel="stylesheet" href="css/agent.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Disponibilités</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lier ton fichier CSS personnalisé -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="agent-container">
-
-    <header class="page-header">
-      <!-- Mise à jour pour une seule span pour le nom complet de l'agent -->
-      <h2 class="welcome-message">Bienvenue <span id="agent-name-display"></span> !</h2>
-
-      <!-- NOUVEAU : Affichage des qualifications de l'agent -->
-      <p id="agentQualificationsDisplay" class="qualifications-display-message"></p>
-
-      <div class="header-controls">
-        <!-- NOUVEAU : Boutons de navigation des semaines -->
-        <button id="prev-week-btn" class="btn btn-secondary">← Semaine Précédente</button>
-        <div class="week-info">
-          <!-- ID du sélecteur de semaine correct -->
-          <label for="week-select" class="sr-only">Sélectionner la semaine</label>
-          <select id="week-select"></select>
-          <!-- NOUVEAU : Élément pour afficher la plage de dates de la semaine courante -->
-          <p id="current-week-display"></p>
+    <div id="app-root">
+        <!-- Le contenu de l'application sera injecté ici par JavaScript -->
+        <div class="flex items-center justify-center min-h-screen bg-gray-100 font-sans p-4">
+            <p class="text-gray-700 text-lg">Chargement de l'application...</p>
         </div>
-        <button id="next-week-btn" class="btn btn-secondary">Semaine Suivante →</button>
+    </div>
 
-        <!-- ID du bouton "Voir la Synthèse" correct -->
-        <a href="synthese.html" id="synthese-btn" class="btn btn-secondary">Voir la Synthèse</a>
-      </div>
-    </header>
-
-    <nav class="tabs-navigation">
-      <!-- Classes et attributs des boutons d'onglet corrects -->
-      <button class="tab active" data-day="lundi">Lundi</button>
-      <button class="tab" data-day="mardi">Mardi</button>
-      <button class="tab" data-day="mercredi">Mercredi</button>
-      <button class="tab" data-day="jeudi">Jeudi</button>
-      <button class="tab" data-day="vendredi">Vendredi</button>
-      <button class="tab" data-day="samedi">Samedi</button>
-      <button class="tab" data-day="dimanche">Dimanche</button>
-    </nav>
-
-    <section class="planning-section">
-      <!-- ID du message d'info correct -->
-      <p id="selection-info" class="info-message">
-        Cliquez sur le premier créneau et glisez la souris jusqu'au dernier. Plusieurs plages de créneaux possibles.
-      </p>
-
-      <!-- Conteneur du planning : l'ID est maintenant "planning-container" et correspond au JS -->
-      <div id="planning-container" class="planning-grid"></div>
-
-      <div id="loading-spinner" class="loading-spinner hidden"></div>
-    </section>
-
-    <footer class="bottom-actions">
-      <!-- IDs des boutons d'action corrigés pour correspondre au JS -->
-      <button id="save-slots-btn" class="btn btn-primary">Enregistrer mes créneaux</button>
-      <button id="clear-selection-btn" class="btn btn-secondary">Effacer la sélection</button>
-      <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
-    </footer>
-  </div>
-
-  <script src="js/agent.js"></script>
-
+    <!-- Lier ton fichier JavaScript -->
+    <script type="module" src="script.js"></script>
 </body>
 </html>
