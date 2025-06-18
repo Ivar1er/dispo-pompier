@@ -55,7 +55,7 @@ let AVAILABLE_FUNCTIONS = [];
 
 // Mot de passe par défaut pour l'admin, utilisé si aucun fichier users.json n'existe au démarrage
 const DEFAULT_ADMIN_PASSWORD = 'supersecureadminpassword'; // À CHANGER EN PROD ET UTILISER UNE VARIABLE D'ENV !
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_that_is_very_long_and_random'; // Clé secrète JWT
+const JWT_SECRET = process.env.JWT_SECRET || 'pompier_de_beaune_la_rolande_2025_marechal'; // Clé secrète JWT
 
 
 // --- Helpers de date (utilisés pour la structuration des plannings) ---
