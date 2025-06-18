@@ -1,115 +1,73 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent - Gestion de Planning</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" xintegrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <!-- Votre CSS personnalisé (chemin corrigé) -->
-    <link rel="stylesheet" href="css/agent.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon Planning - Sapeur Pompier</title>
+  <link rel="stylesheet" href="css/agent.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container-fluid">
-            <!-- Emplacement pour le nom de l'agent -->
-            <a class="navbar-brand" href="#">
-                <span id="agent-display-name">Chargement...</span>
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <!-- Liens de navigation -->
-                    <li class="nav-item">
-                        <a class="nav-link active" aria-current="page" href="#">Mon Planning</a>
-                    </li>
-                    <!-- Lien pour le panneau admin, sera affiché si l'utilisateur est admin -->
-                    <li class="nav-item" id="admin-panel-link" style="display: none;">
-                        <a class="nav-link" href="admin.html">Panneau Admin</a>
-                    </li>
-                    <li class="nav-item">
-                        <button id="logout-btn" class="btn btn-outline-danger ms-2">Déconnexion</button>
-                    </li>
-                </ul>
-            </div>
+  <!-- Conteneur principal de l'application agent -->
+  <div class="agent-container">
+
+    <!-- Section d'en-tête de la page -->
+    <header class="page-header">
+      <!-- Message de bienvenue avec le nom et l'ID de l'agent -->
+      <h2 class="welcome-message">Bienvenue <span id="agent-name-display"></span> !</h2>
+
+      <!-- Affichage des qualifications de l'agent, initialement vide -->
+      <p id="agentQualificationsDisplay" class="qualifications-display-message"></p>
+
+      <!-- Contrôles de navigation et d'information hebdomadaire -->
+      <div class="header-controls">
+        <button id="prev-week-btn" class="btn btn-secondary" aria-label="Semaine Précédente">← Semaine Précédente</button>
+        <div class="week-info">
+          <label for="week-select" class="sr-only">Sélectionner la semaine</label>
+          <select id="week-select" aria-label="Sélectionner la semaine"></select>
+          <p id="current-week-display" class="week-date-range"></p>
         </div>
+        <button id="next-week-btn" class="btn btn-secondary" aria-label="Semaine Suivante">Semaine Suivante →</button>
+
+        <!-- Bouton pour accéder à la synthèse -->
+        <a href="synthese.html" id="synthese-btn" class="btn btn-secondary">Voir la Synthèse</a>
+      </div>
+    </header>
+
+    <!-- Navigation par onglets pour les jours de la semaine -->
+    <nav class="tabs-navigation" role="tablist">
+      <button class="tab active" data-day="lundi" role="tab" aria-selected="true" id="tab-lundi">Lundi</button>
+      <button class="tab" data-day="mardi" role="tab" aria-selected="false" id="tab-mardi">Mardi</button>
+      <button class="tab" data-day="mercredi" role="tab" aria-selected="false" id="tab-mercredi">Mercredi</button>
+      <button class="tab" data-day="jeudi" role="tab" aria-selected="false" id="tab-jeudi">Jeudi</button>
+      <button class="tab" data-day="vendredi" role="tab" aria-selected="false" id="tab-vendredi">Vendredi</button>
+      <button class="tab" data-day="samedi" role="tab" aria-selected="false" id="tab-samedi">Samedi</button>
+      <button class="tab" data-day="dimanche" role="tab" aria-selected="false" id="tab-dimanche">Dimanche</button>
     </nav>
 
-    <div class="container mt-4">
-        <h2 class="mb-4">Gestion de Mon Planning</h2>
+    <!-- Section principale du planning avec grille de disponibilité -->
+    <main class="planning-section">
+      <p id="selection-info" class="info-message">
+        Cliquez sur le premier créneau et glisez la souris jusqu'au dernier. Plusieurs plages de créneaux possibles.
+      </p>
 
-        <!-- Spinner de chargement global -->
-        <div id="loading-spinner" class="loading-spinner hidden">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Chargement...</span>
-            </div>
-            <p>Chargement du planning...</p>
-        </div>
+      <!-- Conteneur de la grille de planning réelle, où les créneaux seront injectés par JS -->
+      <div id="planning-container" class="planning-grid"></div>
 
-        <div class="mb-3">
-            <label for="week-selector" class="form-label">Sélectionner la semaine :</label>
-            <select class="form-select" id="week-selector">
-                <!-- Les options seront remplies par agent.js -->
-            </select>
-        </div>
+      <!-- Spinner de chargement, initialement caché -->
+      <div id="loading-spinner" class="loading-spinner hidden" role="status" aria-label="Chargement du planning..."></div>
+    </main>
 
-        <!-- Onglets pour les jours de la semaine -->
-        <ul class="nav nav-tabs" id="myTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="monday-tab" data-bs-toggle="tab" data-bs-target="#lundi" type="button" role="tab" aria-controls="lundi" aria-selected="true">Lundi</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tuesday-tab" data-bs-toggle="tab" data-bs-target="#mardi" type="button" role="tab" aria-controls="mardi" aria-selected="false">Mardi</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="wednesday-tab" data-bs-toggle="tab" data-bs-target="#mercredi" type="button" role="tab" aria-controls="mercredi" aria-selected="false">Mercredi</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="thursday-tab" data-bs-toggle="tab" data-bs-target="#jeudi" type="button" role="tab" aria-controls="jeudi" aria-selected="false">Jeudi</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="friday-tab" data-bs-toggle="tab" data-bs-target="#vendredi" type="button" role="tab" aria-controls="vendredi" aria-selected="false">Vendredi</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="saturday-tab" data-bs-toggle="tab" data-bs-target="#samedi" type="button" role="tab" aria-controls="samedi" aria-selected="false">Samedi</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="sunday-tab" data-bs-toggle="tab" data-bs-target="#dimanche" type="button" role="tab" aria-controls="dimanche" aria-selected="false">Dimanche</button>
-            </li>
-        </ul>
+    <!-- Pied de page avec les actions principales (sauvegarde, effacement, déconnexion) -->
+    <footer class="bottom-actions">
+      <button id="save-slots-btn" class="btn btn-primary">Enregistrer mes créneaux</button>
+      <button id="clear-selection-btn" class="btn btn-secondary">Effacer la sélection</button>
+      <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
+    </footer>
+  </div>
 
-        <!-- Contenu des onglets -->
-        <div class="tab-content mt-3" id="schedule-container">
-            <div class="tab-pane fade show active" id="lundi" role="tabpanel" aria-labelledby="monday-tab"></div>
-            <div class="tab-pane fade" id="mardi" role="tabpanel" aria-labelledby="tuesday-tab"></div>
-            <div class="tab-pane fade" id="mercredi" role="tabpanel" aria-labelledby="wednesday-tab"></div>
-            <div class="tab-pane fade" id="jeudi" role="tabpanel" aria-labelledby="thursday-tab"></div>
-            <div class="tab-pane fade" id="vendredi" role="tabpanel" aria-labelledby="friday-tab"></div>
-            <div class="tab-pane fade" id="samedi" role="tabpanel" aria-labelledby="saturday-tab"></div>
-            <div class="tab-pane fade" id="dimanche" role="tabpanel" aria-labelledby="sunday-tab"></div>
-        </div>
+  <!-- Script JavaScript pour la logique de la page -->
+  <script src="js/agent.js"></script>
 
-        <div class="mt-4 text-center">
-            <button id="save-slots-btn" class="btn btn-success mt-3" style="display: none;">Enregistrer les Modifications</button>
-            <button id="clear-selection-btn" class="btn btn-warning mt-3 ms-2" style="display: none;">Effacer la Sélection</button>
-            <button id="synthesis-btn" class="btn btn-info mt-3 ms-2">Synthèse des Réservations</button>
-        </div>
-
-    </div>
-
-    <!-- Custom Message Box -->
-    <div id="message-box" class="message-box hidden">
-        <div class="message-content">
-            <p id="message-text"></p>
-            <button id="close-message-box" class="btn btn-primary">OK</button>
-        </div>
-    </div>
-
-    <!-- Bootstrap JS (avec Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1ehaTXoK9FJ" crossorigin="anonymous"></script>
-    <!-- Votre JavaScript personnalisé -->
-    <script src="js/agent.js"></script>
 </body>
 </html>

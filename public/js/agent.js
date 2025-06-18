@@ -1,627 +1,756 @@
 // agent.js
 
-// Variables globales pour le suivi de l'état de l'application
-let currentWeekIdentifier = ''; // Pour stocker l'identifiant de la semaine (ex: "2025-W25")
-let currentWeekDates = {}; // { startDate: "JJ/MM", endDate: "JJ/MM" }
-let currentDailyAvailabilities = {}; // Stocke les disponibilités de l'agent pour chaque jour de la semaine courante
-let hasUnsavedChanges = false; // Indique si des changements non sauvegardés existent
-let isDragging = false; // Pour la sélection multiple par glisser-déposer
-let dragStartSlot = null; // Le créneau où le glisser-déposer a commencé
-let currentAgentId = ''; // L'ID de l'agent connecté
-let currentAgentName = ''; // Le nom complet de l'agent connecté
-let currentAgentRole = ''; // Le rôle de l'agent connecté (pour distinguer admin/agent)
-
-// Map pour les noms des jours (peut être utile pour l'affichage)
-const dayNames = {
-    'lundi': 'Lundi',
-    'mardi': 'Mardi',
-    'mercredi': 'Mercredi',
-    'jeudi': 'Jeudi',
-    'vendredi': 'Vendredi',
-    'samedi': 'Samedi',
-    'dimanche': 'Dimanche'
-};
-const dayNamesInverse = {
-    'Lundi': 'lundi',
-    'Mardi': 'mardi',
-    'Mercredi': 'mercredi',
-    'Jeudi': 'jeudi',
-    'Vendredi': 'vendredi',
-    'Samedi': 'samedi',
-    'Dimanche': 'dimanche'
-};
-const daysOrder = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-
-// URL de base de votre API
+// URL de base de l'API. Assurez-vous que cette URL est correcte pour votre environnement.
 const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
-// Références DOM globales (seront initialisées dans init())
-let agentDisplayName, weekSelector, logoutBtn, saveSlotsBtn, clearSelectionBtn, synthesisBtn, loadingSpinner;
-let messageBox, messageText, closeMessageBox; // Pour la boîte de message personnalisée
+// Références DOM pour les éléments de la page agent.html
+// Utilisation de constantes pour les éléments DOM principaux pour éviter les modifications accidentelles
+const agentNameDisplay = document.getElementById('agent-name-display');
+const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay'); // NOUVEAU
+const currentWeekDisplay = document.getElementById('current-week-display');
+const prevWeekBtn = document.getElementById('prev-week-btn');
+const nextWeekBtn = document.getElementById('next-week-btn');
+const planningGrid = document.getElementById('planning-container'); // La grille d'affichage du planning
+const saveSlotsBtn = document.getElementById('save-slots-btn');
+const clearSelectionBtn = document.getElementById('clear-selection-btn');
+const logoutBtn = document.getElementById('logout-btn');
+const loadingSpinner = document.getElementById('loading-spinner'); // Référence au spinner de chargement
+
+// Variables d'état de l'application
+let currentAgentId;
+let currentAgentName;
+let currentAgentRole;
+let currentAgentQualifications = []; // NOUVEAU : pour stocker les qualifications de l'agent
+let currentWeekNumber;
+let currentYear;
+let planningData = {}; // Stocke le planning complet de l'agent: { week-X: { day: [slots] } }
+
+// Jours de la semaine en français pour l'affichage et la logique
+const DAYS_OF_WEEK_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+
+// --- Fonctions utilitaires ---
 
 /**
  * Affiche ou masque le spinner de chargement.
- * @param {boolean} isLoading - True pour afficher, false pour masquer.
+ * @param {boolean} show - True pour afficher, False pour masquer.
  */
-function showSpinner(isLoading) {
+function toggleLoadingSpinner(show) {
     if (loadingSpinner) {
-        loadingSpinner.classList.toggle("hidden", !isLoading);
-        // Désactiver le bouton de sauvegarde pendant le chargement
-        if (saveSlotsBtn) saveSlotsBtn.disabled = isLoading;
+        if (show) {
+            loadingSpinner.classList.remove('hidden');
+        } else {
+            loadingSpinner.classList.add('hidden');
+        }
     }
 }
 
 /**
- * Affiche une boîte de message personnalisée au lieu d'alert().
- * @param {string} message - Le message à afficher.
+ * Calcule le numéro de semaine ISO pour une date donnée.
+ * @param {Date} d - La date à analyser.
+ * @returns {number} Le numéro de semaine ISO.
  */
-function showCustomMessage(message) {
-    if (messageBox && messageText && closeMessageBox) {
-        messageText.textContent = message;
-        messageBox.classList.remove('hidden');
-        closeMessageBox.onclick = () => {
-            messageBox.classList.add('hidden');
-        };
+function getISOWeekNumber(d) {
+    const date = new Date(d.getTime());
+    date.setHours(0, 0, 0, 0);
+    // Jeudi en semaine 4
+    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+    // Début de l'année
+    const week1 = new Date(date.getFullYear(), 0, 4);
+    // Retourne le numéro de semaine
+    return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+
+/**
+ * Obtient la date du lundi d'une semaine et année données.
+ * @param {number} w - Le numéro de semaine ISO.
+ * @param {number} y - L'année.
+ * @returns {Date} La date du lundi de la semaine spécifiée.
+ */
+function getDateOfWeek(w, y) {
+    const date = new Date(y, 0, 1 + (w - 1) * 7);
+    if (date.getDay() <= 4) {
+        date.setDate(date.getDate() - date.getDay() + 1);
     } else {
-        console.error("Éléments de la boîte de message personnalisée non trouvés. Affichage dans la console à la place : " + message);
+        date.setDate(date.getDate() + 8 - date.getDay());
     }
+    return date;
 }
 
 /**
- * Effectue un appel API authentifié.
- * Ajoute automatiquement le token JWT de localStorage dans l'en-tête Authorization.
+ * Formate une date en chaîne YYYY-MM-DD.
+ * @param {Date} d - La date à formater.
+ * @returns {string} La date formatée.
  */
-async function callApi(endpoint, method = 'GET', body = null) {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        console.warn("[AGENT.JS Debug] Token JWT manquant lors de l'appel API. Redirection vers la page de connexion.");
-        showCustomMessage("Votre session a expiré ou n'est pas valide. Veuillez vous reconnecter.");
-        logout();
-        return null;
-    }
+function formatDateToYYYYMMDD(d) {
+    const dt = new Date(d);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}` +
+           `-${String(dt.getDate()).padStart(2,'0')}`;
+}
 
-    const headers = {
+/**
+ * Récupère le token JWT de session.
+ * @returns {string|null} Le token JWT ou null s'il n'est pas trouvé.
+ */
+function getToken() {
+    return sessionStorage.getItem('token');
+}
+
+/**
+ * Crée les en-têtes d'autorisation pour les requêtes API.
+ * @returns {Object} Les en-têtes.
+ */
+function getAuthHeaders() {
+    const token = getToken();
+    return {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
     };
+}
 
-    const options = {
-        method: method,
-        headers: headers
+/**
+ * Convertit une chaîne de temps "HH:MM" en nombre de minutes depuis minuit.
+ * @param {string} timeStr - La chaîne de temps.
+ * @returns {number} Le nombre total de minutes.
+ */
+function parseTimeToMinutes(timeStr) {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+}
+
+/**
+ * Convertit un nombre de minutes depuis minuit en format "HH:MM".
+ * Gère le cas de 24:00.
+ * @param {number} totalMinutes - Le nombre total de minutes.
+ * @returns {string} La chaîne de temps formatée.
+ */
+function minutesToTime(totalMinutes) {
+    let hours = Math.floor(totalMinutes / 60);
+    let minutes = totalMinutes % 60;
+    // Si l'heure est 24:00, affiche 00:00 (pour la fin de journée)
+    if (hours === 24 && minutes === 0) {
+        hours = 0;
+    }
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+
+// --- Fonctions de gestion de l'interface utilisateur (modales) ---
+
+/**
+ * Affiche une modale de message personnalisée.
+ * @param {string} title - Titre de la modale.
+ * @param {string} message - Contenu du message.
+ * @param {string} type - Type de message ('info', 'success', 'warning', 'error', 'question').
+ * @param {Function} callback - Fonction de rappel pour les modales de question (accepte un booléen).
+ */
+function displayMessageModal(title, message, type = "info", callback = null) {
+    let modal = document.getElementById('custom-message-modal');
+    // Crée la modale et son style si elle n'existe pas
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'custom-message-modal';
+        modal.className = 'modal-overlay';
+        document.body.appendChild(modal);
+
+        // Styles CSS pour la modale, injectés une seule fois
+        const modalCss = `
+            .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; font-family: 'Poppins', sans-serif; }
+            .modal-content { background-color: #fff; padding: 25px 35px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); width: 90%; max-width: 450px; animation: fadeIn 0.3s ease-out; display: flex; flex-direction: column; gap: 20px; }
+            .modal-header { display: flex; justify-content: flex-start; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
+            .modal-header h2 { margin: 0; color: #333; font-size: 1.5em; }
+            .modal-body { color: #555; font-size: 1em; line-height: 1.6; }
+            .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 15px; border-top: 1px solid #eee; margin-top: 15px; }
+            .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95em; font-weight: 500; transition: background-color 0.2s ease, transform 0.1s ease; }
+            .btn-primary { background-color: var(--primary-color); color: white; }
+            .btn-primary:hover { background-color: var(--primary-hover-color); transform: translateY(-1px); }
+            .btn-secondary { background-color: var(--secondary-color); color: white; }
+            .btn-secondary:hover { background-color: var(--secondary-hover-color); transform: translateY(-1px); }
+            .modal-icon { font-size: 2em; margin-right: 15px; align-self: flex-start; }
+            .modal-icon.info { color: #007bff; }
+            .modal-icon.success { color: #28a745; }
+            .modal-icon.warning { color: #ffc107; }
+            .modal-icon.error { color: #dc3545; }
+            .modal-icon.question { color: #6c757d; }
+            @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+            @media (max-width: 480px) {
+                .modal-content { padding: 20px; }
+                .modal-header h2 { font-size: 1.3em; }
+                .modal-icon { font-size: 1.8em; margin-right: 10px; }
+                .btn { padding: 8px 15px; font-size: 0.9em; }
+            }
+        `;
+        const styleSheet = document.createElement("style");
+        styleSheet.type = "text/css";
+        styleSheet.innerText = modalCss;
+        document.head.appendChild(styleSheet);
+    }
+
+    let iconHtml = '';
+    // Sélectionne l'icône appropriée selon le type de message
+    switch (type) {
+        case 'info': iconHtml = '💡'; break;
+        case 'success': iconHtml = '✅'; break;
+        case 'warning': iconHtml = '⚠️'; break;
+        case 'error': iconHtml = '❌'; break;
+        case 'question': iconHtml = '❓'; break;
+        default: iconHtml = '💬'; break; // Icône par défaut
+    }
+
+    // Met à jour le contenu HTML de la modale
+    modal.innerHTML = `
+        <div class="modal-content" role="alertdialog" aria-labelledby="modal-title" aria-describedby="modal-message">
+            <div class="modal-header">
+                <span class="modal-icon ${type}" aria-hidden="true">${iconHtml}</span>
+                <h2 id="modal-title">${title}</h2>
+            </div>
+            <div class="modal-body">
+                <p id="modal-message">${message}</p>
+            </div>
+            <div class="modal-footer">
+                ${callback ? '<button id="modal-cancel-btn" class="btn btn-secondary">Annuler</button>' : ''}
+                <button id="modal-ok-btn" class="btn btn-primary">OK</button>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex'; // Affiche la modale
+
+    // Gestion des événements pour les boutons OK et Annuler
+    const okBtn = modal.querySelector('#modal-ok-btn');
+    okBtn.onclick = () => {
+        modal.style.display = 'none';
+        if (callback) callback(true);
     };
 
-    if (body) {
-        options.body = JSON.stringify(body);
+    if (callback) {
+        const cancelBtn = modal.querySelector('#modal-cancel-btn');
+        cancelBtn.onclick = () => {
+            modal.style.display = 'none';
+            callback(false);
+        };
     }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-
-        if (response.status === 401 || response.status === 403) {
-            const errorData = await response.json();
-            console.error(`[AGENT.JS Debug] Erreur d'authentification/autorisation pour ${endpoint}:`, errorData.message);
-            showCustomMessage(errorData.message || "Votre session a expiré ou n'est pas valide. Veuillez vous reconnecter.");
-            logout();
-            return null;
+    // Ferme la modale si l'utilisateur clique en dehors du contenu
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            if (callback) callback(false); // Annule l'action si on clique en dehors
         }
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[AGENT.JS Debug] Erreur HTTP ${response.status} pour ${endpoint}:`, errorText);
-            throw new Error(`Erreur serveur: ${response.status} ${errorText}`);
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error(`[AGENT.JS Debug] Erreur lors de l'appel API à ${endpoint}:`, error);
-        throw error;
-    }
+    };
 }
 
-/**
- * Charge les informations de l'agent connecté.
- * Met à jour le nom affiché dans la navbar et initialise currentAgentId et currentAgentName.
- */
-async function fetchAgentInfo() {
-    showSpinner(true);
+// Redéfinition globale de window.confirm et window.alert pour utiliser la modale personnalisée
+window.confirm = (message) => {
+    return new Promise((resolve) => {
+        displayMessageModal("Confirmation", message, "question", (result) => {
+            resolve(result);
+        });
+    });
+};
+window.alert = (message) => {
+    displayMessageModal("Information", message, "info");
+};
+
+
+// --- Chargement des données de planning de l'agent ---
+async function loadAgentPlanning() {
+    toggleLoadingSpinner(true); // Affiche le spinner
+    const token = getToken();
+    if (!token) {
+        console.error("loadAgentPlanning: Token manquant. Redirection vers la page de connexion.");
+        displayMessageModal("Session expirée", "Votre session a expiré. Veuillez vous reconnecter.", "error", () => {
+            window.location.href = "index.html"; // Redirige vers la page de login
+        });
+        toggleLoadingSpinner(false);
+        return;
+    }
+
     try {
-        const userId = localStorage.getItem('userId');
-        if (!userId) {
-            console.error("[AGENT.JS Debug] ID utilisateur non trouvé dans localStorage lors de fetchAgentInfo.");
-            showCustomMessage("ID utilisateur manquant. Veuillez vous reconnecter.");
-            logout();
+        const response = await fetch(`${API_BASE_URL}/api/planning/${currentAgentId}`, {
+            headers: getAuthHeaders()
+        });
+
+        if (response.status === 403) {
+             console.error("loadAgentPlanning: Accès 403 - Rôle non autorisé ou token invalide.");
+             displayMessageModal("Accès non autorisé", "Vous n'avez pas l'autorisation de voir ce planning.", "error", () => {
+                window.location.href = "index.html"; // Redirige si non autorisé
+            });
+            toggleLoadingSpinner(false);
             return;
         }
-
-        // Si currentAgentName est déjà défini par localStorage au démarrage, on l'utilise
-        // Sinon, on tente de le récupérer via l'API (moins optimal si déjà dans localStorage)
-        if (!currentAgentName || !currentAgentRole) {
-            const data = await callApi(`/api/users/${userId}`);
-            if (data) {
-                currentAgentName = `${data.prenom} ${data.nom}`;
-                currentAgentRole = data.role; // Récupère le rôle de l'utilisateur
-                localStorage.setItem('userName', currentAgentName); // Mise à jour si manquante
-                localStorage.setItem('userRole', currentAgentRole); // Mise à jour si manquante
-            }
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
         }
 
-        if (agentDisplayName) {
-            agentDisplayName.textContent = currentAgentName || 'Agent';
-        }
-
-        // Ajuster l'interface en fonction du rôle
-        adjustUIForRole();
+        planningData = await response.json(); // Charge le planning complet de l'agent
+        renderPlanningGrid();
 
     } catch (error) {
-        console.error("[AGENT.JS Debug] Erreur lors de la récupération des informations de l'agent:", error);
-        showCustomMessage("Impossible de charger les informations de l'agent.");
-        logout(); // Si on ne peut pas charger les infos, la session est peut-être corrompue
+        console.error("Erreur lors du chargement du planning de l'agent:", error);
+        displayMessageModal("Erreur de chargement", error.message || "Impossible de charger votre planning. Veuillez réessayer.", "error");
     } finally {
-        showSpinner(false);
+        toggleLoadingSpinner(false); // Masque le spinner quelle que soit l'issue
     }
 }
 
-/**
- * Charge les identifiants des semaines disponibles et remplit le sélecteur.
- * Charge ensuite le planning de la semaine la plus récente.
- */
-async function fetchWeeks() {
-    showSpinner(true);
-    try {
-        const weeks = await callApi(`/api/weeks`);
-        if (weeks) {
-            weekSelector.innerHTML = ''; // Effacer les options existantes
-            // Trier les semaines pour que la plus récente soit sélectionnée par défaut
-            weeks.sort((a, b) => b.localeCompare(a));
-
-            weeks.forEach(weekId => {
-                const option = document.createElement('option');
-                option.value = weekId;
-                option.textContent = `Semaine ${weekId.split('-W')[1]} (${weekId.split('-W')[0]})`;
-                weekSelector.appendChild(option);
-            });
-
-            // Sélectionner la semaine la plus récente ou celle déjà en cours
-            currentWeekIdentifier = weekSelector.value || weeks[0];
-            if (currentWeekIdentifier) {
-                weekSelector.value = currentWeekIdentifier;
-                await fetchAgentPlanning(currentAgentId, currentWeekIdentifier);
-            }
-        }
-    } catch (error) {
-        console.error("[AGENT.JS Debug] Erreur lors du chargement des semaines:", error);
-        showCustomMessage("Impossible de charger les semaines disponibles.");
-    } finally {
-        showSpinner(false);
-    }
-}
-
-/**
- * Récupère le planning de l'agent pour une semaine donnée.
- * @param {string} agentId - L'ID de l'agent.
- * @param {string} weekId - L'identifiant de la semaine (ex: "2025-W25").
- */
-async function fetchAgentPlanning(agentId, weekId) {
-    showSpinner(true);
-    try {
-        const planning = await callApi(`/api/planning/${agentId}/${weekId}`);
-        if (planning) {
-            currentDailyAvailabilities = planning.dailyAvailabilities || {};
-            currentWeekDates = planning.weekDates || {}; // Assurez-vous que weekDates est inclus
-            renderSchedule();
-            hasUnsavedChanges = false;
-            updateSaveButtonVisibility();
-        }
-    } catch (error) {
-        console.error(`[AGENT.JS Debug] Erreur lors du chargement du planning de l'agent ${agentId} pour la semaine ${weekId}:`, error);
-        showCustomMessage("Impossible de charger le planning.");
-        // Gérer le cas où le planning n'existe pas encore pour cette semaine/agent
-        currentDailyAvailabilities = {}; // Réinitialise les disponibilités
-        renderSchedule(); // Affiche un tableau vide
-    } finally {
-        showSpinner(false);
-    }
-}
-
-/**
- * Sauvegarde les modifications du planning de l'agent.
- */
-async function saveAllSelectedSlots() {
-    showSpinner(true);
-    try {
-        // Préparer les données pour la sauvegarde (similaire à la structure de dailyAvailabilities)
-        const updatedPlanning = {
-            dailyAvailabilities: currentDailyAvailabilities,
-            weekDates: currentWeekDates // Inclure les dates de la semaine
-        };
-
-        const response = await callApi(`/api/planning/${currentAgentId}/${currentWeekIdentifier}`, 'PUT', updatedPlanning);
-        if (response) {
-            showCustomMessage("Planning sauvegardé avec succès !");
-            hasUnsavedChanges = false;
-            updateSaveButtonVisibility();
-            console.log("[AGENT.JS Debug] Planning sauvegardé:", response);
-        }
-    } catch (error) {
-        console.error("[AGENT.JS Debug] Erreur lors de la sauvegarde du planning:", error);
-        showCustomMessage("Erreur lors de la sauvegarde du planning.");
-    } finally {
-        showSpinner(false);
-    }
-}
-
-/**
- * Rend le planning de la semaine dans les onglets.
- */
-function renderSchedule() {
-    const scheduleContainer = document.getElementById('schedule-container');
-    if (!scheduleContainer) {
-        console.error("[AGENT.JS Debug] Élément 'schedule-container' non trouvé.");
+// --- Sauvegarde des créneaux de disponibilité pour une date spécifique ---
+async function saveAvailabilitiesForDate(dateKey, availabilities) {
+    toggleLoadingSpinner(true); // Affiche le spinner
+    const token = getToken();
+    if (!token) {
+        console.error("saveAvailabilitiesForDate: Token manquant. Redirection vers la page de connexion.");
+        displayMessageModal("Session expirée", "Votre session a expiré. Veuillez vous reconnecter.", "error", () => {
+            window.location.href = "index.html";
+        });
+        toggleLoadingSpinner(false);
         return;
     }
 
-    daysOrder.forEach(dayKey => {
-        const dayDiv = document.getElementById(dayKey);
-        if (!dayDiv) return;
-
-        dayDiv.innerHTML = ''; // Nettoyer le contenu précédent
-
-        const dayName = dayNames[dayKey];
-        const date = currentWeekDates[dayKey] || ''; // Récupère la date spécifique du jour
-        
-        // Titre du jour avec la date
-        const dayHeader = document.createElement('h5');
-        dayHeader.textContent = `${dayName} ${date ? `(${date})` : ''}`;
-        dayDiv.appendChild(dayHeader);
-
-        const table = document.createElement('table');
-        table.classList.add('table', 'table-bordered', 'mt-3');
-        const tbody = document.createElement('tbody');
-
-        const hours = [
-            "00h-04h", "04h-08h", "08h-12h", "12h-16h", "16h-20h", "20h-00h"
-        ];
-
-        hours.forEach(hourSlot => {
-            const row = document.createElement('tr');
-            const hourCell = document.createElement('td');
-            hourCell.textContent = hourSlot;
-            row.appendChild(hourCell);
-
-            const statusCell = document.createElement('td');
-            statusCell.classList.add('slot-cell');
-            statusCell.dataset.day = dayKey;
-            statusCell.dataset.hour = hourSlot;
-
-            const currentStatus = currentDailyAvailabilities[dayKey]?.[hourSlot] || 'indisponible';
-            statusCell.classList.add(currentStatus); // 'disponible', 'indisponible', 'reserve'
-
-            statusCell.textContent = currentStatus === 'disponible' ? 'Disponible' :
-                                     currentStatus === 'indisponible' ? 'Indisponible' :
-                                     currentStatus === 'reserve' ? 'Réservé' : '';
-
-
-            row.appendChild(statusCell);
-            tbody.appendChild(row);
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/agent-availability/${dateKey}/${currentAgentId}`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(availabilities)
         });
 
-        table.appendChild(tbody);
-        dayDiv.appendChild(table);
-    });
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("saveAvailabilitiesForDate: Erreur réponse API:", errorData.message || response.statusText);
+            throw new Error(errorData.message || 'Erreur lors de la sauvegarde des disponibilités.');
+        }
+
+        displayMessageModal("Succès", "Vos disponibilités ont été enregistrées.", "success");
+        await loadAgentPlanning(); // Recharger le planning après sauvegarde pour mise à jour de l'affichage
+
+    } catch (error) {
+        console.error("Erreur lors de la sauvegarde des disponibilités:", error);
+        displayMessageModal("Erreur de sauvegarde", error.message || "Impossible d'enregistrer vos disponibilités.", "error");
+    } finally {
+        toggleLoadingSpinner(false); // Masque le spinner
+    }
 }
 
-
 /**
- * Gère le clic sur un créneau pour changer son statut.
- * @param {Event} event - L'événement de clic.
+ * Charge les qualifications de l'agent.
  */
-function handleSlotClick(event) {
-    const target = event.target.closest('.slot-cell');
-    if (!target) return;
-
-    const day = target.dataset.day;
-    const hour = target.dataset.hour;
-
-    // Ne pas modifier les créneaux déjà "réservés" par un admin
-    if (currentDailyAvailabilities[day]?.[hour] === 'reserve') {
-        showCustomMessage("Ce créneau est déjà réservé et ne peut pas être modifié par vous.");
+async function loadAgentQualifications() {
+    if (!currentAgentId) {
+        console.warn("loadAgentQualifications: ID agent manquant.");
+        return;
+    }
+    const token = getToken();
+    if (!token) {
+        console.error("loadAgentQualifications: Token manquant.");
         return;
     }
 
-    // Toggle entre 'disponible' et 'indisponible'
-    const currentStatus = currentDailyAvailabilities[day]?.[hour] || 'indisponible';
-    const newStatus = (currentStatus === 'indisponible' || currentStatus === 'reserve') ? 'disponible' : 'indisponible';
-
-    // Mettre à jour l'objet de données local
-    if (!currentDailyAvailabilities[day]) {
-        currentDailyAvailabilities[day] = {};
-    }
-    currentDailyAvailabilities[day][hour] = newStatus;
-
-    // Mettre à jour la classe CSS
-    target.classList.remove('disponible', 'indisponible', 'reserve');
-    target.classList.add(newStatus);
-    target.textContent = newStatus === 'disponible' ? 'Disponible' : 'Indisponible';
-
-    hasUnsavedChanges = true;
-    updateSaveButtonVisibility();
-}
-
-/**
- * Configure les écouteurs de souris pour la sélection multiple par glisser-déposer.
- */
-function setupMouseListenersForSelection() {
-    const scheduleContainer = document.getElementById('schedule-container');
-    if (!scheduleContainer) return;
-
-    scheduleContainer.addEventListener('mousedown', (e) => {
-        const target = e.target.closest('.slot-cell');
-        if (target) {
-            isDragging = true;
-            dragStartSlot = { day: target.dataset.day, hour: target.dataset.hour };
-            // Appliquer immédiatement le changement au premier slot
-            handleSlotClick(e); // Simule un clic pour le premier élément sélectionné
-            target.classList.add('drag-selection'); // Ajouter une classe visuelle pour le drag
-        }
-    });
-
-    scheduleContainer.addEventListener('mouseover', (e) => {
-        if (isDragging) {
-            const target = e.target.closest('.slot-cell');
-            if (target && target.dataset.day && target.dataset.hour) {
-                // Seulement si le slot n'est pas "reservé"
-                if (currentDailyAvailabilities[target.dataset.day]?.[target.dataset.hour] !== 'reserve') {
-                    // Appliquer le changement de statut au slot survolé
-                    // (on bascule toujours vers 'disponible' lors d'un drag, ou on le garde si déjà réservé/indispo)
-                    const day = target.dataset.day;
-                    const hour = target.dataset.hour;
-                    const initialStatus = currentDailyAvailabilities[dragStartSlot.day][dragStartSlot.hour];
-                    
-                    if (!currentDailyAvailabilities[day]) {
-                        currentDailyAvailabilities[day] = {};
-                    }
-                    
-                    // Si le slot de départ était 'disponible', tous les slots dragués deviennent 'disponible'
-                    // Si le slot de départ était 'indisponible', tous les slots dragués deviennent 'indisponible'
-                    const newStatus = initialStatus === 'disponible' ? 'disponible' : 'indisponible';
-
-                    // Appliquer ce statut au slot survolé (sauf si réservé)
-                    if (currentDailyAvailabilities[day]?.[hour] !== 'reserve') {
-                         currentDailyAvailabilities[day][hour] = newStatus;
-                    }
-                   
-                    // Mettre à jour l'affichage
-                    target.classList.remove('disponible', 'indisponible', 'reserve');
-                    target.classList.add(currentDailyAvailabilities[day][hour]);
-                    target.textContent = currentDailyAvailabilities[day][hour] === 'disponible' ? 'Disponible' :
-                                         currentDailyAvailabilities[day][hour] === 'indisponible' ? 'Indisponible' :
-                                         'Réservé'; // Si c'est 'reserve', ne change pas le texte
-
-
-                    hasUnsavedChanges = true;
-                    updateSaveButtonVisibility();
-                }
-            }
-        }
-    });
-
-    scheduleContainer.addEventListener('mouseup', () => {
-        isDragging = false;
-        dragStartSlot = null;
-        // Supprimer la classe de sélection visuelle après le drag
-        document.querySelectorAll('.slot-cell').forEach(cell => {
-            cell.classList.remove('drag-selection');
-        });
-    });
-
-    // Empêcher la sélection de texte lors du glisser-déposer
-    scheduleContainer.addEventListener('selectstart', (e) => {
-        if (isDragging) e.preventDefault();
-    });
-}
-
-/**
- * Efface toutes les sélections de disponibilité faites par l'utilisateur pour la semaine courante,
- * ramenant tous les créneaux à 'indisponible', sauf ceux qui sont 'réservé'.
- */
-function clearSelection() {
-    showCustomMessage("Voulez-vous vraiment effacer toutes vos sélections pour cette semaine ? Cela mettra tous les créneaux à 'Indisponible' (sauf les créneaux réservés).",
-        () => { // Callback si l'utilisateur confirme
-            for (const day in currentDailyAvailabilities) {
-                for (const hour in currentDailyAvailabilities[day]) {
-                    // Ne pas effacer les créneaux "réservés" par un admin
-                    if (currentDailyAvailabilities[day][hour] !== 'reserve') {
-                        currentDailyAvailabilities[day][hour] = 'indisponible';
-                    }
-                }
-            }
-            renderSchedule(); // Re-rendre le tableau avec les modifications
-            hasUnsavedChanges = true;
-            updateSaveButtonVisibility();
-            showCustomMessage("Sélection effacée.");
-        },
-        true // Indique que c'est une confirmation, pas juste un message d'info
-    );
-}
-
-/**
- * Affiche/masque les boutons "Enregistrer" et "Effacer la sélection"
- * en fonction de la présence de changements non sauvegardés.
- */
-function updateSaveButtonVisibility() {
-    if (saveSlotsBtn && clearSelectionBtn) {
-        if (hasUnsavedChanges) {
-            saveSlotsBtn.style.display = 'inline-block';
-            clearSelectionBtn.style.display = 'inline-block';
-        } else {
-            saveSlotsBtn.style.display = 'none';
-            clearSelectionBtn.style.display = 'none';
-        }
-    }
-}
-
-/**
- * Configure les onglets Bootstrap pour le planning quotidien.
- */
-function setupDayTabs() {
-    const triggerTabList = document.querySelectorAll('#myTab button');
-    triggerTabList.forEach(triggerEl => {
-        const tabTrigger = new bootstrap.Tab(triggerEl);
-
-        triggerEl.addEventListener('click', event => {
-            event.preventDefault();
-            tabTrigger.show();
-        });
-    });
-
-    // Attacher les gestionnaires d'événements de clic aux cellules des slots
-    const scheduleContainer = document.getElementById('schedule-container');
-    if (scheduleContainer) {
-        scheduleContainer.addEventListener('click', handleSlotClick);
-    }
-}
-
-/**
- * Affiche la synthèse des réservations de l'agent.
- */
-async function showSynthesis() {
-    showSpinner(true);
     try {
-        const synthesis = await callApi(`/api/planning/${currentAgentId}/${currentWeekIdentifier}/synthesis`);
-        if (synthesis) {
-            let synthesisMessage = `Synthèse des réservations pour la semaine ${currentWeekIdentifier}:\n\n`;
-            if (synthesis.reservations && synthesis.reservations.length > 0) {
-                synthesis.reservations.forEach(r => {
-                    synthesisMessage += `- ${dayNames[r.dayKey]} (${r.date}): ${r.hourSlot} - Statut: ${r.status}\n`;
-                });
+        const response = await fetch(`${API_BASE_URL}/api/agents/${currentAgentId}/qualifications`, {
+            headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+            // Si 404 (non trouvé) ou autre erreur, gérer. Peut-être qu'un agent n'a pas de qualifications.
+            if (response.status === 404) {
+                 console.info(`Aucune qualification trouvée pour l'agent ${currentAgentId}.`);
+                 currentAgentQualifications = []; // Réinitialiser si non trouvé
             } else {
-                synthesisMessage += "Aucune réservation pour cette semaine.";
+                throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
             }
-            showCustomMessage(synthesisMessage);
+        } else {
+            const data = await response.json();
+            currentAgentQualifications = data.qualifications || [];
         }
+        renderAgentQualifications(); // Met à jour l'affichage des qualifications
+
     } catch (error) {
-        console.error("[AGENT.JS Debug] Erreur lors de l'affichage de la synthèse:", error);
-        showCustomMessage("Impossible d'afficher la synthèse des réservations.");
-    } finally {
-        showSpinner(false);
+        console.error("Erreur lors du chargement des qualifications de l'agent:", error);
+        // Afficher un message d'erreur si le chargement des qualifications échoue.
+        // displayMessageModal("Erreur", "Impossible de charger vos qualifications.", "error");
     }
 }
 
 /**
- * Fonction de déconnexion.
- * Nettoie le localStorage et redirige vers la page de connexion.
+ * Affiche les qualifications de l'agent dans le DOM.
+ */
+function renderAgentQualifications() {
+    if (agentQualificationsDisplay) {
+        if (currentAgentQualifications.length > 0) {
+            agentQualificationsDisplay.innerHTML = 'Vos qualifications : ' +
+                currentAgentQualifications.map(q => `<span class="qualification-tag">${q}</span>`).join(' ');
+        } else {
+            agentQualificationsDisplay.innerHTML = 'Aucune qualification renseignée.';
+        }
+    }
+}
+
+
+// --- Rendu du planning ---
+function renderPlanningGrid() {
+    if (!planningGrid) {
+        console.error("Erreur DOM: L'élément 'planning-container' est introuvable. Assurez-vous que l'ID est correct dans agent.html.");
+        displayMessageModal("Erreur d'affichage", "Impossible d'afficher le planning. L'élément de grille est manquant.", "error");
+        return;
+    }
+    planningGrid.innerHTML = ''; // Vide la grille actuelle
+
+    const mondayOfCurrentWeek = getDateOfWeek(currentWeekNumber, currentYear);
+    const sundayOfCurrentWeek = new Date(mondayOfCurrentWeek.getTime() + 6 * 24 * 60 * 60 * 1000);
+
+    if (currentWeekDisplay) {
+        currentWeekDisplay.textContent = `Semaine ${currentWeekNumber} (${mondayOfCurrentWeek.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} - ${sundayOfCurrentWeek.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })})`;
+    } else {
+        console.warn("L'élément 'current-week-display' est introuvable dans agent.html.");
+    }
+
+    const weeklyPlanning = planningData[`week-${currentWeekNumber}`] || {};
+
+    // Création des en-têtes de jour
+    const headerRow = document.createElement('div');
+    headerRow.classList.add('planning-row', 'header');
+    headerRow.innerHTML = `<div class="time-slot-header">Heure</div>`;
+    DAYS_OF_WEEK_FR.forEach(day => {
+        headerRow.innerHTML += `<div class="day-header">${day.charAt(0).toUpperCase() + day.slice(1)}</div>`;
+    });
+    planningGrid.appendChild(headerRow);
+
+    // Création des lignes de temps (créneaux de 30 min)
+    for (let i = 0; i < 48; i++) { // 48 créneaux de 30 minutes dans une journée
+        const h = Math.floor(i / 2);
+        const m = (i % 2) * 30;
+        const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+        // Pas de div 'row' physique car 'display: contents' est utilisé sur .planning-row
+        // Chaque time-slot-label et planning-cell se positionne dans la grille directement.
+
+        const timeLabelDiv = document.createElement('div');
+        timeLabelDiv.classList.add('time-slot-label');
+        timeLabelDiv.textContent = timeStr;
+        planningGrid.appendChild(timeLabelDiv); // Ajoute le label d'heure à la grille
+
+        DAYS_OF_WEEK_FR.forEach((dayName, dayIndex) => {
+            const cell = document.createElement('div');
+            cell.classList.add('planning-cell');
+            cell.dataset.time = timeStr; // Heure de début du créneau (HH:MM)
+            cell.dataset.day = dayName; // Nom du jour (lundi, mardi, etc.)
+            cell.dataset.slotIndex = i; // Index du créneau pour un tri facile
+
+            // Vérifier si ce créneau est "disponible" dans les données de planning
+            const dayAvailabilities = weeklyPlanning[dayName] || [];
+            let isAvailable = false;
+
+            // Parcours les plages de disponibilité pour voir si le créneau actuel chevauche
+            for (const rangeStr of dayAvailabilities) {
+                const [start, end] = rangeStr.split(' - ');
+                const cellStartMinutes = parseTimeToMinutes(timeStr);
+                const cellEndMinutes = cellStartMinutes + 30;
+                
+                const rangeStartMinutes = parseTimeToMinutes(start);
+                const rangeEndMinutes = parseTimeToMinutes(end);
+
+                // Logique de chevauchement : un créneau est disponible s'il chevauche une plage.
+                // Le créneau (cellStartMinutes, cellEndMinutes) chevauche (rangeStartMinutes, rangeEndMinutes)
+                // si (cellStart < rangeEnd AND cellEnd > rangeStart)
+                if (cellStartMinutes < rangeEndMinutes && cellEndMinutes > rangeStartMinutes) {
+                    isAvailable = true;
+                    break; // Pas besoin de vérifier d'autres plages si un chevauchement est trouvé
+                }
+            }
+
+            if (isAvailable) {
+                cell.classList.add('available');
+            } else {
+                cell.classList.add('unavailable');
+                // Désactive les créneaux non disponibles pour empêcher la sélection
+                cell.style.pointerEvents = 'none'; // Empêche les événements de souris
+                cell.tabIndex = -1; // Retire de l'ordre de tabulation
+            }
+
+            // Seulement les créneaux 'available' sont interactifs
+            if (isAvailable) {
+                cell.addEventListener('mousedown', handleMouseDown);
+                cell.addEventListener('mouseover', handleMouseOver);
+                cell.addEventListener('mouseup', handleMouseUp);
+            }
+            
+            planningGrid.appendChild(cell); // Ajoute la cellule du créneau à la grille
+        });
+    }
+}
+
+
+// --- Logique de sélection par glisser-déposer ---
+let isSelecting = false;
+let startCell = null;
+let selectedCells = [];
+
+function handleMouseDown(e) {
+    // S'assure que seul le clic gauche est pris en compte et que la cellule n'est pas "unavailable"
+    if (e.button !== 0 || e.target.classList.contains('unavailable')) return;
+    
+    isSelecting = true;
+    startCell = e.target;
+    selectedCells = [];
+    
+    // Nettoie toutes les sélections précédentes
+    if (planningGrid) {
+        planningGrid.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
+        planningGrid.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
+    }
+    
+    startCell.classList.add('selecting');
+    selectedCells.push(startCell);
+}
+
+function handleMouseOver(e) {
+    if (!isSelecting || !startCell) return;
+
+    const currentCell = e.target.closest('.planning-cell');
+    // Ne pas sélectionner les cellules non disponibles ou si ce n'est pas une cellule valide
+    if (!currentCell || currentCell.classList.contains('unavailable')) return;
+
+    // Vérifie que la sélection se fait dans la même colonne (même jour)
+    if (currentCell.dataset.day !== startCell.dataset.day) return;
+
+    // Réinitialise les classes 'selecting' pour une mise à jour visuelle fluide
+    if (planningGrid) planningGrid.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting'));
+    selectedCells = [];
+
+    const startSlotIndex = parseInt(startCell.dataset.slotIndex);
+    const currentSlotIndex = parseInt(currentCell.dataset.slotIndex);
+    const selectedDay = startCell.dataset.day;
+
+    const minSlot = Math.min(startSlotIndex, currentSlotIndex);
+    const maxSlot = Math.max(startSlotIndex, currentSlotIndex);
+
+    // Parcourt tous les créneaux de la journée sélectionnée
+    planningGrid.querySelectorAll(`.planning-cell[data-day="${selectedDay}"]`).forEach(cell => {
+        const slotIndex = parseInt(cell.dataset.slotIndex);
+        if (slotIndex >= minSlot && slotIndex <= maxSlot) {
+            // N'ajoute pas et ne marque pas comme 'selecting' les cellules 'unavailable'
+            if (!cell.classList.contains('unavailable')) {
+                cell.classList.add('selecting');
+                selectedCells.push(cell);
+            } else {
+                // Si une cellule non disponible est rencontrée dans la plage, arrête la sélection
+                // Cela empêche la sélection à travers des créneaux non disponibles.
+                if ( (startSlotIndex < currentSlotIndex && slotIndex > startSlotIndex && slotIndex < currentSlotIndex) ||
+                     (startSlotIndex > currentSlotIndex && slotIndex < startSlotIndex && slotIndex > currentSlotIndex) ) {
+                    // Si une cellule "unavailable" est entre le début et la fin, reset la sélection.
+                    // Ou simplement ne pas la considérer. Ici, nous laissons la sélection s'arrêter à la cellule précédente.
+                    // Pour simplifier, nous permettons juste de ne pas la sélectionner.
+                }
+            }
+        }
+    });
+}
+
+async function handleMouseUp() {
+    if (!isSelecting) return;
+    isSelecting = false;
+
+    if (selectedCells.length > 0) {
+        // Appliquer la classe 'selected' et supprimer 'selecting'
+        selectedCells.forEach(cell => {
+            cell.classList.remove('selecting');
+            cell.classList.add('selected');
+        });
+    }
+    startCell = null; // Réinitialise la cellule de départ après la sélection
+}
+
+
+// --- Fonctions de gestion des boutons ---
+
+/**
+ * Sauvegarde les créneaux sélectionnés.
+ */
+async function saveSelectedSlots() {
+    // Filtrer les créneaux sélectionnés qui ne sont pas "unavailable" (bien que le mouseover devrait déjà l'éviter)
+    const trulySelectedCells = selectedCells.filter(cell => !cell.classList.contains('unavailable'));
+
+    if (trulySelectedCells.length === 0) {
+        displayMessageModal("Aucune sélection", "Veuillez sélectionner des créneaux avant d'enregistrer.", "warning");
+        return;
+    }
+
+    const selectedDay = trulySelectedCells[0].dataset.day;
+    const availabilitiesForDay = [];
+
+    // Trier les cellules sélectionnées par index de créneau pour garantir l'ordre chronologique
+    trulySelectedCells.sort((a, b) => parseInt(a.dataset.slotIndex) - parseInt(b.dataset.slotIndex));
+
+    // Fusionner les créneaux contigus en plages
+    if (trulySelectedCells.length > 0) {
+        let currentStartMinutes = parseTimeToMinutes(trulySelectedCells[0].dataset.time);
+        let currentEndMinutes = currentStartMinutes + 30; // Chaque créneau dure 30 minutes
+
+        for (let i = 1; i < trulySelectedCells.length; i++) {
+            const nextCellTimeMinutes = parseTimeToMinutes(trulySelectedCells[i].dataset.time);
+            // Si le créneau suivant est le créneau immédiatement consécutif
+            if (nextCellTimeMinutes === currentEndMinutes) {
+                currentEndMinutes += 30;
+            } else {
+                // Sinon, la plage actuelle est terminée, l'ajouter et commencer une nouvelle
+                availabilitiesForDay.push({
+                    start: minutesToTime(currentStartMinutes),
+                    end: minutesToTime(currentEndMinutes)
+                });
+                currentStartMinutes = nextCellTimeMinutes;
+                currentEndMinutes = currentStartMinutes + 30;
+            }
+        }
+        // Ajouter la dernière plage
+        availabilitiesForDay.push({
+            start: minutesToTime(currentStartMinutes),
+            end: minutesToTime(currentEndMinutes)
+        });
+    }
+
+    // Récupérer la date complète pour le jour sélectionné dans la semaine actuelle
+    const weekStartDate = getDateOfWeek(currentWeekNumber, currentYear);
+    const dayIndex = DAYS_OF_WEEK_FR.indexOf(selectedDay.toLowerCase());
+    const targetDate = new Date(weekStartDate);
+    targetDate.setDate(weekStartDate.getDate() + dayIndex);
+
+    const dateKey = formatDateToYYYYMMDD(targetDate);
+
+    // Sauvegarder les disponibilités pour cette date et cet agent
+    await saveAvailabilitiesForDate(dateKey, availabilitiesForDay);
+
+    // Après sauvegarde, recharger pour s'assurer que la grille est à jour
+    clearSelectedSlots(); // Nettoyer la sélection après sauvegarde
+}
+
+/**
+ * Efface la sélection courante de créneaux.
+ */
+function clearSelectedSlots() {
+    if (!planningGrid) {
+        console.error("Erreur DOM: L'élément 'planning-container' est introuvable pour effacer la sélection.");
+        return;
+    }
+    planningGrid.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
+    planningGrid.querySelectorAll('.selecting').forEach(cell => cell.classList.remove('selecting')); // S'assurer que les 'selecting' sont aussi nettoyés
+    selectedCells = [];
+    startCell = null;
+}
+
+/**
+ * Déconnecte l'agent et redirige vers la page de connexion.
  */
 function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('userName');
-    currentAgentId = '';
-    currentAgentName = '';
-    currentAgentRole = '';
-    window.location.href = 'index.html'; // Redirection vers la page de connexion
-}
-
-/**
- * Ajuste les éléments de l'interface utilisateur en fonction du rôle de l'agent.
- * Par exemple, masquer/afficher des boutons d'admin.
- */
-function adjustUIForRole() {
-    const isAdmin = (currentAgentRole === 'admin');
-    const adminPanelLink = document.getElementById('admin-panel-link');
-    // Si adminPanelLink existe et si l'agent est un admin, le montre. Sinon, le cache.
-    if (adminPanelLink) {
-        adminPanelLink.style.display = isAdmin ? 'block' : 'none';
-    }
-
-    // Si d'autres éléments spécifiques à l'admin existent, les gérer ici
-    // Exemple: adminOnlyButton.style.display = isAdmin ? 'block' : 'none';
+    sessionStorage.clear(); // Supprime toutes les données de session
+    window.location.href = "index.html"; // Redirige vers la page de connexion
 }
 
 
-/**
- * Fonction d'initialisation principale, appelée au chargement du DOM.
- */
-function init() {
-    // Initialiser les références DOM
-    agentDisplayName = document.getElementById("agent-display-name");
-    weekSelector = document.getElementById("week-selector");
-    logoutBtn = document.getElementById("logout-btn");
-    saveSlotsBtn = document.getElementById("save-slots-btn");
-    clearSelectionBtn = document.getElementById("clear-selection-btn");
-    synthesisBtn = document.getElementById("synthesis-btn");
-    loadingSpinner = document.getElementById("loading-spinner");
-    messageBox = document.getElementById('message-box');
-    messageText = document.getElementById('message-text');
-    closeMessageBox = document.getElementById('close-message-box');
+// --- Initialisation de l'application ---
+document.addEventListener("DOMContentLoaded", async () => {
+    // Récupérer les informations de session
+    currentAgentId = sessionStorage.getItem('agent');
+    currentAgentName = sessionStorage.getItem('agentPrenom') + ' ' + sessionStorage.getItem('agentNom');
+    currentAgentRole = sessionStorage.getItem('userRole');
 
-
-    // Vérifier l'authentification au chargement de la page agent/admin
-    const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('userRole');
-    const userIdFromStorage = localStorage.getItem('userId');
-    const userNameFromStorage = localStorage.getItem('userName');
-
-    console.log(`[AGENT.JS Debug] --- Vérification Session au chargement ---`);
-    console.log(`[AGENT.JS Debug] Token from localStorage: ${token ? 'Présent' : 'Absent'}`);
-    console.log(`[AGENT.JS Debug] Rôle from localStorage: ${userRole}`);
-    console.log(`[AGENT.JS Debug] ID utilisateur from localStorage: ${userIdFromStorage}`);
-    console.log(`[AGENT.JS Debug] Nom utilisateur from localStorage: ${userNameFromStorage}`);
-    console.log(`[AGENT.JS Debug] --- Fin Vérification Session ---`);
-
-    if (!token || !userRole || !userIdFromStorage) {
-        console.warn("[AGENT.JS] Aucun token, rôle ou ID utilisateur trouvé au chargement de la page. Redirection vers la connexion.");
-        showCustomMessage("Votre session a expiré ou n'est pas valide. Veuillez vous reconnecter.");
-        logout(); // Redirige si pas de token/rôle
-        return; // Arrête l'exécution de init()
-    }
-
-    currentAgentId = userIdFromStorage;
-    currentAgentName = userNameFromStorage;
-    currentAgentRole = userRole; // Assigner le rôle récupéré
-
-    // Mettre à jour le nom affiché dans la navbar immédiatement
-    if (agentDisplayName) {
-        agentDisplayName.textContent = currentAgentName || 'Chargement...';
-    }
-
-    // Attacher les écouteurs d'événements
-    if (weekSelector) {
-        weekSelector.addEventListener('change', (e) => {
-            currentWeekIdentifier = e.target.value;
-            fetchAgentPlanning(currentAgentId, currentWeekIdentifier);
+    // Vérification initiale de l'authentification et du rôle
+    const token = getToken();
+    if (!currentAgentId || !token) {
+        console.error("Initialisation Agent: ID agent ou Token manquant. Redirection vers login.");
+        displayMessageModal("Session expirée", "Votre session a expiré ou n'est pas valide. Veuillez vous reconnecter.", "error", () => {
+            window.location.href = "index.html"; // Redirige vers la page de connexion
         });
+        return; // Arrête l'exécution si non authentifié
     }
 
+    // Vérification du rôle pour cette page spécifique
+    if (currentAgentRole !== 'agent') {
+        console.error("Initialisation Agent: Rôle incorrect pour cette page. Rôle actuel:", currentAgentRole);
+        displayMessageModal("Accès non autorisé", "Vous devez être connecté en tant qu'agent pour accéder à cette page.", "error", () => {
+            if (currentAgentRole === 'admin') {
+                window.location.href = "admin.html"; // Si c'est un admin, rediriger vers sa page
+            } else {
+                window.location.href = "index.html"; // Autres rôles non autorisés ou incohérents
+            }
+        });
+        return; // Arrête l'exécution si le rôle n'est pas 'agent'
+    }
+
+    // Si tout est bon (authentifié et rôle 'agent')
+    if (agentNameDisplay) {
+        agentNameDisplay.textContent = `${currentAgentName} (ID: ${currentAgentId})`; // Ajoute l'ID pour clarification
+    } else {
+        console.warn("L'élément 'agent-name-display' est introuvable dans agent.html. Le nom de l'agent ne sera pas affiché.");
+    }
+
+    // Charge et affiche les qualifications de l'agent
+    await loadAgentQualifications();
+
+    // Initialiser la semaine actuelle
+    const today = new Date();
+    currentYear = today.getFullYear();
+    currentWeekNumber = getISOWeekNumber(today);
+
+    // Chargement initial du planning
+    await loadAgentPlanning();
+
+    // Configuration des événements pour la navigation entre les semaines
+    if (prevWeekBtn) {
+        prevWeekBtn.addEventListener('click', async () => {
+            currentWeekNumber--;
+            if (currentWeekNumber < 1) { // Gérer le passage à l'année précédente
+                currentYear--;
+                currentWeekNumber = getISOWeekNumber(new Date(currentYear, 11, 31)); // Dernière semaine de l'année précédente
+            }
+            await loadAgentPlanning(); // Recharge le planning pour la nouvelle semaine
+        });
+    } else {
+        console.warn("L'élément 'prev-week-btn' est introuvable dans agent.html. Le bouton précédent ne sera pas fonctionnel.");
+    }
+
+    if (nextWeekBtn) {
+        nextWeekBtn.addEventListener('click', async () => {
+            currentWeekNumber++;
+            const lastDayOfCurrentYear = new Date(currentYear, 11, 31);
+            const lastWeekOfCurrentYear = getISOWeekNumber(lastDayOfCurrentYear);
+            if (currentWeekNumber > lastWeekOfCurrentYear) { // Gérer le passage à l'année suivante
+                currentYear++;
+                currentWeekNumber = 1;
+            }
+            await loadAgentPlanning(); // Recharge le planning pour la nouvelle semaine
+        });
+    } else {
+        console.warn("L'élément 'next-week-btn' est introuvable dans agent.html. Le bouton suivant ne sera pas fonctionnel.");
+    }
+    
+    // Événements pour les boutons d'action
     if (saveSlotsBtn) {
-        saveSlotsBtn.addEventListener('click', saveAllSelectedSlots);
+        saveSlotsBtn.addEventListener('click', saveSelectedSlots);
+    } else {
+        console.warn("L'élément 'save-slots-btn' est introuvable dans agent.html. Le bouton de sauvegarde ne sera pas fonctionnel.");
     }
+
     if (clearSelectionBtn) {
-        clearSelectionBtn.addEventListener('click', clearSelection);
+        clearSelectionBtn.addEventListener('click', clearSelectedSlots);
+    } else {
+        console.warn("L'élément 'clear-selection-btn' est introuvable dans agent.html. Le bouton d'effacement de sélection ne sera pas fonctionnel.");
     }
+
     if (logoutBtn) {
         logoutBtn.addEventListener('click', logout);
+    } else {
+        console.warn("L'élément 'logout-btn' est introuvable dans agent.html. Le bouton de déconnexion ne sera pas fonctionnel.");
     }
-    if (synthesisBtn) {
-        synthesisBtn.addEventListener('click', showSynthesis);
-    }
-
-    // Gérer l'avertissement de fermeture de page avec des changements non sauvegardés
-    window.addEventListener('beforeunload', function(event) {
-        if (hasUnsavedChanges) {
-            const confirmationMessage = 'Vous avez des modifications non sauvegardées. Êtes-vous sûr de vouloir quitter ?';
-            event.returnValue = confirmationMessage; // Standard pour les anciens navigateurs
-            return confirmationMessage; // Pour les navigateurs modernes
-        }
+    
+    // Gestion des onglets de jour (si implémenté, actuellement le planning est global)
+    // S'il y a une future intention de charger le planning par jour via onglets, la logique doit être ajoutée ici.
+    document.querySelectorAll('.tabs-navigation .tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Logique pour changer l'onglet actif et potentiellement filtrer l'affichage du planning
+            // Pour l'instant, le planning est affiché pour toute la semaine, donc ce n'est que visuel
+            document.querySelectorAll('.tabs-navigation .tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            // Si la grille devait filtrer par jour, la logique irait ici:
+            // filterPlanningByDay(this.dataset.day);
+        });
     });
-
-    // Chargement initial des données
-    fetchAgentInfo(); // Charge les infos de l'agent au démarrage et set currentAgentId/Name/Role
-    fetchWeeks(); // Charge les semaines et le planning de la semaine par défaut
-    setupDayTabs(); // Initialise les onglets Bootstrap
-    setupMouseListenersForSelection(); // Configure les écouteurs de souris pour le glisser-déposer
-    adjustUIForRole(); // Ajuste l'UI en fonction du rôle
-}
-
-// Appel de la fonction d'initialisation principale une fois le DOM entièrement chargé
-document.addEventListener('DOMContentLoaded', init); // Fin de DOMContentLoaded
+});
