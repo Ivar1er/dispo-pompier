@@ -21,8 +21,16 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
+                    <!-- Liens de navigation -->
                     <li class="nav-item">
-                        <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
+                        <a class="nav-link active" aria-current="page" href="#">Mon Planning</a>
+                    </li>
+                    <!-- Lien pour le panneau admin, sera affiché si l'utilisateur est admin -->
+                    <li class="nav-item" id="admin-panel-link" style="display: none;">
+                        <a class="nav-link" href="admin.html">Panneau Admin</a>
+                    </li>
+                    <li class="nav-item">
+                        <button id="logout-btn" class="btn btn-outline-danger ms-2">Déconnexion</button>
                     </li>
                 </ul>
             </div>
@@ -30,53 +38,57 @@
     </nav>
 
     <div class="container mt-4">
-        <h1 class="mb-4">Votre Planning</h1>
+        <h2 class="mb-4">Gestion de Mon Planning</h2>
 
-        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
-
-        <!-- Contrôles de semaine -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <button id="prev-week-btn" class="btn btn-primary">&lt; Semaine Précédente</button>
-            <span id="current-week" class="fs-5 fw-bold"></span>
-            <button id="next-week-btn" class="btn btn-primary">Semaine Suivante &gt;</button>
+        <!-- Spinner de chargement global -->
+        <div id="loading-spinner" class="loading-spinner hidden">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p>Chargement du planning...</p>
         </div>
 
         <div class="mb-3">
-            <label for="week-select" class="form-label">Sélectionner une semaine:</label>
-            <select id="week-select" class="form-control mb-2"></select>
+            <label for="week-selector" class="form-label">Sélectionner la semaine :</label>
+            <select class="form-select" id="week-selector">
+                <!-- Les options seront remplies par agent.js -->
+            </select>
         </div>
 
-        <!-- Spinner de chargement -->
-        <div id="loading-spinner" class="spinner-border text-primary" role="status" style="display: none;">
-            <span class="visually-hidden">Chargement...</span>
-        </div>
-
-        <!-- Onglets des jours -->
-        <ul class="nav nav-tabs" id="dayTabs" role="tablist">
+        <!-- Onglets pour les jours de la semaine -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="monday-tab" data-bs-toggle="tab" data-bs-target="#monday" type="button" role="tab" aria-controls="monday" aria-selected="true">Lundi</button>
+                <button class="nav-link active" id="monday-tab" data-bs-toggle="tab" data-bs-target="#lundi" type="button" role="tab" aria-controls="lundi" aria-selected="true">Lundi</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tuesday-tab" data-bs-toggle="tab" data-bs-target="#tuesday" type="button" role="tab" aria-controls="tuesday" aria-selected="false">Mardi</button>
+                <button class="nav-link" id="tuesday-tab" data-bs-toggle="tab" data-bs-target="#mardi" type="button" role="tab" aria-controls="mardi" aria-selected="false">Mardi</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="wednesday-tab" data-bs-toggle="tab" data-bs-target="#wednesday" type="button" role="tab" aria-controls="wednesday" aria-selected="false">Mercredi</button>
+                <button class="nav-link" id="wednesday-tab" data-bs-toggle="tab" data-bs-target="#mercredi" type="button" role="tab" aria-controls="mercredi" aria-selected="false">Mercredi</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="thursday-tab" data-bs-toggle="tab" data-bs-target="#thursday" type="button" role="tab" aria-controls="thursday" aria-selected="false">Jeudi</button>
+                <button class="nav-link" id="thursday-tab" data-bs-toggle="tab" data-bs-target="#jeudi" type="button" role="tab" aria-controls="jeudi" aria-selected="false">Jeudi</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="friday-tab" data-bs-toggle="tab" data-bs-target="#friday" type="button" role="tab" aria-controls="friday" aria-selected="false">Vendredi</button>
+                <button class="nav-link" id="friday-tab" data-bs-toggle="tab" data-bs-target="#vendredi" type="button" role="tab" aria-controls="vendredi" aria-selected="false">Vendredi</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="saturday-tab" data-bs-toggle="tab" data-bs-target="#samedi" type="button" role="tab" aria-controls="samedi" aria-selected="false">Samedi</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sunday-tab" data-bs-toggle="tab" data-bs-target="#dimanche" type="button" role="tab" aria-controls="dimanche" aria-selected="false">Dimanche</button>
             </li>
         </ul>
 
         <!-- Contenu des onglets -->
         <div class="tab-content mt-3" id="schedule-container">
-            <div class="tab-pane fade show active" id="monday" role="tabpanel" aria-labelledby="monday-tab"></div>
-            <div class="tab-pane fade" id="tuesday" role="tabpanel" aria-labelledby="tuesday-tab"></div>
-            <div class="tab-pane fade" id="wednesday" role="tabpanel" aria-labelledby="wednesday-tab"></div>
-            <div class="tab-pane fade" id="thursday" role="tabpanel" aria-labelledby="thursday-tab"></div>
-            <div class="tab-pane fade" id="friday" role="tabpanel" aria-labelledby="friday-tab"></div>
+            <div class="tab-pane fade show active" id="lundi" role="tabpanel" aria-labelledby="monday-tab"></div>
+            <div class="tab-pane fade" id="mardi" role="tabpanel" aria-labelledby="tuesday-tab"></div>
+            <div class="tab-pane fade" id="mercredi" role="tabpanel" aria-labelledby="wednesday-tab"></div>
+            <div class="tab-pane fade" id="jeudi" role="tabpanel" aria-labelledby="thursday-tab"></div>
+            <div class="tab-pane fade" id="vendredi" role="tabpanel" aria-labelledby="friday-tab"></div>
+            <div class="tab-pane fade" id="samedi" role="tabpanel" aria-labelledby="saturday-tab"></div>
+            <div class="tab-pane fade" id="dimanche" role="tabpanel" aria-labelledby="sunday-tab"></div>
         </div>
 
         <div class="mt-4 text-center">
@@ -87,9 +99,17 @@
 
     </div>
 
+    <!-- Custom Message Box -->
+    <div id="message-box" class="message-box hidden">
+        <div class="message-content">
+            <p id="message-text"></p>
+            <button id="close-message-box" class="btn btn-primary">OK</button>
+        </div>
+    </div>
+
     <!-- Bootstrap JS (avec Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <!-- Votre script JavaScript modifié (chemin corrigé) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1ehaTXoK9FJ" crossorigin="anonymous"></script>
+    <!-- Votre JavaScript personnalisé -->
     <script src="js/agent.js"></script>
 </body>
 </html>

@@ -447,3 +447,58 @@ html, body, #app-root {
         font-size: 0.9rem;
     }
 }
+
+/* Custom Message Box */
+.message-box {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Fond semi-transparent */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; /* Assure qu'elle est au-dessus de tout le reste */
+}
+
+.message-box.hidden {
+    display: none;
+}
+
+.message-content {
+    background-color: #ffffff; /* Fond blanc pour la boîte */
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); /* Ombre portée */
+    text-align: center;
+    max-width: 500px;
+    width: 90%; /* Responsive width */
+    transform: scale(0.9); /* Légère animation à l'apparition */
+    animation: fadeInScale 0.3s ease-out forwards;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.message-content p {
+    margin-bottom: 20px;
+    font-size: 1.1em;
+    color: #333;
+}
+
+.message-content button {
+    padding: 10px 25px;
+    font-size: 1em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}

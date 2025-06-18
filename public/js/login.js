@@ -34,145 +34,146 @@ async function login() {
   const agent = agentSelect.value.trim(); // L'ID de l'agent sélectionné
   const password = passwordInput.value.trim();
 
-  // Réinitialise les messages d'erreur et désactive le bouton pour éviter les soumissions multiples
-  errorElement.textContent = "";
-  if (loginButton) {
-      loginButton.disabled = true;
-      loginButton.textContent = "Connexion en cours...";
+  // Réinitialise les messages d'erreur
+  if (errorElement) {
+      errorElement.textContent = '';
   }
 
-  // Validation de base des champs
   if (!agent || !password) {
-    errorElement.textContent = "Veuillez sélectionner un agent et entrer un mot de passe.";
-    if (loginButton) {
-        loginButton.disabled = false;
-        loginButton.textContent = "Se connecter";
-    }
-    return;
+      if (errorElement) {
+          errorElement.textContent = "Veuillez entrer le nom d'agent et le mot de passe.";
+      }
+      return;
   }
 
   try {
-    // Envoi de la requête de connexion à l'API
-    console.log("Tentative de connexion pour l'agent:", agent);
+    showLoginSpinner(true);
+    
     const response = await fetch(`${API_BASE_URL}/api/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: agent, password: password }),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username: agent, password: password })
     });
 
     const data = await response.json();
-    console.log("DEBUG Login: Réponse API /api/login:", data);
 
-    // Vérifie si la connexion a réussi (statut 2xx, présence du token et des infos user)
-    if (response.ok && data.token && data.user) {
-      console.log("Connexion réussie. Stockage des informations de session...");
-      try {
-        sessionStorage.setItem("jwtToken", data.token); // Stocke le token JWT
-        sessionStorage.setItem("agent", data.user.id); // Stocke l'ID de l'agent
-        sessionStorage.setItem("agentPrenomNom", `${data.user.prenom} ${data.user.nom}`); // Stocke le nom complet
-        sessionStorage.setItem("agentRole", data.user.role); // Stocke le rôle de l'agent
-        console.log("Informations de session stockées.");
+    if (response.ok) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('userRole', data.user.role);
+      localStorage.setItem('userId', data.user.id);
+      localStorage.setItem('userName', data.user.name);
 
-        // Redirection en fonction du rôle de l'utilisateur
-        if (data.user.role === 'admin') {
-          console.log("Redirection vers admin.html");
-          window.location.href = 'admin.html';
-        } else {
-          console.log("Redirection vers agent.html");
-          window.location.href = 'agent.html';
-        }
-      } catch (sessionStorageError) {
-        console.error("Erreur lors du stockage dans sessionStorage:", sessionStorageError);
-        errorElement.textContent = "Erreur interne: Impossible de sauvegarder les informations de session.";
-        if (loginButton) {
-            loginButton.disabled = false;
-            loginButton.textContent = "Se connecter";
-        }
+      console.log("[LOGIN.JS Debug] Login réussi pour :", data.user.name, "Rôle :", data.user.role);
+      console.log("[LOGIN.JS Debug] Token stocké dans localStorage:", localStorage.getItem('token') ? "Oui" : "Non");
+      console.log("[LOGIN.JS Debug] Rôle stocké dans localStorage:", localStorage.getItem('userRole'));
+      console.log("[LOGIN.JS Debug] ID utilisateur stocké dans localStorage:", localStorage.getItem('userId'));
+      console.log("[LOGIN.JS Debug] Nom utilisateur stocké dans localStorage:", localStorage.getItem('userName'));
+
+
+      if (data.user.role === 'admin') {
+        window.location.href = 'admin.html';
+      } else {
+        window.location.href = 'agent.html';
       }
     } else {
-      // Afficher le message d'erreur de l'API si la connexion a échoué
-      errorElement.textContent = data.message || "Identifiant ou mot de passe incorrect.";
-      console.warn("Connexion échouée:", data.message);
-      if (loginButton) {
-          loginButton.disabled = false;
-          loginButton.textContent = "Se connecter";
+      if (errorElement) {
+          errorElement.textContent = data.message || 'Erreur de connexion.';
       }
+      console.error("[LOGIN.JS Debug] Erreur de connexion :", data.message);
     }
   } catch (err) {
-    // Gérer les erreurs réseau ou autres exceptions inattendues
-    console.error("Erreur lors de la requête de connexion :", err);
-    errorElement.textContent = "Impossible de se connecter au serveur. Veuillez vérifier votre connexion.";
-    if (loginButton) {
-        loginButton.disabled = false;
-        loginButton.textContent = "Se connecter";
-    }
+      if (errorElement) {
+          errorElement.textContent = `Erreur de communication avec le serveur: ${err.message}`;
+      }
+      console.error("[LOGIN.JS Debug] Erreur réseau ou serveur :", err);
+  } finally {
+    showLoginSpinner(false);
   }
 }
 
 /**
- * Fonction appelée au chargement complet du DOM pour initialiser la page.
+ * Charge la liste des agents depuis le serveur et remplit le sélecteur.
  */
-document.addEventListener("DOMContentLoaded", async () => {
-  // C'est ici que nous allons charger la liste des agents
-  // Affiche le spinner pendant le chargement de la liste des agents
-  showLoginSpinner(true);
+async function loadAgentsForSelector() {
+    showLoginSpinner(true); // Affiche le spinner au début du chargement
 
-  if (agentSelect) { // Vérifie si l'élément 'agent' existe bien
-      try {
-          // Cette route /api/agents/names est publique et ne nécessite pas de token JWT
-          const response = await fetch(`${API_BASE_URL}/api/agents/names`);
-          if (!response.ok) {
-              const errorData = await response.json().catch(() => ({ message: "Réponse serveur invalide." }));
-              throw new Error(`Erreur lors du chargement de la liste des agents: ${errorData.message || response.statusText}`);
-          }
-          const agents = await response.json();
-          console.log("DEBUG Login: Agents chargés pour le sélecteur:", agents);
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/users/agents`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erreur serveur: ${response.status} - ${errorText}`);
+        }
+        const agents = await response.json();
+        
+        if (agentSelect) {
+            // Effacer les options existantes sauf la première (disabled selected)
+            while (agentSelect.options.length > 1) {
+                agentSelect.remove(1);
+            }
 
-          // Ajout de l'option par défaut
-          agentSelect.innerHTML = '<option value="">-- Sélectionnez votre identifiant --</option>';
+            agents.forEach(agent => {
+                const option = document.createElement('option');
+                option.value = agent.id;
+                option.textContent = `${agent.prenom} ${agent.nom}`;
+                agentSelect.appendChild(option);
+            });
+            agentSelect.disabled = false; // Réactiver le sélecteur
+            console.log("DEBUG Login : Agents chargés pour le sélecteur:", agents);
+        } else {
+            console.error("Élément 'agentSelect' non trouvé. Impossible de charger les agents.");
+        }
 
-          // Remplissage du sélecteur avec les agents récupérés
-          agents.forEach(user => {
-              const option = document.createElement("option");
-              option.value = user.id; // Utilise l'ID pour la valeur de l'option
-              option.textContent = `${user.prenom || ''} ${user.nom || ''} (${user.id})`; // Affiche Prénom Nom (identifiant)
-              agentSelect.appendChild(option);
-          });
-          showLoginSpinner(false); // Masque le spinner après le chargement réussi
-          if (loginButton) {
-              loginButton.disabled = false; // Réactive le bouton de connexion
-              loginButton.textContent = "Se connecter";
-          }
+    } catch (err) {
+        console.error("Erreur lors du chargement de la liste des agents :", err);
+        if (errorElement) {
+            errorElement.textContent = `Impossible de charger la liste des agents. Vérifiez la connexion au serveur: ${err.message}`;
+        }
+        // Désactiver le bouton de connexion si la liste des agents ne peut pas être chargée
+        if (loginButton) {
+          loginButton.disabled = true;
+          loginButton.textContent = "Connexion impossible";
+        }
+    } finally {
+        showLoginSpinner(false); // Masque le spinner après le chargement (réussi ou échoué)
+    }
+}
 
-      } catch (err) {
-          console.error("Erreur lors du chargement de la liste des agents :", err);
-          if (errorElement) {
-              errorElement.textContent = `Impossible de charger la liste des agents. Vérifiez la connexion au serveur: ${err.message}`;
-          }
-          // Désactiver le bouton de connexion si la liste des agents ne peut pas être chargée
-          if (loginButton) {
-            loginButton.disabled = true;
-            loginButton.textContent = "Connexion impossible";
-          }
-          showLoginSpinner(false); // Masque le spinner même en cas d'erreur
+
+// Attendre que le DOM soit entièrement chargé avant d'initialiser
+document.addEventListener('DOMContentLoaded', () => {
+    // Charge la liste des agents au chargement de la page
+    if (agentSelect) { // Vérifie si l'élément existe avant d'essayer de le manipuler
+        loadAgentsForSelector();
+    } else {
+      // Si agentSelect n'est pas trouvé du tout (ce qui est l'erreur que vous avez)
+      console.error("ERREUR CRITIQUE: Élément 'agentSelect' non trouvé dans le HTML. La page ne peut pas fonctionner correctement.");
+      if (errorElement) {
+          errorElement.textContent = "Erreur de chargement de la page : Élément de sélection d'agent manquant.";
       }
-  } else {
-    // Si agentSelect n'est pas trouvé du tout (ce qui est l'erreur que vous avez)
-    console.error("ERREUR CRITIQUE: Élément 'agentSelect' non trouvé dans le HTML. La page ne peut pas fonctionner correctement.");
-    if (errorElement) {
-        errorElement.textContent = "Erreur de chargement de la page : Élément de sélection d'agent manquant.";
+      if (loginButton) {
+          loginButton.disabled = true;
+          loginButton.textContent = "Page Invalide";
+      }
+      showLoginSpinner(false);
     }
-    if (loginButton) {
-        loginButton.disabled = true;
-        loginButton.textContent = "Page Invalide";
-    }
-    showLoginSpinner(false);
-  }
 
-  // Attache l'écouteur d'événement au bouton de connexion
-  if (loginButton) {
-      loginButton.addEventListener('click', login);
-  } else {
-      console.warn("Bouton de connexion non trouvé. Assurez-vous qu'il y a un bouton avec l'ID 'login-button' dans votre HTML.");
-  }
+    // Attache l'écouteur d'événement au bouton de connexion
+    if (loginButton) {
+        loginButton.addEventListener('click', login);
+    } else {
+        console.warn("Bouton de connexion non trouvé. Assurez-vous qu'il y a un bouton avec l'ID 'login-button' dans votre HTML.");
+    }
+
+    // Gérer la soumission du formulaire via la touche Entrée sur le champ du mot de passe
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+    } else {
+        console.warn("Champ de mot de passe non trouvé. Assurez-vous qu'il y a un input avec l'ID 'password' dans votre HTML.");
+    }
 });
