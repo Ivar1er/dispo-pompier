@@ -274,15 +274,15 @@ function showWeek(weekKey, planningData) {
   // Efface et recrée l'en-tête des heures avec la première cellule vide pour le label du jour
   header.innerHTML = `<div class="day-label sticky-day-col"></div>`;
 
-  // Crée les en-têtes d'heures (de 7h00 à 6h30 du matin suivant, soit 24 heures)
-  // Chaque heure occupe 2 colonnes dans la grille (pour représenter des créneaux de 30 minutes)
-  for (let i = 0; i < 24; i++) {
-    const hour = (7 + i) % 24; // Débute à 7h00, continue jusqu'à 6h00 le lendemain (représentation sur 24h)
+  // Crée les en-têtes d'heures (de 7h00 à 6h30 du matin suivant, par tranches de 2 heures)
+  // MODIFICATION ICI : Boucle pour afficher toutes les deux heures
+  for (let i = 0; i < 12; i++) { // 12 cellules pour 24 heures (chaque cellule = 2 heures)
+    const hour = (7 + i * 2) % 24; // Débute à 7h00, puis 9h00, 11h00, etc.
     const div = document.createElement("div");
     div.className = "hour-cell";
     div.textContent = `${String(hour).padStart(2, '0')}:00`;
-    // CHANGEMENT : Ajout d'une classe pour le style des cellules d'heure
-    div.style.gridColumn = `span 2`; 
+    // Chaque cellule d'heure doit s'étendre sur 4 colonnes (2 heures * 2 slots/heure = 4 slots de 30 min)
+    div.style.gridColumn = `span 4`;
     header.appendChild(div);
   }
 
@@ -316,13 +316,19 @@ function showWeek(weekKey, planningData) {
     // Traite et crée les barres visuelles pour les plages de disponibilité
     dayRanges.forEach(range => {
       // Les données de range.start et range.end sont des index (0-47), pas des heures formatées
-      // Convertir les index en minutes pour le calcul de position
+      // Convertir les index en minutes pour le calcul de position et l'affichage du tooltip
       let startMinutes = (range.start * minutesPerSlot) + gridStartHourInMinutes;
-      let endMinutes = (range.end * minutesPerSlot) + gridStartHourInMinutes + minutesPerSlot; // +30 minutes pour la fin du slot
+      let endMinutes = (range.end * minutesPerSlot) + gridStartHourInMinutes; // Fin du slot est le début du suivant
+      
+      // Ajustement pour le cas où le créneau se termine à 00:00 (début du jour suivant)
+      if (range.end === SLOT_COUNT) { // Si le dernier index est 47, le "end" pourrait être 48 (correspondant à 7h00 le lendemain)
+        endMinutes = gridStartHourInMinutes + (SLOT_COUNT * minutesPerSlot); // 7h00 le lendemain
+      }
+
 
       // Gère les plages qui traversent minuit (ex: 23:00 - 02:00)
-      // En ajoutant 24 heures à l'heure de fin si elle est avant l'heure de début
-      if (endMinutes <= startMinutes) {
+      // Si l'heure de fin est antérieure à l'heure de début après conversion, cela signifie qu'elle est le lendemain
+      if (endMinutes < startMinutes) {
         endMinutes += 24 * 60;
       }
 
