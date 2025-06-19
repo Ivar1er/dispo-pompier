@@ -4,7 +4,7 @@ const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dima
 const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
 let currentWeek; // Ex: 25 (number)
-let currentDay = 'lundi'; // Jour actuel par défaut pour le planning
+let currentDay = 'lundi'; // Jour actuel par default pour le planning
 let planningData = {}; // Contiendra le planning global chargé de l'API { agentId: { week-X: { day: [slots] } } }
 let agentDisplayInfos = {}; // Mapping dynamique agentId => {nom, prenom}
 let availableQualifications = []; // Liste des qualifications disponibles chargée depuis l'API
@@ -21,7 +21,6 @@ const dateRangeDisplay = document.getElementById("date-range"); // Élément pou
 const planningContainer = document.getElementById("global-planning"); // Conteneur du tableau de planning
 const tabButtons = document.querySelectorAll(".tab"); // Boutons de jour (Lundi, Mardi...)
 const adminInfo = document.getElementById("admin-info");
-// CORRECTION ICI : Déclaration de adminNameDisplay globalement
 const adminNameDisplay = document.getElementById("admin-name-display");
 
 
@@ -1165,12 +1164,14 @@ async function handleEditQualification(event) {
             loadAgents();
         } else {
             editQualMessage.textContent = `Erreur : ${data.message}`;
-            editQualMessage.style.color = 'red';
+            if (editQualMessage) editQualMessage.style.color = 'red';
         }
     } catch (error) {
         console.error('Erreur lors de la mise à jour de la qualification:', error);
-        editQualMessage.textContent = 'Erreur réseau lors de la mise à jour de la qualification.';
-        editQualMessage.style.color = 'red';
+        if (editQualMessage) {
+            editQualMessage.textContent = 'Erreur réseau lors de la mise à jour de la qualification.';
+            editQualMessage.style.color = 'red';
+        }
     }
 }
 
@@ -1224,7 +1225,7 @@ async function loadGradesList() {
             listGradesMessage.textContent = `Erreur : ${error.message}`;
             listGradesMessage.style.color = 'red';
         }
-        if (gradesTableBody) gradesTableBody.innerHTML = '<tr><td colspan="3">Impossible de charger la liste des grades.</td></tr>';
+        if (gradesTableBody) gradesTableBody.innerHTML = '<tr><td colspan="3">Impossible de charger la liste des grades.</td></td>';
     }
 }
 
@@ -1345,13 +1346,15 @@ async function handleEditGrade(event) {
             renderNewAgentGradesCheckboxes();
             loadAgents();
         } else {
-            editGradeMessage.textContent = `Erreur : ${data.message}`;
-            editGradeMessage.style.color = 'red';
+            if (editGradeMessage) editGradeMessage.textContent = `Erreur : ${data.message}`;
+            if (editGradeMessage) editGradeMessage.style.color = 'red';
         }
     } catch (error) {
         console.error('Erreur lors de la mise à jour du grade:', error);
-        editGradeMessage.textContent = 'Erreur réseau lors de la mise à jour du grade.';
-        editGradeMessage.style.color = 'red';
+        if (editGradeMessage) {
+            editGradeMessage.textContent = 'Erreur réseau lors de la mise à jour du grade.';
+            editGradeMessage.style.color = 'red';
+        }
     }
 }
 
@@ -1359,7 +1362,7 @@ async function handleEditGrade(event) {
 // --- Initialisation au chargement du DOM ---
 document.addEventListener("DOMContentLoaded", async () => {
     // Récupérer les informations de session
-    const currentUserId = sessionStorage.getItem('agent'); // L'ID de connexion est stocké sous 'agent'
+    const currentUserId = sessionStorage.getItem('agentId'); // CHANGEMENT ICI: Utiliser 'agentId'
     const currentUserName = sessionStorage.getItem('agentPrenom') + ' ' + sessionStorage.getItem('agentNom');
     const currentUserRole = sessionStorage.getItem('userRole');
     const token = sessionStorage.getItem('token'); // Récupérer le token
