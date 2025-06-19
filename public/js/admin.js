@@ -183,7 +183,13 @@ async function loadPlanningData() {
             headers: getAuthHeaders() // Ajout des headers d'autorisation
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Erreur lors du chargement du planning global.');
+        if (!response.ok) {
+            // Gérer spécifiquement l'erreur 403 pour donner un message plus clair à l'utilisateur
+            if (response.status === 403) {
+                displayMessageModal("Accès Refusé", "Vous n'avez pas l'autorisation de consulter le planning global.", "error");
+            }
+            throw new Error(data.message || 'Erreur lors du chargement du planning global.');
+        }
 
         planningData = data;
         console.log("DEBUG Admin: Planning Global Chargé (Admin):", planningData); // Log pour débogage
@@ -1358,14 +1364,93 @@ async function handleEditGrade(event) {
     }
 }
 
+/**
+ * Gère l'affichage des onglets principaux de la page d'administration.
+ * Cache tous les contenus d'onglets et n'affiche que celui correspondant au `targetTabId`.
+ * Met à jour la classe 'active' des boutons d'onglet.
+ * @param {string} targetTabId L'ID de l'onglet à afficher (ex: 'global-planning-view').
+ */
+async function openMainTab(targetTabId) {
+    mainTabContents.forEach(content => {
+        content.classList.remove('active');
+        content.classList.add('hidden');
+    });
+    mainTabButtons.forEach(button => {
+        button.classList.remove('active');
+    });
+
+    const activeTabContent = document.getElementById(targetTabId);
+    if (activeTabContent) {
+        activeTabContent.classList.add('active');
+        activeTabContent.classList.remove('hidden');
+    }
+
+    const clickedButton = document.querySelector(`.main-tab[data-main-tab="${targetTabId}"]`);
+    if (clickedButton) {
+        clickedButton.classList.add('active');
+    }
+
+    // Actions spécifiques à chaque onglet lors de son ouverture
+    if (targetTabId === 'global-planning-view') {
+        updateDateRangeDisplay(); // S'assure que la plage de dates est correcte
+        await loadPlanningData(); // Recharge le planning global
+        showDay(currentDay); // Affiche le planning du jour actuel
+        // Active le bouton du jour par défaut (Lundi) ou le jour actif précédent
+        const activeDayButton = document.querySelector(`.tab[data-day="${currentDay}"]`);
+        if (activeDayButton) {
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            activeDayButton.classList.add('active');
+        }
+        // Afficher les contrôles du planning (semaine, export)
+        if (planningControls) planningControls.style.display = 'flex';
+
+    } else {
+        // Cacher les contrôles du planning pour les autres onglets
+        if (planningControls) planningControls.style.display = 'none';
+    }
+
+    if (targetTabId === 'agent-management-view') {
+        await loadAvailableQualifications(); // S'assure que les qualifs sont à jour
+        await loadAvailableGrades(); // S'assure que les grades sont à jour
+        renderNewAgentQualificationsCheckboxes(); // Met à jour les checkboxes d'ajout d'agent
+        renderNewAgentGradesCheckboxes(); // Met à jour les checkboxes de grades d'ajout d'agent
+        await loadAgents(); // Recharge la liste des agents
+    }
+
+    if (targetTabId === 'qualification-management-view') {
+        await loadQualificationsList(); // Recharge la liste des qualifications
+    }
+
+    if (targetTabId === 'grade-management-view') {
+        await loadGradesList(); // Recharge la liste des grades
+    }
+}
+
+
+/**
+ * Gère l'affichage du planning pour un jour spécifique dans l'onglet "Planning Global".
+ * @param {string} day Le jour à afficher (ex: 'lundi').
+ */
+function showDay(day) {
+    currentDay = day; // Met à jour le jour actuel
+    tabButtons.forEach(tab => {
+        if (tab.dataset.day === day) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+    renderPlanningGrid(day); // Rend la grille pour le jour sélectionné
+}
+
 
 // --- Initialisation au chargement du DOM ---
 document.addEventListener("DOMContentLoaded", async () => {
     // Récupérer les informations de session
-    const currentUserId = sessionStorage.getItem('agentId'); // CHANGEMENT ICI: Utiliser 'agentId'
+    const currentUserId = sessionStorage.getItem('agentId');
     const currentUserName = sessionStorage.getItem('agentPrenom') + ' ' + sessionStorage.getItem('agentNom');
     const currentUserRole = sessionStorage.getItem('userRole');
-    const token = sessionStorage.getItem('token'); // Récupérer le token
+    const token = sessionStorage.getItem('token'); 
 
     // --- DEBOGAGE : Affiche les valeurs récupérées de sessionStorage ---
     console.log("DEBUG Admin: currentUserId:", currentUserId);
@@ -1377,7 +1462,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!currentUserId || !token) {
         console.error("Initialisation Admin: ID utilisateur ou Token manquant. Redirection vers login.");
         displayMessageModal("Session expirée", "Votre session a expiré ou n'est pas valide. Veuillez vous reconnecter.", "error", () => {
-            window.location.href = "index.html"; // Redirige vers la page de connexion
+            window.location.href = "index.html"; 
         });
         return; // Arrête l'exécution si non authentifié
     }
@@ -1390,7 +1475,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (currentUserRole === 'agent') {
                 window.location.href = "agent.html";
             } else {
-                window.location.href = "index.html"; // Autres rôles non autorisés ou incohérents
+                window.location.href = "index.html"; 
             }
         });
         return; // Arrête l'exécution si le rôle n'est pas 'admin'
@@ -1419,32 +1504,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     });
 
-    // --- Initialisation des fonctionnalités par défaut de la page ---
+    // --- Initialisation des fonctionnalités par default de la page ---
     await loadAvailableQualifications();
     await loadAvailableGrades();
 
     renderNewAgentQualificationsCheckboxes();
     renderNewAgentGradesCheckboxes();
 
-    // Définir la semaine actuelle par défaut
+    // Définir la semaine actuelle par default
     currentWeek = getCurrentISOWeek(new Date());
     generateWeekOptions(); // Générer les options du sélecteur de semaine
 
-    // Charger les données initiales du planning global et mettre à jour le sélecteur
-    await loadPlanningData();
-
-    // Assurer que le sélecteur de semaine affiche la semaine actuelle par défaut après chargement des données
-    const currentWeekAsString = `week-${currentWeek}`;
-    if (weekSelect && weekSelect.querySelector(`option[value="${currentWeekAsString}"]`)) {
-        weekSelect.value = currentWeekAsString;
-    } else if (weekSelect && weekSelect.options.length > 0) {
-        // Si la semaine actuelle n'est pas dans les options (pas de données pour elle), sélectionnez la première option disponible
-        weekSelect.value = weekSelect.options[0].value;
-        currentWeek = parseInt(weekSelect.value.split('-')[1]);
-    }
-
-
     // Ouvrir l'onglet "Planning Global" par default au chargement
+    // Ceci appellera loadPlanningData et showDay
     await openMainTab('global-planning-view');
 
 
@@ -1453,8 +1525,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         weekSelect.addEventListener("change", async () => {
             currentWeek = parseInt(weekSelect.value.split('-')[1]);
             updateDateRangeDisplay();
-            await loadPlanningData();
-            showDay(currentDay);
+            await loadPlanningData(); // Recharge les données du planning pour la nouvelle semaine
+            showDay(currentDay); // Réaffiche le planning pour le jour actif
         });
     }
     const exportPdfButton = document.getElementById("export-pdf");
