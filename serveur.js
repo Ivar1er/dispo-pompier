@@ -828,10 +828,12 @@ app.post('/api/agent-availability/:dateKey/:agentId', authenticateToken, async (
 // Principalement pour l'affichage du planning individuel
 async function loadAgentPlanningFromFiles(agentId) {
     const agentPlanning = {}; // { week-X: { day: ["HH:MM - HH:MM"] } }
-    const daysOfWeek = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']; // IMPORTANT: 0=Dimanche, 1=Lundi...
+    // IMPORTANT: L'index 0 correspond à Dimanche, 1 à Lundi, etc. C'est l'ordre de getDay().
+    const daysOfWeek = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']; 
 
     try {
         const dateFolders = await fs.readdir(AGENT_AVAILABILITY_DIR); // Liste tous les dossiers de dates
+
         for (const dateFolder of dateFolders) {
             const datePath = path.join(AGENT_AVAILABILITY_DIR, dateFolder);
             const stats = await fs.stat(datePath);
@@ -853,7 +855,7 @@ async function loadAgentPlanningFromFiles(agentId) {
                         const dayIndex = dateObj.getDay(); // 0 pour Dimanche, 1 pour Lundi, etc.
                         const clientDayName = daysOfWeek[dayIndex]; // Utilise directement l'index du jour
 
-                        const weekKey = `week-${weekNum}`; // MODIFICATION : Uniformisation de la weekKey
+                        const weekKey = `week-${weekNum}`; // Uniformisation de la weekKey
 
                         if (!agentPlanning[weekKey]) {
                             agentPlanning[weekKey] = {
@@ -876,6 +878,9 @@ async function loadAgentPlanningFromFiles(agentId) {
                         // Assurer l'unicité et trier (important si des plages se chevauchent ou sont dupliquées)
                         const uniqueSortedSlots = [...new Set(formattedSlots)].sort();
                         agentPlanning[weekKey][clientDayName] = uniqueSortedSlots;
+
+                    } else {
+                        console.warn(`Nom de dossier de date invalide: ${dateFolder}`);
                     }
                 } catch (readErr) {
                     if (readErr.code === 'ENOENT') {
@@ -884,11 +889,13 @@ async function loadAgentPlanningFromFiles(agentId) {
                         console.error(`[ERREUR Serveur] Erreur de lecture du fichier de disponibilité pour ${agentId} le ${dateFolder}:`, readErr);
                     }
                 }
+            } else {
+                console.warn(`L'entrée ${dateFolder} n'est pas un répertoire dans ${AGENT_AVAILABILITY_DIR}.`);
             }
         }
     } catch (err) {
         if (err.code === 'ENOENT') {
-            console.log(`[INFO Serveur] Le dossier de disponibilités des agents n'existe pas ou est vide. Retourne un objet vide.`);
+            console.log(`[INFO Serveur] Le dossier de disponibilités des agents (${AGENT_AVAILABILITY_DIR}) n'existe pas ou est vide. Retourne un objet vide.`);
         } else {
             console.error(`[ERREUR Serveur] Erreur inattendue lors du chargement des plannings de l'agent ${agentId}:`, err);
         }
