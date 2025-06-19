@@ -58,6 +58,32 @@ const DEFAULT_ADMIN_PASSWORD = 'supersecureadminpassword'; // À CHANGER EN PROD
 const JWT_SECRET = process.env.JWT_SECRET || 'pompier_de_beaune_la_rolande_2025_marechal'; // Clé secrète JWT
 
 
+// Créneaux 30 min sur 24h (doit correspondre à admin.js et agent.js)
+const horaires = [];
+const startHourDisplay = 7;
+for (let i = 0; i < 48; i++) {
+  const currentSlotHour = (startHourDisplay + Math.floor(i / 2)) % 24;
+  const currentSlotMinute = (i % 2) * 30;
+  const endSlotHour = (startHourDisplay + Math.floor((i + 1) / 2)) % 24;
+  const endSlotMinute = ((i + 1) % 2) * 30;
+  const start = `${String(currentSlotHour).padStart(2, '0')}:${String(currentSlotMinute).padStart(2, '0')}`;
+  const end = `${String(endSlotHour).padStart(2, '0')}:${String(endSlotMinute).padStart(2, '0')}`;
+  horaires.push(`${start} - ${end}`);
+}
+
+/**
+ * Convertit un index de créneau horaire (0-47) en une chaîne de temps "HH:MM - HH:MM".
+ * @param {number} slotIndex L'index du créneau (0-47).
+ * @returns {string} La chaîne de temps formatée.
+ */
+function formatSlotTimeByIndex(slotIndex) {
+    if (slotIndex < 0 || slotIndex >= horaires.length) {
+        return "Invalid Slot";
+    }
+    return horaires[slotIndex];
+}
+
+
 // --- Helpers de date (utilisés pour la structuration des plannings) ---
 // Ces fonctions doivent être en phase avec celles utilisées côté client si nécessaire.
 function getCurrentISOWeek(date = new Date()) {
@@ -412,7 +438,7 @@ app.post('/api/admin/agents', authenticateToken, authorizeAdmin, async (req, res
 // Mettre à jour un agent existant (protégé par admin)
 app.put('/api/admin/agents/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     const key = req.params.id.toLowerCase();
-    if (!USERS[key] || USERS[key].role !== 'agent') {
+    if (!USERS[key] || USERS[key].role !== 'agent') { // Permet de modifier uniquement les agents, pas les admins via cette route
         return res.status(404).json({ message: 'Agent non trouvé ou non modifiable.' });
     }
     const { nom, prenom, newPassword, qualifications, grades, functions } = req.body;
@@ -431,7 +457,7 @@ app.put('/api/admin/agents/:id', authenticateToken, authorizeAdmin, async (req, 
 // Supprimer un agent (protégé par admin)
 app.delete('/api/admin/agents/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     const key = req.params.id.toLowerCase();
-    if (!USERS[key] || USERS[key].role !== 'agent') {
+    if (!USERS[key] || USERS[key].role !== 'agent') { // Permet de supprimer uniquement les agents, pas les admins via cette route
         return res.status(404).json({ message: 'Agent non trouvé ou non supprimable.' });
     }
     delete USERS[key];
@@ -593,7 +619,7 @@ app.get('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async 
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         console.error(`[ERREUR Serveur] Format de date invalide pour roster-config: ${dateKey}`);
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
     try {
@@ -614,7 +640,7 @@ app.get('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async 
 app.post('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const { timeSlots, onDutyAgents } = req.body;
     if (!timeSlots) { // onDutyAgents peut être vide si la config est juste des créneaux
@@ -638,7 +664,7 @@ app.get('/api/daily-roster/:dateKey', authenticateToken, async (req, res) => { /
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         console.error(`[ERREUR Serveur] Format de date invalide pour daily-roster: ${dateKey}`);
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
     try {
@@ -658,7 +684,7 @@ app.get('/api/daily-roster/:dateKey', authenticateToken, async (req, res) => { /
 app.post('/api/daily-roster/:dateKey', authenticateToken, authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const { onDutyAgents } = req.body;
     if (!onDutyAgents) {
@@ -801,8 +827,8 @@ app.post('/api/agent-availability/:dateKey/:agentId', authenticateToken, async (
 // Route pour obtenir le planning d'un agent spécifique (STRUCTURÉ PAR SEMAINE/JOUR)
 // Principalement pour l'affichage du planning individuel
 async function loadAgentPlanningFromFiles(agentId) {
-    const agentPlanning = {}; // { week-X: { day: [slots] } }
-    const daysOfWeek = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+    const agentPlanning = {}; // { week-X: { day: ["HH:MM - HH:MM"] } }
+    const daysOfWeek = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']; // IMPORTANT: 0=Dimanche, 1=Lundi...
 
     try {
         const dateFolders = await fs.readdir(AGENT_AVAILABILITY_DIR); // Liste tous les dossiers de dates
@@ -814,7 +840,7 @@ async function loadAgentPlanningFromFiles(agentId) {
                 const filePath = path.join(datePath, `${agentId}.json`);
                 try {
                     const data = await fs.readFile(filePath, 'utf8');
-                    const availabilitiesForDate = JSON.parse(data); // Tableau d'objets {start, end}
+                    const availabilitiesForDate = JSON.parse(data); // Tableau d'objets {start (index), end (index)}
 
                     const dateParts = dateFolder.split('-');
                     if (dateParts.length === 3) {
@@ -825,9 +851,9 @@ async function loadAgentPlanningFromFiles(agentId) {
 
                         const weekNum = getCurrentISOWeek(dateObj);
                         const dayIndex = dateObj.getDay(); // 0 pour Dimanche, 1 pour Lundi, etc.
-                        const clientDayName = daysOfWeek[(dayIndex === 0 ? 6 : dayIndex - 1)]; // Convertit 0 (Dim) en 6 (Dim), 1 (Lun) en 0 (Lun)
+                        const clientDayName = daysOfWeek[dayIndex]; // Utilise directement l'index du jour
 
-                        const weekKey = `S ${weekNum}`; // Changed from 'week-X' to 'S X' to match frontend option textContent
+                        const weekKey = `week-${weekNum}`; // MODIFICATION : Uniformisation de la weekKey
 
                         if (!agentPlanning[weekKey]) {
                             agentPlanning[weekKey] = {
@@ -836,17 +862,20 @@ async function loadAgentPlanningFromFiles(agentId) {
                             }; // Initialiser tous les jours
                         }
                         
-                        // Stocke les plages directement sous forme d'objets {start, end}
-                        const existingSlots = agentPlanning[weekKey][clientDayName];
-                        availabilitiesForDate.forEach(slot => {
-                            // S'assurer que chaque slot est un objet {start, end} et n'est pas déjà présent pour éviter les doublons si appel multiple
-                            if (typeof slot === 'object' && slot !== null &&
-                                typeof slot.start === 'number' && typeof slot.end === 'number' &&
-                                !existingSlots.some(existingSlot => existingSlot.start === slot.start && existingSlot.end === slot.end)) {
-                                existingSlots.push({ start: slot.start, end: slot.end });
+                        // Convertir les plages d'indices en chaînes "HH:MM - HH:MM"
+                        const formattedSlots = [];
+                        availabilitiesForDate.forEach(slotRange => {
+                            if (typeof slotRange === 'object' && slotRange !== null &&
+                                typeof slotRange.start === 'number' && typeof slotRange.end === 'number') {
+                                for (let i = slotRange.start; i <= slotRange.end; i++) {
+                                    formattedSlots.push(formatSlotTimeByIndex(i));
+                                }
                             }
                         });
-                        existingSlots.sort((a,b) => a.start - b.start); // Trie les créneaux par index de début
+
+                        // Assurer l'unicité et trier (important si des plages se chevauchent ou sont dupliquées)
+                        const uniqueSortedSlots = [...new Set(formattedSlots)].sort();
+                        agentPlanning[weekKey][clientDayName] = uniqueSortedSlots;
                     }
                 } catch (readErr) {
                     if (readErr.code === 'ENOENT') {
