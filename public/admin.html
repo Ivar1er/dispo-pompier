@@ -10,8 +10,7 @@
 <body>
   <div class="agent-container">
     <header class="page-header">
-      <h2 class="welcome-message">Tableau de bord Administrateur</h2>
-
+      <h2 class="welcome-message">Tableau de bord Administrateur <span id="admin-name-display"></span></h2>
       <div class="header-controls">
         <div class="week-info" id="planning-controls">
           <label for="week-select" class="sr-only">Sélectionner la semaine</label>
@@ -28,7 +27,6 @@
       <button class="main-tab" data-main-tab="agent-management-view">Gestion des Agents</button>
       <button class="main-tab" data-main-tab="qualification-management-view">Gestion des Qualifications</button>
       <button class="main-tab" data-main-tab="grade-management-view">Gestion des Grades</button>
-      <!-- Bouton "Gestion des Fonctions" a été supprimé -->
     </nav>
 
     <div id="global-planning-view" class="main-tab-content active">
@@ -88,17 +86,6 @@
                     </div>
                 </div>
                 <br>
-                <!-- Section "Fonctions de l'Agent" supprimée -->
-                <!--
-                <div>
-                    <h4>Fonctions de l'Agent :</h4>
-                    <div id="newAgentFunctionsCheckboxes">
-                        Chargement des fonctions...
-                    </div>
-                </div>
-                <br>
-                -->
-
                 <button type="submit" class="btn btn-primary">Ajouter l'Agent</button>
             </form>
             <p id="addAgentMessage"></p>
@@ -116,12 +103,10 @@
                         <th>Prénom</th>
                         <th>Qualifications</th>
                         <th>Grades</th>
-                        <!-- Colonne "Fonctions" supprimée -->
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="agentsTableBody">
-                    <!-- Colspan ajusté de 7 à 6 (ID, Nom, Prénom, Qualifs, Grades, Actions) -->
                     <tr><td colspan="6">Chargement des agents...</td></tr>
                 </tbody>
             </table>
@@ -237,18 +222,6 @@
                   <p id="gradesMessage" style="color: red;"></p>
               </div>
               <br>
-              <!-- Section "Fonctions de l'Agent" supprimée -->
-              <!--
-              <div>
-                  <h4>Fonctions de l'Agent :</h4>
-                  <div id="functionsCheckboxes">
-                      Chargement des fonctions...
-                  </div>
-                  <p id="functionsMessage" style="color: red;"></p>
-              </div>
-              <br>
-              -->
-
               <button type="submit" class="btn btn-primary">Mettre à jour l'Agent</button>
           </form>
           <p id="editAgentMessage"></p>
