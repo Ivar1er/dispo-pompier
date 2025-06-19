@@ -217,8 +217,8 @@ body {
 .day-buttons-container {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  margin-bottom: 20px; /* augmenté */
+  gap: 10px; /* Increased gap between day buttons */
+  margin-bottom: 25px; /* Increased margin */
   flex-wrap: wrap;
 }
 
@@ -226,12 +226,13 @@ body {
   background-color: var(--secondary-color);
   color: white;
   border: none;
-  padding: 8px 14px;
+  padding: 10px 16px; /* Slightly increased padding */
   border-radius: var(--border-radius-medium);
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.3s ease;
   user-select: none;
+  min-width: 90px; /* Set a minimum width for day buttons */
 }
 
 .day-btn:hover:not(.active) {
@@ -248,7 +249,7 @@ body {
 #slots-slider-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px; /* plus d’espace entre créneaux */
+  gap: 10px; /* Increased gap between slots */
   justify-content: center;
   max-width: 100%;
   user-select: none;
@@ -256,14 +257,14 @@ body {
 
 /* Chaque créneau horaire est un petit bloc */
 .time-slot-block {
-  width: 100px;
-  height: 28px;
+  width: 110px; /* Slightly increased width */
+  height: 32px; /* Slightly increased height */
   border: 1px solid var(--medium-gray);
   border-radius: var(--border-radius-small);
   background-color: var(--free-slot-color);
   color: var(--text-color);
-  font-size: 0.7rem;
-  line-height: 28px;
+  font-size: 0.75rem; /* Slightly increased font size */
+  line-height: 32px; /* Adjusted line-height to match new height */
   text-align: center;
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease;
@@ -286,10 +287,10 @@ body {
   position: absolute;
   background: var(--primary-color);
   color: white;
-  font-size: 0.75rem;
-  padding: 2px 6px;
+  font-size: 0.8rem; /* Adjusted tooltip font size */
+  padding: 3px 8px; /* Adjusted tooltip padding */
   border-radius: 4px;
-  top: -30px;
+  top: -35px; /* Adjusted tooltip position */
   white-space: nowrap;
   pointer-events: none;
   opacity: 0.9;
