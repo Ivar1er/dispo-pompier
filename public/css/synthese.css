@@ -113,7 +113,7 @@ body {
 .planning-grid-content {
     display: grid;
     /* La première colonne est pour les jours (sticky), les 48 suivantes pour les slots de 30 min */
-    /* CHANGEMENT: Utiliser minmax pour permettre une certaine flexibilité, mais garder une base fixe */
+    /* Utiliser minmax pour permettre une certaine flexibilité, mais garder une base fixe */
     grid-template-columns: 120px repeat(48, minmax(20px, 1fr)); /* Colonne jour + 48 colonnes de créneaux */
     border: 1px solid var(--light-gray);
     border-radius: var(--border-radius-medium);

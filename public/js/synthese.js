@@ -3,7 +3,7 @@
 // Jours de la semaine
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 // Récupère l'ID de l'agent depuis le sessionStorage (doit être défini lors de la connexion)
-const agentId = sessionStorage.getItem("agentId"); // CHANGEMENT : Utiliser agentId de sessionStorage
+const agentId = sessionStorage.getItem("agentId");
 // URL de base de votre API
 const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
@@ -156,7 +156,7 @@ function minutesToTime(totalMinutes) {
 document.addEventListener("DOMContentLoaded", async () => {
   // Vérifie si un agent est connecté, sinon redirige vers la page de connexion
   // Si 'agentId' est 'admin', l'accès est aussi refusé car cette page est pour les agents.
-  if (!agentId || sessionStorage.getItem('userRole') === "admin") { // CHANGEMENT : Vérifier userRole
+  if (!agentId || sessionStorage.getItem('userRole') === "admin") {
     displayMessageModal("Accès non autorisé", "Vous devez être connecté en tant qu’agent.", "error", () => {
         window.location.href = "index.html"; // Assurez-vous que c'est la bonne page de connexion
     });
@@ -274,10 +274,13 @@ function showWeek(weekKey, planningData) {
   // Efface et recrée l'en-tête des heures avec la première cellule vide pour le label du jour
   header.innerHTML = `<div class="day-label sticky-day-col"></div>`;
 
-  // Crée les en-têtes d'heures (de 7h00 à 6h30 du matin suivant, par tranches de 2 heures)
-  // MODIFICATION ICI : Boucle pour afficher toutes les deux heures
+  const SLOT_COUNT = 48; // Nombre total de slots de 30 minutes sur 24h
+  const START_HOUR_GRID = 7; // Heure de début de la grille d'affichage (7h00)
+  const MINUTES_PER_SLOT = 30; // Chaque slot représente 30 minutes
+
+  // Crée les en-têtes d'heures (toutes les deux heures)
   for (let i = 0; i < 12; i++) { // 12 cellules pour 24 heures (chaque cellule = 2 heures)
-    const hour = (7 + i * 2) % 24; // Débute à 7h00, puis 9h00, 11h00, etc.
+    const hour = (START_HOUR_GRID + i * 2) % 24; // Débute à 7h00, puis 9h00, 11h00, etc.
     const div = document.createElement("div");
     div.className = "hour-cell";
     div.textContent = `${String(hour).padStart(2, '0')}:00`;
@@ -301,46 +304,35 @@ function showWeek(weekKey, planningData) {
     // Les données sont attendues sous forme d'un tableau d'objets { start: index_start, end: index_end }
     const dayRanges = planningData[weekKey]?.[day] || [];
 
-    // Définit l'heure de début de la grille en minutes (7h00)
-    const gridStartHourInMinutes = 7 * 60; // Minutes from midnight for 7:00 AM
-    const minutesPerSlot = 30; // Each slot represents 30 minutes
-
     // Pour chaque "slot" vide dans la grille (qui servira de fond)
-    // Nous avons 48 slots de 30 minutes pour couvrir 24 heures (de 7h00 à 6h59 le lendemain)
-    for (let i = 0; i < 48; i++) {
+    for (let i = 0; i < SLOT_COUNT; i++) {
         const slotDiv = document.createElement("div");
-        slotDiv.className = "slot-background"; // Nouvelle classe pour le fond des slots
+        slotDiv.className = "slot-background";
         row.appendChild(slotDiv);
     }
 
     // Traite et crée les barres visuelles pour les plages de disponibilité
     dayRanges.forEach(range => {
-      // Les données de range.start et range.end sont des index (0-47), pas des heures formatées
-      // Convertir les index en minutes pour le calcul de position et l'affichage du tooltip
-      let startMinutes = (range.start * minutesPerSlot) + gridStartHourInMinutes;
-      let endMinutes = (range.end * minutesPerSlot) + gridStartHourInMinutes; // Fin du slot est le début du suivant
-      
-      // Ajustement pour le cas où le créneau se termine à 00:00 (début du jour suivant)
-      if (range.end === SLOT_COUNT) { // Si le dernier index est 47, le "end" pourrait être 48 (correspondant à 7h00 le lendemain)
-        endMinutes = gridStartHourInMinutes + (SLOT_COUNT * minutesPerSlot); // 7h00 le lendemain
-      }
-
+      // Les données de range.start et range.end sont des index (0-47)
+      // Convertir les index en minutes réelles pour le calcul de position et l'affichage du tooltip
+      let startMinutesActual = (range.start * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
+      let endMinutesActual = (range.end * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
 
       // Gère les plages qui traversent minuit (ex: 23:00 - 02:00)
       // Si l'heure de fin est antérieure à l'heure de début après conversion, cela signifie qu'elle est le lendemain
-      if (endMinutes < startMinutes) {
-        endMinutes += 24 * 60;
+      if (endMinutesActual < startMinutesActual) {
+        endMinutesActual += 24 * 60; // Ajoute 24 heures pour le calcul correct de la durée
       }
 
-      // Calcule les heures de début et de fin effectives pour l'affichage dans la grille
-      // On s'assure que les barres ne commencent pas avant 7h00 ni ne dépassent 6h59 le lendemain
-      let effectiveStartMinutes = Math.max(startMinutes, gridStartHourInMinutes);
-      let effectiveEndMinutes = Math.min(endMinutes, gridStartHourInMinutes + (24 * 60));
+      // Calcul des positions dans la grille visuelle (par rapport à 7h00)
+      const gridStartMinutes = START_HOUR_GRID * 60;
+      let effectiveStartMinutes = Math.max(startMinutesActual, gridStartMinutes);
+      let effectiveEndMinutes = Math.min(endMinutesActual, gridStartMinutes + (24 * 60)); // Max 24 heures à partir de 7h00
 
       // Calcule la colonne de début et l'étendue (nombre de colonnes) dans la grille
       // La grille commence à la colonne 2 car la colonne 1 est pour le label du jour
-      const startColumn = ((effectiveStartMinutes - gridStartHourInMinutes) / minutesPerSlot) + 2;
-      const spanColumns = (effectiveEndMinutes - effectiveStartMinutes) / minutesPerSlot;
+      const startColumn = ((effectiveStartMinutes - gridStartMinutes) / MINUTES_PER_SLOT) + 2;
+      const spanColumns = (effectiveEndMinutes - effectiveStartMinutes) / MINUTES_PER_SLOT;
 
       // N'ajoute la barre que si elle a une longueur positive (visible)
       if (spanColumns > 0) {
@@ -349,9 +341,9 @@ function showWeek(weekKey, planningData) {
         // Positionne la barre dans la grille
         bar.style.gridColumn = `${startColumn} / span ${spanColumns}`;
         
-        // CHANGEMENT : Affichage des heures formatées dans le tooltip
-        const displayStart = minutesToTime(startMinutes);
-        const displayEnd = minutesToTime(endMinutes);
+        // Affichage des heures formatées dans le tooltip
+        const displayStart = minutesToTime(startMinutesActual);
+        const displayEnd = minutesToTime(endMinutesActual);
         bar.title = `Disponible: ${displayStart} - ${displayEnd}`; 
         
         row.appendChild(bar); // Ajoute la barre à la ligne du jour
