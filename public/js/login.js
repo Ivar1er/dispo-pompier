@@ -37,10 +37,10 @@ async function login() {
       return;
     }
 
-    // --- MODIFICATION CRUCIALE ICI : Accéder aux propriétés via data.user ---
+    // --- MODIFICATION ICI : Utiliser data.user.id au lieu de data.user._id ---
     const userData = data.user || {}; // S'assurer que data.user existe, sinon utiliser un objet vide
 
-    sessionStorage.setItem("agent", userData._id || agent); // Utilise userData._id
+    sessionStorage.setItem("agentId", userData.id || agent); // Utilise userData.id (qui vient du serveur)
     sessionStorage.setItem("agentPrenom", userData.prenom || ''); // Utilise userData.prenom
     sessionStorage.setItem("agentNom", userData.nom || '');     // Utilise userData.nom
     sessionStorage.setItem("userRole", userData.role || '');   // Utilise userData.role
@@ -80,9 +80,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           agents.forEach(user => {
               const option = document.createElement("option");
-              // Utilisation de user._id pour correspondre à l'ID retourné par MongoDB si votre backend utilise _id
-              option.value = user._id || user.id; // Tente _id d'abord, puis id comme fallback
-              option.textContent = `${user.prenom || ''} ${user.nom || ''} (${user._id || user.id})`; // Affiche Prénom Nom (identifiant)
+              // Utilisation de user.id pour correspondre à l'ID retourné par le serveur
+              option.value = user.id;
+              option.textContent = `${user.prenom || ''} ${user.nom || ''} (${user.id})`; // Affiche Prénom Nom (identifiant)
               agentSelect.appendChild(option);
           });
       } catch (err) {

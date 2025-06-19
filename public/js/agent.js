@@ -5,7 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Fonction pour charger et afficher les informations de l'agent
   async function loadAgentInfo() {
-    const token = localStorage.getItem('token'); // Assurez-vous que le token est stocké ici après la connexion
+    // MODIFICATION ICI : Utiliser sessionStorage au lieu de localStorage
+    const token = sessionStorage.getItem('token'); 
 
     if (!token) {
       console.warn('Aucun token trouvé. Affichage des informations par défaut.');
@@ -40,7 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
         agentNameDisplay.textContent = 'Erreur de chargement des infos';
         // Si le token est invalide (403), l'utilisateur doit probablement se reconnecter
         if (response.status === 403) {
-          localStorage.removeItem('token'); // Nettoyer le token invalide
+          // MODIFICATION ICI : Utiliser sessionStorage au lieu de localStorage
+          sessionStorage.removeItem('token'); 
           // window.location.href = '/login.html'; // Rediriger vers la connexion
         }
       }
@@ -111,7 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const isoWeekString = `S ${weekNum}`;
 
       try {
-          const token = localStorage.getItem('token');
+          // MODIFICATION ICI : Utiliser sessionStorage au lieu de localStorage
+          const token = sessionStorage.getItem('token');
           if (!token) {
               console.warn('Aucun token trouvé pour charger les sélections hebdomadaires.');
               return;
@@ -384,7 +387,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const token = localStorage.getItem('token');
+    // MODIFICATION ICI : Utiliser sessionStorage au lieu de localStorage
+    const token = sessionStorage.getItem('token');
     if (!token) {
         alert('Impossible d\'enregistrer : non authentifié. Veuillez vous reconnecter.');
         return;
@@ -436,9 +440,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const logoutButton = document.getElementById('logout-btn');
   if (logoutButton) {
     logoutButton.addEventListener('click', () => {
-      localStorage.removeItem('token'); // Supprime le token JWT du localStorage
-      // Optionnel : Si vous avez un agentId stocké, supprimez-le aussi
-      // localStorage.removeItem('agentId'); 
+      // MODIFICATION ICI : Utiliser sessionStorage au lieu de localStorage
+      sessionStorage.removeItem('token'); 
+      sessionStorage.removeItem('agentId'); // Supprime l'ID de l'agent si stocké
+      sessionStorage.removeItem('agentPrenom');
+      sessionStorage.removeItem('agentNom');
+      sessionStorage.removeItem('userRole');
+
       window.location.href = 'login.html'; // Redirige vers la page de connexion
     });
   }
