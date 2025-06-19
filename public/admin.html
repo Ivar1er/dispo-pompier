@@ -10,16 +10,8 @@
 <body>
   <div class="agent-container">
     <header class="page-header">
-      <h2 class="welcome-message">Tableau de bord Administrateur <span id="admin-name-display"></span></h2>
-      <div class="header-controls">
-        <div class="week-info" id="planning-controls">
-          <label for="week-select" class="sr-only">Sélectionner la semaine</label>
-          <select id="week-select"></select>
-          <p id="date-range"></p>
-          <button id="export-pdf" class="btn btn-secondary">📄 Exporter en PDF</button>
-          <a href="feuille_de_garde.html" class="btn btn-secondary">Feuille de Garde</a>
-        </div>
-      </div>
+      <h2 class="welcome-message">Tableau de bord Administrateur</h2>
+      <!-- Le span admin-name-display est supprimé d'ici pour le masquer -->
     </header>
 
     <nav class="main-tabs-navigation">
@@ -185,7 +177,15 @@
     </div>
 
     <footer class="bottom-actions">
-      <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
+        <!-- Déplacé ici les contrôles de planning -->
+        <div class="header-controls" id="planning-controls">
+          <label for="week-select" class="sr-only">Sélectionner la semaine</label>
+          <select id="week-select"></select>
+          <p id="date-range"></p>
+          <button id="export-pdf" class="btn btn-secondary">📄 Exporter en PDF</button>
+          <a href="feuille_de_garde.html" class="btn btn-secondary">Feuille de Garde</a>
+        </div>
+        <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
     </footer>
   </div>
 
