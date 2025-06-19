@@ -3,24 +3,23 @@
 
 /* Variables de couleurs et de design pour la cohérence */
 :root {
-  --primary-color: #007bff; /* Bleu principal */
+  --primary-color: #007bff;
   --primary-hover-color: #0056b3;
-  --secondary-color: #6c757d; /* Gris pour actions secondaires */
+  --secondary-color: #6c757d;
   --secondary-hover-color: #5a6268;
-  --tertiary-color: #ffc107; /* Jaune pour actions tertiaires (effacer) */
+  --tertiary-color: #ffc107;
   --tertiary-hover-color: #e0a800;
-  --danger-color: #dc3545; /* Rouge pour déconnexion */
+  --danger-color: #dc3545;
   --danger-hover-color: #c82333;
-  --success-color: #28a745; /* Vert pour créneaux sélectionnés */
+  --success-color: #28a745;
 
-  --selected-slot-color: var(--success-color); /* Vert pour un créneau sélectionné/disponible */
-  --free-slot-color: #e0e0e0; /* Couleur pour un créneau libre (non sélectionné) */
-  --unavailable-slot-color: #f8d7da; /* Rouge pâle pour les créneaux non disponibles */
-  --unavailable-slot-border: #dc3545; /* Bordure rouge pour non disponibles */
+  --selected-slot-color: var(--success-color);
+  --free-slot-color: #e0e0e0;
+  --unavailable-slot-color: #f8d7da;
+  --unavailable-slot-border: #dc3545;
 
-
-  --background-color: #f0f2f5; /* Fond clair */
-  --card-background: #ffffff; /* Fond des conteneurs */
+  --background-color: #f0f2f5;
+  --card-background: #ffffff;
   --text-color: #333;
   --light-gray: #e0e0e0;
   --medium-gray: #bbb;
@@ -39,33 +38,33 @@ body {
   margin: 0;
   padding: 20px;
   color: var(--text-color);
-  min-height: 100vh; /* Pour que le body s'étende sur toute la hauteur */
-  display: flex; /* Centrage du conteneur */
+  min-height: 100vh;
+  display: flex;
   justify-content: center;
-  align-items: flex-start; /* Aligne en haut, permet le scroll */
+  align-items: flex-start;
   box-sizing: border-box;
 }
 
 .agent-container {
-  max-width: 1200px; /* Adaptez la largeur pour la page agent */
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   background-color: var(--card-background);
-  padding: 30px;
+  padding: 40px 40px 50px; /* augmenté pour plus d’air */
   border-radius: var(--border-radius-large);
   box-shadow: var(--box-shadow-subtle);
   display: flex;
   flex-direction: column;
-  gap: 25px; /* Espacement global entre sections */
+  gap: 40px; /* plus d’espace vertical */
 }
 
-/* --- Header de la page --- */
+/* --- Header --- */
 .page-header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: 30px; /* plus d’espace entre éléments */
+  margin-bottom: 30px;
 }
 
 .welcome-message {
@@ -79,38 +78,35 @@ body {
   font-weight: 600;
 }
 
-/* Style pour l'affichage des qualifications de l'agent */
 .qualifications-display-message {
-    font-size: 0.95rem;
-    color: var(--dark-gray);
-    margin-top: -10px; /* Remonte un peu si besoin */
-    margin-bottom: 10px;
-    text-align: center;
-    /* Styles pour centrer les tags si besoin */
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 5px; /* Espacement entre les tags */
+  font-size: 0.95rem;
+  color: var(--dark-gray);
+  margin-top: -10px;
+  margin-bottom: 10px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
 .qualification-tag {
-    display: inline-block;
-    background-color: #e2e6ea; /* Gris clair */
-    color: #495057; /* Texte gris foncé */
-    padding: 4px 8px;
-    border-radius: 5px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    white-space: nowrap; /* Empêche le tag de se casser */
+  display: inline-block;
+  background-color: #e2e6ea;
+  color: #495057;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
-
 
 .header-controls {
   display: flex;
-  flex-wrap: wrap; /* Pour la réactivité */
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 20px;
+  gap: 30px; /* espacement plus large */
   width: 100%;
 }
 
@@ -118,11 +114,11 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap; /* Pour la réactivité */
+  flex-wrap: wrap;
   justify-content: center;
 }
 
-#week-select { /* ID corrigé */
+#week-select {
   padding: 10px 15px;
   font-size: 1rem;
   border: 1px solid var(--light-gray);
@@ -175,17 +171,6 @@ body {
   box-shadow: 0 4px 8px rgba(108, 117, 125, 0.2);
 }
 
-.btn-tertiary {
-  background-color: var(--tertiary-color);
-  color: #333; /* Texte foncé sur jaune */
-}
-
-.btn-tertiary:hover {
-  background-color: var(--tertiary-hover-color);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(255, 193, 7, 0.2);
-}
-
 .btn-danger {
   background-color: var(--danger-color);
   color: white;
@@ -202,56 +187,21 @@ body {
 }
 
 .btn:disabled,
-.btn.disabled { /* Ajout de la classe .disabled pour les liens */
+.btn.disabled {
   background-color: var(--light-gray);
   color: var(--dark-gray);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
-  pointer-events: none; /* Empêche les clics sur les liens désactivés */
+  pointer-events: none;
 }
 
-/* --- Onglets de navigation --- */
-.tabs-navigation {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap; /* Permet aux onglets de passer à la ligne */
-  gap: 10px;
-  margin-bottom: 30px;
-  border-bottom: 2px solid var(--light-gray); /* Ligne de séparation subtile */
-  padding-bottom: 15px;
-}
-
-.tab { /* Classe corrigée */
-  padding: 12px 22px;
-  background-color: #f8f8f8;
-  border: 1px solid var(--medium-gray);
-  border-radius: var(--border-radius-medium);
-  cursor: pointer;
-  font-weight: 500;
-  color: var(--dark-gray);
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-  font-size: 0.95rem;
-}
-
-.tab:hover:not(.active) {
-  background-color: var(--light-gray);
-  border-color: var(--dark-gray);
-}
-
-.tab.active {
-  background-color: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-  box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
-}
-
-/* --- Section du planning --- */
+/* --- Planning Section --- */
 .planning-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 30px; /* espacement plus important */
   width: 100%;
 }
 
@@ -263,321 +213,148 @@ body {
   font-size: 0.95rem;
 }
 
-/* Nouveau conteneur pour les colonnes de jours */
-.planning-columns-container {
-  display: flex; /* Utilise flexbox pour les colonnes de jours */
-  overflow-x: auto; /* Permet le défilement horizontal si les jours ne rentrent pas */
-  gap: 15px; /* Espacement entre les colonnes de jours */
-  width: 100%;
-  padding-bottom: 10px; /* Pour la scrollbar horizontale */
-  -webkit-overflow-scrolling: touch; /* Lissage du scroll sur iOS */
-  border: 1px solid var(--light-gray);
-  border-radius: var(--border-radius-medium);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-  background-color: var(--card-background);
-  padding: 15px;
-}
-
-/* Style de chaque colonne de jour */
-.day-column {
-  flex-shrink: 0; /* Empêche les colonnes de se réduire */
-  width: 150px; /* Largeur fixe pour chaque jour, ajuster si nécessaire */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px; /* Espacement entre l'en-tête et les créneaux */
-  background-color: var(--card-background);
-  border-radius: var(--border-radius-medium);
-  padding-bottom: 10px; /* Pour l'esthétique */
-}
-
-.day-header {
-  font-weight: 600;
-  color: var(--primary-color);
-  padding: 10px 0;
-  width: 100%;
-  text-align: center;
-  border-bottom: 1px solid var(--light-gray);
-  margin-bottom: 5px;
-}
-
-/* Conteneur pour les créneaux d'une journée (rendu scrollable) */
-.slots-wrapper {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 5px; /* Espacement entre les créneaux + labels */
-  max-height: 400px; /* Hauteur maximale pour le défilement vertical */
-  overflow-y: auto;
-  padding-right: 5px; /* Pour éviter que la scrollbar ne masque le contenu */
-}
-
-/* Style des labels d'heure dans chaque colonne */
-.time-slot-label {
-    font-size: 0.8rem;
-    color: var(--dark-gray);
-    text-align: center;
-    width: 100%;
-    margin-top: 5px; /* Espacement au-dessus de chaque créneau */
-    font-weight: 500;
-}
-
-/* Style des cellules individuelles (créneaux de 30 min) */
-.planning-cell {
-  padding: 8px 5px; /* Ajusté pour le nouveau layout */
-  border: 1px solid var(--medium-gray);
-  border-radius: var(--border-radius-small);
-  cursor: pointer;
-  font-size: 0.85rem; /* Taille de police légèrement réduite */
-  text-align: center;
-  font-weight: 500;
-  white-space: nowrap;
-  position: relative;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
-  height: 30px; /* Hauteur fixe pour les créneaux */
+/* --- Nouveau : boutons jours horizontaux --- */
+.day-buttons-container {
   display: flex;
   justify-content: center;
-  align-items: center;
-  width: calc(100% - 10px); /* Prend toute la largeur de la colonne moins le padding */
-  margin: 0 auto; /* Centrer dans la colonne */
+  gap: 8px;
+  margin-bottom: 20px; /* augmenté */
+  flex-wrap: wrap;
 }
 
-/* Couleurs des créneaux */
-.planning-cell.available {
-  background-color: var(--free-slot-color);
-  border-color: var(--light-gray);
-  color: var(--text-color);
-}
-
-.planning-cell.unavailable {
-  background-color: var(--unavailable-slot-color);
-  border-color: var(--unavailable-slot-border);
-  color: var(--danger-color);
-  cursor: not-allowed;
-  opacity: 0.7;
-  text-decoration: line-through; /* Barre le texte pour indiquer l'indisponibilité */
-}
-
-.planning-cell.available:hover {
-    background-color: #d1ecf1;
-    border-color: #007bff;
-}
-
-/* Styles pour la sélection */
-.planning-cell.selecting,
-.planning-cell.selected {
-  background-color: var(--selected-slot-color);
+.day-btn {
+  background-color: var(--secondary-color);
   color: white;
-  border-color: var(--selected-slot-color);
+  border: none;
+  padding: 8px 14px;
+  border-radius: var(--border-radius-medium);
   font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  user-select: none;
 }
 
-/* Scrollbar stylisée pour planning-columns-container et slots-wrapper */
-.planning-columns-container::-webkit-scrollbar,
-.slots-wrapper::-webkit-scrollbar {
-  height: 8px;
-  width: 8px;
-}
-.planning-columns-container::-webkit-scrollbar-track,
-.slots-wrapper::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-.planning-columns-container::-webkit-scrollbar-thumb,
-.slots-wrapper::-webkit-scrollbar-thumb {
-  background: var(--light-gray);
-  border-radius: 10px;
-}
-.planning-columns-container::-webkit-scrollbar-thumb:hover,
-.slots-wrapper::-webkit-scrollbar-thumb:hover {
-  background: var(--medium-gray);
+.day-btn:hover:not(.active) {
+  background-color: var(--secondary-hover-color);
 }
 
-
-/* Spinner de chargement */
-.loading-spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid var(--primary-color);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin: 20px auto;
+.day-btn.active {
+  background-color: var(--primary-color);
+  cursor: default;
+  box-shadow: 0 2px 8px rgba(0,123,255,0.4);
 }
 
-.loading-spinner.hidden {
-  display: none;
+/* Conteneur des créneaux horaires */
+#slots-slider-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px; /* plus d’espace entre créneaux */
+  justify-content: center;
+  max-width: 100%;
+  user-select: none;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Styles pour les lecteurs d'écran */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
+/* Chaque créneau horaire est un petit bloc */
+.time-slot-block {
+  width: 100px;
+  height: 28px;
+  border: 1px solid var(--medium-gray);
+  border-radius: var(--border-radius-small);
+  background-color: var(--free-slot-color);
+  color: var(--text-color);
+  font-size: 0.7rem;
+  line-height: 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  flex-shrink: 0;
+  position: relative;
+  white-space: nowrap;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
+  text-overflow: ellipsis;
 }
 
+.time-slot-block.selected {
+  background-color: var(--success-color);
+  color: white;
+  border-color: var(--success-color);
+}
 
-/* --- Media Queries pour la réactivité --- */
-@media (max-width: 1024px) {
+/* Tooltip simple au survol pour l'heure */
+.time-slot-block:hover::after {
+  content: attr(data-time);
+  position: absolute;
+  background: var(--primary-color);
+  color: white;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  top: -30px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.9;
+  z-index: 10;
+}
+
+/* Footer actions */
+.bottom-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20px;
+  border-top: 1px solid var(--light-gray);
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+/* Groupe des 3 boutons centraux */
+.btn-group-centered {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  flex: 1 1 auto;
+}
+
+/* Conteneur bouton déconnexion aligné à droite */
+.btn-logout-container {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Responsive : empilement sous 480px */
+@media (max-width: 480px) {
   .agent-container {
-    padding: 20px;
-    gap: 15px;
+    padding: 30px 20px 40px;
+    gap: 30px;
   }
 
-  .welcome-message {
-    font-size: 2rem;
+  .page-header {
+    gap: 25px;
+    margin-bottom: 25px;
   }
 
   .header-controls {
-    flex-direction: column;
-    gap: 15px;
+    gap: 25px;
   }
 
-  .week-info {
-    width: 100%;
-    justify-content: center;
-  }
-
-  #week-select, .btn {
-    width: 100%;
-    max-width: 300px;
-  }
-
-  .tabs-navigation {
-    flex-direction: row;
-    justify-content: flex-start;
-    overflow-x: auto;
-    padding-bottom: 10px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .tabs-navigation::-webkit-scrollbar {
-    height: 6px;
-  }
-  .tabs-navigation::-webkit-scrollbar-thumb {
-    background: var(--light-gray);
-    border-radius: 10px;
-  }
-
-  .tab {
-    flex-shrink: 0;
-    font-size: 0.9rem;
-    padding: 10px 18px;
-  }
-
-  /* Ajustements pour les colonnes de jours sur tablette */
-  .day-column {
-    width: 130px; /* Plus étroit sur tablette */
-  }
-  .time-slot-label {
-      font-size: 0.75rem;
-  }
-  .planning-cell {
-    font-size: 0.8rem;
-    padding: 6px 4px;
-    height: 28px;
-  }
-  .slots-wrapper {
-      max-height: 350px; /* Ajuste la hauteur de défilement */
-  }
-}
-
-@media (max-width: 768px) {
-  body {
-    padding: 15px;
-  }
-  .agent-container {
-    padding: 15px;
-    gap: 10px;
-  }
-
-  .welcome-message {
-    font-size: 1.8rem;
-  }
-
-  #week-select, .btn {
-    max-width: none;
-  }
-  .btn {
-    padding: 10px 20px;
-    font-size: 0.95rem;
-  }
-
-  .tab {
-    padding: 8px 15px;
-    font-size: 0.85rem;
-  }
-
-  /* Ajustements pour les colonnes de jours sur mobile */
-  .day-column {
-    width: 110px; /* Encore plus étroit */
-  }
-  .time-slot-label {
-      font-size: 0.7rem;
-  }
-  .planning-cell {
-    font-size: 0.75rem;
-    padding: 5px 3px;
-    height: 25px;
-  }
-  .slots-wrapper {
-      max-height: 300px;
+  .planning-section {
+    gap: 25px;
   }
 
   .bottom-actions {
     flex-direction: column;
-    gap: 10px;
-  }
-}
-
-@media (max-width: 480px) {
-  body {
-    padding: 10px;
-  }
-  .agent-container {
-    padding: 10px;
-    border-radius: 0;
-    box-shadow: none;
+    align-items: center;
+    gap: 18px;
   }
 
-  .welcome-message {
-    font-size: 1.5rem;
-  }
-  .qualifications-display-message {
-      font-size: 0.85rem;
-  }
-  .qualification-tag {
-      font-size: 0.75rem;
-      padding: 3px 6px;
+  .btn-group-centered {
+    justify-content: center;
+    width: 100%;
   }
 
-  .tab {
-      padding: 6px 10px;
-      font-size: 0.8rem;
-  }
-
-  /* Ajustements pour les très petits écrans */
-  .day-column {
-    width: 90px; /* Très petits créneaux */
-  }
-  .time-slot-label {
-      font-size: 0.65rem;
-  }
-  .planning-cell {
-      font-size: 0.7rem;
-      padding: 4px 2px;
-      height: 22px;
-  }
-  .slots-wrapper {
-      max-height: 250px;
+  .btn-logout-container {
+    margin-left: 0;
+    width: 100%;
+    text-align: center;
   }
 }

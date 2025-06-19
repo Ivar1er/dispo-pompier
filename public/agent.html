@@ -5,74 +5,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mon Planning - Sapeur Pompier</title>
   <link rel="stylesheet" href="css/agent.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <!-- Conteneur principal de l'application agent -->
   <div class="agent-container">
-
-    <!-- Section d'en-tête de la page -->
     <header class="page-header">
-      <!-- Message de bienvenue avec le nom de l'agent (ID masqué) -->
       <h2 class="welcome-message">Bienvenue <span id="agent-name-display"></span> !</h2>
-
-      <!-- Affichage des qualifications de l'agent, initialement vide -->
       <p id="agentQualificationsDisplay" class="qualifications-display-message"></p>
-
-      <!-- Contrôles de navigation et d'information hebdomadaire -->
       <div class="header-controls">
         <button id="prev-week-btn" class="btn btn-secondary" aria-label="Semaine Précédente">← Semaine Précédente</button>
         <div class="week-info">
-          <!-- Le sélecteur de semaine sera rempli dynamiquement par JS -->
-          <label for="week-select" class="sr-only">Sélectionner la semaine</label>
-          <select id="week-select" aria-label="Sélectionner la semaine"></select>
-          <!-- Élément pour afficher la plage de dates de la semaine courante -->
-          <p id="current-week-display" class="week-date-range"></p>
+          <select id="week-select" aria-label="Choisir une semaine"></select>
+          <!-- Suppression du paragraphe affichant la plage de dates -->
         </div>
         <button id="next-week-btn" class="btn btn-secondary" aria-label="Semaine Suivante">Semaine Suivante →</button>
-
-        <!-- Bouton pour accéder à la synthèse -->
-        <a href="synthese.html" id="synthese-btn" class="btn btn-secondary">Voir la Synthèse</a>
+        <!-- Bouton synthèse supprimé ici -->
       </div>
     </header>
 
-    <!-- Navigation par onglets pour les jours de la semaine (peut être utilisé pour la visibilité des colonnes) -->
-    <nav class="tabs-navigation" role="tablist">
-      <button class="tab active" data-day-index="0" role="tab" aria-selected="true" id="tab-lundi">Lundi</button>
-      <button class="tab" data-day-index="1" role="tab" aria-selected="false" id="tab-mardi">Mardi</button>
-      <button class="tab" data-day-index="2" role="tab" aria-selected="false" id="tab-mercredi">Mercredi</button>
-      <button class="tab" data-day-index="3" role="tab" aria-selected="false" id="tab-jeudi">Jeudi</button>
-      <button class="tab" data-day-index="4" role="tab" aria-selected="false" id="tab-vendredi">Vendredi</button>
-      <button class="tab" data-day-index="5" role="tab" aria-selected="false" id="tab-samedi">Samedi</button>
-      <button class="tab" data-day-index="6" role="tab" aria-selected="false" id="tab-dimanche">Dimanche</button>
-    </nav>
-
-    <!-- Section principale du planning avec les blocs de créneaux par jour -->
     <main class="planning-section">
       <p id="selection-info" class="info-message">
-        Cliquez sur le premier créneau et glisez la souris jusqu'au dernier. Plusieurs plages de créneaux possibles.
+        Cliquez sur un jour puis cliquez-glissez sur les créneaux pour sélectionner plusieurs plages. Cliquez sur un créneau vert pour le supprimer.
       </p>
 
-      <!-- Conteneur des colonnes de jours, où les créneaux seront injectés par JS -->
-      <!-- Nouvelle classe 'planning-columns-container' pour le nouveau layout -->
       <div id="planning-container" class="planning-columns-container">
-        <!-- Les colonnes de chaque jour et leurs créneaux seront générés ici par JavaScript -->
-      </div>
+        <div class="day-buttons-container" role="tablist" aria-label="Sélection du jour">
+          <button class="day-btn active" data-day="0" role="tab" aria-selected="true">Lundi</button>
+          <button class="day-btn" data-day="1" role="tab" aria-selected="false">Mardi</button>
+          <button class="day-btn" data-day="2" role="tab" aria-selected="false">Mercredi</button>
+          <button class="day-btn" data-day="3" role="tab" aria-selected="false">Jeudi</button>
+          <button class="day-btn" data-day="4" role="tab" aria-selected="false">Vendredi</button>
+          <button class="day-btn" data-day="5" role="tab" aria-selected="false">Samedi</button>
+          <button class="day-btn" data-day="6" role="tab" aria-selected="false">Dimanche</button>
+        </div>
 
-      <!-- Spinner de chargement, initialement caché -->
-      <div id="loading-spinner" class="loading-spinner hidden" role="status" aria-label="Chargement du planning..."></div>
+        <div id="slots-slider-container" aria-live="polite" aria-label="Sélection des créneaux horaires"></div>
+      </div>
     </main>
 
-    <!-- Pied de page avec les actions principales (sauvegarde, effacement, déconnexion) -->
     <footer class="bottom-actions">
-      <button id="save-slots-btn" class="btn btn-primary">Enregistrer mes créneaux</button>
-      <button id="clear-selection-btn" class="btn btn-secondary">Effacer la sélection</button>
-      <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
+      <div class="btn-group-centered">
+        <button id="save-slots-btn" class="btn btn-primary">Enregistrer mes créneaux</button>
+        <button id="clear-selection-btn" class="btn btn-secondary">Effacer la sélection</button>
+        <a href="synthese.html" id="synthese-btn-bottom" class="btn btn-secondary">Voir la Synthèse</a>
+      </div>
+      <div class="btn-logout-container">
+        <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
+      </div>
     </footer>
   </div>
 
-  <!-- Script JavaScript pour la logique de la page -->
   <script src="js/agent.js"></script>
-
 </body>
 </html>
