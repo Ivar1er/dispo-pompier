@@ -1,4 +1,4 @@
-/* agent.css */
+/* synthese.css */
 
 /* --- Importation de la police Poppins --- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
@@ -14,6 +14,7 @@
 
   --occupied-slot-color: var(--primary-color); /* Bleu pour un créneau occupé (utilisé sur la page agent) */
   --free-slot-color: #e0e0e0; /* Couleur pour un créneau libre (non disponible/vide) */
+  --availability-bar-color: var(--success-color); /* Couleur des barres de disponibilité */
 
   --background-color: #f0f2f5; /* Fond clair */
   --card-background: #ffffff; /* Fond des conteneurs */
@@ -30,244 +31,219 @@
 }
 
 body {
-    font-family: 'Poppins', sans-serif; /* Utilisation de la nouvelle police */
+    font-family: 'Poppins', sans-serif;
     margin: 0;
-    padding: 0;
-    background-color: #f0f2f5; /* Un gris clair doux */
-    color: #333;
-    line-height: 1.6;
+    padding: 20px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* Aligne le contenu en haut */
-    min-height: 100vh; /* Minimum 100% de la hauteur de la vue */
-    box-sizing: border-box; /* Inclure padding et border dans la largeur/hauteur */
-}
-
-.agent-container {
-    background-color: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    padding: 30px;
-    margin: 20px;
-    width: 100%;
-    max-width: 1200px; /* Largeur maximale pour les grands écrans */
-    display: flex;
-    flex-direction: column;
-    gap: 25px; /* Espacement entre les sections */
+    align-items: flex-start;
     box-sizing: border-box;
 }
 
-/* --- Styles de l'En-tête --- */
-.page-header {
+.synthese-container {
+    max-width: 1400px; /* Augmenté la largeur max pour plus d'espace */
+    width: 100%;
+    margin: 0 auto;
+    background-color: var(--card-background);
+    padding: 40px;
+    border-radius: var(--border-radius-large);
+    box-shadow: var(--box-shadow-subtle);
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    align-items: center;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--light-gray);
+    gap: 30px;
 }
 
-.welcome-message {
-    font-size: 2em;
+.page-title {
+    font-size: 2.5rem;
     color: var(--primary-color);
-    margin: 0;
+    margin-bottom: 20px;
+    text-align: center;
     font-weight: 600;
+}
+
+.week-selection {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+#week-select {
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius-medium);
+    background-color: #f8f8f8;
+    cursor: pointer;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    min-width: 250px; /* Largeur minimale pour le sélecteur */
     text-align: center;
 }
 
-#agent-name-display {
-    color: var(--text-color);
-    font-weight: bold;
+#week-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
 }
 
-.header-controls {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    width: 100%;
-    justify-content: center; /* Centrer les éléments de contrôle */
+.info-message {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #ffeeba;
+    border: 1px solid #ffc107;
+    border-radius: var(--border-radius-medium);
+    color: #856404;
+    text-align: center;
+    font-size: 1rem;
 }
 
-.week-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.info-message.hidden {
+    display: none;
 }
 
-.week-selector {
-    padding: 8px 12px;
-    border: 1px solid var(--medium-gray);
-    border-radius: var(--border-radius-small);
-    font-size: 1em;
-    cursor: pointer;
-    background-color: white;
-    appearance: none; /* Cache la flèche par défaut du select */
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%20viewBox%3D%220%200%20292.4%20292.4%22%3E%3Cpath%20fill%3D%22%23007bff%22%20d%3D%22M287%2C197.9c-3.2%2C3.2-7.1%2C4.5-11.4%2C4.5c-4%2C0-8-1.5-11.1-4.5L146.2%2C91.5L28.6%2C197.9c-3.2%2C3.2-7.1%2C4.5-11.4%2C4.5c-4%2C0-8-1.5-11.1-4.5C2.8%2C194.8%2C0%2C190.8%2C0%2C186.4c0-4.3%2C2.8-8.3%2C5.9-11.4L140%2C4.5c3.2-3.2%2C7.1-4.5%2C11.4-4.5c4%2C0%2C8%2C1.5%2C11.1%2C4.5l134.1%2C170.5c3.2%2C3.2%2C5.9%2C7.1%2C5.9%2C11.4C292.9%2C190.8%2C290.1%2C194.8%2C287%2C197.9z%22%2F%3E%3C%2Fsvg%3E'); /* Flèche SVG personnalisée */
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 10px;
-    padding-right: 30px; /* Espace pour la flèche */
-    max-width: 200px;
+/* Styles de la grille de planning */
+.planning-wrapper {
+    overflow-x: auto; /* Permet le défilement si le contenu dépasse */
+    padding-bottom: 10px; /* Espace pour la barre de défilement */
 }
 
-.btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: var(--border-radius-small);
-    cursor: pointer;
+/* Grille principale du planning */
+.planning-grid-content {
+    display: grid;
+    /* La première colonne est pour les jours (sticky), les 48 suivantes pour les slots de 30 min */
+    /* CHANGEMENT: Utiliser minmax pour permettre une certaine flexibilité, mais garder une base fixe */
+    grid-template-columns: 120px repeat(48, minmax(20px, 1fr)); /* Colonne jour + 48 colonnes de créneaux */
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius-medium);
+    background-color: #f9f9f9;
+    padding: 10px; /* Ajout de padding pour l'espace intérieur */
+    position: relative;
+}
+
+/* En-tête des heures */
+.header-hours {
+    display: grid;
+    grid-template-columns: 120px repeat(24, minmax(40px, 2fr)); /* Colonne vide + 24 heures (chaque heure span 2 colonnes du planning) */
+    background-color: var(--primary-color);
+    color: white;
     font-weight: 600;
-    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: var(--border-radius-medium) var(--border-radius-medium) 0 0;
+    overflow: hidden; /* Pour que le border-radius s'applique */
+    margin-bottom: -1px; /* Pour fusionner avec la grille ci-dessous */
+    position: sticky;
+    top: 0;
+    z-index: 10;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.btn-primary {
-    background-color: var(--primary-color);
-    color: white;
+.hour-cell {
+    padding: 10px 0;
+    text-align: center;
+    border-right: 1px solid rgba(255, 255, 255, 0.2); /* Séparateur d'heures */
+    font-size: 0.9em;
+}
+.hour-cell:last-child {
+    border-right: none;
 }
 
-.btn-primary:hover {
-    background-color: var(--primary-hover-color);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+/* Styles pour les lignes de jour */
+.day-row {
+    display: contents; /* Permet aux enfants de cette div de se positionner directement dans la grille */
 }
 
-.btn-secondary {
-    background-color: var(--secondary-color);
-    color: white;
-}
-
-.btn-secondary:hover {
-    background-color: var(--secondary-hover-color);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.btn-danger {
-    background-color: var(--danger-color);
-    color: white;
-}
-
-.btn-danger:hover {
-    background-color: #c82333; /* Rouge plus foncé au survol */
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-
-/* --- Styles de la Section Planning --- */
-.planning-section {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.section-title {
-    font-size: 1.5em;
-    color: var(--text-color);
-    margin: 0;
+.day-label {
+    grid-column: 1;
+    padding: 15px 10px;
+    background-color: var(--card-background);
+    border-bottom: 1px solid var(--light-gray);
     font-weight: 600;
-    text-align: center;
-}
-
-/* Navigation par jours (onglets) */
-.tabs-navigation {
+    text-align: left;
     display: flex;
-    justify-content: center;
-    flex-wrap: wrap; /* Permet aux onglets de passer à la ligne sur petits écrans */
-    gap: 10px;
-    background-color: var(--background-color);
-    padding: 10px;
-    border-radius: var(--border-radius-medium);
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
-}
-
-.tab {
-    background-color: #e9ecef; /* Gris clair pour les onglets inactifs */
-    color: var(--dark-gray);
-    padding: 10px 20px;
-    border: none;
-    border-radius: var(--border-radius-small);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.2s ease, color 0.2s ease;
-    flex-grow: 1; /* Permet aux onglets de s'étirer */
-    text-align: center;
-    max-width: 140px; /* Limite la largeur des onglets */
-}
-
-.tab:hover:not(.active) {
-    background-color: #dee2e6; /* Gris légèrement plus foncé au survol */
-}
-
-.tab.active {
-    background-color: var(--primary-color);
-    color: white;
-    box-shadow: 0 2px 5px rgba(0,123,255,0.2);
-}
-
-/* Styles pour les créneaux horaires individuels (zones de sélection) */
-.slots-display-area {
-    display: grid;
-    /* Mise à jour ici pour afficher 48 colonnes de 30 minutes */
-    grid-auto-flow: column; /* Les éléments s'empilent en colonnes */
-    grid-auto-columns: 45px; /* Chaque colonne a une largeur fixe de 45px */
-    gap: 5px; /* Espacement entre les créneaux */
-    padding: 15px;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
-    overflow-x: auto; /* Permet le défilement horizontal */
-    min-height: 150px; /* Hauteur minimale du conteneur */
-    align-items: center; /* Centre verticalement le contenu des slots */
-}
-
-.slot {
-    background-color: var(--free-slot-color); /* Gris clair par défaut (libre) */
-    border: 1px solid var(--light-gray);
-    border-radius: var(--border-radius-small);
-    padding: 8px 5px; /* Padding ajusté pour les petits blocs */
-    text-align: center;
-    font-size: 0.8em; /* Taille de police légèrement réduite */
-    color: var(--dark-gray);
-    cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
-    user-select: none; /* Empêche la sélection de texte */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    display: flex; /* Centrage du texte */
     align-items: center;
-    justify-content: center;
-    min-width: 45px; /* Assure une largeur minimale pour chaque slot */
-    height: 35px; /* Hauteur fixe pour chaque slot */
-    white-space: nowrap; /* Empêche le retour à la ligne du texte de l'heure */
-    overflow: hidden; /* Cache le débordement du texte si trop petit */
-    text-overflow: ellipsis; /* Ajoute des points de suspension si le texte est tronqué */
+    justify-content: flex-start;
+    position: sticky; /* Rendre la colonne des jours collante */
+    left: 0;
+    z-index: 5; /* Assure qu'elle est au-dessus des slots de fond */
+}
+.day-row:last-child .day-label {
+    border-bottom: none; /* Pas de bordure pour le dernier jour */
 }
 
-.slot:hover {
-    background-color: var(--medium-gray);
-    border-color: var(--medium-gray);
-    transform: translateY(-1px); /* Léger effet de soulèvement */
+/* Fond pour chaque slot horaire (invisible, sert de grille) */
+.slot-background {
+    border: 0.5px solid rgba(0, 0, 0, 0.05); /* Très légère bordure pour la structure */
+    min-height: 40px; /* Hauteur des cellules de la grille */
+    box-sizing: border-box;
 }
 
-.slot.selected {
-    background-color: var(--success-color); /* Vert pour les créneaux sélectionnés */
-    border-color: var(--success-color);
+/* Barre de disponibilité */
+.availability-bar {
+    background-color: var(--availability-bar-color);
+    border-radius: var(--border-radius-small);
+    height: 30px; /* Hauteur légèrement inférieure pour un effet "barre" */
+    margin: 5px 0; /* Marge verticale pour centrer dans la cellule */
+    position: relative; /* Pour le tooltip */
+    z-index: 6; /* Au-dessus des slots de fond */
+    grid-row: auto; /* Permet au grid-column de fonctionner */
+    align-self: center; /* Centre la barre verticalement dans la cellule de la grille */
+    box-shadow: 0 2px 5px rgba(0,123,255,0.2); /* Ombre pour les barres */
+    transition: transform 0.1s ease-in-out;
+}
+
+.availability-bar:hover {
+    transform: translateY(-2px);
+}
+
+/* Tooltip pour les barres de disponibilité */
+.availability-bar::before { /* Pour la pointe du tooltip */
+    content: '';
+    position: absolute;
+    bottom: -8px; /* Positionne juste en dessous du tooltip */
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--dark-gray) transparent transparent transparent;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.availability-bar::after {
+    content: attr(title); /* Utilise l'attribut title comme contenu */
+    position: absolute;
+    bottom: -35px; /* Positionne le tooltip sous la barre */
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--dark-gray); /* Fond du tooltip */
     color: white;
-    font-weight: 600;
-    box-shadow: 0 2px 6px rgba(0,123,255,0.2); /* Ombre plus prononcée */
+    font-size: 0.8em;
+    padding: 5px 8px;
+    border-radius: 4px;
+    white-space: nowrap; /* Empêche le texte de revenir à la ligne */
+    pointer-events: none; /* Ne pas bloquer les événements de la souris */
+    opacity: 0; /* Caché par défaut */
+    transition: opacity 0.2s ease-in-out;
+    z-index: 7; /* Au-dessus de tout */
 }
 
-/* Actions au bas de la page */
-.bottom-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 15px;
-    padding-top: 20px;
-    border-top: 1px solid var(--light-gray);
+.availability-bar:hover::before,
+.availability-bar:hover::after {
+    opacity: 1; /* Affiche le tooltip au survol */
 }
 
-/* Spinner de chargement (si déjà ajouté dans agent.html) */
+
+/* Bouton de retour */
+.btn-return {
+    display: block;
+    width: fit-content;
+    margin: 30px auto 0; /* Centre le bouton */
+    padding: 12px 25px;
+    text-decoration: none; /* Enlève le soulignement des liens */
+}
+
+/* Spinner de chargement */
 #loading-spinner {
     position: fixed;
     inset: 0;
@@ -281,9 +257,9 @@ body {
     display: none;
 }
 #loading-spinner .spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #ddd;
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
     border-top-color: var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -292,7 +268,7 @@ body {
     to { transform: rotate(360deg); }
 }
 
-/* Styles pour la modale personnalisée */
+/* --- Styles pour la modale personnalisée (copiés de agent.css) --- */
 .custom-modal {
     position: fixed;
     top: 0;
@@ -355,105 +331,119 @@ body {
     to { opacity: 1; transform: scale(1); }
 }
 
-/* --- Adaptations pour les Petits Écrans (Mobile First) --- */
-@media (max-width: 768px) {
-    .agent-container {
-        padding: 15px;
-        margin: 10px;
+/* --- Adaptations Responsives --- */
+@media (max-width: 1024px) {
+    .synthese-container {
+        padding: 30px;
+        gap: 25px;
     }
-
-    .welcome-message {
-        font-size: 1.8em;
+    .page-title {
+        font-size: 2rem;
     }
-
-    .header-controls {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-    }
-
-    .week-info {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .week-selector {
-        width: 100%; /* Full width on small screens */
-        max-width: unset; /* Remove max-width on small screens */
-    }
-
-    .tabs-navigation {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 8px;
-    }
-
-    .tab {
-        flex-basis: calc(50% - 8px); /* Deux boutons par ligne */
-        font-size: 0.9em;
-        padding: 8px 15px;
-    }
-
-    .slots-display-area {
-        padding: 10px;
-        gap: 3px; /* Espacement réduit sur mobile */
-        /* main adjustment for mobile grid display to keep slots small and scrollable */
-        grid-auto-columns: 40px; /* Encore plus petit sur mobile pour plus de visibilité */
-    }
-    
-    .slot {
-        font-size: 0.7em; /* Police plus petite */
-        padding: 6px 3px;
-        min-width: 40px; /* Adapte le min-width */
-        height: 30px; /* Adapte la hauteur */
-    }
-
-    .bottom-actions {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .btn {
-        padding: 12px 15px;
-        font-size: 0.9em;
-    }
-
-    .modal-content {
-        padding: 20px;
-        gap: 15px;
-    }
-    .modal-title {
-        font-size: 1.6em;
-    }
-    .modal-message {
+    #week-select {
+        min-width: 200px;
         font-size: 1em;
+        padding: 10px 15px;
+    }
+    .planning-grid-content, .header-hours {
+        grid-template-columns: 100px repeat(48, minmax(18px, 1fr)); /* Réduit la colonne jour et les slots */
+    }
+    .header-hours {
+        grid-template-columns: 100px repeat(24, minmax(36px, 2fr));
+    }
+    .day-label {
+        padding: 10px 5px;
+    }
+    .hour-cell {
+        font-size: 0.8em;
+        padding: 8px 0;
+    }
+    .slot-background {
+        min-height: 35px;
+    }
+    .availability-bar {
+        height: 25px;
+        margin: 5px 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .synthese-container {
+        padding: 20px;
+        margin: 10px;
+        gap: 20px;
+    }
+    .page-title {
+        font-size: 1.8rem;
+    }
+    .week-selection {
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    #week-select {
+        width: 100%;
+        min-width: unset;
+    }
+    /* Permet le défilement horizontal sur les petits écrans */
+    .planning-wrapper {
+        overflow-x: auto;
+    }
+    .planning-grid-content, .header-hours {
+        grid-template-columns: 80px repeat(48, 1fr); /* Colonne jour très petite, slots fixes */
+        min-width: 1000px; /* Assure une largeur minimale pour la grille pour éviter un écrasement total */
+    }
+    .header-hours {
+        grid-template-columns: 80px repeat(24, 2fr);
+    }
+    .day-label {
+        font-size: 0.9em;
+    }
+    .hour-cell {
+        font-size: 0.7em;
+        padding: 5px 0;
+    }
+    .slot-background {
+        min-height: 30px;
+    }
+    .availability-bar {
+        height: 20px;
+        margin: 5px 0;
+    }
+    .btn-return {
+        padding: 10px 20px;
+        font-size: 0.9em;
     }
 }
 
 @media (max-width: 480px) {
-    .agent-container {
-        padding: 10px;
-        margin: 5px;
-        border-radius: 8px; /* Moins arrondi */
-    }
-    .welcome-message {
-        font-size: 1.5em;
-    }
-    .tab {
-        flex-basis: calc(100% - 8px); /* Un bouton par ligne si trop étroit */
-    }
-    .slots-display-area {
-        padding: 5px;
-        gap: 2px;
-        grid-auto-columns: 35px; /* Encore plus petit pour les très petits écrans */
-    }
-    .slot {
-        font-size: 0.65em;
-        padding: 4px 2px;
-        min-width: 35px;
-        height: 28px;
-    }
-    .modal-content {
+    .synthese-container {
         padding: 15px;
+        margin: 5px;
+        border-radius: var(--border-radius-medium);
+    }
+    .page-title {
+        font-size: 1.5rem;
+    }
+    /* Force le défilement pour les très petits écrans si la grille ne tient pas */
+    .planning-grid-content, .header-hours {
+        grid-template-columns: 60px repeat(48, 1fr); /* Encore plus petit pour la colonne jour */
+        min-width: 900px; /* Largeur minimale de la grille */
+    }
+    .header-hours {
+        grid-template-columns: 60px repeat(24, 2fr);
+    }
+    .day-label {
+        font-size: 0.8em;
+    }
+    .hour-cell {
+        font-size: 0.6em;
+    }
+    .slot-background {
+        min-height: 25px;
+    }
+    .availability-bar {
+        height: 18px;
+        margin: 3px 0;
     }
 }

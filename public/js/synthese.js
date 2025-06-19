@@ -3,7 +3,7 @@
 // Jours de la semaine
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 // Récupère l'ID de l'agent depuis le sessionStorage (doit être défini lors de la connexion)
-const agent = sessionStorage.getItem("agent");
+const agentId = sessionStorage.getItem("agentId"); // CHANGEMENT : Utiliser agentId de sessionStorage
 // URL de base de votre API
 const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
@@ -92,7 +92,7 @@ window.confirm = confirmModal;
  * @param {Date} date - La date à utiliser.
  * @returns {number} Le numéro de la semaine ISO.
  */
-function getCurrentISOWeek(date = new Date()) {
+function getWeekNumber(date = new Date()) {
   const _date = new Date(date.getTime());
   _date.setHours(0, 0, 0, 0);
   _date.setDate(_date.getDate() + 3 - ((_date.getDay() + 6) % 7)); // Ajuste au jeudi de la semaine
@@ -155,10 +155,10 @@ function minutesToTime(totalMinutes) {
 // --- Logique principale au chargement du DOM ---
 document.addEventListener("DOMContentLoaded", async () => {
   // Vérifie si un agent est connecté, sinon redirige vers la page de connexion
-  // Si 'agent' est 'admin', l'accès est aussi refusé car cette page est pour les agents.
-  if (!agent || agent === "admin") {
+  // Si 'agentId' est 'admin', l'accès est aussi refusé car cette page est pour les agents.
+  if (!agentId || sessionStorage.getItem('userRole') === "admin") { // CHANGEMENT : Vérifier userRole
     displayMessageModal("Accès non autorisé", "Vous devez être connecté en tant qu’agent.", "error", () => {
-        window.location.href = "index.html";
+        window.location.href = "index.html"; // Assurez-vous que c'est la bonne page de connexion
     });
     return;
   }
@@ -166,21 +166,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   showLoading(true); // Affiche le spinner de chargement
 
   try {
+    // Récupère le token JWT du sessionStorage
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      throw new Error('Aucun token d\'authentification trouvé.');
+    }
+
     // Récupère le planning complet de l'agent depuis l'API
-    // L'API est censée retourner un objet structuré comme : { "week-X": { "day": [{ "start": "HH:MM", "end": "HH:MM" }] } }
-    // Ajout d'un en-tête 'X-User-ID' si votre API l'utilise pour l'autorisation
-    // Ou si vous avez un token d'auth, ce serait 'Authorization': 'Bearer votre_token'
-    const response = await fetch(`${API_BASE_URL}/api/planning/${agent}`, {
+    const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            'X-User-ID': agent // Exemple d'en-tête, à adapter selon votre API
-            // Si vous utilisez un token JWT: 'Authorization': `Bearer ${sessionStorage.getItem('jwtToken')}`
+            'Authorization': `Bearer ${token}` // Utiliser le token JWT pour l'authentification
         }
     });
 
     if (!response.ok) {
-        // Gérer les erreurs HTTP comme 401, 403, 404, 500
         const errorData = await response.json();
         throw new Error(errorData.message || `Erreur HTTP: ${response.status} ${response.statusText}`);
     }
@@ -200,30 +201,35 @@ document.addEventListener("DOMContentLoaded", async () => {
       weekSelect.disabled = false; // Active le sélecteur
     }
 
-    // Extrait toutes les clés de semaine ("week-X") des données de planning
-    const weekKeys = Object.keys(planningDataAgent).filter(key => key.startsWith("week-"));
-    // Convertit les clés en numéros de semaine et filtre les invalides
-    const weekNums = weekKeys.map(key => Number(key.split("-")[1])).filter(num => !isNaN(num));
+    // Extrait toutes les clés de semaine ("S X") des données de planning
+    const weekKeys = Object.keys(planningDataAgent).filter(key => key.startsWith("S "));
+    // Convertit les clés en numéros de semaine
+    const weekNums = weekKeys.map(key => Number(key.split(" ")[1])).filter(num => !isNaN(num));
 
     // Remplit le sélecteur de semaine
     weekSelect.innerHTML = ""; // Vide les options existantes
     // Trie les semaines numériquement et crée une option pour chacune
     weekNums.sort((a, b) => a - b).forEach(week => {
       const option = document.createElement("option");
-      option.value = `week-${week}`;
-      option.textContent = `Semaine ${week} (${getWeekDateRange(week)})`;
+      option.value = `S ${week}`; // La valeur doit correspondre à la clé du planning
+      option.textContent = `Semaine ${week} ${getWeekDateRange(week)}`;
       weekSelect.appendChild(option);
     });
 
     // Détermine la semaine à afficher au démarrage
-    // Priorité: 1. Semaine stockée en session, 2. Première semaine disponible, 3. Semaine actuelle ISO
     let selectedWeekKey = sessionStorage.getItem("selectedWeek");
+    // Vérifie si la clé stockée est valide ou si la semaine actuelle est dans les données
+    const currentISOWeekKey = `S ${getWeekNumber(new Date())}`;
+
     if (!selectedWeekKey || !weekKeys.includes(selectedWeekKey)) {
-      selectedWeekKey = weekKeys.length > 0 ? weekKeys[0] : `week-${getCurrentISOWeek()}`;
-      // Si la semaine actuelle n'est pas dans les données, mais qu'il y a des données, prendre la première semaine disponible
-      if (!weekKeys.includes(selectedWeekKey) && weekKeys.length > 0) {
-          selectedWeekKey = weekKeys[0];
-      }
+        if (weekKeys.includes(currentISOWeekKey)) {
+            selectedWeekKey = currentISOWeekKey;
+        } else if (weekKeys.length > 0) {
+            selectedWeekKey = weekKeys[0]; // Prend la première semaine disponible si la semaine actuelle n'a pas de données
+        } else {
+            // Aucun planning disponible, devrait être géré par la condition initiale
+            return;
+        }
     }
     weekSelect.value = selectedWeekKey; // Sélectionne l'option dans le sélecteur
 
@@ -238,9 +244,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   } catch (err) {
     console.error("Erreur lors du chargement :", err);
-    // Afficher un message d'erreur plus spécifique à l'utilisateur
     displayMessageModal("Erreur de Chargement", `Erreur lors du chargement du planning : ${err.message}. Veuillez réessayer ou vérifier vos accès.`, "error");
-    noPlanningMessage.classList.remove("hidden"); // Affiche le message d'erreur utilisateur
+    noPlanningMessage.classList.remove("hidden");
   } finally {
     showLoading(false); // Cache le spinner de chargement
   }
@@ -248,7 +253,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 /**
  * Fonction de mise à jour de l'affichage du planning.
- * @param {string} weekKey - La clé de la semaine à afficher (ex: "week-25").
+ * @param {string} weekKey - La clé de la semaine à afficher (ex: "S 25").
  * @param {object} planningData - L'objet complet des données de planning de l'agent.
  */
 function updateDisplay(weekKey, planningData) {
@@ -257,7 +262,7 @@ function updateDisplay(weekKey, planningData) {
 
 /**
  * Rend la grille du planning hebdomadaire avec des barres de disponibilité continues.
- * @param {string} weekKey - La clé de la semaine à afficher (ex: "week-25").
+ * @param {string} weekKey - La clé de la semaine à afficher (ex: "S 25").
  * @param {object} planningData - L'objet complet des données de planning de l'agent.
  */
 function showWeek(weekKey, planningData) {
@@ -276,7 +281,8 @@ function showWeek(weekKey, planningData) {
     const div = document.createElement("div");
     div.className = "hour-cell";
     div.textContent = `${String(hour).padStart(2, '0')}:00`;
-    div.style.gridColumn = `span 2`; // Chaque heure s'étend sur 2 colonnes (pour les slots de 30 min)
+    // CHANGEMENT : Ajout d'une classe pour le style des cellules d'heure
+    div.style.gridColumn = `span 2`; 
     header.appendChild(div);
   }
 
@@ -292,26 +298,27 @@ function showWeek(weekKey, planningData) {
     row.appendChild(dayLabel);
 
     // Récupère les plages de disponibilité (créneaux) pour le jour et la semaine courants
-    // Les données sont attendues sous forme d'un tableau d'objets { start: "HH:MM", "end": "HH:MM" }
+    // Les données sont attendues sous forme d'un tableau d'objets { start: index_start, end: index_end }
     const dayRanges = planningData[weekKey]?.[day] || [];
 
     // Définit l'heure de début de la grille en minutes (7h00)
-    const gridStartHourInMinutes = 7 * 60;
+    const gridStartHourInMinutes = 7 * 60; // Minutes from midnight for 7:00 AM
+    const minutesPerSlot = 30; // Each slot represents 30 minutes
 
     // Pour chaque "slot" vide dans la grille (qui servira de fond)
     // Nous avons 48 slots de 30 minutes pour couvrir 24 heures (de 7h00 à 6h59 le lendemain)
     for (let i = 0; i < 48; i++) {
         const slotDiv = document.createElement("div");
-        slotDiv.className = "slot";
-        // Optionnel: ajouter un attribut pour le temps si besoin de débogage
-        // slotDiv.setAttribute("data-slot-time", minutesToTime(gridStartHourInMinutes + i * 30));
+        slotDiv.className = "slot-background"; // Nouvelle classe pour le fond des slots
         row.appendChild(slotDiv);
     }
 
     // Traite et crée les barres visuelles pour les plages de disponibilité
     dayRanges.forEach(range => {
-      let startMinutes = timeToMinutes(range.start);
-      let endMinutes = timeToMinutes(range.end);
+      // Les données de range.start et range.end sont des index (0-47), pas des heures formatées
+      // Convertir les index en minutes pour le calcul de position
+      let startMinutes = (range.start * minutesPerSlot) + gridStartHourInMinutes;
+      let endMinutes = (range.end * minutesPerSlot) + gridStartHourInMinutes + minutesPerSlot; // +30 minutes pour la fin du slot
 
       // Gère les plages qui traversent minuit (ex: 23:00 - 02:00)
       // En ajoutant 24 heures à l'heure de fin si elle est avant l'heure de début
@@ -326,8 +333,8 @@ function showWeek(weekKey, planningData) {
 
       // Calcule la colonne de début et l'étendue (nombre de colonnes) dans la grille
       // La grille commence à la colonne 2 car la colonne 1 est pour le label du jour
-      const startColumn = ((effectiveStartMinutes - gridStartHourInMinutes) / 30) + 2;
-      const spanColumns = (effectiveEndMinutes - effectiveStartMinutes) / 30;
+      const startColumn = ((effectiveStartMinutes - gridStartHourInMinutes) / minutesPerSlot) + 2;
+      const spanColumns = (effectiveEndMinutes - effectiveStartMinutes) / minutesPerSlot;
 
       // N'ajoute la barre que si elle a une longueur positive (visible)
       if (spanColumns > 0) {
@@ -335,7 +342,12 @@ function showWeek(weekKey, planningData) {
         bar.className = "availability-bar";
         // Positionne la barre dans la grille
         bar.style.gridColumn = `${startColumn} / span ${spanColumns}`;
-        bar.title = `Disponible: ${range.start} - ${range.end}`; // Infobulle
+        
+        // CHANGEMENT : Affichage des heures formatées dans le tooltip
+        const displayStart = minutesToTime(startMinutes);
+        const displayEnd = minutesToTime(endMinutes);
+        bar.title = `Disponible: ${displayStart} - ${displayEnd}`; 
+        
         row.appendChild(bar); // Ajoute la barre à la ligne du jour
       }
     });
