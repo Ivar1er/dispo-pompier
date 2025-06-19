@@ -125,8 +125,9 @@ body {
 /* En-tête des heures */
 .header-hours {
     display: grid;
-    /* CHANGEMENT: 12 colonnes pour les heures (toutes les deux heures), chacune span 4 slots de 30min */
-    grid-template-columns: 120px repeat(12, minmax(80px, 4fr)); /* Colonne vide + 12 heures (chaque heure span 4 colonnes du planning) */
+    /* CHANGEMENT : 12 colonnes pour les heures (toutes les deux heures), chacune span 4 slots de 30min */
+    /* Augmentation du minmax à 90px pour éviter le wrap du texte des heures */
+    grid-template-columns: 120px repeat(12, minmax(90px, 4fr)); /* Colonne vide + 12 heures (chaque heure span 4 colonnes du planning) */
     background-color: var(--primary-color);
     color: white;
     font-weight: 600;
@@ -144,6 +145,7 @@ body {
     text-align: center;
     border-right: 1px solid rgba(255, 255, 255, 0.2); /* Séparateur d'heures */
     font-size: 0.9em;
+    white-space: nowrap; /* Empêche le texte de revenir à la ligne */
 }
 .hour-cell:last-child {
     border-right: none;
@@ -348,11 +350,11 @@ body {
     }
     .planning-grid-content, .header-hours {
         /* Garde le 120px pour la colonne jour et adapte les 48 slots */
-        grid-template-columns: 120px repeat(48, minmax(18px, 1fr)); 
+        grid-template-columns: 120px repeat(48, minmax(18px, 1fr));
     }
     .header-hours {
         /* CHANGEMENT : 12 colonnes pour 24 heures, chacune couvrant 2 slots (36px min) */
-        grid-template-columns: 120px repeat(12, minmax(36px, 2fr)); 
+        grid-template-columns: 120px repeat(12, minmax(36px, 2fr));
     }
     .day-label {
         padding: 10px 5px;
@@ -394,7 +396,7 @@ body {
     }
     .planning-grid-content, .header-hours {
         /* Colonne jour très petite (80px), slots fixes (1fr) mais min-width global pour éviter écrasement */
-        grid-template-columns: 80px repeat(48, 1fr); 
+        grid-template-columns: 80px repeat(48, 1fr);
         min-width: 960px; /* 80px (jour) + 48 * 18px (slots) = 80 + 864 = 944px minimum pour tenir */
     }
     .header-hours {
@@ -433,7 +435,7 @@ body {
     /* Force le défilement pour les très petits écrans si la grille ne tient pas */
     .planning-grid-content, .header-hours {
         /* Colonne jour encore plus petite (60px), slots fixes (1fr) */
-        grid-template-columns: 60px repeat(48, 1fr); 
+        grid-template-columns: 60px repeat(48, 1fr);
         min-width: 860px; /* 60px (jour) + 48 * 16px (slots, si 1fr est environ 16px) = 60 + 768 = 828px */
     }
     .header-hours {
