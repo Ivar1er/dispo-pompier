@@ -316,40 +316,41 @@ function showWeek(weekKey, planningData) {
       // Les données de range.start et range.end sont des index (0-47)
       // Convertir les index en minutes réelles pour le calcul de position et l'affichage du tooltip
       let startMinutesActual = (range.start * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
-      let endMinutesActual = (range.end * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
+      // MODIFICATION ICI: endMinutesActual doit être la fin du DERNIER slot sélectionné
+      let endMinutesActual = ((range.end + 1) * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
 
       // Gère les plages qui traversent minuit (ex: 23:00 - 02:00)
       // Si l'heure de fin est antérieure à l'heure de début après conversion, cela signifie qu'elle est le lendemain
-      if (endMinutesActual <= startMinutesActual && range.start < range.end) { // Add range.start < range.end to avoid issues with single 30-min slots at midnight
-        endMinutesActual += 24 * 60; // Add 24 hours for correct duration calculation
+      if (endMinutesActual <= startMinutesActual) { // Condition simplifiée
+        endMinutesActual += 24 * 60; // Ajoute 24 heures pour le calcul correct de la durée
       }
 
       // Calcul des positions dans la grille visuelle (par rapport à 7h00)
       const gridStartMinutes = START_HOUR_GRID * 60;
       let effectiveStartMinutes = Math.max(startMinutesActual, gridStartMinutes);
-      let effectiveEndMinutes = Math.min(endMinutesActual, gridStartMinutes + (24 * 60)); // Max 24 hours from 7:00 AM
+      let effectiveEndMinutes = Math.min(endMinutesActual, gridStartMinutes + (24 * 60)); // Max 24 heures à partir de 7h00
 
-      // Calculate the start column and span columns in the grid
-      // The grid starts at column 2 because column 1 is for the day label
+      // Calcule la colonne de début et l'étendue (nombre de colonnes) dans la grille
+      // La grille commence à la colonne 2 car la colonne 1 est pour le label du jour
       const startColumn = ((effectiveStartMinutes - gridStartMinutes) / MINUTES_PER_SLOT) + 2;
       const spanColumns = (effectiveEndMinutes - effectiveStartMinutes) / MINUTES_PER_SLOT;
 
-      // Only add the bar if it has a positive length (visible)
+      // N'ajoute la barre que si elle a une longueur positive (visible)
       if (spanColumns > 0) {
         const bar = document.createElement("div");
         bar.className = "availability-bar";
-        // Position the bar in the grid
+        // Positionne la barre dans la grille
         bar.style.gridColumn = `${startColumn} / span ${spanColumns}`;
         
-        // Display formatted times in the tooltip
+        // Affichage des heures formatées dans le tooltip
         const displayStart = minutesToTime(startMinutesActual);
         const displayEnd = minutesToTime(endMinutesActual);
         bar.title = `Disponible: ${displayStart} - ${displayEnd}`; 
         
-        row.appendChild(bar); // Add the bar to the day row
+        row.appendChild(bar); // Ajoute la barre à la ligne du jour
       }
     });
-    container.appendChild(row); // Add the day row to the main planning container
+    container.appendChild(row); // Ajoute la ligne du jour au conteneur principal du planning
   });
 }
 
@@ -360,9 +361,9 @@ function showWeek(weekKey, planningData) {
 function showLoading(isLoading) {
   if (isLoading) {
     loadingSpinner.classList.remove("hidden");
-    if (weekSelect) weekSelect.disabled = true; // Disable the selector during loading
+    if (weekSelect) weekSelect.disabled = true; // Désactive le sélecteur pendant le chargement
   } else {
     loadingSpinner.classList.add("hidden");
-    if (weekSelect) weekSelect.disabled = false; // Enable the selector after loading
+    if (weekSelect) weekSelect.disabled = false; // Active le sélecteur après le chargement
   }
 }
