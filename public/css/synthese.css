@@ -145,9 +145,8 @@ body {
     padding: 10px 0;
     text-align: center;
     border-right: 1px solid rgba(255, 255, 255, 0.2); 
-    font-size: 0.9em; /* Maintenir la taille de police pour éviter le wrap */
-    white-space: nowrap; /* Empêche le texte de revenir à la ligne */
-    /* Le span est géré par JS pour aligner 2 heures sur 4 slots de 30min */
+    font-size: 0.9em; 
+    white-space: nowrap; 
 }
 /* La dernière heure affichée ne doit pas avoir de bordure droite */
 .hour-cell:last-child { 
@@ -157,7 +156,7 @@ body {
 
 /* Styles pour les lignes de jour */
 .day-row {
-    display: contents; /* Permet aux enfants de cette div de se positionner directement dans la grille */
+    display: contents; 
 }
 
 .day-label {
@@ -170,20 +169,20 @@ body {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    position: sticky; /* Rendre la colonne des jours collante */
+    position: sticky; 
     left: 0;
-    z-index: 5; /* Assure qu'elle est au-dessus des slots de fond */
+    z-index: 5; 
 }
 .day-row:last-child .day-label {
-    border-bottom: none; /* Pas de bordure pour le dernier jour */
+    border-bottom: none; 
 }
 
 /* Fond pour chaque slot horaire (invisible, sert de grille) */
 .slot-background {
-    border: none; /* Enlève les bordures pour donner l'impression d'une ligne continue */
+    border: none; 
     min-height: 40px; 
     box-sizing: border-box;
-    background-color: var(--free-slot-color); /* Couleur de fond pour les zones non disponibles */
+    background-color: var(--free-slot-color); 
 }
 
 /* Barre de disponibilité */
@@ -242,14 +241,36 @@ body {
 }
 
 
-/* Bouton de retour */
+/* Bouton de retour - Amélioration de l'apparence */
 .btn-return {
     display: block;
     width: fit-content;
-    margin: 30px auto 0; 
-    padding: 12px 25px;
-    text-decoration: none; 
+    margin: 30px auto 0;
+    padding: 15px 30px; /* Légèrement plus grand */
+    text-decoration: none;
+    font-weight: 600; /* Plus de gras */
+    color: white; /* Texte blanc */
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover-color) 100%); /* Dégradé */
+    border: none;
+    border-radius: var(--border-radius-medium);
+    box-shadow: 0 8px 15px rgba(0, 123, 255, 0.3); /* Ombre plus prononcée */
+    cursor: pointer;
+    transition: all 0.3s ease; /* Transition douce pour tous les changements */
+    letter-spacing: 0.5px; /* Espacement entre les lettres */
+    text-transform: uppercase; /* Texte en majuscules */
 }
+
+.btn-return:hover {
+    background: linear-gradient(135deg, var(--primary-hover-color) 0%, #004499 100%); /* Dégradé au survol */
+    box-shadow: 0 10px 20px rgba(0, 123, 255, 0.4); /* Ombre plus intense au survol */
+    transform: translateY(-2px); /* Léger mouvement vers le haut */
+}
+
+.btn-return:active {
+    transform: translateY(0); /* Retour à la position initiale lors du clic */
+    box-shadow: 0 5px 10px rgba(0, 123, 255, 0.2); /* Ombre plus petite au clic */
+}
+
 
 /* Spinner de chargement */
 #loading-spinner {
@@ -353,9 +374,8 @@ body {
         font-size: 1em;
         padding: 10px 15px;
     }
-    /* Les grilles doivent rester cohérentes, les min-width aident au scroll */
     .planning-grid-content, .header-hours {
-        min-width: calc(120px + (48 * 18px)); /* Réajusté légèrement pour 18px */
+        min-width: calc(120px + (48 * 18px)); 
     }
     .day-label {
         padding: 10px 5px;
@@ -370,6 +390,10 @@ body {
     .availability-bar {
         height: 25px;
         margin: 5px 0;
+    }
+    .btn-return {
+        padding: 12px 25px; /* Ajustement pour les tablettes */
+        font-size: 0.9em;
     }
 }
 
@@ -391,18 +415,12 @@ body {
         width: 100%;
         min-width: unset;
     }
-    /* Permet le défilement horizontal sur les petits écrans */
     .planning-wrapper {
         overflow-x: auto;
     }
     .planning-grid-content, .header-hours {
-        /* Colonne jour très petite (80px), slots fixes (1fr) mais min-width global pour éviter écrasement */
         grid-template-columns: 80px repeat(48, 1fr);
-        min-width: 960px; /* Ajusté */
-    }
-    .header-hours {
-        /* Les hour-cell se répartissent sur les 48 colonnes. Le span 4 fonctionne ici */
-        grid-template-columns: 80px repeat(48, 1fr); /* Miroir de .planning-grid-content */
+        min-width: 960px;
     }
     .day-label {
         font-size: 0.9em;
@@ -433,15 +451,9 @@ body {
     .page-title {
         font-size: 1.5rem;
     }
-    /* Force le défilement pour les très petits écrans si la grille ne tient pas */
     .planning-grid-content, .header-hours {
-        /* Colonne jour encore plus petite (60px), slots fixes (1fr) */
         grid-template-columns: 60px repeat(48, 1fr);
-        min-width: 860px; /* Ajusté */
-    }
-    .header-hours {
-        /* Les hour-cell se répartissent sur les 48 colonnes. Le span 4 fonctionne ici */
-        grid-template-columns: 60px repeat(48, 1fr); /* Miroir de .planning-grid-content */
+        min-width: 860px;
     }
     .day-label {
         font-size: 0.8em;
