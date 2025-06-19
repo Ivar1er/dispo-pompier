@@ -5,14 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Fonction pour charger et afficher les informations de l'agent
   async function loadAgentInfo() {
-    // MODIFICATION ICI : Utiliser sessionStorage au lieu de localStorage
     const token = sessionStorage.getItem('token'); 
 
     if (!token) {
       console.warn('Aucun token trouvé. Affichage des informations par défaut.');
       agentNameDisplay.textContent = 'Agent Inconnu';
-      // Pour une application réelle, vous voudriez peut-être rediriger vers la page de connexion ici.
-      // window.location.href = '/login.html';
+      // Rediriger vers la page de connexion si aucun token n'est trouvé
+      window.location.href = '/index.html'; // CHANGEMENT: Utiliser un chemin absolu vers votre page de connexion
       return;
     }
 
@@ -28,9 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (response.ok) {
         const agentInfo = await response.json();
         agentNameDisplay.textContent = `${agentInfo.firstName} ${agentInfo.lastName}`;
-        loggedInAgentId = agentInfo.id; // Stocker l'ID de l'agent
+        loggedInAgentId = agentInfo.id; 
 
-        // Une fois l'ID de l'agent disponible, charger son planning et l'afficher
         if (loggedInAgentId) {
             await loadWeeklySelections(loggedInAgentId, currentMonday);
             renderSlots(currentDay);
@@ -39,11 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const errorData = await response.json();
         console.error('Erreur lors de la récupération des infos de l\'agent :', errorData.message);
         agentNameDisplay.textContent = 'Erreur de chargement des infos';
-        // Si le token est invalide (403), l'utilisateur doit probablement se reconnecter
         if (response.status === 403) {
-          // MODIFICATION ICI : Utiliser sessionStorage au lieu de localStorage
           sessionStorage.removeItem('token'); 
-          // window.location.href = '/login.html'; // Rediriger vers la connexion
+          window.location.href = '/index.html'; // CHANGEMENT: Utiliser un chemin absolu
         }
       }
     } catch (error) {
@@ -93,8 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const SLOT_COUNT = 48;
   const START_HOUR = 7;
 
-  // selections est maintenant une variable globale qui sera remplie par les données du serveur
-  // Elle représente les créneaux sélectionnés pour toute la semaine
   let selections = Array(7).fill(null).map(() => []);
 
   let currentDay = 0;
@@ -102,18 +96,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let dragStartIndex = null;
   let dragEndIndex = null;
 
-  // Fonction pour charger les sélections de la semaine depuis le serveur
   async function loadWeeklySelections(agentId, mondayDate) {
-      // Réinitialiser les sélections en mémoire avant de charger de nouvelles données
       selections = Array(7).fill(null).map(() => []);
 
       const year = mondayDate.getFullYear();
       const weekNum = getWeekNumber(mondayDate);
-      // Le format de la clé de semaine doit correspondre à ce que le serveur renvoie (ex: "S 25")
       const isoWeekString = `S ${weekNum}`;
 
       try {
-          // MODIFICATION ICI : Utiliser sessionStorage au lieu de localStorage
           const token = sessionStorage.getItem('token');
           if (!token) {
               console.warn('Aucun token trouvé pour charger les sélections hebdomadaires.');
@@ -129,11 +119,10 @@ document.addEventListener('DOMContentLoaded', () => {
           });
 
           if (response.ok) {
-              const planning = await response.json(); // Données complètes du planning de l'agent
-              const currentWeekPlanning = planning[isoWeekString]; // Planning pour la semaine actuelle
+              const planning = await response.json();
+              const currentWeekPlanning = planning[isoWeekString];
 
               if (currentWeekPlanning) {
-                  // Mappage des noms de jours du serveur aux index de jours du client (0=Lun, 6=Dim)
                   const dayMap = {
                       'lundi': 0, 'mardi': 1, 'mercredi': 2, 'jeudi': 3,
                       'vendredi': 4, 'samedi': 5, 'dimanche': 6
@@ -142,7 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
                   for (const dayName in currentWeekPlanning) {
                       const dayIndex = dayMap[dayName];
                       if (dayIndex !== undefined) {
-                          // Les données du serveur sont déjà des objets {start, end}
                           selections[dayIndex] = currentWeekPlanning[dayName];
                       }
                   }
@@ -187,19 +175,16 @@ document.addEventListener('DOMContentLoaded', () => {
       currentMonday = getMonday(newMonday);
       initWeekSelector();
 
-      // Charger les sélections de la nouvelle semaine si l'agent est connecté
       if (loggedInAgentId) {
           await loadWeeklySelections(loggedInAgentId, currentMonday);
           renderSlots(currentDay);
       } else {
-          // Si pas d'ID d'agent (ex: pas encore chargé), réinitialiser les sélections
           selections = Array(7).fill(null).map(() => []);
           renderSlots(currentDay);
       }
     });
   }
 
-  // Event listeners for week navigation buttons
   const prevWeekBtn = document.getElementById('prev-week-btn');
   const nextWeekBtn = document.getElementById('next-week-btn');
 
@@ -227,9 +212,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  initWeekSelector(); // Initialiser le sélecteur de semaine au chargement
+  initWeekSelector();
 
-  // --- Sélection des créneaux horaires ---
   const dayButtons = document.querySelectorAll('.day-btn');
   const slotsContainer = document.getElementById('slots-slider-container');
   const saveButton = document.getElementById('save-slots-btn');
@@ -380,14 +364,12 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSlots(currentDay);
   });
 
-  // Logique du bouton "Enregistrer" modifiée pour envoyer au serveur
   saveButton.addEventListener('click', async () => {
     if (!loggedInAgentId) {
         alert('Impossible d\'enregistrer : ID de l\'agent non disponible. Veuillez vous reconnecter.');
         return;
     }
 
-    // MODIFICATION ICI : Utiliser sessionStorage au lieu de localStorage
     const token = sessionStorage.getItem('token');
     if (!token) {
         alert('Impossible d\'enregistrer : non authentifié. Veuillez vous reconnecter.');
@@ -399,9 +381,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let errorCount = 0;
 
     for (let i = 0; i < 7; i++) {
-        const daySelections = selections[i]; // Sélections pour ce jour (index 0-6)
+        const daySelections = selections[i];
 
-        // Calculer la date exacte pour ce jour de la semaine actuelle
         const dateForDay = new Date(currentMonday);
         dateForDay.setDate(currentMonday.getDate() + i);
         const dateKey = `${dateForDay.getFullYear()}-${String(dateForDay.getMonth() + 1).padStart(2, '0')}-${String(dateForDay.getDate()).padStart(2, '0')}`;
@@ -413,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(daySelections) // Envoyer le tableau d'objets {start, end} pour ce jour
+                body: JSON.stringify(daySelections)
             });
 
             if (response.ok) {
@@ -436,21 +417,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- Logique du bouton de déconnexion ---
   const logoutButton = document.getElementById('logout-btn');
   if (logoutButton) {
     logoutButton.addEventListener('click', () => {
-      // MODIFICATION ICI : Utiliser sessionStorage au lieu de localStorage
       sessionStorage.removeItem('token'); 
-      sessionStorage.removeItem('agentId'); // Supprime l'ID de l'agent si stocké
+      sessionStorage.removeItem('agentId'); 
       sessionStorage.removeItem('agentPrenom');
       sessionStorage.removeItem('agentNom');
       sessionStorage.removeItem('userRole');
 
-      window.location.href = 'login.html'; // Redirige vers la page de connexion
+      // CHANGEMENT CRUCIAL ICI: Utiliser un chemin absolu pour la redirection
+      window.location.href = '/index.html'; // Assurez-vous que index.html est votre page de connexion
     });
   }
 
-  // Appeler la fonction de chargement des infos de l'agent au tout début
   loadAgentInfo();
 });
