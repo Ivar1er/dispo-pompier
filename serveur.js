@@ -827,7 +827,7 @@ async function loadAgentPlanningFromFiles(agentId) {
                         const dayIndex = dateObj.getDay(); // 0 pour Dimanche, 1 pour Lundi, etc.
                         const clientDayName = daysOfWeek[(dayIndex === 0 ? 6 : dayIndex - 1)]; // Convertit 0 (Dim) en 6 (Dim), 1 (Lun) en 0 (Lun)
 
-                        const weekKey = `week-${weekNum}`;
+                        const weekKey = `S ${weekNum}`; // Changed from 'week-X' to 'S X' to match frontend option textContent
 
                         if (!agentPlanning[weekKey]) {
                             agentPlanning[weekKey] = {
@@ -835,16 +835,18 @@ async function loadAgentPlanningFromFiles(agentId) {
                                 'jeudi': [], 'vendredi': [], 'samedi': [], 'dimanche': []
                             }; // Initialiser tous les jours
                         }
-                        // Stocke les plages sous forme de chaînes "HH:MM - HH:MM"
-                        // Filtrer les doublons au cas où, et trier
+                        
+                        // Stocke les plages directement sous forme d'objets {start, end}
                         const existingSlots = agentPlanning[weekKey][clientDayName];
                         availabilitiesForDate.forEach(slot => {
-                            const slotString = `${slot.start} - ${slot.end}`;
-                            if (!existingSlots.includes(slotString)) {
-                                existingSlots.push(slotString);
+                            // S'assurer que chaque slot est un objet {start, end} et n'est pas déjà présent pour éviter les doublons si appel multiple
+                            if (typeof slot === 'object' && slot !== null &&
+                                typeof slot.start === 'number' && typeof slot.end === 'number' &&
+                                !existingSlots.some(existingSlot => existingSlot.start === slot.start && existingSlot.end === slot.end)) {
+                                existingSlots.push({ start: slot.start, end: slot.end });
                             }
                         });
-                        existingSlots.sort(); // Trie les créneaux par heure
+                        existingSlots.sort((a,b) => a.start - b.start); // Trie les créneaux par index de début
                     }
                 } catch (readErr) {
                     if (readErr.code === 'ENOENT') {
