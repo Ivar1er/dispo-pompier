@@ -15,13 +15,15 @@ const mainTabButtons = document.querySelectorAll('.main-tab');
 const mainTabContents = document.querySelectorAll('.main-tab-content');
 
 // --- DOM Elements pour la vue "Planning Global" ---
-const planningControls = document.getElementById('planning-controls'); // Conteneur pour les contrôles de semaine/export
+// ATTENTION: planningControls n'est plus dans le header, mais nous le gardons pour la logique
+// de masquage/affichage dans openMainTab.
+const headerPlanningControls = document.querySelector('.header-planning-controls'); // NOUVEAU CONTENEUR DANS LE HEADER
 const weekSelect = document.getElementById("week-select");
 const dateRangeDisplay = document.getElementById("date-range"); // Élément pour afficher la plage de dates
 const planningContainer = document.getElementById("global-planning"); // Conteneur du tableau de planning
 const tabButtons = document.querySelectorAll(".tab"); // Boutons de jour (Lundi, Mardi...)
 const adminInfo = document.getElementById("admin-info");
-const adminNameDisplay = document.getElementById("admin-name-display");
+// adminNameDisplay est maintenant masqué et n'est plus utilisé ici.
 
 
 // --- DOM Elements pour la vue "Gestion des Agents" ---
@@ -281,7 +283,7 @@ function renderPlanningGrid(day) {
             horaires.forEach(timeSlot => {
                 const slotCell = document.createElement('td');
                 slotCell.classList.add('slot-cell');
-                slotCell.setAttribute("data-time", timeSlot);
+                slotCell.setAttribute("data-time-range", timeSlot); // AJOUT: Attribut pour le tooltip
 
                 if (agentSpecificDayPlanning && agentSpecificDayPlanning.includes(timeSlot)) {
                     slotCell.classList.add('available-slot-cell'); // Classe pour disponible (vert)
@@ -358,6 +360,9 @@ function showLoading(isLoading, forPdf = false) {
         });
         // Pour les boutons principaux d'onglet, on peut les désactiver aussi
         mainTabButtons.forEach(btn => btn.disabled = true);
+        // Cacher les contrôles de planning du header pendant le chargement
+        if (headerPlanningControls) headerPlanningControls.style.display = 'none';
+
 
         if (adminInfo && forPdf) {
             adminInfo.textContent = "Génération du PDF en cours, veuillez patienter...";
@@ -375,6 +380,14 @@ function showLoading(isLoading, forPdf = false) {
             }
         });
         mainTabButtons.forEach(btn => btn.disabled = false);
+
+        // Afficher les contrôles de planning du header si l'onglet global est actif
+        const globalPlanningView = document.getElementById('global-planning-view');
+        if (globalPlanningView && globalPlanningView.classList.contains('active') && headerPlanningControls) {
+            headerPlanningControls.style.display = 'flex';
+        } else if (headerPlanningControls) {
+            headerPlanningControls.style.display = 'none'; // S'assurer qu'il est bien caché pour les autres onglets
+        }
 
 
         if (adminInfo && forPdf) {
@@ -1401,12 +1414,12 @@ async function openMainTab(targetTabId) {
             tabButtons.forEach(btn => btn.classList.remove('active'));
             activeDayButton.classList.add('active');
         }
-        // Afficher les contrôles du planning (semaine, export)
-        if (planningControls) planningControls.style.display = 'flex';
+        // Afficher les contrôles de planning dans le header (nouveau conteneur)
+        if (headerPlanningControls) headerPlanningControls.style.display = 'flex';
 
     } else {
-        // Cacher les contrôles du planning pour les autres onglets
-        if (planningControls) planningControls.style.display = 'none';
+        // Cacher les contrôles de planning du header pour les autres onglets
+        if (headerPlanningControls) headerPlanningControls.style.display = 'none';
     }
 
     if (targetTabId === 'agent-management-view') {
@@ -1481,12 +1494,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         return; // Arrête l'exécution si le rôle n'est pas 'admin'
     }
 
-    // Si tout est bon (authentifié et rôle 'admin')
-    if (adminNameDisplay) {
-        adminNameDisplay.textContent = `${currentUserName} (${currentUserId})`;
-    } else {
-        console.warn("L'élément 'admin-name-display' est introuvable dans admin.html. Le nom de l'admin ne sera pas affiché.");
-    }
+    // Le nom de l'admin n'est plus affiché dans le titre, donc plus besoin de cette ligne
+    // if (adminNameDisplay) {
+    //     adminNameDisplay.textContent = `${currentUserName} (${currentUserId})`;
+    // } else {
+    //     console.warn("L'élément 'admin-name-display' est introuvable dans admin.html. Le nom de l'admin ne sera pas affiché.");
+    // }
 
     // --- Initialisation des onglets principaux ---
     mainTabButtons.forEach(button => {

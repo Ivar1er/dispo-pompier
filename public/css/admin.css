@@ -12,6 +12,7 @@
 
   --occupied-slot-color: var(--primary-color); /* Bleu pour un créneau occupé (utilisé sur la page agent) */
   --free-slot-color: #e0e0e0; /* Couleur pour un créneau libre (non disponible/vide) */
+  --tooltip-background: #333; /* Couleur de fond du tooltip */
 
   --background-color: #f0f2f5; /* Fond clair */
   --card-background: #ffffff; /* Fond des conteneurs */
@@ -56,9 +57,9 @@ body {
 /* Header principal */
 .page-header {
     display: flex;
-    flex-direction: column; /* Empile le titre et les contrôles si l'écran est petit */
+    flex-direction: column;
     align-items: center;
-    justify-content: center; /* Centre le contenu */
+    justify-content: center;
     gap: 15px;
     padding-bottom: 20px;
     border-bottom: 1px solid var(--light-gray);
@@ -70,12 +71,56 @@ body {
     color: var(--primary-color);
     margin: 0;
     font-weight: 600;
+    /* Supprime le span admin-name-display visuellement */
 }
 
-/* Les contrôles de semaine et d'export sont déplacés dans le footer */
-.header-controls {
-    display: none; /* Cache par défaut dans le header, ils sont déplacés */
+/* NOUVEAUX STYLES POUR LES CONTRÔLES DE PLANNING DANS LE HEADER */
+.header-planning-controls {
+    display: flex;
+    justify-content: space-between; /* Aligne le sélecteur à gauche et les boutons à droite */
+    align-items: center;
+    width: 100%; /* Prend toute la largeur disponible */
+    flex-wrap: wrap; /* Permet le retour à la ligne sur petits écrans */
+    gap: 15px; /* Espacement entre les groupes */
+    margin-top: 10px; /* Espace par rapport au titre */
 }
+
+.header-planning-controls .week-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-grow: 1; /* Permet au sélecteur de prendre de l'espace */
+    justify-content: flex-start; /* Aligne le sélecteur à gauche */
+}
+
+.header-planning-controls #week-select {
+    padding: 8px 15px;
+    font-size: 0.95rem;
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius-small);
+    background-color: #f8f8f8;
+    cursor: pointer;
+    min-width: 200px;
+}
+
+.header-planning-controls #date-range {
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+    white-space: nowrap; /* Empêche le texte de revenir à la ligne */
+}
+
+.header-planning-controls .planning-action-buttons {
+    display: flex;
+    gap: 10px; /* Espacement entre les boutons Exporter et Feuille de Garde */
+    flex-wrap: wrap; /* Permet le retour à la ligne si besoin */
+    justify-content: flex-end; /* Aligne les boutons à droite */
+}
+
+/* Les contrôles de semaine et d'export dans l'ancien .header-controls sont cachés */
+.header-controls {
+    display: none;
+}
+
 
 /* Navigation principale (onglets en haut) */
 .main-tabs-navigation {
@@ -244,6 +289,7 @@ body {
     min-width: 25px;
     height: 30px; /* Hauteur fixe pour alignement */
     background-color: var(--free-slot-color); /* Couleur par défaut (gris clair) */
+    position: relative; /* Pour le tooltip */
 }
 
 .available-slot-cell {
@@ -254,6 +300,28 @@ body {
     background-color: var(--free-slot-color); /* Gris clair pour indisponible */
 }
 
+/* Tooltip pour les slot-cell */
+.slot-cell::after {
+  content: attr(data-time-range); /* Utilise l'attribut data-time-range comme contenu */
+  position: absolute;
+  background: var(--tooltip-background);
+  color: white;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  top: -30px; /* Positionne au-dessus de la cellule */
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none; /* Ne pas bloquer les événements de la souris */
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 10;
+}
+
+.slot-cell:hover::after {
+  opacity: 1;
+}
 
 /* Formulaires et tables de gestion (Agents, Qualifications, Grades) */
 section {
@@ -453,41 +521,12 @@ table td .btn {
 /* Footer et bouton de déconnexion */
 .bottom-actions {
     display: flex;
-    justify-content: space-between; /* Espace les éléments aux extrémités */
+    justify-content: flex-end; /* Aligne le bouton Déconnexion à droite */
     align-items: center;
     padding-top: 20px;
     border-top: 1px solid var(--light-gray);
     flex-wrap: wrap; /* Permet le retour à la ligne sur petits écrans */
     gap: 15px; /* Espacement entre les éléments */
-}
-
-/* Styles spécifiques pour les contrôles de planning déplacés dans le footer */
-/* Réinitialise les styles du header-controls car il est maintenant dans le footer */
-.bottom-actions #planning-controls {
-    display: flex; /* Toujours visible dans le footer (ou caché par JS si pas Global Planning) */
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-    flex-grow: 1; /* Permet de prendre l'espace disponible */
-    justify-content: flex-start; /* Aligne les éléments à gauche par défaut */
-}
-
-.bottom-actions #planning-controls #week-select {
-    min-width: 200px;
-    padding: 8px 10px;
-    font-size: 0.95rem;
-    border-radius: var(--border-radius-small);
-}
-
-.bottom-actions #planning-controls #date-range {
-    margin: 0 10px;
-    font-size: 0.9rem;
-    color: var(--dark-gray);
-}
-
-.bottom-actions #planning-controls .btn-secondary {
-    padding: 8px 15px;
-    font-size: 0.9rem;
 }
 
 
@@ -598,6 +637,16 @@ table td .btn {
     .welcome-message {
         font-size: 2rem;
     }
+    .header-planning-controls {
+        flex-direction: column; /* Empile les contrôles sur petits écrans */
+        align-items: center;
+        gap: 10px;
+    }
+    .header-planning-controls .week-info,
+    .header-planning-controls .planning-action-buttons {
+        width: 100%; /* Prend toute la largeur */
+        justify-content: center; /* Centre les éléments */
+    }
     .main-tab {
         padding: 10px 15px;
         font-size: 1rem;
@@ -654,12 +703,6 @@ table td .btn {
     table td .btn {
         padding: 5px 10px;
         font-size: 0.8rem;
-    }
-    .bottom-actions #planning-controls {
-        flex-direction: row; /* Maintenir en ligne */
-        justify-content: flex-start;
-        align-items: center;
-        width: auto;
     }
 }
 
