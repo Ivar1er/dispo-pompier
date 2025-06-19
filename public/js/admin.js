@@ -15,15 +15,12 @@ const mainTabButtons = document.querySelectorAll('.main-tab');
 const mainTabContents = document.querySelectorAll('.main-tab-content');
 
 // --- DOM Elements pour la vue "Planning Global" ---
-// ATTENTION: planningControls n'est plus dans le header, mais nous le gardons pour la logique
-// de masquage/affichage dans openMainTab.
 const headerPlanningControls = document.querySelector('.header-planning-controls'); // NOUVEAU CONTENEUR DANS LE HEADER
 const weekSelect = document.getElementById("week-select");
-const dateRangeDisplay = document.getElementById("date-range"); // Élément pour afficher la plage de dates
+// const dateRangeDisplay = document.getElementById("date-range"); // Supprimé, car la date est maintenant dans le sélecteur
 const planningContainer = document.getElementById("global-planning"); // Conteneur du tableau de planning
 const tabButtons = document.querySelectorAll(".tab"); // Boutons de jour (Lundi, Mardi...)
 const adminInfo = document.getElementById("admin-info");
-// adminNameDisplay est maintenant masqué et n'est plus utilisé ici.
 
 
 // --- DOM Elements pour la vue "Gestion des Agents" ---
@@ -311,7 +308,8 @@ function renderPlanningGrid(day) {
     }
 }
 
-// Fonction pour mettre à jour l'affichage de la plage de dates
+// Fonction pour mettre à jour l'affichage de la plage de dates (plus nécessaire en tant que fonction séparée)
+/*
 function updateDateRangeDisplay() {
     const weekNum = currentWeek;
     const currentYear = new Date().getFullYear();
@@ -321,6 +319,7 @@ function updateDateRangeDisplay() {
         console.warn("L'élément 'date-range' (dateRangeDisplay) est introuvable dans admin.html.");
     }
 }
+*/
 
 // --- Fonctions de contrôle et d'initialisation ---
 
@@ -338,7 +337,7 @@ function generateWeekOptions() {
         const weekNum = currentWeekNumber + i;
         const option = document.createElement("option");
         option.value = `week-${weekNum}`;
-        option.textContent = `Semaine ${weekNum} (${getWeekDateRange(weekNum, currentYear)})`;
+        option.textContent = `Semaine ${weekNum} (${getWeekDateRange(weekNum, currentYear)})`; // Intègre la date ici
         select.appendChild(option);
     }
 }
@@ -1405,7 +1404,7 @@ async function openMainTab(targetTabId) {
 
     // Actions spécifiques à chaque onglet lors de son ouverture
     if (targetTabId === 'global-planning-view') {
-        updateDateRangeDisplay(); // S'assure que la plage de dates est correcte
+        // updateDateRangeDisplay(); // Plus nécessaire, la date est dans le sélecteur
         await loadPlanningData(); // Recharge le planning global
         showDay(currentDay); // Affiche le planning du jour actuel
         // Active le bouton du jour par défaut (Lundi) ou le jour actif précédent
@@ -1537,7 +1536,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (weekSelect) {
         weekSelect.addEventListener("change", async () => {
             currentWeek = parseInt(weekSelect.value.split('-')[1]);
-            updateDateRangeDisplay();
+            // updateDateRangeDisplay(); // Plus nécessaire
             await loadPlanningData(); // Recharge les données du planning pour la nouvelle semaine
             showDay(currentDay); // Réaffiche le planning pour le jour actif
         });

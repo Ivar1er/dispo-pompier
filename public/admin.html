@@ -11,14 +11,13 @@
   <div class="agent-container">
     <header class="page-header">
       <h2 class="welcome-message">Tableau de bord Administrateur</h2>
-      <!-- Ancien emplacement de admin-name-display, maintenant caché -->
 
-      <!-- NOUVEAU EMPLACEMENT DES CONTRÔLES DE PLANNING -->
+      <!-- NOUVEL EMPLACEMENT DES CONTRÔLES DE PLANNING -->
       <div class="header-planning-controls">
         <div class="week-info" id="week-select-container">
           <label for="week-select" class="sr-only">Sélectionner la semaine</label>
           <select id="week-select"></select>
-          <p id="date-range"></p>
+          <!-- <p id="date-range"></p> Supprimé, car la date est maintenant dans le sélecteur -->
         </div>
         <div class="planning-action-buttons">
           <button id="export-pdf" class="btn btn-secondary">📄 Exporter en PDF</button>
