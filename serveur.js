@@ -58,6 +58,34 @@ const DEFAULT_ADMIN_PASSWORD = 'supersecureadminpassword'; // À CHANGER EN PROD
 const JWT_SECRET = process.env.JWT_SECRET || 'pompier_de_beaune_la_rolande_2025_marechal'; // Clé secrète JWT
 
 
+// Créneaux 30 min sur 24h
+// Cette définition est synchronisée avec `agent.js` et `admin.js`
+const horaires = [];
+const startHourDisplay = 7;
+for (let i = 0; i < 48; i++) {
+  const currentSlotHour = (startHourDisplay + Math.floor(i / 2)) % 24;
+  const currentSlotMinute = (i % 2) * 30;
+  const endSlotHour = (startHourDisplay + Math.floor((i + 1) / 2)) % 24;
+  const endSlotMinute = ((i + 1) % 2) * 30;
+  const start = `${String(currentSlotHour).padStart(2, '0')}:${String(currentSlotMinute).padStart(2, '0')}`;
+  const end = `${String(endSlotHour).padStart(2, '0')}:${String(endSlotMinute).padStart(2, '0')}`;
+  horaires.push(`${start} - ${end}`);
+}
+
+/**
+ * Convertit un index de créneau horaire (0-47) en une chaîne de temps "HH:MM - HH:MM".
+ * Doit correspondre aux valeurs dans le tableau `horaires`.
+ * @param {number} slotIndex L'index du créneau (0-47).
+ * @returns {string} La chaîne de temps formatée.
+ */
+function formatSlotTimeByIndex(slotIndex) {
+    if (slotIndex < 0 || slotIndex >= horaires.length) {
+        return "Invalid Slot";
+    }
+    return horaires[slotIndex];
+}
+
+
 // --- Helpers de date (utilisés pour la structuration des plannings) ---
 // Ces fonctions doivent être en phase avec celles utilisées côté client si nécessaire.
 function getCurrentISOWeek(date = new Date()) {
@@ -74,19 +102,21 @@ function getCurrentISOWeek(date = new Date()) {
 }
 
 function getDateForDayInWeek(weekNum, dayIndex, year = new Date().getFullYear()) {
-    const daysOfWeek = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-    if (dayIndex === -1) { // dayIndex is already 0-6
-        return null;
-    }
+    // Note: getDay() retourne 0 pour Dimanche, 1 pour Lundi, etc.
+    // Pour que MondayOfISOWeek soit un lundi et dayIndex soit 0=Lundi, 1=Mardi etc.
+    // nous ajustons dayIndex. 0 dans daysOfWeek doit être Lundi.
+    const daysOfWeek = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']; // Utilisé pour le nom du jour, pas l'index direct
 
     const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
-    const dow = simple.getDay() || 7;
+    const dow = simple.getDay() || 7; // getDay() returns 0 for Sunday, 1 for Monday, etc. Adjust for ISO: 7 for Sunday.
     const mondayOfISOWeek = new Date(simple);
-    mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1));
+    mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1)); // Trouve le Lundi de la semaine ISO
     mondayOfISOWeek.setHours(0, 0, 0, 0);
 
     const targetDate = new Date(mondayOfISOWeek);
-    targetDate.setDate(mondayOfISOWeek.getDate() + dayIndex);
+    // dayIndex ici est 0=Lundi, 1=Mardi... 6=Dimanche (du frontend)
+    // Nous ajoutons directement dayIndex à partir du Lundi de la semaine ISO
+    targetDate.setDate(mondayOfISOWeek.getDate() + dayIndex); 
     return targetDate;
 }
 
@@ -593,7 +623,7 @@ app.get('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async 
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         console.error(`[ERREUR Serveur] Format de date invalide pour roster-config: ${dateKey}`);
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
     try {
@@ -614,7 +644,7 @@ app.get('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async 
 app.post('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const { timeSlots, onDutyAgents } = req.body;
     if (!timeSlots) { // onDutyAgents peut être vide si la config est juste des créneaux
@@ -638,7 +668,7 @@ app.get('/api/daily-roster/:dateKey', authenticateToken, async (req, res) => { /
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         console.error(`[ERREUR Serveur] Format de date invalide pour daily-roster: ${dateKey}`);
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
     try {
@@ -658,7 +688,7 @@ app.get('/api/daily-roster/:dateKey', authenticateToken, async (req, res) => { /
 app.post('/api/daily-roster/:dateKey', authenticateToken, authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const { onDutyAgents } = req.body;
     if (!onDutyAgents) {
@@ -801,11 +831,13 @@ app.post('/api/agent-availability/:dateKey/:agentId', authenticateToken, async (
 // Route pour obtenir le planning d'un agent spécifique (STRUCTURÉ PAR SEMAINE/JOUR)
 // Principalement pour l'affichage du planning individuel
 async function loadAgentPlanningFromFiles(agentId) {
-    const agentPlanning = {}; // { week-X: { day: [slots] } }
-    const daysOfWeek = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+    const agentPlanning = {}; // { week-X: { day: ["HH:MM - HH:MM"] } }
+    // IMPORTANT: L'index 0 correspond à Dimanche, 1 à Lundi, etc. C'est l'ordre de getDay().
+    const daysOfWeek = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']; 
 
     try {
         const dateFolders = await fs.readdir(AGENT_AVAILABILITY_DIR); // Liste tous les dossiers de dates
+
         for (const dateFolder of dateFolders) {
             const datePath = path.join(AGENT_AVAILABILITY_DIR, dateFolder);
             const stats = await fs.stat(datePath);
@@ -814,7 +846,7 @@ async function loadAgentPlanningFromFiles(agentId) {
                 const filePath = path.join(datePath, `${agentId}.json`);
                 try {
                     const data = await fs.readFile(filePath, 'utf8');
-                    const availabilitiesForDate = JSON.parse(data); // Tableau d'objets {start, end}
+                    const availabilitiesForDate = JSON.parse(data); // Tableau d'objets {start (index), end (index)}
 
                     const dateParts = dateFolder.split('-');
                     if (dateParts.length === 3) {
@@ -825,9 +857,9 @@ async function loadAgentPlanningFromFiles(agentId) {
 
                         const weekNum = getCurrentISOWeek(dateObj);
                         const dayIndex = dateObj.getDay(); // 0 pour Dimanche, 1 pour Lundi, etc.
-                        const clientDayName = daysOfWeek[(dayIndex === 0 ? 6 : dayIndex - 1)]; // Convertit 0 (Dim) en 6 (Dim), 1 (Lun) en 0 (Lun)
+                        const clientDayName = daysOfWeek[dayIndex]; // Utilise directement l'index du jour
 
-                        const weekKey = `S ${weekNum}`; // Changed from 'week-X' to 'S X' to match frontend option textContent
+                        const weekKey = `week-${weekNum}`; // MODIFICATION : Uniformisation de la weekKey
 
                         if (!agentPlanning[weekKey]) {
                             agentPlanning[weekKey] = {
@@ -836,17 +868,23 @@ async function loadAgentPlanningFromFiles(agentId) {
                             }; // Initialiser tous les jours
                         }
                         
-                        // Stocke les plages directement sous forme d'objets {start, end}
-                        const existingSlots = agentPlanning[weekKey][clientDayName];
-                        availabilitiesForDate.forEach(slot => {
-                            // S'assurer que chaque slot est un objet {start, end} et n'est pas déjà présent pour éviter les doublons si appel multiple
-                            if (typeof slot === 'object' && slot !== null &&
-                                typeof slot.start === 'number' && typeof slot.end === 'number' &&
-                                !existingSlots.some(existingSlot => existingSlot.start === slot.start && existingSlot.end === slot.end)) {
-                                existingSlots.push({ start: slot.start, end: slot.end });
+                        // Convertir les plages d'indices en chaînes "HH:MM - HH:MM"
+                        const formattedSlots = [];
+                        availabilitiesForDate.forEach(slotRange => {
+                            if (typeof slotRange === 'object' && slotRange !== null &&
+                                typeof slotRange.start === 'number' && typeof slotRange.end === 'number') {
+                                for (let i = slotRange.start; i <= slotRange.end; i++) {
+                                    formattedSlots.push(formatSlotTimeByIndex(i));
+                                }
                             }
                         });
-                        existingSlots.sort((a,b) => a.start - b.start); // Trie les créneaux par index de début
+
+                        // Assurer l'unicité et trier (important si des plages se chevauchent ou sont dupliquées)
+                        const uniqueSortedSlots = [...new Set(formattedSlots)].sort();
+                        agentPlanning[weekKey][clientDayName] = uniqueSortedSlots;
+
+                    } else {
+                        console.warn(`Nom de dossier de date invalide: ${dateFolder}`);
                     }
                 } catch (readErr) {
                     if (readErr.code === 'ENOENT') {
@@ -855,11 +893,13 @@ async function loadAgentPlanningFromFiles(agentId) {
                         console.error(`[ERREUR Serveur] Erreur de lecture du fichier de disponibilité pour ${agentId} le ${dateFolder}:`, readErr);
                     }
                 }
+            } else {
+                console.warn(`L'entrée ${dateFolder} n'est pas un répertoire dans ${AGENT_AVAILABILITY_DIR}.`);
             }
         }
     } catch (err) {
         if (err.code === 'ENOENT') {
-            console.log(`[INFO Serveur] Le dossier de disponibilités des agents n'existe pas ou est vide. Retourne un objet vide.`);
+            console.log(`[INFO Serveur] Le dossier de disponibilités des agents (${AGENT_AVAILABILITY_DIR}) n'existe pas ou est vide. Retourne un objet vide.`);
         } else {
             console.error(`[ERREUR Serveur] Erreur inattendue lors du chargement des plannings de l'agent ${agentId}:`, err);
         }
