@@ -120,12 +120,14 @@ body {
     background-color: #f9f9f9;
     padding: 10px; /* Ajout de padding pour l'espace intérieur */
     position: relative;
+    /* CHANGEMENT: Largeur minimale pour éviter le wrap excessif et assurer la visibilité des 48 colonnes */
+    min-width: calc(120px + (48 * 20px)); /* 120px pour jour + (48 slots * 20px min/slot) = 1080px */
 }
 
 /* En-tête des heures */
 .header-hours {
     display: grid;
-    /* CHANGEMENT : 12 colonnes pour les heures (toutes les deux heures), chacune span 4 slots de 30min */
+    /* 12 colonnes pour les heures (toutes les deux heures), chacune span 4 slots de 30min */
     /* Augmentation du minmax à 90px pour éviter le wrap du texte des heures */
     grid-template-columns: 120px repeat(12, minmax(90px, 4fr)); /* Colonne vide + 12 heures (chaque heure span 4 colonnes du planning) */
     background-color: var(--primary-color);
@@ -138,6 +140,8 @@ body {
     top: 0;
     z-index: 10;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    /* CHANGEMENT: Largeur minimale pour garantir la barre des heures sur une seule ligne */
+    min-width: calc(120px + (12 * 90px)); /* 120px pour vide + (12 heures * 90px min/heure) = 1200px */
 }
 
 .hour-cell {
@@ -176,9 +180,12 @@ body {
 
 /* Fond pour chaque slot horaire (invisible, sert de grille) */
 .slot-background {
-    border: 0.5px solid rgba(0, 0, 0, 0.05); /* Très légère bordure pour la structure */
+    /* CHANGEMENT: Enlève les bordures pour donner l'impression d'une ligne continue */
+    /* border: 0.5px solid rgba(0, 0, 0, 0.05); */
+    border: none;
     min-height: 40px; /* Hauteur des cellules de la grille */
     box-sizing: border-box;
+    background-color: var(--free-slot-color); /* Couleur de fond pour les zones non disponibles */
 }
 
 /* Barre de disponibilité */
@@ -349,12 +356,13 @@ body {
         padding: 10px 15px;
     }
     .planning-grid-content, .header-hours {
-        /* Garde le 120px pour la colonne jour et adapte les 48 slots */
-        grid-template-columns: 120px repeat(48, minmax(18px, 1fr));
+        /* Conserve la largeur minimale calculée */
+        min-width: calc(120px + (48 * 18px)); /* ~984px */
     }
     .header-hours {
         /* CHANGEMENT : 12 colonnes pour 24 heures, chacune couvrant 2 slots (36px min) */
-        grid-template-columns: 120px repeat(12, minmax(36px, 2fr));
+        /* Conserve la largeur minimale calculée */
+        min-width: calc(120px + (12 * 36px)); /* ~552px */
     }
     .day-label {
         padding: 10px 5px;
