@@ -3,16 +3,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const agentNameDisplay = document.getElementById('agent-name-display');
   // Récupérer les informations de l'agent depuis le sessionStorage
   const agent = JSON.parse(sessionStorage.getItem("agent"));
-  if (agent && agent.firstName && agent.lastName) {
-    agentNameDisplay.textContent = `${agent.firstName} ${agent.lastName}`;
-  } else {
-    agentNameDisplay.textContent = 'Agent Inconnu';
+
+  // Vérifier si l'objet agent est disponible et rediriger si ce n'est pas le cas
+  if (!agent || !agent.id || !agent.firstName || !agent.lastName) {
+    console.error("Agent data not found in sessionStorage or incomplete. Redirecting to login.");
+    window.location.href = 'login.html'; // Rediriger vers la page de connexion
+    return; // Arrêter l'exécution du script
   }
+
+  agentNameDisplay.textContent = `${agent.firstName} ${agent.lastName}`;
 
   // --- Affichage des qualifications (à compléter avec la logique réelle) ---
   const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay');
   // Exemple de qualifications (vous devrez les récupérer de l'objet agent ou de l'API)
-  if (agent && agent.qualifications && agent.qualifications.length > 0) {
+  if (agent.qualifications && agent.qualifications.length > 0) {
     // Supposons que nous avons une fonction pour obtenir les noms des qualifications par leur ID
     // Pour l'instant, affichons juste les IDs, ou une chaîne jointe
     agentQualificationsDisplay.textContent = `Qualifications: ${agent.qualifications.join(', ').toUpperCase()}`;
