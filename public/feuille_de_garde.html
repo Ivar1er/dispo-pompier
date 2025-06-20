@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Feuille de Garde - Centre BEAUNE</title>
+    <!-- Content Security Policy pour autoriser les styles inline et les sources externes nécessaires -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self' https://dispo-pompier.onrender.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com;
+        script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+        img-src 'self' data: https://loko-mobile-app-media.s3.eu-west-1.amazonaws.com;
+        connect-src 'self' https://dispo-pompier.onrender.com;
+    ">
     <link rel="stylesheet" href="css/feuille_de_garde.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -16,14 +25,17 @@
     <div class="roster-wrapper">
         <header class="roster-header">
             <div class="header-left">
-                <a href="admin.html" class="back-button">← Retour à l'Admin</a>
+                <a href="admin.html" class="back-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                    Retour à l'Admin
+                </a>
                 <div class="date-selector">
                     <label for="roster-date" class="sr-only">Sélectionner la date</label>
                     <input type="date" id="roster-date">
                 </div>
                 <button id="generate-auto-btn" class="refresh-button">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.76 2.75L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.76-2.75L21 16"/><path d="M21 21v-5h-5"/></svg>
-                    Généré auto 
+                    Générer auto 
                 </button>
             </div>
             <h1 class="roster-title">Feuille de garde du centre BEAUNE</h1>
@@ -38,29 +50,38 @@
         </header>
 
         <div class="roster-content">
-
-            <div id="time-slot-buttons-container"></div>
+            <div id="time-slot-buttons-container">
+                <!-- Les boutons de créneaux horaires seront insérés ici -->
+            </div>
 
             <div class="personnel-management-section">
                 <div class="available-personnel-container">
                     <h2>Personnel Disponible</h2>
                     <div id="available-personnel-list" class="available-personnel-list">
-                        </div>
+                        <!-- Le personnel disponible sera inséré ici -->
+                    </div>
                 </div>
 
                 <div class="on-duty-agents-container">
                     <h2>Agents d'astreinte</h2>
                     <p class="on-duty-info">Seuls les agents glissés ici seront utilisés pour la génération automatique et l'affectation manuelle.</p>
                     <div id="on-duty-agents-grid" class="on-duty-agents-grid">
-                        </div>
+                        <!-- Les agents d'astreinte seront insérés ici -->
+                        <div class="placeholder-text">Faites glisser les agents disponibles ici</div>
+                    </div>
                 </div>
             </div>
 
             <div class="roster-grid" id="roster-grid">
+                <!-- La feuille de garde des engins sera construite ici -->
                 <p class="loading-message">Chargement de la feuille de garde...</p>
             </div>
+
+            <button id="export-roster-pdf" class="btn btn-secondary export-btn">📄 Exporter la feuille de garde en PDF</button>
+
         </div>
 
+        <!-- Détails de l'engin (page modale) -->
         <div id="engine-details-page" class="engine-details-page" style="display: none;">
             <div class="engine-details-header">
                 <button id="back-to-roster-btn" class="back-to-roster-btn">
@@ -69,10 +90,12 @@
                 </button>
             </div>
             <div class="engine-grid">
-                </div>
+                <!-- Détails de l'engin et personnel affecté -->
+            </div>
         </div>
     </div>
 
+    <!-- Modale d'affectation du personnel -->
     <div id="personnel-assignment-modal" class="custom-modal" style="display: none;">
         <div class="modal-content">
             <h2 id="personnel-assignment-modal-title">Affecter le personnel</h2>
@@ -80,12 +103,14 @@
                 <div class="modal-section available-agents">
                     <h3>Agents d'astreinte disponibles</h3>
                     <div id="available-agents-in-modal-list" class="agent-list-drag-area">
-                        </div>
+                        <!-- Agents disponibles pour l'affectation -->
+                    </div>
                 </div>
                 <div class="modal-section engine-roles">
                     <h3>Rôles de l'engin</h3>
                     <div id="engine-roles-container" class="roles-drop-area">
-                        </div>
+                        <!-- Rôles de l'engin pour le drag & drop -->
+                    </div>
                 </div>
             </div>
             <div class="modal-actions">
@@ -93,6 +118,19 @@
             </div>
         </div>
     </div>
+
+    <!-- Modale de message générique -->
+    <div id="message-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 class="modal-title"></h3>
+            <p class="modal-message"></p>
+            <div class="modal-actions"></div>
+        </div>
+    </div>
+
     <script src="js/feuille_de_garde.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>

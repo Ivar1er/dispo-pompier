@@ -1,971 +1,964 @@
-/* Loader global */
-#loading-spinner {
-  position: fixed;
-  inset: 0;                    /* top/right/bottom/left = 0 */
-  display: flex;               /* pour centrer le spinner */
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.9); /* Plus opaque */
-  z-index: 1000;
-}
-#loading-spinner.hidden {
-  display: none;
+/* Import de la police Google Fonts Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Variables de couleurs et de design pour la cohérence */
+:root {
+  --primary-color: #007bff; /* Bleu principal */
+  --primary-hover-color: #0056b3;
+  --secondary-color: #6c757d; /* Gris pour actions secondaires */
+  --secondary-hover-color: #5a6268;
+  --success-color: #28a745; /* Vert pour éléments réussis/actifs */
+  --success-light: #d4edda; /* Vert clair pour fond */
+  --danger-color: #dc3545; /* Rouge pour erreurs/suppression */
+  --danger-light: #f8d7da; /* Rouge clair */
+  --info-color: #17a2b8; /* Cyan pour infos */
+  --info-light: #d1ecf1; /* Cyan clair */
+  --warning-color: #ffc107; /* Jaune pour avertissements */
+  --warning-light: #fff3cd; /* Jaune clair */
+
+  --background-color: #f4f7f6; /* Fond général clair */
+  --card-background: #ffffff; /* Fond des conteneurs/cartes */
+  --text-color: #333;
+  --light-gray: #e0e0e0;
+  --medium-gray: #bbb;
+  --dark-gray: #666;
+
+  --border-radius-large: 12px;
+  --border-radius-medium: 8px;
+  --border-radius-small: 6px;
+
+  --box-shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --box-shadow-medium: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
-/* Le “spinner” lui-même */
-#loading-spinner .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #ddd;
-  border-top-color: #007bff;
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--background-color);
+  margin: 0;
+  padding: 20px;
+  color: var(--text-color);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+.roster-wrapper {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  background-color: var(--card-background);
+  padding: 30px;
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--box-shadow-medium);
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  position: relative; /* Pour le spinner */
+}
+
+/* --- Loading Spinner --- */
+.loading-spinner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  border-radius: var(--border-radius-large);
+}
+
+.spinner {
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid var(--primary-color);
   border-radius: 50%;
+  width: 50px;
+  height: 50px;
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-/* Styles généraux du corps et de la police */
-body {
-  font-family: 'Inter', sans-serif; /* Police de caractères Inter */
-  background-color: #f0f2f5;
-  margin: 0;
-  padding: 20px;
-  color: #333;
+.hidden {
+  display: none !important;
 }
 
-/* Conteneur principal de la feuille de garde */
-.roster-wrapper {
-  max-width: 1400px;
-  margin: 0 auto;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-}
-
-/* Styles de l'en-tête */
+/* --- Header --- */
 .roster-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 25px;
-  background-color: #ffffff;
-  border-bottom: 1px solid #eee;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  flex-wrap: wrap;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--light-gray);
 }
 
-/* Conteneurs pour les éléments gauche et droit de l'en-tête */
 .header-left, .header-right {
   display: flex;
   align-items: center;
   gap: 15px;
-}
-
-/* Bouton de retour */
-.back-button {
-  background-color: #e0e0e0;
-  color: #333;
-  padding: 8px 15px;
-  border-radius: 5px;
-  text-decoration: none;
-  font-size: 0.9em;
-  transition: background-color 0.2s;
-}
-.back-button:hover {
-  background-color: #d0d0d0;
-}
-
-/* Sélecteur de date */
-.date-selector input[type="date"] {
-  padding: 8px 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 1em;
-}
-
-/* Bouton d'actualisation (désormais Générer Auto) */
-.refresh-button { /* Renommé en .generate-auto-btn dans le HTML */
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background-color: #007bff;
-  color: white;
-  padding: 8px 15px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 0.9em;
-  transition: background-color 0.2s;
-}
-.refresh-button:hover {
-  background-color: #0056b3;
-}
-
-/* Titre de la feuille de garde */
-.roster-title {
-  font-size: 1.5em;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
-}
-
-/* Flèches de navigation */
-.nav-arrow {
-  background: none;
-  border: 1px solid #ddd;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
-}
-.nav-arrow svg {
-  color: #555;
-  width: 18px;
-  height: 18px;
-}
-.nav-arrow:hover {
-  background-color: #f0f0f0;
-  border-color: #ccc;
-}
-
-/* Conteneur des boutons de créneaux horaires */
-#time-slot-buttons-container {
-  display: flex;
-  gap: 10px;
-  padding: 20px 25px;
-  background-color: #f9f9f9;
-  border-bottom: 1px solid #eee;
-  overflow-x: auto;
-  white-space: nowrap;
-}
-
-/* Bouton de créneau horaire */
-.time-slot-button {
-  background-color: #e0e0e0;
-  color: #333;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1em;
-  font-weight: 500;
-  transition: background-color 0.2s, box-shadow 0.2s;
-  flex-shrink: 0;
-  position: relative;
-  padding-right: 35px;
-}
-.time-slot-button:hover {
-  background-color: #d0d0d0;
-}
-.time-slot-button.active {
-  background-color: #007bff;
-  color: white;
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
-}
-
-/* Bouton d'ajout de créneau horaire */
-.add-time-slot-btn {
-  background-color: #28a745;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1em;
-  font-weight: 500;
-  transition: background-color 0.2s;
-  flex-shrink: 0;
-}
-.add-time-slot-btn:hover {
-  background-color: #218838;
-}
-
-/* Bouton de suppression de créneau horaire */
-.delete-time-slot-btn {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 0.8em;
-  cursor: pointer;
-  line-height: 1;
-  transition: background-color 0.2s;
-}
-.delete-time-slot-btn:hover {
-  background-color: #c82333;
-}
-
-/* Page des détails des engins */
-.engine-details-page {
-  padding: 20px 25px;
-}
-.engine-details-header {
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
-}
-.engine-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-}
-.engine-case {
-  background-color: #f8f8f8;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 15px;
-  text-align: center;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  position: relative; /* Ajout pour l'overlay INDISPO */
-}
-.engine-case:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-.engine-case h3 {
-  margin-top: 0;
-  color: #007bff;
-  font-size: 1.2em;
-  font-weight: 600;
-  margin-bottom: 5px;
-}
-.engine-case .places-count {
-  background-color: #007bff;
-  color: white;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 0.8em;
-  font-weight: 600;
-  display: inline-block;
-  margin-bottom: 15px;
-}
-.engine-case .personnel-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  text-align: left;
-}
-.engine-case .personnel-list li {
-  padding: 3px 0;
-  font-size: 0.9em;
-  color: #555;
-  border-top: 1px dashed #eee;
-}
-.engine-case .personnel-list li:first-child {
-  border-top: none;
-}
-/* Style pour agent non qualifié dans la liste de l'engin */
-.engine-case .personnel-list li.unqualified-agent {
-    color: #dc3545; /* Rouge */
-    font-weight: 600;
-}
-/* Style pour rôle obligatoire non pourvu */
-.engine-case .personnel-list li.missing-required-role {
-    color: #ffc107; /* Jaune/Orange */
-    font-weight: 600;
-}
-
-.engine-case .assign-engine-personnel-btn {
-    background-color: #28a745;
-    color: white;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-top: 15px;
-    font-size: 0.9em;
-    transition: background-color 0.2s;
-}
-.engine-case .assign-engine-personnel-btn:hover {
-    background-color: #218838;
-}
-
-/* Overlay "INDISPO" pour les engins */
-.engine-indispo-overlay {
-    position: absolute;
-    inset: 0;
-    background-color: rgba(0,0,0,0.7) !important;
-    color: #FFD600 !important;
-    font-size: 2.2em;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    pointer-events: none;
-    animation: pulseIndispo 1.5s infinite alternate;
-    text-shadow: 1px 1px 8px #000, 0 0 6px #FFD600;
-    letter-spacing: 2px;
-}
-
-
-@keyframes pulseIndispo {
-    from { transform: scale(1); opacity: 0.85; }
-    to { transform: scale(1.02); opacity: 0.95; }
-}
-
-
-/* Grille de la feuille de garde */
-.roster-grid {
-  padding: 20px 25px;
-}
-.roster-grid .loading-message {
-  text-align: center;
-  grid-column: 1 / -1;
-  color: #777;
-  padding: 40px;
-  font-size: 1.2em;
-}
-
-/* Styles du tableau principal */
-.roster-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    background-color: #fff;
-    border-radius: 8px;
-    overflow: hidden;
-}
-.roster-table th,
-.roster-table td {
-    border: 1px solid #e0e0e0;
-    padding: 12px 15px;
-    text-align: left;
-}
-.roster-table th {
-    background-color: #f2f2f2;
-    font-weight: 600;
-    color: #555;
-    text-transform: uppercase;
-    font-size: 0.9em;
-}
-.roster-table tbody tr:nth-child(even) {
-    background-color: #f9f9f9;
-}
-.roster-table tbody tr:hover {
-    background-color: #f0f0f0;
-}
-.roster-table .roster-cell {
-    position: relative;
-}
-.roster-table .engine-personnel-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-.roster-table .engine-personnel-list li {
-    font-size: 0.9em;
-    color: #444;
-    padding: 2px 0;
-}
-.roster-table .engine-personnel-list li:not(:last-child) {
-    border-bottom: 1px dotted #eee;
-    margin-bottom: 2px;
-}
-
-
-/* Bouton de retour depuis la vue engin */
-.back-to-roster-btn {
-  background-color: #6c757d;
-  color: white;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.95em;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  transition: background-color 0.2s ease, transform 0.1s ease;
-  margin-bottom: 20px;
-}
-.back-to-roster-btn:hover {
-  background-color: #5a6268;
-  transform: translateY(-1px);
-}
-
-/* Gestion du personnel disponible & astreinte */
-.personnel-management-section {
-  display: flex;
   flex-wrap: wrap;
-  gap: 20px;
-  padding: 20px 25px;
-  border-bottom: 1px solid #eee;
-  background-color: #f9f9f9;
 }
-.available-personnel-container,
-.on-duty-agents-container {
-  flex: 1;
-  min-width: 280px;
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-  padding: 15px;
-}
-.personnel-management-section h2 {
-  margin-top: 0;
-  color: #007bff;
-  font-size: 1.3em;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-  margin-bottom: 15px;
-}
-.on-duty-info {
-    font-size: 0.9em;
-    color: #6c757d;
-    margin-bottom: 15px;
-}
-.available-personnel-list {
-  max-height: 300px;
-  overflow-y: auto;
-  padding-right: 5px;
-}
-.available-personnel-item {
-  background-color: #e9ecef;
-  border: 1px solid #dee2e6;
-  border-radius: 5px;
-  padding: 8px 12px 18px 12px; /* Augmente le padding-bottom pour la légende */
-  margin-bottom: 8px;
-  cursor: grab;
-  font-size: 0.95em;
-  transition: background-color 0.2s, transform 0.1s;
-  display: flex;
-  flex-direction: column; /* Pour empiler le nom et la barre */
-  align-items: flex-start; /* Aligne le contenu à gauche */
-  height: auto; /* Ajuste la hauteur en fonction du contenu */
-  position: relative; /* Pour le tooltip */
-}
-.available-personnel-item:hover {
-  background-color: #d8e0e7;
-  transform: translateY(-1px);
-}
-.available-personnel-item.dragging {
-  opacity: 0.5;
-  outline: 2px dashed #007bff;
-  transform: translateY(-2px);
-}
-.on-duty-agents-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
-}
-.on-duty-slot {
-  background-color: #f0f8ff;
-  border: 1px dashed #a7d9ff;
-  border-radius: 8px;
-  min-height: 50px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 10px;
+
+.roster-title {
+  font-size: 1.8rem;
+  color: var(--primary-color);
+  margin: 0;
   text-align: center;
-  font-size: 0.9em;
-  color: #6c757d;
-  transition: background-color 0.2s, border-color 0.2s;
-  position: relative;
+  flex-grow: 1;
 }
-.on-duty-slot.filled {
-  background-color: #e6ffe6;
-  border: 1px solid #28a745;
-  color: #333;
-  font-weight: 500;
-  cursor: grab; /* Change de cursor: move; à grab pour être cohérent avec les disponibles */
-  height: auto; /* Permet au contenu de grandir avec la barre */
-  padding-bottom: 18px; /* Augmente le padding-bottom pour la légende */
-  display: flex; /* Utilise flexbox pour le contenu interne */
-  flex-direction: column; /* Empile le nom, la barre, le bouton x */
-  justify-content: flex-start; /* Aligne le contenu en haut */
-  align-items: flex-start; /* Aligne le contenu à gauche */
-  position: relative; /* Pour le tooltip */
-}
-.on-duty-slot .agent-name {
-    font-weight: 600;
-    margin: 0;
-    color: #333;
-}
-.on-duty-slot .remove-agent-btn {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  justify-content: center;
+
+.back-button {
+  display: inline-flex;
   align-items: center;
-  font-size: 0.8em;
-  cursor: pointer;
-  line-height: 1;
-  transition: background-color 0.2s;
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
-.on-duty-slot.filled .remove-agent-btn {
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
-}
-.on-duty-slot .remove-agent-btn:hover {
-  background-color: #c82333;
-}
-
-/* Styles pour les modales d'alerte/confirmation/prompt personnalisées */
-.custom-modal {
-  display: none;
-  position: fixed;
-  z-index: 2000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  background-color: rgba(0,0,0,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.custom-modal .modal-content {
-  background-color: #fefefe;
-  margin: auto;
-  padding: 25px 30px;
-  border-radius: 12px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  width: 90%;
-  max-width: 450px;
-  text-align: center;
-  animation: fadeIn 0.3s ease-out;
-  position: relative;
-}
-
-.custom-modal h2 {
-  color: #007bff;
-  margin-top: 0;
-  margin-bottom: 20px;
-  font-size: 1.4em;
-}
-
-.custom-modal .modal-form-group {
-  margin-bottom: 15px;
-  text-align: left;
-}
-
-.custom-modal .modal-form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 600;
-  color: #555;
-}
-
-.custom-modal .modal-form-group select {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 1em;
-  appearance: none;
-  background-color: white;
-  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22M287%2C197.9c-3.6%2C3.6-7.8%2C5.4-12.4%2C5.4s-8.8-1.8-12.4-5.4L146.2%2C75.5L30.2%2C197.9c-3.6%2C3.6-7.8%2C5.4-12.4%2C5.4s-8.8-1.8-12.4-5.4c-7.3-7.3-7.3-19.1%2C0-26.4L133.8%2C5.4c3.6-3.6%2C7.8-5.4%2C12.4-5.4s8.8%2C1.8%2C12.4%2C5.4l122.4%2C122.4C294.3%2C178.8%2C294.3%2C190.6%2C287%2C197.9z%22%2F%3E%3C%2Fsvg%3E');
-  background-repeat: no-repeat;
-  background-position: right 10px top 50%;
-  background-size: 12px auto;
-}
-
-.custom-modal .modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 25px;
-}
-
-.custom-modal .btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1em;
+  gap: 8px;
+  padding: 8px 15px;
+  background-color: var(--secondary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--border-radius-medium);
   font-weight: 500;
-  transition: background-color 0.2s, box-shadow 0.2s;
-}
-
-.custom-modal .btn-primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.custom-modal .btn-primary:hover {
-  background-color: #0056b3;
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
-}
-
-.custom-modal .btn-secondary {
-  background-color: #6c757d;
-  color: white;
-}
-
-.custom-modal .btn-secondary:hover {
-  background-color: #5a6268;
-  box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .roster-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  .header-right {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .roster-title {
-    font-size: 1.3em;
-    text-align: center;
-    width: 100%;
-  }
-  .personnel-management-section {
-    flex-direction: column;
-  }
-  .personnel-assignment-modal .modal-content,
-  .custom-modal .modal-content {
-    width: 95%;
-    padding: 20px;
-  }
-  .personnel-modal-header h3 {
-    font-size: 1.5em;
-  }
-  .post-assignment {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .post-assignment label {
-    min-width: auto;
-  }
-  .modal-actions {
-    flex-direction: column;
-    gap: 8px;
-  }
-  .modal-actions button {
-    width: 100%;
-  }
-}
-
-/* Nouvel ajout pour le wrapper de la barre de dispo et de la légende */
-.availability-bar-wrapper {
-    width: 100%; /* S'assure que le wrapper prend toute la largeur disponible */
-    position: relative;
-    padding-top: 5px; /* Espace au-dessus de la barre */
-    padding-bottom: 5px; /* Espace pour la légende horaire */
-}
-
-/* Styles pour la barre de disponibilité */
-.availability-bar {
-  width: 100%;
-  height: 10px; /* Hauteur de la barre */
-  background-color: #e0e0e0; /* Couleur de fond de la barre vide */
-  border-radius: 5px;
-  margin-top: 8px; /* Espace au-dessus de la barre */
-  position: relative; /* Pour positionner les segments colorés */
-  overflow: hidden; /* Assure que les segments ne dépassent pas */
-}
-
-.availability-base-bar {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    background-color: #e0e0e0; /* Assure que le fond est toujours visible si aucun segment n'est present */
-}
-
-.availability-highlight-segment {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  border-radius: 2px; /* Légèrement arrondi */
-  opacity: 0.8; /* Légère transparence pour voir la base */
   transition: background-color 0.2s ease;
 }
 
-.availability-highlight-segment.available {
-    background-color: #4CAF50; /* Vert pour les plages disponibles */
+.back-button:hover {
+  background-color: var(--secondary-hover-color);
 }
 
-.availability-highlight-segment.available:hover {
-    background-color: #388E3C; /* Vert plus foncé au survol */
+.date-selector input[type="date"] {
+  padding: 8px 12px;
+  border: 1px solid var(--medium-gray);
+  border-radius: var(--border-radius-small);
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  cursor: pointer;
 }
 
-.availability-highlight-segment.unavailable {
-    background-color: #f44336; /* Rouge pour les plages indisponibles */
+.refresh-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    background-color: var(--tertiary-color);
+    color: var(--text-color);
+    border: none;
+    border-radius: var(--border-radius-medium);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
-.availability-highlight-segment.unavailable:hover {
-    background-color: #d32f2f; /* Rouge plus foncé au survol */
-}
-
-
-/* Styles pour la légende horaire sous la barre de disponibilité */
-.time-legend {
-    display: flex;
-    justify-content: space-between; /* Pour espacer les marqueurs 00, 06, etc. */
-    width: 100%;
-    position: absolute;
-    bottom: -10px; /* Positionne la légende sous la barre */
-    left: 0;
-    font-size: 0.7em; /* Taille de police plus petite */
-    color: #777;
-}
-.time-legend span {
-    transform: translateX(-50%); /* Ajustement pour centrer le texte sur le repère */
-    display: block; /* S'assure que chaque span est un bloc pour le positionnement */
-    position: relative; /* Nécessaire pour le translateX */
-}
-/* Styles spécifiques pour les premiers et derniers marqueurs pour éviter le débordement */
-.time-legend span:first-child {
-    transform: translateX(0); /* Aligne 00:00 à gauche */
-}
-.time-legend span:last-child {
-    transform: translateX(-100%); /* Aligne 24:00 à droite */
-}
-
-
-/* Texte si aucun agent disponible */
-.no-available-personnel {
-    color: #888;
-    font-style: italic;
-    text-align: center;
-    padding: 15px;
-}
-
-/* Surbrillance lors du drag-over */
-.on-duty-slot.drag-over,
-.roster-cell.drag-over,
-.engine-case.drag-over,
-.modal-available-agent-slot.drag-over, /* Ajout pour la modale */
-.modal-role-slot.drag-over, /* Ajout pour la modale */
-.assigned-agent-placeholder.drag-over { /* Ajout pour la modale */
-  outline: 3px dashed #007bff; /* Changement de couleur et épaisseur */
-  background: rgba(0, 123, 255, 0.1); /* Changement de couleur de fond */
-  box-shadow: inset 0 0 0 2px #007bff; /* Ajoute une ombre interne */
-}
-
-/* Cache la section de contenu principal lorsque la page de détails est affichée */
-/* Cette règle CSS n'est plus nécessaire car showMainRosterGrid() gère le display directement */
-/* .roster-content[style*="display: none"] ~ .engine-details-page {
-    display: block;
-} */
-/* Cache la page de détails lorsque le contenu principal est affichée */
-/* .roster-content:not([style*="display: none"]) ~ .engine-details-page {
-    display: none;
-} */
-
-/* Styles pour la nouvelle modale d'affectation */
-.personnel-assignment-modal .modal-content { /* Utilise la classe spécifique de la modale d'affectation */
-    max-width: 800px; /* Augmente la largeur max pour plus d'espace */
-}
-
-.modal-body-assignment {
-    display: flex;
-    gap: 20px;
-    margin-top: 20px;
-    flex-wrap: wrap; /* Permet le wrap sur les petits écrans */
-}
-
-.modal-section {
-    flex: 1;
-    min-width: 200px; /* Pour éviter le collage sur mobile */
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 15px;
-    background-color: #f9f9f9;
-}
-
-.modal-section h3 {
-    margin-top: 0;
-    color: #007bff;
-    font-size: 1.1em;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-    margin-bottom: 15px;
-}
-
-.agent-list-drag-area, .roles-drop-area {
-    min-height: 150px;
-    max-height: 300px;
-    overflow-y: auto;
-    background-color: #fff;
-    border: 1px dashed #ccc;
-    border-radius: 5px;
-    padding: 10px;
-}
-
-.modal-available-agent-slot {
-    background-color: #e9ecef;
-    border: 1px solid #dee2e6;
-    border-radius: 5px;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    cursor: grab;
-    font-size: 0.9em;
-    transition: background-color 0.2s, transform 0.1s;
-}
-
-.modal-available-agent-slot:hover {
-    background-color: #d8e0e7;
+.refresh-button:hover {
+    background-color: var(--tertiary-hover-color);
     transform: translateY(-1px);
 }
 
-.modal-available-agent-slot.dragging-modal {
-    opacity: 0.5;
-    outline: 2px dashed #007bff;
-    transform: translateY(-2px);
+.nav-arrow {
+  background: none;
+  border: 1px solid var(--light-gray);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.modal-role-slot {
-    background-color: #f0f8ff;
-    border: 1px solid #a7d9ff;
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 10px;
+.nav-arrow:hover {
+  background-color: var(--light-gray);
+  border-color: var(--medium-gray);
+}
+
+.nav-arrow svg {
+  width: 24px;
+  height: 24px;
+  color: var(--dark-gray);
+}
+
+/* --- Main Content --- */
+.roster-content {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+/* Time Slot Buttons */
+#time-slot-buttons-container {
     display: flex;
-    flex-direction: column; /* Empile le nom du rôle et le placeholder */
-    gap: 5px;
-    font-size: 0.9em;
-}
-
-.role-name {
-    font-weight: 600;
-    color: #333;
-}
-/* Style pour les rôles obligatoires */
-.role-name.required-role {
-    color: #dc3545; /* Rouge pour un rôle obligatoire non pourvu */
-}
-
-
-.assigned-agent-placeholder {
-    background-color: #fff;
-    border: 1px dashed #ccc;
-    border-radius: 5px;
-    min-height: 40px; /* Espace minimal pour le drop */
-    display: flex;
-    align-items: center;
     justify-content: center;
-    color: #888;
-    font-style: italic;
-    padding: 5px;
-    position: relative; /* Pour positionner le bouton de suppression */
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
 }
 
-.assigned-agent-placeholder.filled {
-    background-color: #e6ffe6;
-    border: 1px solid #28a745;
-    color: #333;
-    font-style: normal;
-    font-weight: 500;
-}
-
-.assigned-agent-placeholder .assigned-agent-name {
-    padding: 5px;
-    cursor: grab;
-}
-/* Style pour l'agent non qualifié dans la modale */
-.assigned-agent-placeholder .assigned-agent-name.unqualified-agent-modal {
-    color: #dc3545; /* Rouge pour agent non qualifié */
+.time-slot-btn {
+    padding: 10px 25px;
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-medium);
     font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    user-select: none;
 }
 
+.time-slot-btn:hover:not(.active) {
+    background-color: var(--secondary-hover-color);
+}
 
-.assigned-agent-placeholder .remove-assigned-agent-btn {
+.time-slot-btn.active {
+    background-color: var(--primary-color);
+    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+    cursor: default;
+}
+
+/* Personnel Management Section */
+.personnel-management-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.available-personnel-container,
+.on-duty-agents-container {
+  background-color: var(--background-color);
+  padding: 20px;
+  border-radius: var(--border-radius-medium);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.available-personnel-container h2,
+.on-duty-agents-container h2 {
+  font-size: 1.3rem;
+  color: var(--primary-color);
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.on-duty-info {
+  font-size: 0.85rem;
+  color: var(--dark-gray);
+  font-style: italic;
+  margin-bottom: 15px;
+}
+
+.available-personnel-list,
+.on-duty-agents-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-content: flex-start; /* Ensure items align to top */
+  flex-grow: 1;
+  border: 1px dashed var(--medium-gray);
+  border-radius: var(--border-radius-small);
+  padding: 15px;
+}
+
+.on-duty-agents-grid {
+    min-height: 120px; /* Adjust as needed */
+    background-color: var(--info-light);
+    border-color: var(--info-color);
+}
+
+.agent-card {
+  background-color: var(--card-background);
+  border: 1px solid var(--light-gray);
+  border-radius: var(--border-radius-small);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+}
+
+.agent-card.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.agent-card:active {
+  cursor: grabbing;
+}
+
+.agent-card .agent-name {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.agent-card .agent-qualifications {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.agent-card .qualification-tag {
+  background-color: #e9ecef;
+  color: #495057;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* On-Duty Agent Specific Styles */
+.agent-card.on-duty-agent {
+    background-color: var(--success-light);
+    border-color: var(--success-color);
+    position: relative;
+    padding-right: 30px; /* Space for remove button */
+}
+
+.agent-card.on-duty-agent .remove-on-duty-btn {
     position: absolute;
     top: 5px;
     right: 5px;
-    background-color: #dc3545;
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: var(--danger-color);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: transform 0.2s ease;
+}
+
+.agent-card.on-duty-agent .remove-on-duty-btn:hover {
+    transform: scale(1.1);
+}
+
+.on-duty-agents-grid.drag-over,
+.agent-list-drag-area.drag-over,
+.roles-drop-area.drag-over,
+.role-drop-zone.drag-over {
+    border: 2px dashed var(--primary-color) !important;
+    background-color: rgba(0, 123, 255, 0.05) !important;
+}
+
+.placeholder-text {
+    color: var(--medium-gray);
+    font-style: italic;
+    text-align: center;
+    width: 100%;
+    align-self: center;
+    padding: 20px;
+}
+
+
+/* --- Roster Grid (Main Display) --- */
+.roster-grid {
+  display: grid;
+  /* Adjust grid-template-columns as needed for roles, e.g., 1fr repeat(N, auto) */
+  grid-template-columns: auto repeat(auto-fit, minmax(100px, 1fr)); /* Engin name + flexible role columns */
+  border: 1px solid var(--light-gray);
+  border-radius: var(--border-radius-medium);
+  overflow-x: auto; /* Allow horizontal scrolling */
+  width: 100%;
+  box-shadow: var(--box-shadow-subtle);
+}
+
+.roster-grid .loading-message {
+    grid-column: 1 / -1; /* Span all columns */
+    text-align: center;
+    padding: 50px;
+    color: var(--dark-gray);
+    font-size: 1.1rem;
+}
+
+.roster-header-row,
+.engine-row {
+  display: contents; /* Makes children participate in parent's grid */
+}
+
+.header-cell,
+.engine-name-cell,
+.role-assignment-cell {
+  padding: 12px 15px;
+  border-right: 1px solid var(--light-gray);
+  border-bottom: 1px solid var(--light-gray);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-cell {
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.engine-name-header {
+    background-color: var(--primary-color); /* Same as other headers for consistency */
+    color: white;
+    font-weight: 600;
+    position: sticky;
+    left: 0;
+    z-index: 11; /* Higher z-index for corner */
+    min-width: 150px; /* Ensure space for engine name */
+    text-align: left;
+    border-right: 1px solid rgba(255,255,255,0.2); /* Lighter border for contrast */
+}
+
+.role-header {
+    min-width: 120px; /* Minimum width for role cells */
+}
+
+.engine-name-cell {
+  background-color: var(--card-background);
+  font-weight: 500;
+  text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 9; /* Lower than header, higher than other cells */
+  min-width: 150px; /* Consistent with header */
+  border-right: 1px solid var(--light-gray);
+}
+
+.role-assignment-cell {
+  background-color: #f8f8f8;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  min-height: 40px; /* Ensure minimum height */
+}
+
+.role-assignment-cell:last-child,
+.header-cell:last-child {
+  border-right: none; /* No border on the last column */
+}
+
+.engine-row:last-child .header-cell,
+.engine-row:last-child .engine-name-cell,
+.engine-row:last-child .role-assignment-cell {
+  border-bottom: none; /* No border on the last row */
+}
+
+.assign-btn {
+  background-color: var(--success-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-small);
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.assign-btn:hover {
+  background-color: var(--success-color);
+  filter: brightness(0.9);
+}
+
+.role-assignment-cell.assigned {
+    background-color: var(--success-light);
+    border-color: var(--success-color);
+}
+
+.assigned-agent-name {
+    font-weight: 600;
+    color: var(--text-color);
+    display: block; /* Make it block to take full width */
+    max-width: calc(100% - 25px); /* Space for close button */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.clear-assignment-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    color: var(--danger-color);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: transform 0.2s ease;
+}
+.clear-assignment-btn:hover {
+    transform: scale(1.1);
+}
+
+.no-role-cell {
+    background-color: #f0f0f0; /* Lighter background for non-applicable roles */
+    color: var(--medium-gray);
+}
+
+
+/* Export button at the bottom */
+.export-btn {
+    align-self: center; /* Center the button */
+    margin-top: 20px;
+    padding: 12px 30px;
+    font-size: 1.1rem;
+    background-color: var(--primary-color);
     color: white;
     border: none;
-    border-radius: 50%;
+    border-radius: var(--border-radius-medium);
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.export-btn:hover {
+    background-color: var(--primary-hover-color);
+    transform: translateY(-2px);
+}
+.export-btn svg {
     width: 20px;
     height: 20px;
+}
+
+
+/* --- Engine Details Page --- */
+.engine-details-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 0.8em;
-    cursor: pointer;
-    line-height: 1;
-    transition: background-color 0.2s;
+    z-index: 100;
 }
 
-.assigned-agent-placeholder .remove-assigned-agent-btn:hover {
-    background-color: #c82333;
-}
-
-.no-available-personnel-modal {
-    color: #888;
-    font-style: italic;
-    text-align: center;
-    padding: 10px;
-}
-
-/* Tooltip pour la barre de disponibilité */
-/* Le wrapper est déjà positionné relative */
-/* .availability-bar-wrapper {
-    position: relative;
-} */
-
-.availability-bar-tooltip {
+.engine-details-header {
     position: absolute;
-    bottom: 100%; /* Au-dessus de la barre */
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.85);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 0.8em;
-    white-space: nowrap; /* Empêche le texte de se casser sur plusieurs lignes */
-    pointer-events: none; /* Ne pas bloquer les événements de la barre */
-    z-index: 100; /* Assure qu'il est au-dessus d'autres éléments */
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    margin-bottom: 10px; /* Espace entre la barre et le tooltip */
+    top: 20px;
+    left: 20px;
+    z-index: 110;
 }
 
-.availability-bar-tooltip ul {
-    list-style: none;
+.engine-details-page .engine-grid {
+    background-color: var(--card-background);
+    padding: 30px;
+    border-radius: var(--border-radius-large);
+    box-shadow: var(--box-shadow-medium);
+    max-width: 90%;
+    max-height: 90%;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.engine-details-page .engine-grid h2 {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--primary-color);
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+}
+
+.engine-detail-role {
+    background-color: var(--background-color);
+    padding: 20px;
+    border-radius: var(--border-radius-medium);
+    border: 1px solid var(--light-gray);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.engine-detail-role h3 {
+    color: var(--secondary-color);
+    font-size: 1.2rem;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.engine-detail-role p {
+    margin: 5px 0;
+    font-size: 0.95rem;
+}
+
+.assigned-person {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.required-qual {
+    font-style: italic;
+    color: var(--dark-gray);
+}
+
+
+/* --- Custom Modal (for assignment) --- */
+.custom-modal {
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.custom-modal .modal-content {
+    background-color: var(--card-background);
+    margin: auto;
+    padding: 30px;
+    border-radius: var(--border-radius-large);
+    box-shadow: var(--box-shadow-medium);
+    max-width: 800px;
+    width: 90%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.custom-modal .modal-content .close-button {
+    position: absolute;
+    top: 15px;
+    right: 25px;
+    color: var(--medium-gray);
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.custom-modal .modal-content .close-button:hover,
+.custom-modal .modal-content .close-button:focus {
+    color: var(--dark-gray);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.custom-modal .modal-content h2 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-top: 0;
+    font-size: 1.6rem;
+}
+
+.modal-body-assignment {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.modal-section {
+    background-color: var(--background-color);
+    padding: 15px;
+    border-radius: var(--border-radius-medium);
+    border: 1px solid var(--light-gray);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 150px;
+}
+
+.modal-section h3 {
+    font-size: 1.1rem;
+    color: var(--secondary-color);
+    margin-top: 0;
+    margin-bottom: 5px;
+}
+
+.agent-list-drag-area,
+.roles-drop-area {
+    border: 1px dashed var(--info-color);
+    background-color: var(--info-light);
+    min-height: 80px;
+    padding: 10px;
+    border-radius: var(--border-radius-small);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-content: flex-start;
+    flex-grow: 1;
+}
+
+.roles-drop-area {
+    align-items: center;
+    justify-content: center;
+    background-color: var(--warning-light); /* Different color for roles */
+    border-color: var(--warning-color);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+
+.modal-section .agent-card {
+    cursor: grab;
+    background-color: var(--card-background);
+    border: 1px solid var(--light-gray);
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border-radius: var(--border-radius-small);
+}
+
+.modal-section .agent-card:active {
+    cursor: grabbing;
+}
+
+.role-drop-zone {
+    border: 1px dashed var(--warning-color);
+    background-color: var(--warning-light);
+    padding: 10px;
+    border-radius: var(--border-radius-small);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    width: 100%;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.role-drop-zone p {
+    margin: 0 0 5px 0;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.assigned-agent-in-modal {
+    background-color: var(--success-light);
+    border: 1px solid var(--success-color);
+    padding: 6px 10px;
+    border-radius: var(--border-radius-small);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-color);
+    position: relative;
+    padding-right: 25px; /* Space for remove button */
+}
+
+.remove-modal-assignment-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    color: var(--danger-color);
+    cursor: pointer;
     padding: 0;
-    margin: 0;
+    line-height: 1;
+    transition: transform 0.2s ease;
+}
+.remove-modal-assignment-btn:hover {
+    transform: scale(1.1);
 }
 
-.availability-bar-tooltip li {
-    padding: 2px 0;
+/* SR Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+    .roster-wrapper {
+        padding: 20px;
+        gap: 25px;
+    }
+    .roster-header {
+        flex-direction: column;
+        align-items: center;
+    }
+    .header-left, .header-right {
+        justify-content: center;
+        width: 100%;
+    }
+    .roster-title {
+        font-size: 1.5rem;
+    }
+    .personnel-management-section {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    .engine-details-page .engine-grid {
+        max-width: 95%;
+        gap: 20px;
+    }
+    .custom-modal .modal-content {
+        padding: 25px;
+        gap: 20px;
+    }
+    .modal-body-assignment {
+        grid-template-columns: 1fr;
+    }
+    .btn {
+        padding: 10px 20px;
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    .roster-wrapper {
+        padding: 15px;
+        gap: 20px;
+    }
+    .roster-title {
+        font-size: 1.3rem;
+    }
+    .back-button, .refresh-button {
+        padding: 6px 12px;
+        font-size: 0.9rem;
+    }
+    .nav-arrow {
+        width: 35px;
+        height: 35px;
+    }
+    .nav-arrow svg {
+        width: 20px;
+        height: 20px;
+    }
+    .time-slot-btn {
+        padding: 8px 18px;
+        font-size: 0.9rem;
+    }
+    .available-personnel-container h2,
+    .on-duty-agents-container h2 {
+        font-size: 1.1rem;
+    }
+    .agent-card {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+    .agent-card .qualification-tag {
+        font-size: 0.7rem;
+    }
+    .header-cell, .engine-name-cell, .role-assignment-cell {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+    .assign-btn {
+        padding: 4px 8px;
+        font-size: 0.8rem;
+    }
+    .export-btn {
+        padding: 10px 20px;
+        font-size: 1rem;
+    }
+    .custom-modal .modal-content {
+        padding: 20px;
+        gap: 15px;
+    }
+    .custom-modal .modal-content h2 {
+        font-size: 1.4rem;
+    }
+    .modal-section h3 {
+        font-size: 1rem;
+    }
+    .role-drop-zone p, .assigned-agent-in-modal {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .roster-wrapper {
+        padding: 10px;
+        gap: 15px;
+    }
+    .roster-title {
+        font-size: 1.1rem;
+    }
+    .header-left, .header-right {
+        gap: 10px;
+    }
+    .back-button {
+        gap: 5px;
+        font-size: 0.8rem;
+    }
+    .date-selector input[type="date"] {
+        font-size: 0.9rem;
+        padding: 6px 10px;
+    }
+    .refresh-button {
+        font-size: 0.8rem;
+    }
+    .time-slot-btn {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+    .personnel-management-section {
+        gap: 15px;
+    }
+    .available-personnel-list, .on-duty-agents-grid {
+        padding: 10px;
+        gap: 8px;
+    }
+    .agent-card {
+        padding: 5px 8px;
+        font-size: 0.75rem;
+    }
+    .export-btn {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+    }
+    .engine-details-page .engine-grid {
+        padding: 20px;
+        gap: 15px;
+    }
+    .engine-detail-role h3 {
+        font-size: 1.1rem;
+    }
+    .custom-modal .modal-content {
+        padding: 15px;
+        gap: 10px;
+    }
+    .custom-modal .modal-content h2 {
+        font-size: 1.2rem;
+    }
+    .modal-section {
+        padding: 10px;
+    }
+    .modal-section h3 {
+        font-size: 0.9rem;
+    }
+    .agent-list-drag-area, .roles-drop-area {
+        padding: 8px;
+    }
 }
