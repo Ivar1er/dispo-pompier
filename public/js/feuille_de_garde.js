@@ -573,7 +573,7 @@ async function loadRosterConfig(dateKey) {
         async function loadAllPersonnelAvailabilities() {
           try {
             const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-            const token = sessionStorage.getItem('token'); // <<<<<<< MODIFIÉ ICI : Utilisation de sessionStorage
+            const token = sessionStorage.getItem('token'); 
             if (!token) {
                 console.warn('loadAllPersonnelAvailabilities: Aucun token trouvé. Authentification requise.');
                 displayMessageModal("Session expirée", "Votre session a expiré ou n'est pas valide. Veuillez vous reconnecter.", "error", () => {
@@ -629,29 +629,31 @@ async function loadRosterConfig(dateKey) {
           }
         }
 
-        async function loadInitialData() {
-          showSpinner();
-          try {
-            await fetchAllAgents(); 
-            const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-            await loadRosterConfig(dateKey);
-            await loadDailyRoster(dateKey); 
-            await loadAllPersonnelAvailabilities(); // Ceci doit charger les dispo pour TOUS les agents
-            initializeDefaultTimeSlotsForDate(dateKey);
-          } catch (error) {
-            console.error("Erreur lors du chargement initial des données:", error);
-            // Si une erreur 401/403 s'est produite lors d'un des fetchs,
-            // la modale de reconnexion aura déjà été affichée par la fonction concernée.
-            // Sinon, afficher une erreur générique.
-            if (!error.message.includes('401') && !error.message.includes('403') && !error.message.includes('Session expirée')) {
-                 displayMessageModal("Erreur de Chargement", `Une erreur est survenue lors du chargement initial des données : ${error.message}`, "error", () => {
-                    // Optionnel: rediriger si l'erreur est bloquante et non gérée spécifiquement
-                    // window.location.href = "/index.html"; 
-                });
+        async function updateDateDisplay() {
+            showSpinner();
+            try {
+                const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+                await fetchAllAgents(); 
+                await loadRosterConfig(dateKey);
+                await loadDailyRoster(dateKey); 
+                await loadAllPersonnelAvailabilities(); // Ceci doit charger les dispo pour TOUS les agents
+                initializeDefaultTimeSlotsForDate(dateKey); // S'assure qu'au moins un créneau par défaut existe
+
+                rosterDateInput.valueAsDate = currentRosterDate;
+                renderTimeSlotButtons(dateKey);
+                renderPersonnelLists(); // Appel pour rafraîchir la liste des agents disponibles
+                renderOnDutyAgentsGrid(); // Appel pour rafraîchir la grille des agents d'astreinte
+                renderRosterGrid();
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour et du rendu de l'affichage:", error);
+                // Si l'erreur n'a pas déjà été gérée par une modale de session expirée,
+                // afficher une alerte plus générique.
+                if (!error.message.includes('Session expirée')) {
+                    displayMessageModal("Erreur d'Affichage", `Une erreur est survenue lors du chargement ou de l'affichage des données : ${error.message}`, "error");
+                }
+            } finally {
+                hideSpinner();
             }
-          } finally {
-            hideSpinner();
-          }
         }
 
         // --------------------------------------------------
@@ -1949,11 +1951,10 @@ async function loadRosterConfig(dateKey) {
 
             createOnDutySlots(); // Cela initialise la grille d'astreinte
 
-            await loadInitialData(); // Charge toutes les données initiales, y compris les dispo et les agents
-            // updateDateDisplay est déjà appelée par loadInitialData en dernier, donc pas besoin de la rappeler ici.
-            // await updateDateDisplay();
+            // Appel de updateDateDisplay pour charger les données et rendre l'interface dès le chargement de la page
+            await updateDateDisplay(); 
 
-            showMainRosterGrid(); // Affiche la grille principale après chargement
+            showMainRosterGrid(); // Affiche la grille principale après chargement initial complet.
             });
 
             // Fonctions utilitaires de la modale (qui étaient en commentaire dans les versions précédentes)
