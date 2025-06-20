@@ -46,7 +46,7 @@ body {
     padding: 30px;
     border-radius: var(--border-radius-large);
     box-shadow: var(--box-shadow-subtle);
-    max-width: 1200px;
+    max-width: 1200px; /* Conserve une largeur maximale raisonnable */
     width: 100%;
     margin: 20px;
     display: flex;
@@ -71,26 +71,25 @@ body {
     color: var(--primary-color);
     margin: 0;
     font-weight: 600;
-    /* Supprime le span admin-name-display visuellement */
 }
 
 /* NOUVEAUX STYLES POUR LES CONTRÔLES DE PLANNING DANS LE HEADER */
 .header-planning-controls {
     display: flex;
-    justify-content: space-between; /* Aligne le sélecteur à gauche et les boutons à droite */
+    justify-content: space-between;
     align-items: center;
-    width: 100%; /* Prend toute la largeur disponible */
-    flex-wrap: wrap; /* Permet le retour à la ligne sur petits écrans */
-    gap: 15px; /* Espacement entre les groupes */
-    margin-top: 10px; /* Espace par rapport au titre */
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 10px;
 }
 
 .header-planning-controls .week-info {
     display: flex;
     align-items: center;
     gap: 10px;
-    flex-grow: 1; /* Permet au sélecteur de prendre de l'espace */
-    justify-content: flex-start; /* Aligne le sélecteur à gauche */
+    flex-grow: 1;
+    justify-content: flex-start;
 }
 
 .header-planning-controls #week-select {
@@ -106,17 +105,16 @@ body {
 .header-planning-controls #date-range {
     font-size: 0.9rem;
     color: var(--dark-gray);
-    white-space: nowrap; /* Empêche le texte de revenir à la ligne */
+    white-space: nowrap;
 }
 
 .header-planning-controls .planning-action-buttons {
     display: flex;
-    gap: 10px; /* Espacement entre les boutons Exporter et Feuille de Garde */
-    flex-wrap: wrap; /* Permet le retour à la ligne si besoin */
-    justify-content: flex-end; /* Aligne les boutons à droite */
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
-/* Les contrôles de semaine et d'export dans l'ancien .header-controls sont cachés */
 .header-controls {
     display: none;
 }
@@ -142,7 +140,7 @@ body {
     color: var(--dark-gray);
     cursor: pointer;
     transition: all 0.3s ease;
-    border-bottom: 3px solid transparent; /* Pour l'effet de survol/actif */
+    border-bottom: 3px solid transparent;
     border-radius: var(--border-radius-small) var(--border-radius-small) 0 0;
 }
 
@@ -154,18 +152,18 @@ body {
 .main-tab.active {
     color: var(--primary-color);
     border-color: var(--primary-color);
-    background-color: #eaf3ff; /* Fond légèrement coloré pour l'onglet actif */
+    background-color: #eaf3ff;
 }
 
 /* Contenus des onglets principaux */
 .main-tab-content {
-    display: none; /* Caché par défaut */
+    display: none;
     padding-top: 20px;
     animation: fadeIn 0.5s ease-out;
 }
 
 .main-tab-content.active {
-    display: block; /* Affiché quand actif */
+    display: block;
 }
 
 /* Navigation des jours (sous "Planning Global") */
@@ -210,15 +208,15 @@ body {
 }
 
 .info-message {
-    margin: 20px auto; /* Centre le message */
+    margin: 20px auto;
     padding: 15px;
-    background-color: #e7f3ff; /* Fond bleu clair */
-    border: 1px solid #b3d9ff; /* Bordure bleue */
+    background-color: #e7f3ff;
+    border: 1px solid #b3d9ff;
     border-radius: var(--border-radius-medium);
-    color: #0056b3; /* Texte bleu foncé */
+    color: #0056b3;
     text-align: center;
     font-size: 1rem;
-    max-width: 800px; /* Limite la largeur */
+    max-width: 800px;
 }
 
 .info-message.hidden {
@@ -227,24 +225,25 @@ body {
 
 /* Tableau de planning global */
 .table-container {
-    overflow-x: auto; /* Permet le défilement horizontal */
+    overflow-x: auto; /* Permet le défilement horizontal si le contenu dépasse */
     width: 100%;
     border-radius: var(--border-radius-medium);
-    box-shadow: inset 0 0 5px rgba(0,0,0,0.05); /* Ombre intérieure subtile */
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
+    /* min-height: 400px;  Optionnel: pour donner une hauteur minimale */
 }
 
 .global-planning-table {
-    width: 100%; /* S'assure que la table prend 100% de la largeur du conteneur scrollable */
+    width: 100%; /* Le tableau prendra 100% de la largeur du conteneur (défilable) */
     border-collapse: collapse;
-    min-width: 1100px; /* Largeur minimale pour que toutes les colonnes soient visibles sans écrasement */
+    /* min-width: 1100px; <= REMOVED: C'est ce qui forçait un défilement */
 }
 
 .global-planning-table th,
 .global-planning-table td {
-    padding: 8px 5px; /* Réduit le padding pour plus de compacité */
+    padding: 8px 5px;
     border: 1px solid var(--light-gray);
     text-align: center;
-    white-space: nowrap; /* Empêche le texte de passer à la ligne */
+    white-space: nowrap;
     vertical-align: middle;
 }
 
@@ -254,25 +253,25 @@ body {
     font-weight: 600;
     position: sticky;
     top: 0;
-    z-index: 2; /* S'assure que l'en-tête reste visible */
+    z-index: 2;
 }
 
 .agent-header-cell {
     position: sticky;
     left: 0;
-    z-index: 3; /* Plus élevé pour rester au-dessus des heures */
-    background-color: var(--primary-color); /* Même fond que l'en-tête */
+    z-index: 3;
+    background-color: var(--primary-color);
 }
 
 .global-planning-table tbody tr td:first-child {
     position: sticky;
     left: 0;
-    background-color: var(--card-background); /* Garde le fond blanc */
+    background-color: var(--card-background);
     font-weight: 500;
     text-align: left;
-    z-index: 1; /* Reste sous les en-têtes sticky */
-    min-width: 120px; /* Augmenté pour les noms/prénoms */
-    max-width: 180px; /* Limite la largeur */
+    z-index: 1;
+    min-width: 120px;
+    max-width: 180px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -280,40 +279,61 @@ body {
 
 /* Styles spécifiques aux cellules de créneau */
 .time-header-cell {
-    min-width: 50px; /* Largeur pour les heures (2x 25px) */
-    width: 50px; /* Largeur fixe */
+    min-width: 50px;
+    width: 50px;
 }
 
 .slot-cell {
-    width: 25px; /* 30 minutes par cellule */
+    width: 25px;
     min-width: 25px;
-    height: 30px; /* Hauteur fixe pour alignement */
-    background-color: var(--free-slot-color); /* Couleur par défaut (gris clair) */
-    position: relative; /* Pour le tooltip */
+    height: 30px;
+    background-color: var(--free-slot-color);
+    position: relative;
 }
 
 .available-slot-cell {
-    background-color: var(--success-color); /* Vert pour disponible */
+    background-color: var(--success-color);
 }
 
 .unavailable-slot-cell {
-    background-color: var(--free-slot-color); /* Gris clair pour indisponible */
+    background-color: var(--free-slot-color);
 }
+
+/* NOUVEAU STYLE POUR LES LIGNES D'AGENT SANS DISPONIBILITÉ */
+.unavailable-agent-row {
+    background-color: #ffe6e6; /* Rouge très pâle pour le fond de la ligne */
+    border-left: 5px solid var(--danger-color); /* Bordure rouge plus visible à gauche */
+    opacity: 0.85; /* Légèrement moins opaque pour les distinguer */
+}
+
+/* S'assurer que les cellules dans une ligne indisponible héritent du fond,
+   mais ne forcent pas leur propre couleur de slot si le créneau est disponible
+   (ce qui ne devrait pas arriver sur une ligne "indisponible" pour un jour donné,
+   mais pour la robustesse) */
+.unavailable-agent-row .slot-cell {
+    background-color: inherit; /* Hérite de la couleur de la ligne */
+}
+
+/* Surcharge pour les créneaux réellement disponibles dans une ligne potentiellement indisponible (si la logique change) */
+.unavailable-agent-row .available-slot-cell {
+    background-color: var(--success-color); /* Le vert prime s'il y a une dispo */
+}
+
 
 /* Tooltip pour les slot-cell */
 .slot-cell::after {
-  content: attr(data-time-range); /* Utilise l'attribut data-time-range comme contenu */
+  content: attr(data-time-range);
   position: absolute;
   background: var(--tooltip-background);
   color: white;
   font-size: 0.75rem;
   padding: 4px 8px;
   border-radius: 4px;
-  top: -30px; /* Positionne au-dessus de la cellule */
+  top: -30px;
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  pointer-events: none; /* Ne pas bloquer les événements de la souris */
+  pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease-in-out;
   z-index: 10;
@@ -366,7 +386,7 @@ form input[type="password"] {
     border-radius: var(--border-radius-small);
     font-size: 1rem;
     width: 100%;
-    box-sizing: border-box; /* Inclut padding et bordure dans la largeur */
+    box-sizing: border-box;
 }
 
 form button[type="submit"] {
@@ -376,7 +396,7 @@ form button[type="submit"] {
     font-weight: 600;
 }
 
-p[id$="Message"] { /* Styles pour les messages d'ajout/modification/liste */
+p[id$="Message"] {
     text-align: center;
     margin-top: 15px;
     font-weight: 500;
@@ -388,7 +408,7 @@ table {
     margin-top: 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     border-radius: var(--border-radius-medium);
-    overflow: hidden; /* Pour les bords arrondis */
+    overflow: hidden;
 }
 
 table th,
@@ -414,7 +434,7 @@ table tbody tr:hover {
     transition: background-color 0.2s ease;
 }
 
-table td:last-child { /* Colonne actions */
+table td:last-child {
     text-align: center;
     white-space: nowrap;
 }
@@ -432,7 +452,7 @@ table td .btn {
 #gradesCheckboxes {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px 20px; /* Ligne, Colonne */
+    gap: 10px 20px;
     padding: 10px;
     border: 1px solid var(--light-gray);
     border-radius: var(--border-radius-small);
@@ -452,7 +472,7 @@ table td .btn {
 #newAgentGradesCheckboxes input[type="checkbox"],
 #qualificationsCheckboxes input[type="checkbox"],
 #gradesCheckboxes input[type="checkbox"] {
-    width: auto; /* Annule le 100% pour les checkboxes */
+    width: auto;
     margin: 0;
 }
 
@@ -521,12 +541,12 @@ table td .btn {
 /* Footer et bouton de déconnexion */
 .bottom-actions {
     display: flex;
-    justify-content: flex-end; /* Aligne le bouton Déconnexion à droite */
+    justify-content: flex-end;
     align-items: center;
     padding-top: 20px;
     border-top: 1px solid var(--light-gray);
-    flex-wrap: wrap; /* Permet le retour à la ligne sur petits écrans */
-    gap: 15px; /* Espacement entre les éléments */
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
 
@@ -545,7 +565,7 @@ table td .btn {
 #loading-spinner.hidden {
     display: none;
 }
-#loading-spinner > div { /* Le spinner lui-même */
+#loading-spinner > div {
     width: 50px;
     height: 50px;
     border: 5px solid #f3f3f3;
@@ -638,14 +658,14 @@ table td .btn {
         font-size: 2rem;
     }
     .header-planning-controls {
-        flex-direction: column; /* Empile les contrôles sur petits écrans */
+        flex-direction: column;
         align-items: center;
         gap: 10px;
     }
     .header-planning-controls .week-info,
     .header-planning-controls .planning-action-buttons {
-        width: 100%; /* Prend toute la largeur */
-        justify-content: center; /* Centre les éléments */
+        width: 100%;
+        justify-content: center;
     }
     .main-tab {
         padding: 10px 15px;
@@ -660,7 +680,8 @@ table td .btn {
         font-size: 0.9rem;
     }
     .global-planning-table {
-        min-width: 900px; /* Ajuste min-width */
+        /* min-width: 900px; <= REMOVED HERE TOO */
+        /* width: 100%; <- déjà défini */
     }
     .global-planning-table th, .global-planning-table td {
         padding: 6px 3px;
@@ -715,24 +736,24 @@ table td .btn {
         font-size: 1.8rem;
     }
     .main-tabs-navigation {
-        flex-direction: column; /* Empile les onglets principaux */
+        flex-direction: column;
         align-items: stretch;
         gap: 5px;
     }
     .main-tab {
         width: 100%;
         text-align: center;
-        border-bottom: none; /* Supprime la bordure du bas pour les onglets empilés */
+        border-bottom: none;
         border-radius: var(--border-radius-small);
     }
     .main-tab.active {
-        border-bottom: none; /* Assure que la bordure active est également supprimée */
-        background-color: var(--primary-color); /* Rend l'onglet actif plein */
+        border-bottom: none;
+        background-color: var(--primary-color);
         color: white;
     }
     .main-tab:hover:not(.active) {
-        border-color: transparent; /* Pas de bordure au survol */
-        background-color: #f0f0f0; /* Un fond plus simple au survol */
+        border-color: transparent;
+        background-color: #f0f0f0;
         color: var(--primary-color);
     }
     .tabs-navigation {
@@ -740,7 +761,7 @@ table td .btn {
         justify-content: center;
     }
     .global-planning-table {
-        min-width: 700px; /* Encore plus petit pour s'adapter */
+        /* min-width: 700px; <= REMOVED HERE TOO */
     }
     .global-planning-table tbody tr td:first-child {
         min-width: 80px;
@@ -758,19 +779,19 @@ table td .btn {
         font-size: 1.4rem;
     }
     .bottom-actions {
-        flex-direction: column; /* Empile le sélecteur et le bouton de déconnexion */
-        align-items: stretch; /* Étire les éléments pour prendre toute la largeur */
+        flex-direction: column;
+        align-items: stretch;
         gap: 10px;
     }
     .bottom-actions #planning-controls {
-        flex-direction: column; /* Empile les éléments de contrôle du planning */
+        flex-direction: column;
         align-items: stretch;
         width: 100%;
     }
     .bottom-actions #planning-controls #week-select,
     .bottom-actions #planning-controls #export-pdf,
     .bottom-actions #planning-controls .btn-secondary {
-        width: 100%; /* Étire les boutons */
+        width: 100%;
         text-align: center;
     }
 }
@@ -792,7 +813,7 @@ table td .btn {
         font-size: 0.8rem;
     }
     .global-planning-table {
-        min-width: 600px;
+        /* min-width: 600px; <= REMOVED HERE TOO */
     }
     .global-planning-table tbody tr td:first-child {
         min-width: 60px;

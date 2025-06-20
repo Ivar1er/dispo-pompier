@@ -161,10 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const token = getToken();
         if (!token) {
             console.error("Token non trouvé. Redirection ou gestion de l'erreur.");
-            // displayMessageModal("Session expirée", "Veuillez vous reconnecter.", "error", () => {
-            //     window.location.href = "/index.html";
-            // });
-            return { 'Content-Type': 'application/json' }; // Retourne sans auth pour que le fetch échoue avec 401/403
+            return { 'Content-Type': 'application/json' };
         }
         return {
             'Content-Type': 'application/json',
@@ -174,23 +171,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     // --- Fonctions de chargement des données (Appels API) ---
-
-    // FetchAgentNames n'est pas utilisé pour peupler USERS_DATA, c'est loadAgents qui le fait.
-    // Cette fonction pourrait être supprimée si elle n'est pas appelée ailleurs.
-    // async function fetchAgentNames() {
-    //     try {
-    //         const response = await fetch(`${API_BASE_URL}/api/agents/names`);
-    //         const data = await response.json();
-    //         if (response.ok) {
-    //             // Mettre à jour agentDisplayInfos ici si nécessaire
-    //         } else {
-    //             console.error('Erreur lors du chargement des noms d\'agents:', data.message);
-    //         }
-    //     } catch (error) {
-    //         console.error('Erreur réseau lors du chargement des noms d\'agents:', error);
-    //     }
-    // }
-
 
     async function loadPlanningData() {
         showLoading(true);
@@ -205,7 +185,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         sessionStorage.clear();
                         window.location.href = "/index.html";
                     });
-                    return; // Important pour arrêter l'exécution
+                    return;
                 }
                 throw new Error(data.message || 'Erreur lors du chargement du planning global.');
             }
@@ -215,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (error) {
             console.error('Erreur lors du chargement du planning global:', error);
-            GLOBAL_PLANNING_DATA = {}; // Assure que les données sont vides en cas d'erreur
+            GLOBAL_PLANNING_DATA = {};
             displayMessageModal("Erreur de Chargement", `Impossible de charger le planning global : ${error.message}`, "error");
         } finally {
             showLoading(false);
@@ -244,10 +224,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const th = document.createElement('th');
             th.textContent = `${String(h).padStart(2, '0')}h`;
             th.classList.add('time-header-cell');
-            th.colSpan = 2; // Pour les créneaux de 30 min (ex: 7h00-7h30, 7h30-8h00)
+            th.colSpan = 2;
             headerRow.appendChild(th);
         }
-        for (let h = 0; h < 7; h++) { // Suite des heures pour couvrir 24h (00h à 06h)
+        for (let h = 0; h < 7; h++) {
             const th = document.createElement('th');
             th.textContent = `${String(h).padStart(2, '0')}h`;
             th.classList.add('time-header-cell');
@@ -262,34 +242,56 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const weekKey = `S ${currentWeek}`; // Format 'S X' comme dans serveur.js
 
-        // Filtrer et trier les agents qui ont des données dans USERS_DATA
-        const allAgentIds = Object.keys(USERS_DATA);
-        const agentsToDisplay = allAgentIds
-            .map(id => USERS_DATA[id])
-            .filter(agent => agent && (agent.role === 'agent' || agent.role === 'admin')) // Inclure admins si souhaité
-            .sort((a, b) => a.nom.localeCompare(b.nom)); // Tri par nom
+        // Préparer la liste des agents avec leur statut de disponibilité
+        const agentsWithAvailabilityStatus = Object.keys(USERS_DATA)
+            .map(id => {
+                const agent = USERS_DATA[id];
+                if (!agent || (agent.role !== 'agent' && agent.role !== 'admin')) {
+                    return null; // Ignorer les utilisateurs non-agents ou sans rôle défini
+                }
 
-        if (agentsToDisplay.length === 0) {
+                // Vérifier si l'agent a au moins un créneau disponible pour le jour et la semaine actuels
+                const agentSpecificDayPlanning = GLOBAL_PLANNING_DATA[agent.id]?.[weekKey]?.[day] || [];
+                const hasAvailability = agentSpecificDayPlanning.length > 0;
+
+                return { ...agent, hasAvailability };
+            })
+            .filter(agent => agent !== null); // Supprimer les nulls
+
+        // Trier les agents : ceux avec disponibilité en premier, puis ceux sans, puis par nom
+        agentsWithAvailabilityStatus.sort((a, b) => {
+            // Tri principal : disponibilité (true > false)
+            if (a.hasAvailability !== b.hasAvailability) {
+                return b.hasAvailability - a.hasAvailability; // true (1) vient avant false (0)
+            }
+            // Tri secondaire : par nom de famille
+            return a.nom.localeCompare(b.nom);
+        });
+
+
+        if (agentsWithAvailabilityStatus.length === 0) {
             const noAgentsRow = document.createElement('tr');
             noAgentsRow.innerHTML = `<td colspan="49">Aucun agent à afficher ou données d'agents manquantes.</td>`;
             tbody.appendChild(noAgentsRow);
         } else {
-            agentsToDisplay.forEach(agent => {
+            agentsWithAvailabilityStatus.forEach(agent => {
                 const agentRow = document.createElement('tr');
+                // Ajoute la classe 'unavailable-agent-row' si l'agent n'a pas de disponibilité
+                if (!agent.hasAvailability) {
+                    agentRow.classList.add('unavailable-agent-row');
+                }
+
                 const agentNameCell = document.createElement('td');
                 agentNameCell.classList.add('agent-name-cell');
                 agentNameCell.textContent = `${agent.prenom} ${agent.nom}`; // Nom complet de l'agent
                 agentRow.appendChild(agentNameCell);
 
-                // Récupérer le planning de l'agent pour la semaine et le jour actuels
-                // S'assurer que le chemin d'accès est correct et qu'il retourne un tableau vide par défaut
-                const agentSpecificDayPlanning = GLOBAL_PLANNING_DATA[agent._id]?.[weekKey]?.[day] || [];
+                const agentSpecificDayPlanning = GLOBAL_PLANNING_DATA[agent.id]?.[weekKey]?.[day] || [];
 
-                horaires.forEach((_, index) => { // Parcourt les 48 créneaux de 30 minutes
+                horaires.forEach((_, index) => {
                     const slotCell = document.createElement('td');
                     slotCell.classList.add('slot-cell');
 
-                    // Vérifier si un créneau de disponibilité couvre cet index de créneau horaire
                     const isAvailable = agentSpecificDayPlanning.some(slot => {
                         return index >= slot.start && index <= slot.end;
                     });
@@ -344,9 +346,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Génère quelques semaines passées et futures (ex: 2 semaines avant, 10 semaines après)
         for (let i = -2; i < 10; i++) {
             const weekNum = currentWeekNumber + i;
-            // Pour s'assurer que la date est dans la bonne année ISO
-            const monday = getMondayOfWeek(weekNum, currentYear);
-
             const option = document.createElement("option");
             option.value = weekNum; // La valeur est le numéro de semaine
             option.textContent = `Semaine ${weekNum} (${getWeekDateRange(weekNum, currentYear)})`;
@@ -366,16 +365,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (isLoading) {
             loadingSpinner.classList.remove("hidden");
             document.querySelectorAll('button, select, input, a').forEach(el => {
-                if (el.id !== 'logout-btn' && el.id !== 'export-pdf') { // Garder export-pdf actif pendant le chargement du planning
+                if (el.id !== 'logout-btn' && el.id !== 'export-pdf') {
                     el.disabled = true;
                     if (el.tagName === 'A') el.classList.add('disabled-link');
                 }
             });
-            mainTabButtons.forEach(btn => btn.disabled = true); // Désactiver les boutons d'onglets
-            tabButtons.forEach(btn => btn.disabled = true); // Désactiver les boutons de jour
+            mainTabButtons.forEach(btn => btn.disabled = true);
+            tabButtons.forEach(btn => btn.disabled = true);
             if (headerPlanningControls) headerPlanningControls.style.display = 'none';
 
-            if (adminInfo && forPdf) { // Message spécifique si c'est pour un export PDF
+            if (adminInfo && forPdf) {
                 adminInfo.textContent = "Génération du PDF en cours, veuillez patienter...";
                 adminInfo.style.backgroundColor = "#fff3cd";
                 adminInfo.style.borderColor = "#ffeeba";
@@ -389,18 +388,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (el.tagName === 'A') el.classList.remove('disabled-link');
                 }
             });
-            mainTabButtons.forEach(btn => btn.disabled = false); // Réactiver les boutons d'onglets
-            tabButtons.forEach(btn => btn.disabled = false); // Réactiver les boutons de jour
+            mainTabButtons.forEach(btn => btn.disabled = false);
+            tabButtons.forEach(btn => btn.disabled = false);
 
             const globalPlanningView = document.getElementById('global-planning-view');
-            // Afficher les contrôles de planning seulement si l'onglet planning est actif
             if (globalPlanningView && globalPlanningView.classList.contains('active') && headerPlanningControls) {
                 headerPlanningControls.style.display = 'flex';
             } else if (headerPlanningControls) {
                 headerPlanningControls.style.display = 'none';
             }
 
-            if (adminInfo && forPdf) { // Réinitialiser le message après l'export PDF
+            if (adminInfo && forPdf) {
                 adminInfo.textContent = "Vue du planning global des agents.";
                 adminInfo.style.backgroundColor = "";
                 adminInfo.style.borderColor = "";
@@ -497,7 +495,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const wasLoading = loadingSpinner && !loadingSpinner.classList.contains("hidden");
-        // if (loadingSpinner) loadingSpinner.classList.add("hidden"); // Ne cache pas le spinner principal
 
         const originalContainerOverflowX = container ? container.style.overflowX : '';
         const originalTableWhiteSpace = table.style.whiteSpace;
@@ -509,14 +506,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             cell.style.width = '60px'; // Ajuster la largeur pour le PDF si nécessaire
         });
 
-        showLoading(true, true); // Active le spinner avec option pour PDF
+        showLoading(true, true);
 
         try {
             if (container) container.style.overflowX = "visible";
             table.style.whiteSpace = "nowrap";
             table.style.tableLayout = "auto";
 
-            await new Promise(r => setTimeout(r, 200)); // Laisse le temps au navigateur de recalculer le layout
+            await new Promise(r => setTimeout(r, 200));
 
             const { jsPDF } = window.jspdf;
 
@@ -545,7 +542,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const pdf = new jsPDF({
                 orientation: "landscape",
                 unit: "mm",
-                format: "a3" // Format plus grand pour le planning
+                format: "a3"
             });
 
             const pageWidth = pdf.internal.pageSize.getWidth();
@@ -556,21 +553,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             let pdfWidth = pageWidth - 2 * margin;
             let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-            // Si la hauteur de l'image est trop grande pour une seule page, ajuster la largeur pour que ça rentre
-            if (pdfHeight > pageHeight - (2 * margin + 30)) { // 30mm pour le titre et les infos
+            if (pdfHeight > pageHeight - (2 * margin + 30)) {
                 pdfHeight = pageHeight - (2 * margin + 30);
                 pdfWidth = (imgProps.width * pdfHeight) / imgProps.height;
             }
 
-            const x = (pageWidth - pdfWidth) / 2; // Centrer l'image horizontalement
-            const y = margin + 25; // Descendre un peu pour laisser de la place au titre
+            const x = (pageWidth - pdfWidth) / 2;
+            const y = margin + 25;
 
             pdf.setFontSize(18);
             pdf.text(title, margin, margin + 5);
             pdf.setFontSize(14);
             pdf.text(`Jour : ${currentDay.charAt(0).toUpperCase() + currentDay.slice(1)}`, margin, margin + 12);
 
-            if (canvas.width > pageWidth * 2) { // Si le contenu est très large, on peut avertir
+            if (canvas.width > pageWidth * 2) {
                 pdf.setFontSize(8);
                 pdf.setTextColor(100);
                 pdf.text("Note: Le planning a été ajusté pour tenir sur la page. Certains détails peuvent apparaître plus petits.", margin, margin + 18);
@@ -586,7 +582,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error("Erreur lors de l'export PDF:", error);
             displayMessageModal("Erreur d'Export", "Une erreur est survenue lors de la génération du PDF. Veuillez réessayer ou contacter l'administrateur. Détails: " + error.message, "error");
         } finally {
-            // Rétablit les styles originaux
             if (container) container.style.overflowX = originalContainerOverflowX;
             table.style.whiteSpace = originalTableWhiteSpace;
             table.style.tableLayout = originalTableLayout;
@@ -594,9 +589,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 cell.style.width = originalHeaderCellWidths[index];
             });
 
-            showLoading(false, true); // Désactive le spinner (en supposant qu'il était activé pour PDF)
+            showLoading(false, true);
             if (wasLoading && loadingSpinner) {
-                loadingSpinner.classList.remove("hidden"); // Si le spinner était actif avant, le réafficher
+                loadingSpinner.classList.remove("hidden");
             }
         }
     }
@@ -613,7 +608,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!response.ok) {
                 throw new Error(data.message || 'Erreur lors du chargement des qualifications disponibles.');
             }
-            QUALIFICATIONS_DATA = data; // Mise à jour de la variable globale
+            QUALIFICATIONS_DATA = data;
             console.log('Qualifications disponibles chargées:', QUALIFICATIONS_DATA);
         } catch (error) {
             console.error('Erreur de chargement des qualifications:', error);
@@ -701,7 +696,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!response.ok) {
                 throw new Error(data.message || 'Erreur lors du chargement des grades disponibles.');
             }
-            GRADES_DATA = data; // Mise à jour de la variable globale
+            GRADES_DATA = data;
             console.log('Grades disponibles chargés:', GRADES_DATA);
         } catch (error) {
             console.error('Erreur de chargement des grades:', error);
@@ -1112,9 +1107,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (addQualificationMessage) addQualificationMessage.textContent = data.message;
                 if (addQualificationMessage) addQualificationMessage.style.color = 'green';
                 if (addQualificationFormElement) addQualificationFormElement.reset();
-                await loadAvailableQualifications(); // Met à jour la liste globale des qualifs
-                await loadQualificationsList(); // Rafraîchit le tableau des qualifs
-                renderNewAgentQualificationsCheckboxes(); // Met à jour les checkboxes d'ajout d'agent
+                await loadAvailableQualifications();
+                await loadQualificationsList();
+                renderNewAgentQualificationsCheckboxes();
             } else {
                 if (addQualificationMessage) addQualificationMessage.textContent = `Erreur : ${data.message}`;
                 if (addQualificationMessage) addQualificationMessage.style.color = 'red';
@@ -1158,8 +1153,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         displayMessageModal("Succès", data.message, "success");
                         await loadAvailableQualifications();
                         await loadQualificationsList();
-                        renderNewAgentQualificationsCheckboxes(); // Met à jour les checkboxes après suppression
-                        loadAgents(); // Recharger les agents car leurs qualifs peuvent avoir changé
+                        renderNewAgentQualificationsCheckboxes();
+                        loadAgents();
                     } else {
                         displayMessageModal("Erreur", `Erreur lors de la suppression : ${data.message}`, "error");
                     }
@@ -1195,10 +1190,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (response.ok) {
                 editQualMessage.textContent = data.message;
                 editQualMessage.style.color = 'green';
-                await loadAvailableQualifications(); // Met à jour la liste globale des qualifs
-                await loadQualificationsList(); // Rafraîchit le tableau
-                renderNewAgentQualificationsCheckboxes(); // Met à jour les checkboxes après modification
-                loadAgents(); // Recharger les agents car leurs qualifs peuvent avoir changé
+                await loadAvailableQualifications();
+                await loadQualificationsList();
+                renderNewAgentQualificationsCheckboxes();
+                loadAgents();
             } else {
                 editQualMessage.textContent = `Erreur : ${data.message}`;
                 if (editQualMessage) editQualMessage.style.color = 'red';
@@ -1232,7 +1227,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error(data.message || 'Erreur lors du chargement des grades.');
             }
 
-            GRADES_DATA = data; // Met à jour la variable globale avec les données complètes
+            GRADES_DATA = data;
 
             if (!gradesTableBody) {
                 console.error("Erreur DOM: L'élément 'gradesTableBody' est introuvable. Impossible de rendre la table des grades.");
@@ -1299,9 +1294,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (addGradeMessage) addGradeMessage.textContent = data.message;
                 if (addGradeMessage) addGradeMessage.style.color = 'green';
                 if (addGradeFormElement) addGradeFormElement.reset();
-                await loadAvailableGrades(); // Met à jour la liste globale des grades
-                await loadGradesList(); // Rafraîchit le tableau des grades
-                renderNewAgentGradesCheckboxes(); // Met à jour les checkboxes d'ajout d'agent
+                await loadAvailableGrades();
+                await loadGradesList();
+                renderNewAgentGradesCheckboxes();
             } else {
                 if (addGradeMessage) addGradeMessage.textContent = `Erreur : ${data.message}`;
                 if (addGradeMessage) addGradeMessage.style.color = 'red';
@@ -1345,8 +1340,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         displayMessageModal("Succès", data.message, "success");
                         await loadAvailableGrades();
                         await loadGradesList();
-                        renderNewAgentGradesCheckboxes(); // Met à jour les checkboxes après suppression
-                        loadAgents(); // Recharger les agents car leurs grades peuvent avoir changé
+                        renderNewAgentGradesCheckboxes();
+                        loadAgents();
                     } else {
                         displayMessageModal("Erreur", `Erreur lors de la suppression : ${data.message}`, "error");
                     }
@@ -1382,10 +1377,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (response.ok) {
                 editGradeMessage.textContent = data.message;
                 editGradeMessage.style.color = 'green';
-                await loadAvailableGrades(); // Met à jour la liste globale des grades
-                await loadGradesList(); // Rafraîchit le tableau
-                renderNewAgentGradesCheckboxes(); // Met à jour les checkboxes après modification
-                loadAgents(); // Recharger les agents car leurs grades peuvent avoir changé
+                await loadAvailableGrades();
+                await loadGradesList();
+                renderNewAgentGradesCheckboxes();
+                loadAgents();
             } else {
                 editGradeMessage.textContent = `Erreur : ${data.message}`;
                 if (editGradeMessage) editGradeMessage.style.color = 'red';
@@ -1592,11 +1587,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Actions spécifiques à chaque onglet lors de son ouverture
         if (targetTabId === 'global-planning-view') {
-            currentWeek = getCurrentISOWeek(new Date()); // Définit la semaine actuelle lors de l'ouverture
-            generateWeekOptions(); // Génère les options pour le sélecteur de semaine
-            updateDateRangeDisplay(); // Met à jour la plage de dates
-            await loadPlanningData(); // Recharge le planning global
-            showDay(currentDay); // Affiche le planning du jour actuel (initialise si besoin)
+            currentWeek = getCurrentISOWeek(new Date());
+            generateWeekOptions();
+            updateDateRangeDisplay();
+            await loadPlanningData();
+            showDay(currentDay);
 
             const activeDayButton = document.querySelector(`.tab[data-day="${currentDay}"]`);
             if (activeDayButton) {
@@ -1612,24 +1607,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (targetTabId === 'agent-management-view') {
             await loadAvailableQualifications();
             await loadAvailableGrades();
-            // await loadFunctionsList(); // Décommenter si fonctions ajoutées
             renderNewAgentQualificationsCheckboxes();
             renderNewAgentGradesCheckboxes();
-            // renderNewAgentFunctionsCheckboxes(); // Décommenter si fonctions ajoutées
-            await loadAgents(); // S'assure que les agents sont chargés pour le tableau
+            await loadAgents();
         }
 
         if (targetTabId === 'qualification-management-view') {
-            await loadQualificationsList(); // Charge et rend la liste des qualifications
+            await loadQualificationsList();
         }
 
         if (targetTabId === 'grade-management-view') {
-            await loadGradesList(); // Charge et rend la liste des grades
+            await loadGradesList();
         }
-
-        // if (targetTabId === 'function-management-view') { // Décommenter si fonctions ajoutées
-        //     await loadFunctionsList();
-        // }
     }
 
 
@@ -1674,7 +1663,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error("Initialisation Admin: Rôle incorrect pour cette page. Rôle actuel:", currentUserRole);
             displayMessageModal("Accès non autorisé", "Vous devez être connecté en tant qu'administrateur pour accéder à cette page.", "error", () => {
                 if (currentUserRole === 'agent') {
-                    window.location.href = "agent.html"; // Rediriger vers la page agent si c'est un agent
+                    window.location.href = "agent.html";
                 } else {
                     window.location.href = "index.html";
                 }
@@ -1702,9 +1691,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentWeek = getCurrentISOWeek(new Date());
 
         // Important: Charger les données nécessaires AVANT d'ouvrir l'onglet par défaut
-        await loadAvailableQualifications(); // Chargement des qualifications
-        await loadAvailableGrades(); // Chargement des grades
-        // await loadFunctionsList(); // Décommenter si vous avez une section Fonctions
+        await loadAvailableQualifications();
+        await loadAvailableGrades();
         await loadAgents(); // Charger les détails des agents pour USERS_DATA
 
         // Ouvrir l'onglet "Planning Global" par défaut au chargement
@@ -1715,10 +1703,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // --- Écouteurs d'événements pour les contrôles du planning global ---
         if (weekSelect) {
             weekSelect.addEventListener("change", async () => {
-                currentWeek = parseInt(weekSelect.value); // Utilisez directement le numéro de semaine
+                currentWeek = parseInt(weekSelect.value);
                 updateDateRangeDisplay();
-                await loadPlanningData(); // Recharge les données du planning pour la nouvelle semaine
-                showDay(currentDay); // Réaffiche le planning pour le jour actif
+                await loadPlanningData();
+                showDay(currentDay);
             });
         }
         if (exportPdfButton) {
@@ -1734,8 +1722,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (prevWeekBtn) {
             prevWeekBtn.addEventListener('click', async () => {
                 currentWeek--;
-                generateWeekOptions(); // Mettre à jour les options du sélecteur
-                weekSelect.value = currentWeek; // Sélectionner la nouvelle semaine
+                generateWeekOptions();
+                weekSelect.value = currentWeek;
                 updateDateRangeDisplay();
                 await loadPlanningData();
                 showDay(currentDay);
@@ -1747,8 +1735,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (nextWeekBtn) {
             nextWeekBtn.addEventListener('click', async () => {
                 currentWeek++;
-                generateWeekOptions(); // Mettre à jour les options du sélecteur
-                weekSelect.value = currentWeek; // Sélectionner la nouvelle semaine
+                generateWeekOptions();
+                weekSelect.value = currentWeek;
                 updateDateRangeDisplay();
                 await loadPlanningData();
                 showDay(currentDay);
