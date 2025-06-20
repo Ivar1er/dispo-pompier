@@ -345,10 +345,30 @@ function hideSpinner() {
 
 async function fetchAllAgents() {
   try {
+    // IMPORTANT: Utiliser sessionStorage pour récupérer le token
+    const token = sessionStorage.getItem('token'); 
+    if (!token) {
+        console.warn('fetchAllAgents: Aucun token trouvé. Authentification requise.');
+        // Potentiellement rediriger ou afficher un message d'erreur à l'utilisateur
+        return; 
+    }
+
     const resp = await fetch(`${API_BASE_URL}/api/admin/agents`, {
-      headers: {'X-User-Role':'admin'}
+      headers: {
+        'Authorization': `Bearer ${token}`, // Envoyer le token
+        'X-User-Role':'admin' // Garder l'en-tête de rôle
+      }
     });
-    if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
+    if (!resp.ok) {
+        if (resp.status === 401 || resp.status === 403) {
+            displayMessageModal("Accès Refusé", "Votre session a expiré ou vous n'êtes pas autorisé. Veuillez vous reconnecter.", "error", () => {
+                sessionStorage.clear();
+                window.location.href = "/index.html";
+            });
+            return;
+        }
+        throw new Error(`HTTP error! status: ${resp.status}`);
+    }
     allAgents = await resp.json();
   } catch (error) {
     console.error("Erreur lors du chargement des agents:", error);
@@ -358,10 +378,25 @@ async function fetchAllAgents() {
 
 async function loadRosterConfig(dateKey) {
   try {
+    // IMPORTANT: Utiliser sessionStorage pour récupérer le token
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+        console.warn('loadRosterConfig: Aucun token trouvé. Authentification requise.');
+        return;
+    }
+
     const resp = await fetch(`${API_BASE_URL}/api/roster-config/${dateKey}`, {
-      headers: {'X-User-Role':'admin'}
+      headers: {
+        'Authorization': `Bearer ${token}`, // Envoyer le token
+        'X-User-Role':'admin'
+      }
     });
     if (!resp.ok) {
+        if (resp.status === 401 || resp.status === 403) {
+            // Pas de redirection ici car loadInitialData gérera l'erreur globale si elle se propage.
+            // On jette l'erreur pour que le catch de loadInitialData puisse la gérer.
+            throw new Error(`HTTP error! status: ${resp.status}`);
+        }
         throw new Error(`HTTP error! status: ${resp.status}`); // Gérer les autres types d'erreurs HTTP
     }
     appData[dateKey] = await resp.json();
@@ -397,37 +432,70 @@ async function loadRosterConfig(dateKey) {
               timeSlots: {},
               onDutyAgents: Array(10).fill('none')
             };
-            initializeDefaultTimeSlotsForDate(dateKey, true);
+            // Si l'erreur est une 401/403, elle a déjà été gérée par fetchAllAgents
+            // ou sera gérée par loadInitialData. Ne pas initializeDefaultTimeSlotsForDate ici si l'erreur vient du token.
+            if (!error.message.includes('401') && !error.message.includes('403')) {
+                initializeDefaultTimeSlotsForDate(dateKey, true);
+            }
           }
         }
 
 
         async function saveRosterConfig(dateKey) {
           try {
+            // IMPORTANT: Utiliser sessionStorage pour récupérer le token
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                console.warn('saveRosterConfig: Aucun token trouvé. Authentification requise.');
+                return;
+            }
+
             const resp = await fetch(`${API_BASE_URL}/api/roster-config/${dateKey}`, {
               method: 'POST',
               headers: {
                 'Content-Type':'application/json',
+                'Authorization': `Bearer ${token}`, // Envoyer le token
                 'X-User-Role':'admin'
               },
               body: JSON.stringify(appData[dateKey])
             });
             if (!resp.ok) {
                 const errorText = await resp.text();
+                if (resp.status === 401 || resp.status === 403) {
+                    displayMessageModal("Accès Refusé", "Votre session a expiré ou vous n'êtes pas autorisé. Veuillez vous reconnecter.", "error", () => {
+                        sessionStorage.clear();
+                        window.location.href = "/index.html";
+                    });
+                    return;
+                }
                 throw new Error(`HTTP error! status: ${resp.status}, message: ${errorText}`);
             }
           } catch (error) {
             console.error("Erreur lors de la sauvegarde de la configuration du roster:", error);
+            displayMessageModal("Erreur de Sauvegarde", `Impossible de sauvegarder la configuration du roster : ${error.message}`, "error");
           }
         }
 
         async function loadDailyRoster(dateKey) {
           try {
+            // IMPORTANT: Utiliser sessionStorage pour récupérer le token
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                console.warn('loadDailyRoster: Aucun token trouvé. Authentification requise.');
+                return;
+            }
+
             const resp = await fetch(`${API_BASE_URL}/api/daily-roster/${dateKey}`, {
-              headers: {'X-User-Role':'admin'},
+              headers: {
+                'Authorization': `Bearer ${token}`, // Envoyer le token
+                'X-User-Role':'admin'
+              },
               credentials: 'include'
             });
             if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) {
+                    throw new Error(`HTTP error! status: ${resp.status}`);
+                }
                 throw new Error(`HTTP error! status: ${resp.status}`);
             }
             const dr = await resp.json();
@@ -439,15 +507,26 @@ async function loadRosterConfig(dateKey) {
           } catch (error) {
             console.error('loadDailyRoster échoué', error);
             appData[dateKey].onDutyAgents = Array(10).fill('none');
+             if (!error.message.includes('401') && !error.message.includes('403')) {
+                displayMessageModal("Erreur de Chargement", `Impossible de charger le roster quotidien : ${error.message}`, "error");
+            }
           }
         }
 
         async function saveDailyRoster(dateKey) {
           try {
+            // IMPORTANT: Utiliser sessionStorage pour récupérer le token
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                console.warn('saveDailyRoster: Aucun token trouvé. Authentification requise.');
+                return;
+            }
+
             const resp = await fetch(`${API_BASE_URL}/api/daily-roster/${dateKey}`, {
               method: 'POST',
               headers: {
                 'Content-Type':'application/json',
+                'Authorization': `Bearer ${token}`, // Envoyer le token
                 'X-User-Role':'admin'
               },
               credentials: 'include',
@@ -455,10 +534,18 @@ async function loadRosterConfig(dateKey) {
             });
             if (!resp.ok) {
               const errorText = await resp.text();
+                if (resp.status === 401 || resp.status === 403) {
+                    displayMessageModal("Accès Refusé", "Votre session a expiré ou vous n'êtes pas autorisé. Veuillez vous reconnecter.", "error", () => {
+                        sessionStorage.clear();
+                        window.location.href = "/index.html";
+                    });
+                    return;
+                }
               throw new Error(`HTTP error! status: ${resp.status}, message: ${errorText}`);
             }
           } catch (error) {
             console.error('saveDailyRoster échoué:', error);
+            displayMessageModal("Erreur de Sauvegarde", `Impossible de sauvegarder le roster quotidien : ${error.message}`, "error");
           }
         }
 
@@ -486,9 +573,13 @@ async function loadRosterConfig(dateKey) {
         async function loadAllPersonnelAvailabilities() {
           try {
             const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-            const token = localStorage.getItem('token'); // Récupère le token
+            const token = sessionStorage.getItem('token'); // <<<<<<< MODIFIÉ ICI : Utilisation de sessionStorage
             if (!token) {
                 console.warn('loadAllPersonnelAvailabilities: Aucun token trouvé. Authentification requise.');
+                displayMessageModal("Session expirée", "Votre session a expiré ou n'est pas valide. Veuillez vous reconnecter.", "error", () => {
+                    sessionStorage.clear();
+                    window.location.href = "/index.html";
+                });
                 return; 
             }
 
@@ -499,6 +590,13 @@ async function loadRosterConfig(dateKey) {
               }
             });
             if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) {
+                     displayMessageModal("Accès Refusé", "Votre session a expiré ou vous n'êtes pas autorisé à charger les disponibilités. Veuillez vous reconnecter.", "error", () => {
+                        sessionStorage.clear();
+                        window.location.href = "/index.html";
+                    });
+                    return;
+                }
                 console.error(`[ERREUR Client] Erreur HTTP lors du chargement des disponibilités: ${resp.status}`);
                 throw new Error(`HTTP error! status: ${resp.status}`);
             }
@@ -524,17 +622,36 @@ async function loadRosterConfig(dateKey) {
           } catch (error) {
             console.error("Erreur lors du chargement des disponibilités du personnel (API /api/agent-availability):", error);
             appData.personnelAvailabilities = {}; // Réinitialiser en cas d'erreur
+            // Si l'erreur a déjà déclenché une modale de reconnexion, ne pas en déclencher une nouvelle ici.
+            if (!error.message.includes('401') && !error.message.includes('403') && !error.message.includes('Session expirée')) {
+                displayMessageModal("Erreur de Chargement", `Impossible de charger les disponibilités du personnel : ${error.message}`, "error");
+            }
           }
         }
 
         async function loadInitialData() {
           showSpinner();
-          await fetchAllAgents(); 
-          const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-          await loadRosterConfig(dateKey);
-          await loadDailyRoster(dateKey); 
-          await loadAllPersonnelAvailabilities(); // Ceci doit charger les dispo pour TOUS les agents
-          hideSpinner();
+          try {
+            await fetchAllAgents(); 
+            const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+            await loadRosterConfig(dateKey);
+            await loadDailyRoster(dateKey); 
+            await loadAllPersonnelAvailabilities(); // Ceci doit charger les dispo pour TOUS les agents
+            initializeDefaultTimeSlotsForDate(dateKey);
+          } catch (error) {
+            console.error("Erreur lors du chargement initial des données:", error);
+            // Si une erreur 401/403 s'est produite lors d'un des fetchs,
+            // la modale de reconnexion aura déjà été affichée par la fonction concernée.
+            // Sinon, afficher une erreur générique.
+            if (!error.message.includes('401') && !error.message.includes('403') && !error.message.includes('Session expirée')) {
+                 displayMessageModal("Erreur de Chargement", `Une erreur est survenue lors du chargement initial des données : ${error.message}`, "error", () => {
+                    // Optionnel: rediriger si l'erreur est bloquante et non gérée spécifiquement
+                    // window.location.href = "/index.html"; 
+                });
+            }
+          } finally {
+            hideSpinner();
+          }
         }
 
         // --------------------------------------------------
@@ -662,7 +779,7 @@ async function loadRosterConfig(dateKey) {
               deleteBtn.classList.add('delete-time-slot-btn');
               deleteBtn.addEventListener('click', async (event) => {
                 event.stopPropagation();
-                if (confirm(`Voulez-vous vraiment supprimer le créneau ${slot.range} ?`)) {
+                if (await confirm("Voulez-vous vraiment supprimer le créneau " + slot.range + " ?")) { // Utilisation de await confirm()
                   delete appData[dateKey].timeSlots[slotId];
                   await saveRosterConfig(dateKey);
                   renderTimeSlotButtons(dateKey);
@@ -1627,21 +1744,21 @@ async function loadRosterConfig(dateKey) {
 
                 const currentEnginePersonnel = appData[dateKey].timeSlots[slotId].engines[engineType].personnel;
 
+                // Retirer l'agent de tous les autres rôles dans CET engin (pour éviter qu'il occupe plusieurs rôles dans le même engin)
                 for (const roleIdInEngine in currentEnginePersonnel) {
                     if (currentEnginePersonnel[roleIdInEngine] === newAgentId) {
                         currentEnginePersonnel[roleIdInEngine] = 'none';
-                        break;
+                        break; // Supprime une seule fois si l'agent est trouvé
                     }
                 }
 
-                const oldAgentInTargetRole = currentEnginePersonnel[targetRoleId];
-                if (oldAgentInTargetRole && oldAgentInTargetRole !== 'none') {
-                }
-
+                // Assigner l'agent au nouveau rôle
                 currentEnginePersonnel[targetRoleId] = newAgentId;
 
                 await saveRosterConfig(dateKey);
+                // On rafraîchit la modale pour refléter les changements
                 openPersonnelAssignmentModal(dateKey, slotId, engineType);
+                // On rafraîchit l'affichage principal
                 updateDateDisplay();
             }
 
@@ -1679,46 +1796,55 @@ async function loadRosterConfig(dateKey) {
 
             const onDutyAgents = appData[dateKey].onDutyAgents.filter(id => id !== 'none');
 
+            // Réinitialiser les affectations pour ce créneau/engin avant de réassigner
             Object.keys(currentSlot.engines).forEach(engineType => {
                 Object.keys(currentSlot.engines[engineType].personnel).forEach(roleId => {
                     currentSlot.engines[engineType].personnel[roleId] = 'none';
                 });
             });
 
+            // Créer une copie triée des agents d'astreinte disponibles pour l'affectation automatique
+            // Triage: agents avec plus de qualifications en premier, puis par ID (ou nom)
             const availableAgentsForAuto = [...onDutyAgents].sort((aId1, aId2) => {
                 const agent1 = allAgents.find(a => a._id === aId1);
                 const agent2 = allAgents.find(a => a._id === aId2);
-                return (agent2?.qualifications?.length || 0) - (agent1?.qualifications?.length || 0);
+                return (agent2?.qualifications?.length || 0) - (agent1?.qualifications?.length || 0); // Plus de qualifs en premier
             });
 
 
+            // Trier les types d'engin : ceux avec le plus de rôles critiques en premier, puis le plus de rôles au total
             const sortedEngineTypes = Object.keys(engineDetails).sort((a, b) => {
                 const criticalA = engineDetails[a].criticalRoles?.length || 0;
                 const criticalB = engineDetails[b].criticalRoles?.length || 0;
                 const rolesA = engineDetails[a].roles?.length || 0;
                 const rolesB = engineDetails[b].roles?.length || 0;
-                return (criticalB - criticalA) || (rolesB - rolesA);
+                return (criticalB - criticalA) || (rolesB - rolesA); // Plus de rôles critiques, puis plus de rôles au total
             });
 
             sortedEngineTypes.forEach(engineType => {
                 const rolesForEngine = engineDetails[engineType].roles;
+                // Trier les rôles : critiques/obligatoires en premier
                 rolesForEngine.sort((rA, rB) => {
                     const isCriticalA = engineDetails[engineType].criticalRoles?.includes(rA.id);
                     const isCriticalB = engineDetails[engineType].criticalRoles?.includes(rB.id);
                     const isRequiredA = rA.required;
                     const isRequiredB = rB.required;
 
+                    // Priorité 1: Rôles critiques ET obligatoires
                     if (isCriticalA && isRequiredA && (!isCriticalB || !isRequiredB)) return -1;
                     if ((!isCriticalA || !isRequiredA) && isCriticalB && isRequiredB) return 1;
+                    // Priorité 2: Rôles obligatoires (si pas déjà géré par P1)
                     if (isRequiredA && !isRequiredB) return -1;
                     if (!isRequiredA && isRequiredB) return 1;
+                    // Priorité 3: Rôles critiques (si pas déjà géré par P1/P2)
                     if (isCriticalA && !isCriticalB) return -1;
                     if (!isCriticalA && isCriticalB) return 1;
-                    return 0;
+                    return 0; // Pas de différence de priorité
                 }).forEach(roleDef => {
                     const roleId = roleDef.id;
                     if (availableAgentsForAuto.length > 0) {
                         let bestAgentIndex = -1;
+                        // Trouver le meilleur agent qualifié DANS la liste des agents disponibles
                         for (let i = 0; i < availableAgentsForAuto.length; i++) {
                             const agent = allAgents.find(a => a._id === availableAgentsForAuto[i]);
                             if (agent && isAgentQualifiedForRole(agent, roleId)) {
@@ -1729,8 +1855,10 @@ async function loadRosterConfig(dateKey) {
 
                         let agentToAssignId;
                         if (bestAgentIndex !== -1) {
+                            // Supprimer l'agent de la liste des disponibles une fois affecté
                             agentToAssignId = availableAgentsForAuto.splice(bestAgentIndex, 1)[0];
                         } else if (!roleDef.required) {
+                            // Si le rôle n'est pas obligatoire et aucun qualifié, prendre le premier disponible
                             agentToAssignId = availableAgentsForAuto.shift(); 
                             const agent = allAgents.find(a => a._id === agentToAssignId);
                             if (agent) {
@@ -1756,6 +1884,7 @@ async function loadRosterConfig(dateKey) {
                 return;
             }
             showSpinner();
+            // Réinitialiser les affectations de tous les engins pour tous les créneaux de la date
             Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
                 Object.keys(appData[dateKey].timeSlots[slotId].engines).forEach(engineType => {
                     appData[dateKey].timeSlots[slotId].engines[engineType].personnel = createEmptyEngineAssignment(engineType);
@@ -1767,7 +1896,7 @@ async function loadRosterConfig(dateKey) {
                 assignPersonnelToSlot(dateKey, slotId);
             });
             await saveRosterConfig(dateKey);
-            await saveDailyRoster(dateKey);
+            await saveDailyRoster(dateKey); // Sauvegarde également les agents d'astreinte après la génération
             updateDateDisplay();
             hideSpinner();
             }
@@ -1786,7 +1915,11 @@ async function loadRosterConfig(dateKey) {
             document.head.appendChild(styleElement);
 
             const role = sessionStorage.getItem("userRole");
-            if (role !== "admin") return window.location.href = "index.html";
+            if (role !== "admin") {
+                // Rediriger si l'utilisateur n'est pas admin, en effaçant le token
+                sessionStorage.clear();
+                return window.location.href = "index.html";
+            }
 
             rosterDateInput.valueAsDate = currentRosterDate;
 
@@ -1987,6 +2120,9 @@ async function loadRosterConfig(dateKey) {
                     }
                 };
             }
+            // Remplacement des fonctions natives alert et confirm pour utiliser les modales personnalisées
+            // Ces lignes étaient déjà présentes à la fin du fichier, je les laisse telles quelles
+            // pour garantir qu'elles prennent le dessus sur les fonctions natives.
             window.confirm = (message) => {
                 return new Promise((resolve) => {
                     displayMessageModal("Confirmation", message, "question", (result) => {
