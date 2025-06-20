@@ -25,7 +25,7 @@ app.use(cors({
       return callback(new Error(msg), false);
     }
     return callback(null, true);
-  },
+  }, // <--- Virgule supprimée ici
   credentials: true
 }));
 
@@ -138,8 +138,6 @@ function getDatesForISOWeek(isoWeekString) {
 
     // Commencez par le 4 janvier de l'année (toujours dans la première semaine ISO de l'année)
     const jan4 = new Date(year, 0, 4);
-    // Obtenez le jour de la semaine pour le 4 janvier (0 = Dimanche, 1 = Lundi, ..., 6 = Samedi)
-    // Ajustez pour que Lundi soit 0, Mardi 1, etc.
     const jan4DayOfWeek = (jan4.getDay() + 6) % 7; // Lundi = 0, Mardi = 1, etc.
 
     // Trouvez le premier lundi de l'année
@@ -345,9 +343,9 @@ app.post("/api/login", async (req, res) => {
     }
 
     // Génère un token JWT si l'authentification est réussie
-    // Ajoute le prénom et le nom de l'utilisateur au payload du token
+    // MODIFICATION ICI: Renommer 'prenom' en 'firstName' et 'nom' en 'lastName'
     const token = jwt.sign(
-        { id: username.toLowerCase(), prenom: user.prenom, nom: user.nom, role: user.role },
+        { id: username.toLowerCase(), firstName: user.prenom, lastName: user.nom, role: user.role },
         JWT_SECRET,
         { expiresIn: '1h' } // Le token expire après 1 heure
     );
@@ -356,8 +354,8 @@ app.post("/api/login", async (req, res) => {
         token: token,
         user: { // Retourne aussi les infos de l'utilisateur pour le frontend
             id: username.toLowerCase(),
-            prenom: user.prenom,
-            nom: user.nom,
+            firstName: user.prenom, // CHANGEMENT
+            lastName: user.nom,     // CHANGEMENT
             role: user.role,
             qualifications: user.qualifications || [],
             grades: user.grades || [],
@@ -370,8 +368,8 @@ app.post("/api/login", async (req, res) => {
 app.get('/api/agent-info', authenticateToken, (req, res) => {
     // Les informations de l'agent sont disponibles dans req.user grâce à authenticateToken
     // Elles incluent maintenant prenom et nom grâce à la modification dans la route /api/login
-    const { id, prenom, nom, role } = req.user;
-    res.json({ id, firstName: prenom, lastName: nom, role });
+    const { id, firstName, lastName, role } = req.user; // Utilise firstName, lastName
+    res.json({ id, firstName, lastName, role });
 });
 
 
@@ -708,9 +706,9 @@ app.post('/api/daily-roster/:dateKey', authenticateToken, authorizeAdmin, async 
 // NOUVELLE ROUTE : Obtenir les disponibilités des agents et les agents d'astreinte pour une date
 // C'est l'endpoint que le frontend '/admin.js' ou 'feuille_de_garde.js' appelle.
 app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => {
-    const dateKey = req.params.date; // Date au format YYYY-MM-DD
+    const dateKey = req.params.date; // Date au format Überblick-MM-DD
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. Attendu Überblick-MM-DD.' });
     }
 
     let availablePersonnel = [];
@@ -800,7 +798,7 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
 // Route pour sauvegarder le planning d'un agent spécifique pour UNE DATE
 // C'est l'endpoint que la page de planning individuelle appelle
 app.post('/api/agent-availability/:dateKey/:agentId', authenticateToken, async (req, res) => {
-    const dateKey = req.params.dateKey; // YYYY-MM-DD
+    const dateKey = req.params.dateKey; // Überblick-MM-DD
     const agentId = req.params.agentId.toLowerCase();
     const availabilities = req.body; // C'est un tableau d'objets {start, end}
 
