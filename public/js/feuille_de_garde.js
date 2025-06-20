@@ -583,6 +583,15 @@ async function loadRosterConfig(dateKey) {
                 return; 
             }
 
+            // D'abord, initialiser les disponibilités de TOUS les agents connus à vide pour la date actuelle.
+            // Cela assure que tout agent non explicitement disponible par l'API sera traité comme indisponible.
+            appData.personnelAvailabilities = {}; // Réinitialise les disponibilités pour la date actuelle
+            allAgents.forEach(agent => {
+                appData.personnelAvailabilities[agent._id] = {
+                    [dateKey]: [] // Par défaut, l'agent est considéré comme indisponible (tableau vide)
+                };
+            });
+
             const resp = await fetch(`${API_BASE_URL}/api/agent-availability/${dateKey}`, {
               headers: {
                 'Authorization': `Bearer ${token}`, // Utilise le token pour l'authentification
@@ -603,26 +612,20 @@ async function loadRosterConfig(dateKey) {
             
             const data = await resp.json(); // data contient { available: [...], onCall: [...] }
             
-            appData.personnelAvailabilities = {}; // Réinitialiser pour la date actuelle
-
-            // Combiner les agents disponibles et d'astreinte pour les traiter
-            const allPersonnelForDate = [...(data.available || []), ...(data.onCall || [])];
+            // Combiner les agents disponibles et d'astreinte renvoyés par l'API
+            const allPersonnelWithAPIResponse = [...(data.available || []), ...(data.onCall || [])];
             
-            allPersonnelForDate.forEach(agent => {
-                // IMPORTANT: La propriété 'availabilities' doit exister sur l'objet agent renvoyé par l'API backend.
-                // Si votre API ne renvoie pas de plages de disponibilité spécifiques (ex: agent.availabilities = [{start: "09:00", end: "12:00"}]),
-                // la logique ci-dessous assignera une disponibilité de 24h (07:00 - 07:00) pour l'affichage visuel.
-                const availabilitiesForAgent = agent.availabilities || [{ start: "07:00", end: "07:00" }]; // Simule 24h si non spécifié
-
-                appData.personnelAvailabilities[agent._id] = {
-                    [dateKey]: availabilitiesForAgent
-                };
+            // Mettre à jour les disponibilités des agents explicitement renvoyés par l'API.
+            // Si 'availabilities' est absent ou null/undefined, l'agent sera considéré indisponible (tableau vide).
+            allPersonnelWithAPIResponse.forEach(agent => {
+                const availabilitiesForAgent = agent.availabilities || []; 
+                appData.personnelAvailabilities[agent._id][dateKey] = availabilitiesForAgent;
             });
 
           } catch (error) {
             console.error("Erreur lors du chargement des disponibilités du personnel (API /api/agent-availability):", error);
-            appData.personnelAvailabilities = {}; // Réinitialiser en cas d'erreur
-            // Si l'erreur a déjà déclenché une modale de reconnexion, ne pas en déclencher une nouvelle ici.
+            // Pas besoin de réinitialiser appData.personnelAvailabilities ici, il a déjà été initialisé avec les valeurs par défaut.
+            // N'afficher la modale que si ce n'est pas un problème de token déjà géré.
             if (!error.message.includes('401') && !error.message.includes('403') && !error.message.includes('Session expirée')) {
                 displayMessageModal("Erreur de Chargement", `Impossible de charger les disponibilités du personnel : ${error.message}`, "error");
             }
