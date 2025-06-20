@@ -25,7 +25,7 @@ app.use(cors({
       return callback(new Error(msg), false);
     }
     return callback(null, true);
-  }, // <--- Virgule supprimée ici
+  },
   credentials: true
 }));
 
@@ -42,7 +42,7 @@ const PERSISTENT_DIR = process.env.PERSISTENT_DIR || path.join(__dirname, 'data'
 const USERS_FILE_PATH          = path.join(PERSISTENT_DIR, 'users.json');
 const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json');
 const GRADES_FILE_PATH         = path.join(PERSISTENT_DIR, 'grades.json');
-const FUNCTIONS_FILE_PATH      = path.join(PERSISTENT_DIR, 'functions.json'); // Maintenu pour compatibilité
+const FUNCTIONS_FILE_PATH      = path.join(PERSISTENT_DIR, 'functions.json');
 const ROSTER_CONFIG_DIR        = path.join(PERSISTENT_DIR, 'roster_configs');
 const DAILY_ROSTER_DIR         = path.join(PERSISTENT_DIR, 'daily_rosters');
 const AGENT_AVAILABILITY_DIR   = path.join(PERSISTENT_DIR, 'agent_availabilities'); // Dossier pour les dispo individuelles
@@ -102,20 +102,15 @@ function getCurrentISOWeek(date = new Date()) {
 }
 
 function getDateForDayInWeek(weekNum, dayIndex, year = new Date().getFullYear()) {
-    // Note: getDay() retourne 0 pour Dimanche, 1 pour Lundi, etc.
-    // Pour que MondayOfISOWeek soit un lundi et dayIndex soit 0=Lundi, 1=Mardi etc.
-    // nous ajustons dayIndex. 0 dans daysOfWeek doit être Lundi.
-    const daysOfWeek = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']; // Utilisé pour le nom du jour, pas l'index direct
+    const daysOfWeek = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 
     const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
-    const dow = simple.getDay() || 7; // getDay() returns 0 for Sunday, 1 for Monday, etc. Adjust for ISO: 7 for Sunday.
+    const dow = simple.getDay() || 7; 
     const mondayOfISOWeek = new Date(simple);
-    mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1)); // Trouve le Lundi de la semaine ISO
+    mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1));
     mondayOfISOWeek.setHours(0, 0, 0, 0);
 
     const targetDate = new Date(mondayOfISOWeek);
-    // dayIndex ici est 0=Lundi, 1=Mardi... 6=Dimanche (du frontend)
-    // Nous ajoutons directement dayIndex à partir du Lundi de la semaine ISO
     targetDate.setDate(mondayOfISOWeek.getDate() + dayIndex); 
     return targetDate;
 }
@@ -136,15 +131,12 @@ function getDatesForISOWeek(isoWeekString) {
     const year = parseInt(yearStr);
     const weekNum = parseInt(weekStr);
 
-    // Commencez par le 4 janvier de l'année (toujours dans la première semaine ISO de l'année)
     const jan4 = new Date(year, 0, 4);
-    const jan4DayOfWeek = (jan4.getDay() + 6) % 7; // Lundi = 0, Mardi = 1, etc.
+    const jan4DayOfWeek = (jan4.getDay() + 6) % 7;
 
-    // Trouvez le premier lundi de l'année
     const firstMonday = new Date(jan4);
     firstMonday.setDate(jan4.getDate() - jan4DayOfWeek);
 
-    // Calculez le lundi de la semaine spécifiée
     const targetMonday = new Date(firstMonday);
     targetMonday.setDate(firstMonday.getDate() + (weekNum - 1) * 7);
 
@@ -172,12 +164,11 @@ async function loadUsers() {
         USERS = JSON.parse(data);
     } catch (err) {
         if (err.code === 'ENOENT') {
-            // Si le fichier users.json n'existe pas, créer un utilisateur admin par défaut
             const hashedDefaultPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
             USERS = {
                 admin: {
                     prenom: "Admin",
-                    nom: "Principal", // Nom modifié pour être plus distinct
+                    nom: "Principal",
                     mdp: hashedDefaultPassword,
                     role: "admin",
                     qualifications: [],
@@ -327,7 +318,7 @@ function authorizeAdmin(req, res, next) {
 // --- Routes d'authentification ---
 
 app.post("/api/login", async (req, res) => {
-    const { username, password } = req.body; // Renommé 'agent' en 'username' pour cohérence
+    const { username, password } = req.body;
     if (!username || !password) {
         return res.status(400).json({ message: "Nom d'utilisateur et mot de passe requis." });
     }
@@ -342,20 +333,18 @@ app.post("/api/login", async (req, res) => {
         return res.status(401).json({ message: "Nom d'utilisateur ou mot de passe incorrect." });
     }
 
-    // Génère un token JWT si l'authentification est réussie
-    // MODIFICATION ICI: Renommer 'prenom' en 'firstName' et 'nom' en 'lastName'
     const token = jwt.sign(
         { id: username.toLowerCase(), firstName: user.prenom, lastName: user.nom, role: user.role },
         JWT_SECRET,
-        { expiresIn: '1h' } // Le token expire après 1 heure
+        { expiresIn: '1h' }
     );
 
     res.json({
         token: token,
-        user: { // Retourne aussi les infos de l'utilisateur pour le frontend
+        user: {
             id: username.toLowerCase(),
-            firstName: user.prenom, // CHANGEMENT
-            lastName: user.nom,     // CHANGEMENT
+            firstName: user.prenom,
+            lastName: user.nom,
             role: user.role,
             qualifications: user.qualifications || [],
             grades: user.grades || [],
@@ -366,16 +355,13 @@ app.post("/api/login", async (req, res) => {
 
 // --- Nouvelle route pour obtenir les informations de l'agent connecté ---
 app.get('/api/agent-info', authenticateToken, (req, res) => {
-    // Les informations de l'agent sont disponibles dans req.user grâce à authenticateToken
-    // Elles incluent maintenant prenom et nom grâce à la modification dans la route /api/login
-    const { id, firstName, lastName, role } = req.user; // Utilise firstName, lastName
+    const { id, firstName, lastName, role } = req.user;
     res.json({ id, firstName, lastName, role });
 });
 
 
 // Route de déconnexion (côté serveur, optionnel si la déconnexion est gérée uniquement côté client)
 app.post('/logout', authenticateToken, (req, res) => {
-    // Dans une vraie application, vous pourriez invalider le token côté serveur (liste noire JWT)
     console.log(`[AUTH] Utilisateur ${req.user.id} déconnecté.`);
     res.status(200).json({ message: 'Déconnexion réussie.' });
 });
@@ -385,7 +371,7 @@ app.post('/logout', authenticateToken, (req, res) => {
 // Récupérer tous les agents (protégé par admin)
 app.get('/api/admin/agents', authenticateToken, authorizeAdmin, (req, res) => {
     const list = Object.entries(USERS)
-        .filter(([_, u]) => u.role === 'agent' || u.role === 'admin') // Inclut les admins aussi
+        .filter(([_, u]) => u.role === 'agent' || u.role === 'admin')
         .map(([id, u]) => ({
             _id: id,
             prenom: u.prenom,
@@ -428,7 +414,7 @@ app.post('/api/admin/agents', authenticateToken, authorizeAdmin, async (req, res
         nom,
         prenom,
         mdp: await bcrypt.hash(password, 10),
-        role: 'agent', // Rôle par défaut 'agent'
+        role: 'agent',
         qualifications: qualifications || [],
         grades: grades || [],
         functions: functions || []
@@ -465,13 +451,11 @@ app.delete('/api/admin/agents/:id', authenticateToken, authorizeAdmin, async (re
     delete USERS[key];
     await saveUsers();
 
-    // Tente de supprimer les fichiers de disponibilité de l'agent
     try {
         const dateFolders = await fs.readdir(AGENT_AVAILABILITY_DIR);
         for (const dateFolder of dateFolders) {
             const filePath = path.join(AGENT_AVAILABILITY_DIR, dateFolder, `${key}.json`);
             await fs.unlink(filePath).catch((err) => {
-                // Ignore l'erreur si le fichier n'existe pas (ENOENT)
                 if (err.code !== 'ENOENT') console.warn(`[AVERTISSEMENT] Erreur lors de la suppression du fichier de dispo de l'agent ${key} pour ${dateFolder}:`, err);
             });
         }
@@ -525,7 +509,6 @@ app.delete('/api/qualifications/:id', authenticateToken, authorizeAdmin, async (
     if (AVAILABLE_QUALIFICATIONS.length === before) {
         return res.status(404).json({ message: 'Qualification non trouvée.' });
     }
-    // Retirer cette qualification de tous les utilisateurs qui la possédaient
     let modified = false;
     for (const u in USERS) {
         if (USERS[u].qualifications?.includes(key)) {
@@ -534,7 +517,7 @@ app.delete('/api/qualifications/:id', authenticateToken, authorizeAdmin, async (
         }
     }
     await saveQualifications();
-    if (modified) await saveUsers(); // Sauvegarde les utilisateurs si des changements ont été faits
+    if (modified) await saveUsers();
     res.json({ message: 'Qualification supprimée.' });
 });
 
@@ -563,7 +546,6 @@ app.delete('/api/grades/:id', authenticateToken, authorizeAdmin, async (req, res
     const before = AVAILABLE_GRADES.length;
     AVAILABLE_GRADES = AVAILABLE_GRADES.filter(g => g.id !== key);
     if (AVAILABLE_GRADES.length === before) return res.status(404).json({ message: 'Grade non trouvé.' });
-    // Retirer ce grade de tous les utilisateurs qui le possédaient
     let modified = false;
     for (const u in USERS) {
         if (USERS[u].grades?.includes(key)) {
@@ -576,8 +558,7 @@ app.delete('/api/grades/:id', authenticateToken, authorizeAdmin, async (req, res
     res.json({ message: 'Grade supprimé.' });
 });
 
-// --- Routes de gestion des fonctions (Admin - si encore utilisées) ---
-// Similaires aux qualifications/grades, à maintenir si vous avez des données ou des usages.
+// --- Routes de gestion des fonctions (Admin) ---
 
 app.get('/api/functions', authenticateToken, authorizeAdmin, (req, res) => res.json(AVAILABLE_FUNCTIONS));
 app.post('/api/functions', authenticateToken, authorizeAdmin, async (req, res) => {
@@ -615,13 +596,12 @@ app.delete('/api/functions/:id', authenticateToken, authorizeAdmin, async (req, 
 });
 
 // --- Routes de la feuille de garde (Configuration Admin) ---
-// Gère la configuration des créneaux horaires et des affectations d'engin pour une date donnée.
 
 app.get('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         console.error(`[ERREUR Serveur] Format de date invalide pour roster-config: ${dateKey}`);
-        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
     }
     const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
     try {
@@ -630,7 +610,6 @@ app.get('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async 
         res.json(JSON.parse(data));
     } catch (err) {
         if (err.code === 'ENOENT') {
-            // Retourne un objet vide si le fichier n'existe pas, avec un statut 200 OK
             console.log(`[INFO Serveur] Roster config file not found for ${dateKey}. Sending 200 OK with empty object.`);
             return res.status(200).json({});
         }
@@ -642,10 +621,10 @@ app.get('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async 
 app.post('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
     }
     const { timeSlots, onDutyAgents } = req.body;
-    if (!timeSlots) { // onDutyAgents peut être vide si la config est juste des créneaux
+    if (!timeSlots) {
         return res.status(400).json({ message: 'Missing timeSlots data.' });
     }
     const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
@@ -660,13 +639,12 @@ app.post('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async
 });
 
 // --- Routes de la feuille de garde (Daily Roster - agents réellement d'astreinte) ---
-// Gère la liste des agents désignés pour l'astreinte du jour.
 
-app.get('/api/daily-roster/:dateKey', authenticateToken, async (req, res) => { // Pas forcément admin-only
+app.get('/api/daily-roster/:dateKey', authenticateToken, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         console.error(`[ERREUR Serveur] Format de date invalide pour daily-roster: ${dateKey}`);
-        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
     }
     const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
     try {
@@ -686,7 +664,7 @@ app.get('/api/daily-roster/:dateKey', authenticateToken, async (req, res) => { /
 app.post('/api/daily-roster/:dateKey', authenticateToken, authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
     }
     const { onDutyAgents } = req.body;
     if (!onDutyAgents) {
@@ -704,27 +682,24 @@ app.post('/api/daily-roster/:dateKey', authenticateToken, authorizeAdmin, async 
 });
 
 // NOUVELLE ROUTE : Obtenir les disponibilités des agents et les agents d'astreinte pour une date
-// C'est l'endpoint que le frontend '/admin.js' ou 'feuille_de_garde.js' appelle.
 app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => {
-    const dateKey = req.params.date; // Date au format Überblick-MM-DD
+    const dateKey = req.params.date;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu Überblick-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
     }
 
     let availablePersonnel = [];
     let onCallAgents = [];
 
     try {
-        // 1. Récupérer les agents d'astreinte pour cette date depuis daily_roster
         const dailyRosterFilePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
         try {
             const dailyRosterData = await fs.readFile(dailyRosterFilePath, 'utf8');
             const dailyRoster = JSON.parse(dailyRosterData);
             if (dailyRoster && Array.isArray(dailyRoster.onDutyAgents)) {
-                // Filtrer les 'none' et récupérer les détails des agents
                 onCallAgents = dailyRoster.onDutyAgents.filter(id => id !== 'none')
-                    .map(id => USERS[id.toLowerCase()]) // Assurez-vous que l'ID est en minuscule
-                    .filter(agent => agent); // Filtrer les agents non trouvés
+                    .map(id => USERS[id.toLowerCase()])
+                    .filter(agent => agent);
             }
         } catch (err) {
             if (err.code === 'ENOENT') {
@@ -734,21 +709,19 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
             }
         }
 
-        // 2. Récupérer les disponibilités détaillées pour tous les agents pour cette date
         const allUsersIds = Object.keys(USERS);
-        const agentAvailabilitiesMap = {}; // { agentId: [{ start: "HH:MM", end: "HH:MM" }] }
+        const agentAvailabilitiesMap = {};
 
         for (const userId of allUsersIds) {
             const user = USERS[userId];
-            if (user.role === 'agent' || user.role === 'admin') { // Inclure les admins si nécessaire
+            if (user.role === 'agent' || user.role === 'admin') {
                 const agentAvailabilityFilePath = path.join(AGENT_AVAILABILITY_DIR, dateKey, `${userId}.json`);
                 try {
                     const agentAvailabilityData = await fs.readFile(agentAvailabilityFilePath, 'utf8');
                     agentAvailabilitiesMap[userId] = JSON.parse(agentAvailabilityData);
                 } catch (err) {
                     if (err.code === 'ENOENT') {
-                        // console.log(`[INFO Serveur] No availability file for agent ${userId} on ${dateKey}.`);
-                        agentAvailabilitiesMap[userId] = []; // Aucun fichier = aucune dispo pour ce jour
+                        agentAvailabilitiesMap[userId] = [];
                     } else {
                         console.error(`[ERREUR Serveur] Erreur de lecture du fichier de dispo de l'agent ${userId} pour ${dateKey}:`, err);
                     }
@@ -756,21 +729,17 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
             }
         }
         
-        // Déterminer le "personnel disponible" basé sur l'existence de disponibilités
-        // Ici, un agent est "disponible" s'il a au moins une plage de disponibilité renseignée
         availablePersonnel = allUsersIds.filter(id => {
             const user = USERS[id];
             if (user.role === 'agent' || user.role === 'admin') {
-                // S'assurer qu'il y a des disponibilités non vides pour cette date
                 return agentAvailabilitiesMap[id] && agentAvailabilitiesMap[id].length > 0;
             }
             return false;
         }).map(id => {
-            // Remplace l'ID par le nom complet pour le front-end
             const user = USERS[id];
             return {
                 id: id,
-                username: `${user.prenom} ${user.nom}`, // Concatène prénom et nom
+                username: `${user.prenom} ${user.nom}`,
                 qualifications: user.qualifications || [],
                 availabilities: agentAvailabilitiesMap[id] || []
             };
@@ -778,12 +747,11 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
 
 
         res.json({
-            available: availablePersonnel, // Déjà mappé avec nom complet
+            available: availablePersonnel,
             onCall: onCallAgents.map(agent => ({
                 id: agent.id,
-                username: `${agent.prenom} ${agent.nom}`, // Concatène prénom et nom
+                username: `${agent.prenom} ${agent.nom}`,
                 qualifications: agent.qualifications || [],
-                // Ajoute aussi les disponibilités détaillées pour les agents d'astreinte
                 availabilities: agentAvailabilitiesMap[agent.id] || []
             }))
         });
@@ -796,17 +764,15 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
 
 
 // Route pour sauvegarder le planning d'un agent spécifique pour UNE DATE
-// C'est l'endpoint que la page de planning individuelle appelle
 app.post('/api/agent-availability/:dateKey/:agentId', authenticateToken, async (req, res) => {
-    const dateKey = req.params.dateKey; // Überblick-MM-DD
+    const dateKey = req.params.dateKey;
     const agentId = req.params.agentId.toLowerCase();
-    const availabilities = req.body; // C'est un tableau d'objets {start, end}
+    const availabilities = req.body;
 
     if (!Array.isArray(availabilities)) {
         console.error(`[ERREUR Serveur] Les disponibilités doivent être un tableau. Reçu type: ${typeof availabilities}, contenu:`, availabilities);
         return res.status(400).json({ message: 'Les disponibilités doivent être un tableau.' });
     }
-    // Vérifier que l'utilisateur authentifié est l'agent concerné OU un admin
     if (req.user.id !== agentId && req.user.role !== 'admin') {
         console.warn(`[AUTH] Tentative de modification des dispo de ${agentId} par ${req.user.id} (rôle: ${req.user.role}). Accès refusé.`);
         return res.status(403).json({ message: 'Accès refusé. Vous ne pouvez modifier que vos propres disponibilités.' });
@@ -816,7 +782,7 @@ app.post('/api/agent-availability/:dateKey/:agentId', authenticateToken, async (
     const filePath = path.join(dirPath, `${agentId}.json`);
 
     try {
-        await fs.mkdir(dirPath, { recursive: true }); // Crée le dossier de date si n'existe pas
+        await fs.mkdir(dirPath, { recursive: true });
         await fs.writeFile(filePath, JSON.stringify(availabilities, null, 2), 'utf8');
         console.log(`[INFO Serveur] Disponibilités de l'agent ${agentId} enregistrées pour la date ${dateKey}.`);
         res.status(200).json({ message: 'Disponibilités enregistrées avec succès.' });
@@ -827,14 +793,12 @@ app.post('/api/agent-availability/:dateKey/:agentId', authenticateToken, async (
 });
 
 // Route pour obtenir le planning d'un agent spécifique (STRUCTURÉ PAR SEMAINE/JOUR)
-// Principalement pour l'affichage du planning individuel
 async function loadAgentPlanningFromFiles(agentId) {
-    const agentPlanning = {}; // { week-X: { day: ["HH:MM - HH:MM"] } }
-    // IMPORTANT: L'index 0 correspond à Dimanche, 1 à Lundi, etc. C'est l'ordre de getDay().
+    const agentPlanning = {};
     const daysOfWeek = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']; 
 
     try {
-        const dateFolders = await fs.readdir(AGENT_AVAILABILITY_DIR); // Liste tous les dossiers de dates
+        const dateFolders = await fs.readdir(AGENT_AVAILABILITY_DIR);
 
         for (const dateFolder of dateFolders) {
             const datePath = path.join(AGENT_AVAILABILITY_DIR, dateFolder);
@@ -844,29 +808,28 @@ async function loadAgentPlanningFromFiles(agentId) {
                 const filePath = path.join(datePath, `${agentId}.json`);
                 try {
                     const data = await fs.readFile(filePath, 'utf8');
-                    const availabilitiesForDate = JSON.parse(data); // Tableau d'objets {start (index), end (index)}
+                    const availabilitiesForDate = JSON.parse(data);
 
                     const dateParts = dateFolder.split('-');
                     if (dateParts.length === 3) {
                         const year = parseInt(dateParts[0]);
-                        const month = parseInt(dateParts[1]) - 1; // Mois 0-indexé
+                        const month = parseInt(dateParts[1]) - 1;
                         const day = parseInt(dateParts[2]);
                         const dateObj = new Date(year, month, day);
 
                         const weekNum = getCurrentISOWeek(dateObj);
-                        const dayIndex = dateObj.getDay(); // 0 pour Dimanche, 1 pour Lundi, etc.
-                        const clientDayName = daysOfWeek[dayIndex]; // Utilise directement l'index du jour
+                        const dayIndex = dateObj.getDay();
+                        const clientDayName = daysOfWeek[dayIndex];
 
-                        const weekKey = `week-${weekNum}`; // MODIFICATION : Uniformisation de la weekKey
+                        const weekKey = `week-${weekNum}`;
 
                         if (!agentPlanning[weekKey]) {
                             agentPlanning[weekKey] = {
                                 'lundi': [], 'mardi': [], 'mercredi': [],
                                 'jeudi': [], 'vendredi': [], 'samedi': [], 'dimanche': []
-                            }; // Initialiser tous les jours
+                            };
                         }
                         
-                        // Convertir les plages d'indices en chaînes "HH:MM - HH:MM"
                         const formattedSlots = [];
                         availabilitiesForDate.forEach(slotRange => {
                             if (typeof slotRange === 'object' && slotRange !== null &&
@@ -877,7 +840,6 @@ async function loadAgentPlanningFromFiles(agentId) {
                             }
                         });
 
-                        // Assurer l'unicité et trier (important si des plages se chevauchent ou sont dupliquées)
                         const uniqueSortedSlots = [...new Set(formattedSlots)].sort();
                         agentPlanning[weekKey][clientDayName] = uniqueSortedSlots;
 
@@ -886,7 +848,6 @@ async function loadAgentPlanningFromFiles(agentId) {
                     }
                 } catch (readErr) {
                     if (readErr.code === 'ENOENT') {
-                        // Fichier non trouvé pour cet agent et cette date, ce n'est pas une erreur
                     } else {
                         console.error(`[ERREUR Serveur] Erreur de lecture du fichier de disponibilité pour ${agentId} le ${dateFolder}:`, readErr);
                     }
@@ -907,7 +868,6 @@ async function loadAgentPlanningFromFiles(agentId) {
 
 app.get('/api/planning/:agentId', authenticateToken, async (req, res) => {
     const agentId = req.params.agentId.toLowerCase();
-    // Vérifie que l'utilisateur authentifié est l'agent concerné OU un admin
     if (req.user.id !== agentId && req.user.role !== 'admin') {
         console.warn(`[AUTH] Accès planning de ${agentId} refusé pour ${req.user.id} (rôle: ${req.user.role}).`);
         return res.status(403).json({ message: 'Accès refusé. Vous ne pouvez voir que votre propre planning.' });

@@ -1,31 +1,51 @@
+// js/agent.js
+
 document.addEventListener('DOMContentLoaded', () => {
-  // --- Affichage prénom + nom agent ---
   const agentNameDisplay = document.getElementById('agent-name-display');
-  // Récupérer les informations de l'agent depuis le sessionStorage
+  const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay');
+
   const agent = JSON.parse(sessionStorage.getItem("agent"));
 
   // Vérifier si l'objet agent est disponible et rediriger si ce n'est pas le cas
   if (!agent || !agent.id || !agent.firstName || !agent.lastName) {
     console.error("Agent data not found in sessionStorage or incomplete. Redirecting to login.");
-    window.location.href = 'login.html'; // Rediriger vers la page de connexion
-    return; // Arrêter l'exécution du script
+    window.location.href = 'login.html';
+    return;
   }
 
   agentNameDisplay.textContent = `${agent.firstName} ${agent.lastName}`;
 
-  // --- Affichage des qualifications (à compléter avec la logique réelle) ---
-  const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay');
-  // Exemple de qualifications (vous devrez les récupérer de l'objet agent ou de l'API)
-  if (agent.qualifications && agent.qualifications.length > 0) {
-    // Supposons que nous avons une fonction pour obtenir les noms des qualifications par leur ID
-    // Pour l'instant, affichons juste les IDs, ou une chaîne jointe
-    agentQualificationsDisplay.textContent = `Qualifications: ${agent.qualifications.join(', ').toUpperCase()}`;
-  } else {
-    agentQualificationsDisplay.textContent = 'Aucune qualification renseignée.';
+  // URL de base de votre API
+  const API_BASE_URL = "https://dispo-pompier.onrender.com";
+
+  // Fonctions utilitaires pour les qualifications (pour l'affichage)
+  let availableQualifications = [];
+  async function fetchQualificationsForDisplay() {
+      try {
+          const response = await fetch(`${API_BASE_URL}/api/qualifications`, {
+              headers: { 'Authorization': `Bearer ${sessionStorage.getItem('jwtToken')}` }
+          });
+          if (!response.ok) throw new Error('Failed to fetch qualifications');
+          availableQualifications = await response.json();
+          renderAgentQualifications();
+      } catch (error) {
+          console.error('Error fetching qualifications for display:', error);
+          agentQualificationsDisplay.textContent = 'Erreur chargement qualifications.';
+      }
   }
 
-  // URL de base de votre API (doit correspondre à celle du serveur)
-  const API_BASE_URL = "https://dispo-pompier.onrender.com";
+  function renderAgentQualifications() {
+    if (agent.qualifications && agent.qualifications.length > 0) {
+      const qualificationNames = agent.qualifications.map(qId => {
+        const qual = availableQualifications.find(aq => aq.id === qId);
+        return qual ? qual.name : qId; // Afficher le nom si trouvé, sinon l'ID
+      }).join(', ').toUpperCase();
+      agentQualificationsDisplay.textContent = `Qualifications: ${qualificationNames}`;
+    } else {
+      agentQualificationsDisplay.textContent = 'Aucune qualification renseignée.';
+    }
+  }
+
 
   // --- Fonctions de date (synchronisées avec le serveur et disponibles ici) ---
   function getWeekNumber(d) {
@@ -49,7 +69,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2, '0')}`;
   }
 
-  // Fonction pour obtenir la date au format YYYY-MM-DD
   function formatDateToYYYYMMDD(date) {
       const year = date.getFullYear();
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -57,17 +76,15 @@ document.addEventListener('DOMContentLoaded', () => {
       return `${year}-${month}-${day}`;
   }
 
-  // Fonction pour obtenir une date spécifique (Lundi-Dimanche) dans une semaine ISO
   function getDateForDayInWeek(weekNum, dayIndex, year = new Date().getFullYear()) {
-      // dayIndex: 0=Lundi, 1=Mardi, ..., 6=Dimanche
       const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
-      const dow = simple.getDay() || 7; // 0 for Sunday, 1 for Monday, ..., 7 for Sunday (ISO)
+      const dow = simple.getDay() || 7;
       const mondayOfISOWeek = new Date(simple);
-      mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1)); // Adjust to get the Monday of the ISO week
+      mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1));
       mondayOfISOWeek.setHours(0, 0, 0, 0);
 
       const targetDate = new Date(mondayOfISOWeek);
-      targetDate.setDate(mondayOfISOWeek.getDate() + dayIndex); // Add the day offset
+      targetDate.setDate(mondayOfISOWeek.getDate() + dayIndex);
       return targetDate;
   }
 
@@ -80,47 +97,39 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentYear = new Date().getFullYear();
   let currentWeekNumber = getWeekNumber(new Date());
 
-  // Peupler le sélecteur de semaine
   function populateWeekSelect() {
     weekSelect.innerHTML = '';
     const today = new Date();
     const currentYearForSelect = today.getFullYear();
-    const startYear = currentYearForSelect - 1; // Un an en arrière
-    const endYear = currentYearForSelect + 2;   // Deux ans en avant
+    const startYear = currentYearForSelect - 1;
+    const endYear = currentYearForSelect + 2;
 
     for (let year = startYear; year <= endYear; year++) {
-      for (let week = 1; week <= 53; week++) { // 53 semaines pour couvrir tous les cas
+      for (let week = 1; week <= 53; week++) {
         const option = document.createElement('option');
-        // Générer une date pour le lundi de la semaine ISO pour obtenir la plage de dates
-        // Note: dayIndex 0 pour Lundi dans getDateForDayInWeek
-        const mondayOfCurrentWeek = getDateForDayInWeek(week, 0, year); 
+        const mondayOfCurrentWeek = getDateForDayInWeek(week, 0, year);
         const sundayOfCurrentWeek = new Date(mondayOfCurrentWeek);
         sundayOfCurrentWeek.setDate(mondayOfCurrentWeek.getDate() + 6);
 
-        // Assurez-vous que la date est dans la bonne année ISO
-        // La condition `mondayOfCurrentWeek.getFullYear() > year + 1 || mondayOfCurrentWeek.getFullYear() < year -1`
-        // a été retirée pour s'assurer que toutes les options pour les années +2/-1 sont générées correctement,
-        // même si la semaine 53 de l'année N-1 est en début d'année N ou inversement.
-        // Le serveur gère la logique précise des dates associées aux semaines ISO.
+        if (getWeekNumber(mondayOfCurrentWeek) !== week || mondayOfCurrentWeek.getFullYear() !== year) {
+            continue;
+        }
 
         const dates = `${formatDate(mondayOfCurrentWeek)} - ${formatDate(sundayOfCurrentWeek)}`;
-        option.value = `${year}-W${week}`; // Format: "YYYY-WNN"
+        option.value = `${year}-W${week}`;
         option.textContent = `Semaine ${week} (${dates})`;
         weekSelect.appendChild(option);
       }
     }
-    // Sélectionner la semaine courante
     weekSelect.value = `${currentYear}-W${currentWeekNumber}`;
   }
 
-  // Fonction pour mettre à jour la semaine affichée
   function updateWeekDisplay() {
     const selectedWeekValue = weekSelect.value;
     const [yearStr, weekStr] = selectedWeekValue.split('-W');
     currentYear = parseInt(yearStr);
     currentWeekNumber = parseInt(weekStr);
 
-    // Charger les plannings pour la semaine sélectionnée
     loadAndRenderAgentPlanning(agent.id, currentYear, currentWeekNumber);
   }
 
@@ -131,7 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let newYear = currentYear;
     if (newWeekNumber < 1) {
       newYear--;
-      // Calculer la dernière semaine de l'année précédente
       const dateForLastWeekOfPrevYear = new Date(newYear, 11, 31);
       newWeekNumber = getWeekNumber(dateForLastWeekOfPrevYear); 
     }
@@ -142,7 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
   nextWeekBtn.addEventListener('click', () => {
     let newWeekNumber = currentWeekNumber + 1;
     let newYear = currentYear;
-    // Calculer la dernière semaine de l'année actuelle
     const dateForLastWeekOfCurrentYear = new Date(newYear, 11, 31);
     const maxWeek = getWeekNumber(dateForLastWeekOfCurrentYear); 
     if (newWeekNumber > maxWeek) {
@@ -161,13 +168,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const dayButtons = document.querySelectorAll('.day-btn');
   const API_URL = `${API_BASE_URL}/api/agent-availability`;
 
-  let currentDay = 0; // 0 = Lundi, 1 = Mardi, etc.
-  // Structure pour stocker les sélections : { weekKey: { dayName: [{ start: index, end: index }] } }
-  let selections = {}; // { 'week-25': { 'lundi': [{start: 0, end: 10}], 'mardi': [] }, ... }
+  let currentDay = 0;
+  let selections = {};
 
-  // Créneaux 30 min sur 24h, affichage de 7h à 7h le lendemain
-  const START_HOUR = 7; // Heure de début de l'affichage
-  const NUMBER_OF_SLOTS = 48; // Nombre total de créneaux de 30 min sur 24h
+  const START_HOUR = 7;
+  const NUMBER_OF_SLOTS = 48;
 
   function formatSlotTimeDisplay(startIndex) {
     const totalMinutesStart = START_HOUR * 60 + startIndex * 30;
@@ -187,16 +192,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return days[dayIndex];
   }
 
-  // Renvoie la date spécifique (YYYY-MM-DD) pour un jour et une semaine donnés
   function getDateForCurrentSelection(weekNumber, dayIndex, year) {
-    // dayIndex ici est 0=Lundi, 1=Mardi... 6=Dimanche (du frontend)
-    const mondayOfCurrentWeek = getDateForDayInWeek(weekNumber, 0, year); // Obtient le LUNDI de la semaine ISO (dayIndex 0 pour Lundi)
+    const mondayOfCurrentWeek = getDateForDayInWeek(weekNumber, 0, year);
     const targetDate = new Date(mondayOfCurrentWeek);
-    targetDate.setDate(mondayOfCurrentWeek.getDate() + dayIndex); // Ajoute le décalage pour atteindre le jour voulu
+    targetDate.setDate(mondayOfCurrentWeek.getDate() + dayIndex);
     return formatDateToYYYYMMDD(targetDate);
   }
 
-  // Rend les créneaux horaires pour un jour donné
   function renderSlots(dayIndex) {
     slotsSliderContainer.innerHTML = '';
     const currentWeekKey = `week-${currentWeekNumber}`;
@@ -207,7 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const slotBlock = document.createElement('div');
       slotBlock.classList.add('time-slot-block');
       slotBlock.dataset.index = i;
-      slotBlock.dataset.time = formatSlotTimeDisplay(i); // Pour l'infobulle
+      slotBlock.dataset.time = formatSlotTimeDisplay(i);
+      slotBlock.dataset.day = dayIndex; // Add day index to slot block
 
       const slotTimeText = document.createElement('span');
       slotTimeText.classList.add('slot-time-text');
@@ -215,23 +218,102 @@ document.addEventListener('DOMContentLoaded', () => {
       
       slotBlock.appendChild(slotTimeText);
 
-      // Vérifier si le créneau est sélectionné
       const isSelected = daySelections.some(range => i >= range.start && i <= range.end);
       if (isSelected) {
         slotBlock.classList.add('selected');
       }
 
-      slotBlock.addEventListener('click', () => toggleSlotSelection(i));
+      slotBlock.addEventListener('click', (e) => {
+        // Only toggle if not part of a drag selection
+        if (!isDragging) {
+            toggleSlotSelection(i);
+        }
+      });
+      slotBlock.addEventListener('mousedown', handleMouseDown);
+      slotBlock.addEventListener('mouseup', handleMouseUp);
       slotsSliderContainer.appendChild(slotBlock);
     }
     updateSelectionInfo();
   }
 
+  // Drag selection logic
+  let isDragging = false;
+  let startDragIndex = -1;
+  let currentDragDay = -1;
+
+  function handleMouseDown(e) {
+      if (e.button !== 0) return; // Only left click
+      isDragging = true;
+      startDragIndex = parseInt(e.target.closest('.time-slot-block').dataset.index);
+      currentDragDay = parseInt(e.target.closest('.time-slot-block').dataset.day);
+
+      // Deselect all for the current day to start a fresh selection (or removal)
+      const currentWeekKey = `week-${currentWeekNumber}`;
+      const currentDayName = getDayName(currentDragDay);
+      selections[currentWeekKey][currentDayName] = [];
+      renderSlots(currentDragDay); // Clear visual selection
+
+      e.target.closest('.time-slot-block').classList.add('selected'); // Select the starting slot
+  }
+
+  function handleMouseUp(e) {
+      if (!isDragging) return;
+      isDragging = false;
+      startDragIndex = -1;
+      currentDragDay = -1;
+      // Re-render to finalize selection (the one at mouse move is temporary)
+      renderSlots(parseInt(e.target.closest('.time-slot-block').dataset.day));
+  }
+
+  slotsSliderContainer.addEventListener('mousemove', (e) => {
+      if (!isDragging || currentDragDay === -1) return;
+
+      const targetBlock = e.target.closest('.time-slot-block');
+      if (!targetBlock || parseInt(targetBlock.dataset.day) !== currentDragDay) return;
+
+      const currentHoverIndex = parseInt(targetBlock.dataset.index);
+      const currentWeekKey = `week-${currentWeekNumber}`;
+      const currentDayName = getDayName(currentDragDay);
+
+      // Clear current visual selection for the day (important for smooth drag)
+      slotsSliderContainer.querySelectorAll('.time-slot-block').forEach(block => {
+          if (parseInt(block.dataset.day) === currentDragDay) {
+              block.classList.remove('selected');
+          }
+      });
+
+      // Highlight slots between startDragIndex and currentHoverIndex
+      const minIndex = Math.min(startDragIndex, currentHoverIndex);
+      const maxIndex = Math.max(startDragIndex, currentHoverIndex);
+
+      // Dynamically create a temporary range during drag
+      const tempRanges = [{ start: minIndex, end: maxIndex }];
+      selections[currentWeekKey][currentDayName] = tempRanges; // Temporarily update selections
+
+      for (let i = minIndex; i <= maxIndex; i++) {
+          const block = slotsSliderContainer.querySelector(`[data-index="${i}"][data-day="${currentDragDay}"]`);
+          if (block) {
+              block.classList.add('selected');
+          }
+      }
+      updateSelectionInfo(); // Update info during drag
+  });
+
+  // Global mouseup to stop dragging if mouse leaves the container
+  document.addEventListener('mouseup', () => {
+      if (isDragging) {
+          isDragging = false;
+          // Finalize the selection based on what was selected during drag
+          // The selections object already holds the latest range from mousemove
+          renderSlots(currentDay); 
+      }
+  });
+
+
   function toggleSlotSelection(index) {
     const currentWeekKey = `week-${currentWeekNumber}`;
     const currentDayName = getDayName(currentDay);
 
-    // Initialise la sélection pour la semaine/jour si elle n'existe pas
     if (!selections[currentWeekKey]) {
       selections[currentWeekKey] = {
         'lundi': [], 'mardi': [], 'mercredi': [], 'jeudi': [],
@@ -239,14 +321,12 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
     
-    // Si le créneau est déjà sélectionné, le désélectionner
     if (isSlotSelected(index)) {
       removeSlotFromSelection(index);
     } else {
-      // Sinon, l'ajouter
       addSlotToSelection(index);
     }
-    renderSlots(currentDay); // Re-rendre pour refléter le changement
+    renderSlots(currentDay);
   }
 
   function isSlotSelected(index) {
@@ -264,12 +344,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let newRanges = [];
     let merged = false;
 
-    // Tenter de fusionner avec une plage existante
     for (const range of ranges) {
-      if (index === range.start - 1) { // Peut fusionner à gauche
+      if (index === range.start - 1) {
         newRanges.push({ start: index, end: range.end });
         merged = true;
-      } else if (index === range.end + 1) { // Peut fusionner à droite
+      } else if (index === range.end + 1) {
         newRanges.push({ start: range.start, end: index });
         merged = true;
       } else {
@@ -277,25 +356,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    if (!merged) { // Si aucune fusion, ajouter comme une nouvelle plage de 1
+    if (!merged) {
       newRanges.push({ start: index, end: index });
     }
 
-    // Deuxième passe pour fusionner les plages qui pourraient maintenant se toucher
     newRanges.sort((a, b) => a.start - b.start);
     const finalRanges = [];
     if (newRanges.length > 0) {
       let currentRange = newRanges[0];
       for (let i = 1; i < newRanges.length; i++) {
         const nextRange = newRanges[i];
-        if (nextRange.start <= currentRange.end + 1) { // Les plages se chevauchent ou se touchent
+        if (nextRange.start <= currentRange.end + 1) {
           currentRange.end = Math.max(currentRange.end, nextRange.end);
         } else {
           finalRanges.push(currentRange);
           currentRange = nextRange;
         }
       }
-      finalRanges.push(currentRange); // Ajouter la dernière plage
+      finalRanges.push(currentRange);
     }
     selections[currentWeekKey][dayName] = finalRanges;
   }
@@ -309,13 +387,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     for (const range of ranges) {
       if (index < range.start || index > range.end) {
-        newRanges.push(range); // La plage actuelle n'est pas affectée
+        newRanges.push(range);
       } else {
-        // Le créneau est dans cette plage, nous devons la scinder
-        if (index > range.start) { // Partie gauche de la plage
+        if (index > range.start) {
           newRanges.push({ start: range.start, end: index - 1 });
         }
-        if (index < range.end) { // Partie droite de la plage
+        if (index < range.end) {
           newRanges.push({ start: index + 1, end: range.end });
         }
       }
@@ -330,7 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (daySelections.length > 0) {
       const formattedTimes = daySelections.map(range => {
-        // Formate chaque plage en "HH:MM - HH:MM"
         const startFormatted = `${String(START_HOUR + Math.floor(range.start / 2)).padStart(2, '0')}:${String((range.start % 2) * 30).padStart(2, '0')}`;
         const endFormatted = `${String(START_HOUR + Math.floor((range.end + 1) / 2)).padStart(2, '0')}:${String(((range.end + 1) % 2) * 30).padStart(2, '0')}`;
         return `${startFormatted} - ${endFormatted}`;
@@ -343,8 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Chargement et sauvegarde des plannings ---
 
-  // Charger le planning de l'agent pour la semaine actuelle
-  async function loadAgentPlanning(agentId) { // Suppression de weekNumber et year car le serveur renvoie tout le planning de l'agent
+  async function loadAgentPlanning(agentId) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`, {
         headers: {
@@ -352,10 +427,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
       if (!response.ok) {
-        // Si 403, c'est une erreur d'autorisation, on ne doit pas vider la sélection
         if (response.status === 403) {
             displayMessageModal('Accès refusé', 'Vous n\'avez pas les droits pour accéder à ce planning.', 'error');
-            return null; // Retourne null pour indiquer un échec
+            return null;
         }
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
@@ -369,26 +443,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadAndRenderAgentPlanning(agentId, year, weekNumber) {
-    const planningData = await loadAgentPlanning(agentId); // Appelle sans weekNumber/year
+    const planningData = await loadAgentPlanning(agentId);
     if (planningData) {
-      const weekKey = `week-${weekNumber}`; // La weekKey est maintenant générée ici
+      const weekKey = `week-${weekNumber}`;
       
-      // Assurer que la structure de base existe pour la semaine courante
       if (!selections[weekKey]) {
         selections[weekKey] = {
           'lundi': [], 'mardi': [], 'mercredi': [], 'jeudi': [],
           'vendredi': [], 'samedi': [], 'dimanche': []
         };
       } else {
-        // Vider les sélections existantes pour cette semaine avant de charger de nouvelles données
         for (const dayName in selections[weekKey]) {
           selections[weekKey][dayName] = [];
         }
       }
 
       if (planningData[weekKey]) {
-        // Le serveur renvoie des tableaux de chaînes "HH:MM - HH:MM" pour chaque jour.
-        // Nous devons les convertir en plages {start, end} pour l'interface de sélection.
         for (const dayName of ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']) {
             const slotsForDay = planningData[weekKey][dayName] || [];
             const ranges = [];
@@ -399,42 +469,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     const [startTime] = slotStr.split(' - ');
                     const [hour, minute] = startTime.split(':').map(Number);
                     return ((hour + 24 - START_HOUR) % 24) * 2 + (minute / 30);
-                }).sort((a,b) => a - b); // Trier les indices pour faciliter le regroupement
+                }).sort((a,b) => a - b);
 
                 for (let i = 0; i < slotIndices.length; i++) {
                     const index = slotIndices[i];
                     if (currentRange === null) {
                         currentRange = { start: index, end: index };
-                    } else if (index === currentRange.end + 1) { // Si le créneau est contigu
+                    } else if (index === currentRange.end + 1) {
                         currentRange.end = index;
-                    } else { // Nouvelle plage si non contigu
+                    } else {
                         ranges.push(currentRange);
                         currentRange = { start: index, end: index };
                     }
                 }
-                if (currentRange !== null) { // Ajouter la dernière plage
+                if (currentRange !== null) {
                     ranges.push(currentRange);
                 }
             }
             selections[weekKey][dayName] = ranges;
         }
       } 
-    } else { // Si le chargement a échoué ou n'a rien retourné
-        // S'assurer que la semaine est vide si le chargement a échoué
+    } else {
         selections[`week-${weekNumber}`] = { 
             'lundi': [], 'mardi': [], 'mercredi': [], 'jeudi': [],
             'vendredi': [], 'samedi': [], 'dimanche': []
         };
     }
-    renderSlots(currentDay); // Rendre les slots pour le jour actif
+    renderSlots(currentDay);
   }
 
   saveButton.addEventListener('click', async () => {
     const currentWeekKey = `week-${currentWeekNumber}`;
-    const agentId = agent.id; // L'ID de l'agent connecté
-    const currentYearForDate = currentYear; // Année pour former la date complète
+    const agentId = agent.id;
+    const currentYearForDate = currentYear;
 
-    // Envoyer les données jour par jour
     for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
       const dayName = getDayName(dayIndex);
       const availabilitiesForDay = selections[currentWeekKey] ? selections[currentWeekKey][dayName] : [];
@@ -447,17 +515,16 @@ document.addEventListener('DOMContentLoaded', () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${sessionStorage.getItem('jwtToken')}`
           },
-          body: JSON.stringify(availabilitiesForDay) // Envoyer les plages {start, end}
+          body: JSON.stringify(availabilitiesForDay)
         });
 
         if (!response.ok) {
           throw new Error(`Erreur serveur lors de la sauvegarde des créneaux pour ${dayName} (${dateKey}): ${response.statusText}`);
         }
-        // console.log(`Créneaux pour ${dayName} (${dateKey}) sauvegardés avec succès.`);
       } catch (error) {
         console.error('Erreur de sauvegarde des créneaux :', error);
         displayMessageModal('Erreur de sauvegarde', `Impossible d'enregistrer les créneaux pour ${dayName}. Veuillez réessayer.`, 'error');
-        return; // Arrêter si une erreur se passe
+        return;
       }
     }
     displayMessageModal('Succès', 'Vos créneaux ont été enregistrés !', 'success');
@@ -511,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closeButton) {
       closeButton.onclick = () => {
         modal.style.display = 'none';
-        if (callback && type === 'question') callback(false); // Annuler si on ferme
+        if (callback && type === 'question') callback(false);
       };
     }
 
@@ -531,7 +598,6 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    // Fermer si clic en dehors de la modale (sauf pour type 'question' pour forcer la réponse)
     window.onclick = (event) => {
       if (event.target == modal && type !== 'question') {
         modal.style.display = 'none';
@@ -540,7 +606,18 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  // --- Déconnexion ---
+  const logoutButton = document.getElementById('logout-btn');
+  if (logoutButton) {
+      logoutButton.addEventListener('click', () => {
+          sessionStorage.removeItem('jwtToken');
+          sessionStorage.removeItem('agent');
+          window.location.href = 'login.html';
+      });
+  }
+
   // --- Initialisation ---
   populateWeekSelect();
-  updateWeekDisplay(); // Charge le planning de la semaine actuelle au démarrage
+  updateWeekDisplay();
+  fetchQualificationsForDisplay(); // Fetch qualifications for display
 });

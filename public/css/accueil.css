@@ -1,132 +1,245 @@
-/* Import de la police Google Fonts Poppins */
+/* login.css */
+
+/* --- Importation de la police Poppins --- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
 
+/* Variables de couleurs et de design pour la cohérence */
 :root {
-  /* Variables de couleurs pour faciliter la modification */
-  --primary-color: #007bff; /* Bleu actuel, on peut le changer */
+  --primary-color: #007bff; /* Bleu principal */
   --primary-hover-color: #0056b3;
-  --background-color: #f0f2f5;
-  --card-background: #ffffff;
+  --background-color: #f0f2f5; /* Fond clair */
+  --card-background: #ffffff; /* Fond des conteneurs */
   --text-color: #333;
   --light-gray: #e0e0e0;
-  --dark-gray: #666;
+  --medium-gray: #bbb;
   --border-radius-large: 12px;
-  --border-radius-small: 8px;
-  --box-shadow-subtle: 0 6px 20px rgba(0, 0, 0, 0.08); /* Ombre plus douce */
+  --border-radius-medium: 8px;
+  --box-shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 body {
-  font-family: 'Poppins', sans-serif; /* Utilisation de la nouvelle police */
+  font-family: 'Poppins', sans-serif;
   background-color: var(--background-color);
+  margin: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh; /* Utiliser min-height pour s'adapter au contenu */
-  margin: 0;
-  color: var(--text-color);
-  padding: 20px; /* Ajout d'un padding pour les petits écrans */
-  box-sizing: border-box; /* Inclure padding et border dans la taille totale */
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .login-container {
-  background: var(--card-background);
-  padding: 2.5rem; /* Augmentation du padding pour plus d'espace */
+  background-color: var(--card-background);
+  padding: 40px;
   border-radius: var(--border-radius-large);
   box-shadow: var(--box-shadow-subtle);
-  width: 100%; /* Permet une meilleure adaptabilité */
-  max-width: 400px; /* Limite la largeur pour les grands écrans */
+  width: 100%;
+  max-width: 400px;
   text-align: center;
-  display: flex; /* Utilisation de flexbox pour l'agencement interne */
+  display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 15px; /* Espacement entre les éléments */
+  gap: 25px;
 }
 
-.logo {
-  width: 120px; /* Légèrement plus grand */
-  height: auto;
-  margin-bottom: 20px;
+.login-title {
+  font-size: 2.2rem;
+  color: var(--primary-color);
+  margin: 0 0 10px 0;
 }
 
-h1 {
-  font-size: 2rem; /* Taille de titre plus moderne */
-  color: var(--primary-color); /* Couleur du titre */
-  margin-bottom: 25px;
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.form-group {
-  width: 100%; /* Assure que le groupe prend toute la largeur */
-  text-align: left;
+.input-group {
+  position: relative;
+  margin-bottom: 15px; /* Ajoutez un peu d'espace entre les groupes d'entrée */
 }
 
-label {
-  display: block;
-  margin-bottom: 8px; /* Espacement sous le label */
-  font-weight: 600; /* Plus de poids pour le label */
-  color: var(--dark-gray);
-  font-size: 0.95rem;
+.input-group label.sr-only {
+  /* Caché visuellement mais disponible pour les lecteurs d'écran */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
-select,
-input {
+.input-group select,
+.input-group input[type="password"] {
   width: 100%;
-  padding: 12px 15px; /* Padding plus généreux */
-  border: 1px solid var(--light-gray); /* Bordure plus douce */
-  border-radius: var(--border-radius-small);
-  box-sizing: border-box;
-  font-size: 1rem; /* Taille de police légèrement augmentée */
-  transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Transitions pour les interactions */
+  padding: 12px 15px;
+  border: 1px solid var(--light-gray);
+  border-radius: var(--border-radius-medium);
+  font-size: 1rem;
+  font-family: 'Poppins', sans-serif;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  box-sizing: border-box; /* S'assure que padding ne déborde pas */
 }
 
-select:focus,
-input:focus {
-  outline: none; /* Supprime l'outline par défaut */
-  border-color: var(--primary-color); /* Bordure colorée au focus */
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Ombre douce au focus */
+.input-group select:focus,
+.input-group input[type="password"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
 }
 
-button {
-  width: 100%;
-  padding: 14px; /* Padding plus grand pour le bouton */
+.input-group select::placeholder,
+.input-group input::placeholder {
+  color: var(--medium-gray);
+}
+
+
+.btn-login {
   background-color: var(--primary-color);
   color: white;
+  padding: 15px 25px;
   border: none;
-  border-radius: var(--border-radius-small);
+  border-radius: var(--border-radius-medium);
+  font-size: 1.1rem;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 1.1rem; /* Taille de police du bouton */
-  font-weight: 600; /* Poids de police plus important */
-  transition: background-color 0.3s ease, transform 0.2s ease; /* Transitions */
-  margin-top: 10px; /* Espacement au-dessus du bouton */
+  transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+  width: 100%;
 }
 
-button:hover {
+.btn-login:hover {
   background-color: var(--primary-hover-color);
-  transform: translateY(-2px); /* Effet de léger soulèvement au survol */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
 }
 
-button:active {
-  transform: translateY(0); /* Retour à la position normale au clic */
+.btn-login:active {
+  transform: translateY(0);
 }
 
-.error {
-  color: #d9534f; /* Rouge plus doux pour les erreurs */
-  font-size: 0.9em;
-  margin-top: 15px; /* Plus d'espace pour le message d'erreur */
-  font-weight: 500;
+.message-container {
+  margin-top: 15px;
+  font-size: 0.95rem;
+  color: red; /* Default for error messages */
+  text-align: center;
 }
 
-/* Media Queries pour la réactivité */
+/* Modale de message */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1000; /* Sit on top */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background-color: #fefefe;
+  margin: auto;
+  padding: 30px;
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--box-shadow-subtle);
+  position: relative;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.modal-content.error {
+    border: 2px solid #dc3545;
+    background-color: #f8d7da;
+    color: #721c24;
+}
+.modal-content.success {
+    border: 2px solid #28a745;
+    background-color: #d4edda;
+    color: #155724;
+}
+.modal-content.info {
+    border: 2px solid #17a2b8;
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.modal-content .close-button {
+  color: var(--medium-gray);
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.modal-content .close-button:hover,
+.modal-content .close-button:focus {
+  color: var(--dark-gray);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.modal-title {
+    font-size: 1.8rem;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.modal-message {
+    font-size: 1rem;
+    margin-bottom: 0;
+}
+
+
+/* Style pour le logo */
+.app-logo {
+  display: block; /* Pour centrer l'image */
+  margin: 0 auto 20px auto; /* Centre et ajoute un espace en bas */
+  max-width: 150px; /* Taille maximale de l'image */
+  height: auto; /* Maintient les proportions */
+  border-radius: 10px; /* Bords légèrement arrondis pour l'esthétique */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Petite ombre */
+}
+
+
+/* Responsive Adjustments */
 @media (max-width: 480px) {
   .login-container {
-    padding: 1.5rem;
-    border-radius: 0; /* Pas de bordure arrondie sur très petits écrans pour un look full-width */
-    box-shadow: none; /* Pas d'ombre sur très petits écrans */
-    max-width: 100%; /* S'adapte à la largeur complète */
-    height: 100vh; /* Prend toute la hauteur sur mobile pour centrer verticalement */
-    justify-content: center; /* Centre le contenu verticalement */
+    padding: 30px;
+    gap: 20px;
   }
-
-  body {
-    padding: 0; /* Retire le padding du body sur petits écrans */
+  .login-title {
+    font-size: 1.8rem;
+  }
+  .input-group select,
+  .input-group input[type="password"] {
+    padding: 10px 12px;
+    font-size: 0.95rem;
+  }
+  .btn-login {
+    padding: 12px 20px;
+    font-size: 1rem;
+  }
+  .modal-content {
+      padding: 20px;
+  }
+  .modal-title {
+      font-size: 1.4rem;
+  }
+  .modal-message {
+      font-size: 0.9rem;
+  }
+  .app-logo {
+      max-width: 120px;
+      margin-bottom: 15px;
   }
 }

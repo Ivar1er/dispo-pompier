@@ -9,7 +9,7 @@
     default-src 'self' https://dispo-pompier.onrender.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
-    script-src 'self' 'unsafe-inline';
+    script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
     img-src 'self' data: https://loko-mobile-app-media.s3.eu-west-1.amazonaws.com;
     connect-src 'self' https://dispo-pompier.onrender.com;
   ">
@@ -25,10 +25,8 @@
         <button id="prev-week-btn" class="btn btn-secondary" aria-label="Semaine Précédente">← Semaine Précédente</button>
         <div class="week-info">
           <select id="week-select" aria-label="Choisir une semaine"></select>
-          <!-- Suppression du paragraphe affichant la plage de dates -->
         </div>
         <button id="next-week-btn" class="btn btn-secondary" aria-label="Semaine Suivante">Semaine Suivante →</button>
-        <!-- Bouton synthèse supprimé ici -->
       </div>
     </header>
 
@@ -62,6 +60,16 @@
         <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
       </div>
     </footer>
+  </div>
+
+  <!-- Message Modal Structure -->
+  <div id="message-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <span class="close-button">&times;</span>
+      <h3 class="modal-title"></h3>
+      <p class="modal-message"></p>
+      <div class="modal-actions"></div>
+    </div>
   </div>
 
   <script src="js/agent.js"></script>
