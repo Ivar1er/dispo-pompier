@@ -50,7 +50,7 @@ body {
     padding: 30px;
     border-radius: var(--border-radius-large);
     box-shadow: var(--box-shadow-subtle);
-    max-width: 1500px; /* Conserve une largeur maximale raisonnable */
+    max-width: 1800px; /* Conserve une largeur maximale raisonnable */
     width: 100%;
     margin: 20px;
     display: flex;
