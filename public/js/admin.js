@@ -292,15 +292,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const slotCell = document.createElement('td');
                     slotCell.classList.add('slot-cell');
 
-                    const isAvailable = agentSpecificDayPlanning.some(slot => {
+                    let timeRangeForTooltip = 'Indisponible'; // Valeur par défaut
+
+                    // Trouver le bloc de disponibilité spécifique qui couvre ce créneau de 30 min
+                    const coveringAvailability = agentSpecificDayPlanning.find(slot => {
                         return index >= slot.start && index <= slot.end;
                     });
 
-                    if (isAvailable) {
+                    if (coveringAvailability) {
                         slotCell.classList.add('available-slot-cell');
+                        // Construire la plage horaire complète pour le tooltip à partir du bloc trouvé
+                        const startTime = horaires[coveringAvailability.start].split(' - ')[0];
+                        const endTime = horaires[coveringAvailability.end].split(' - ')[1];
+                        timeRangeForTooltip = `${startTime} - ${endTime}`;
                     } else {
                         slotCell.classList.add('unavailable-slot-cell');
                     }
+                    slotCell.setAttribute('data-time-range', timeRangeForTooltip); // Ajoute l'attribut data-time-range
+
                     agentRow.appendChild(slotCell);
                 });
                 tbody.appendChild(agentRow);
@@ -460,7 +469,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         modal.onclick = (e) => {
             if (e.target === modal) {
                 modal.style.display = 'none';
-                if (callback) callback(false); // Cliquer en dehors annule pour les confirmations
+                if (callback) callback(false);
             }
         };
     }
@@ -503,7 +512,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const headerCells = table.querySelectorAll('.time-header-cell');
         headerCells.forEach((cell, index) => {
             originalHeaderCellWidths[index] = cell.style.width;
-            cell.style.width = '60px'; // Ajuster la largeur pour le PDF si nécessaire
+            cell.style.width = '60px';
         });
 
         showLoading(true, true);
@@ -909,7 +918,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (addAgentForm) addAgentForm.reset();
                 if (newAgentQualificationsCheckboxes) newAgentQualificationsCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
                 if (newAgentGradesCheckboxes) newAgentGradesCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-                loadAgents(); // Recharger les agents après l'ajout
+                loadAgents();
             } else {
                 if (addAgentMessage) addAgentMessage.textContent = `Erreur : ${data.message}`;
                 if (addAgentMessage) addAgentMessage.style.color = 'red';
@@ -941,7 +950,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             editAgentId.value = agentId;
             editAgentNom.value = target.dataset.nom;
             editAgentPrenom.value = target.dataset.prenom;
-            editAgentNewPassword.value = ''; // Toujours vider le champ du mot de passe
+            editAgentNewPassword.value = '';
             editAgentMessage.textContent = '';
 
             const agentQualifications = JSON.parse(target.dataset.qualifications || '[]');
@@ -963,7 +972,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (response.ok) {
                         displayMessageModal("Succès", data.message, "success");
-                        loadAgents(); // Recharger les agents après la suppression
+                        loadAgents();
                     } else {
                         displayMessageModal("Erreur", `Erreur lors de la suppression : ${data.message}`, "error");
                     }
@@ -1007,7 +1016,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (response.ok) {
                 editAgentMessage.textContent = data.message;
                 editAgentMessage.style.color = 'green';
-                loadAgents(); // Recharger les agents après la mise à jour
+                loadAgents();
             } else {
                 editAgentMessage.textContent = `Erreur : ${data.message}`;
                 editAgentMessage.style.color = 'red';
@@ -1039,7 +1048,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error(data.message || 'Erreur lors du chargement des qualifications.');
             }
 
-            QUALIFICATIONS_DATA = data; // Met à jour la variable globale avec les données complètes
+            QUALIFICATIONS_DATA = data;
 
             if (!qualificationsTableBody) {
                 console.error("Erreur DOM: L'élément 'qualificationsTableBody' est introuvable. Impossible de rendre la table des qualifications.");
