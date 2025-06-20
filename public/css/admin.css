@@ -11,7 +11,7 @@
   --danger-color: #dc3545; /* Rouge pour bouton déconnexion / messages d'erreur */
   --danger-light-background: #fffafa; /* Fond rouge très très clair, presque blanc */
   --danger-subtle-border: #f0c0c0; /* Bordure rouge subtile */
-  --danger-dark-text: #a02020; /* Texte rouge foncé pour les lignes indisponibles */
+  --danger-dark-text: #da1d1d; /* Texte rouge foncé pour les lignes indisponibles */
 
 
   --occupied-slot-color: var(--primary-color); /* Bleu pour un créneau occupé (utilisé sur la page agent) */
@@ -50,7 +50,7 @@ body {
     padding: 30px;
     border-radius: var(--border-radius-large);
     box-shadow: var(--box-shadow-subtle);
-    max-width: 1200px; /* Conserve une largeur maximale raisonnable */
+    max-width: 1500px; /* Conserve une largeur maximale raisonnable */
     width: 100%;
     margin: 20px;
     display: flex;
