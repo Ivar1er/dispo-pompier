@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // URL de base de votre API (doit correspondre à celle du serveur)
   const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
-  // --- Fonctions de date (synchronisées avec le serveur) ---
+  // --- Fonctions de date (synchronisées avec le serveur et disponibles ici) ---
   function getWeekNumber(d) {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
@@ -53,6 +53,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return `${year}-${month}-${day}`;
   }
 
+  // Fonction pour obtenir une date spécifique (Lundi-Dimanche) dans une semaine ISO
+  function getDateForDayInWeek(weekNum, dayIndex, year = new Date().getFullYear()) {
+      // dayIndex: 0=Lundi, 1=Mardi, ..., 6=Dimanche
+      const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
+      const dow = simple.getDay() || 7; // 0 for Sunday, 1 for Monday, ..., 7 for Sunday (ISO)
+      const mondayOfISOWeek = new Date(simple);
+      mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1)); // Adjust to get the Monday of the ISO week
+      mondayOfISOWeek.setHours(0, 0, 0, 0);
+
+      const targetDate = new Date(mondayOfISOWeek);
+      targetDate.setDate(mondayOfISOWeek.getDate() + dayIndex); // Add the day offset
+      return targetDate;
+  }
+
 
   // --- Gestion sélecteur semaine et navigation ---
   const weekSelect = document.getElementById('week-select');
@@ -74,18 +88,16 @@ document.addEventListener('DOMContentLoaded', () => {
       for (let week = 1; week <= 53; week++) { // 53 semaines pour couvrir tous les cas
         const option = document.createElement('option');
         // Générer une date pour le lundi de la semaine ISO pour obtenir la plage de dates
-        // Note: dayIndex 1 pour Lundi dans getDateForDayInWeek
-        const mondayOfCurrentWeek = getDateForDayInWeek(week, 1, year); 
+        // Note: dayIndex 0 pour Lundi dans getDateForDayInWeek
+        const mondayOfCurrentWeek = getDateForDayInWeek(week, 0, year); 
         const sundayOfCurrentWeek = new Date(mondayOfCurrentWeek);
         sundayOfCurrentWeek.setDate(mondayOfCurrentWeek.getDate() + 6);
 
         // Assurez-vous que la date est dans la bonne année ISO
-        // Pour les semaines 53, il faut s'assurer qu'elles appartiennent bien à l'année courante si on veut les afficher.
-        // La logique actuelle pourrait générer des semaines qui "débordent" sur l'année suivante/précédente.
-        // On simplifie pour l'affichage ici, le serveur gérera les dates précises.
-        if (mondayOfCurrentWeek.getFullYear() > year + 1 || mondayOfCurrentWeek.getFullYear() < year -1) {
-            continue; // Évite les options pour des années trop éloignées
-        }
+        // La condition `mondayOfCurrentWeek.getFullYear() > year + 1 || mondayOfCurrentWeek.getFullYear() < year -1`
+        // a été retirée pour s'assurer que toutes les options pour les années +2/-1 sont générées correctement,
+        // même si la semaine 53 de l'année N-1 est en début d'année N ou inversement.
+        // Le serveur gère la logique précise des dates associées aux semaines ISO.
 
         const dates = `${formatDate(mondayOfCurrentWeek)} - ${formatDate(sundayOfCurrentWeek)}`;
         option.value = `${year}-W${week}`; // Format: "YYYY-WNN"
@@ -153,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const START_HOUR = 7; // Heure de début de l'affichage
   const NUMBER_OF_SLOTS = 48; // Nombre total de créneaux de 30 min sur 24h
 
-  function formatSlotTime(startIndex) {
+  function formatSlotTimeDisplay(startIndex) {
     const totalMinutesStart = START_HOUR * 60 + startIndex * 30;
     const hourStart = Math.floor(totalMinutesStart / 60) % 24;
     const minuteStart = totalMinutesStart % 60;
@@ -173,18 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Renvoie la date spécifique (YYYY-MM-DD) pour un jour et une semaine donnés
   function getDateForCurrentSelection(weekNumber, dayIndex, year) {
-    // Cette fonction doit être en accord avec celle du serveur
     // dayIndex ici est 0=Lundi, 1=Mardi... 6=Dimanche (du frontend)
-    // getDateForDayInWeek sur le serveur prend dayIndex comme 0=Dimanche, 1=Lundi...
-    // Pour que le dayIndex du frontend (0-6 Lundi-Dimanche) corresponde aux attentes du serveur,
-    // on va ajuster. Dans notre getDateForDayInWeek sur le serveur, nous avons déjà compensé pour
-    // que 0=Lundi pour le calcul interne.
-    // Donc, nous pouvons passer dayIndex directement si notre getDateForDayInWeek sur le serveur
-    // a été conçue pour cela. Si la fonction serveur attend 0=Dimanche, 1=Lundi, alors il faudrait:
-    // const adjustedDayIndex = (dayIndex === 6) ? 0 : dayIndex + 1; // 6 (Dimanche) -> 0 (Dimanche), sinon +1
-    // Cependant, dans la version du serveur que j'ai fournie, getDateForDayInWeek (appelée par loadAgentPlanningFromFiles)
-    // calcule le mondayOfISOWeek, et ensuite ajoute le `dayIndex` direct de 0 (Lundi) à 6 (Dimanche).
-    // Donc, le dayIndex envoyé doit être celui de 0 pour Lundi, 1 pour Mardi... 6 pour Dimanche.
     const mondayOfCurrentWeek = getDateForDayInWeek(weekNumber, 0, year); // Obtient le LUNDI de la semaine ISO (dayIndex 0 pour Lundi)
     const targetDate = new Date(mondayOfCurrentWeek);
     targetDate.setDate(mondayOfCurrentWeek.getDate() + dayIndex); // Ajoute le décalage pour atteindre le jour voulu
@@ -202,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const slotBlock = document.createElement('div');
       slotBlock.classList.add('time-slot-block');
       slotBlock.dataset.index = i;
-      slotBlock.dataset.time = formatSlotTime(i); // Pour l'infobulle
+      slotBlock.dataset.time = formatSlotTimeDisplay(i); // Pour l'infobulle
 
       const slotTimeText = document.createElement('span');
       slotTimeText.classList.add('slot-time-text');
@@ -452,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (error) {
         console.error('Erreur de sauvegarde des créneaux :', error);
         displayMessageModal('Erreur de sauvegarde', `Impossible d'enregistrer les créneaux pour ${dayName}. Veuillez réessayer.`, 'error');
-        return; // Arrêter si une erreur se produit
+        return; // Arrêter si une erreur se passe
       }
     }
     displayMessageModal('Succès', 'Vos créneaux ont été enregistrés !', 'success');

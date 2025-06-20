@@ -100,7 +100,7 @@ const closeFunctionButton = editFunctionModalElement ? editFunctionModalElement.
 const editFunctionFormElement = document.getElementById('editFunctionForm');
 
 
-// --- Fonctions utilitaires de date (synchronisées avec serveur.js) ---
+// --- Fonctions utilitaires de date (synchronisées avec serveur.js et disponibles ici) ---
 
 function getWeekNumber(d) {
   d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -1246,8 +1246,9 @@ function exportPlanningToPdf() {
         allowTaint: true, // Permet de capturer des éléments avec des origines différentes
         ignoreElements: (element) => {
             // Ignorer les éléments spécifiques si nécessaire
-            return element.classList.contains('sticky-header-cell') || element.classList.contains('sticky-day-name') ||
-                   element.classList.contains('agent-name-slot-cell');
+            // Ne pas ignorer les cellules de noms car elles sont essentielles
+            // Revertir temporairement les styles sticky est la meilleure approche.
+            return false; 
         }
     };
 
@@ -1259,8 +1260,10 @@ function exportPlanningToPdf() {
         el.style.top = 'auto';
         el.style.zIndex = 'auto';
         el.style.width = 'auto'; // Réinitialiser la largeur
+        el.style.minWidth = 'auto'; // Réinitialiser min-width
+        el.style.maxWidth = 'auto'; // Réinitialiser max-width
+        el.style.flexShrink = '0'; // Assurez-vous qu'ils ne se réduisent pas
     });
-
 
     html2canvas(planningSection, options).then(canvas => {
         // Restaurer les styles sticky
@@ -1270,6 +1273,9 @@ function exportPlanningToPdf() {
             el.style.top = '';
             el.style.zIndex = '';
             el.style.width = '';
+            el.style.minWidth = '';
+            el.style.maxWidth = '';
+            el.style.flexShrink = '';
         });
 
         const imgData = canvas.toDataURL('image/png');
@@ -1305,6 +1311,9 @@ function exportPlanningToPdf() {
             el.style.top = '';
             el.style.zIndex = '';
             el.style.width = '';
+            el.style.minWidth = '';
+            el.style.maxWidth = '';
+            el.style.flexShrink = '';
         });
     });
 }
