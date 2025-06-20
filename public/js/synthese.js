@@ -1,306 +1,358 @@
 // synthese.js
 
+// Jours de la semaine
 const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-const agent = JSON.parse(sessionStorage.getItem("agent"));
+// Récupère l'ID de l'agent depuis le sessionStorage (doit être défini lors de la connexion)
+const agentId = sessionStorage.getItem("agentId");
+// URL de base de votre API
 const API_BASE_URL = "https://dispo-pompier.onrender.com";
 
+// Références aux éléments DOM de la page synthese.html
 const weekSelect = document.getElementById("week-select");
 const planningContainer = document.getElementById("planning-container");
 const headerHours = document.getElementById("header-hours");
 const noPlanningMessage = document.getElementById("no-planning-message");
 const loadingSpinner = document.getElementById("loading-spinner");
 
-// Créneaux 30 min sur 24h, affichage de 7h à 7h le lendemain
-const GRID_START_HOUR = 7; // Heure de début de la grille d'affichage
-const GRID_END_HOUR = 7;   // Heure de fin (le lendemain)
-const TOTAL_HOURS_DISPLAY = 24;
-const SLOTS_PER_HOUR = 2;
-const TOTAL_GRID_SLOTS = TOTAL_HOURS_DISPLAY * SLOTS_PER_HOUR; // 48 créneaux de 30 min
-
 // --- Fonctions de modales (copiées de agent.js pour une cohérence des messages utilisateur) ---
+
+/**
+ * Affiche une modale de message personnalisée.
+ * @param {string} title - Titre de la modale.
+ * @param {string} message - Message à afficher.
+ * @param {'info'|'success'|'error'|'warning'|'question'} type - Type de message pour le style.
+ * @param {function(boolean)} [callback] - Fonction de rappel pour les confirmations (true si OK, false si Annuler/clic extérieur).
+ */
 function displayMessageModal(title, message, type = "info", callback = null) {
     let modal = document.getElementById('message-modal');
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'message-modal';
-        modal.classList.add('modal');
+        modal.classList.add('custom-modal', 'message-modal');
         document.body.appendChild(modal);
     }
 
     modal.innerHTML = `
-      <div class="modal-content ${type}">
-        <span class="close-button">&times;</span>
-        <h3 class="modal-title">${title}</h3>
-        <p class="modal-message">${message}</p>
-        ${type === 'question' ? '<div class="modal-actions"><button class="btn btn-primary" id="modal-confirm-btn">Oui</button><button class="btn btn-secondary" id="modal-cancel-btn">Annuler</button></div>' : ''}
-      </div>
+        <div class="modal-content ${type}">
+            <h2 class="modal-title">${title}</h2>
+            <p class="modal-message">${message}</p>
+            <div class="modal-actions">
+                ${callback ? '<button id="modal-cancel-btn" class="btn btn-secondary">Annuler</button>' : ''}
+                <button id="modal-ok-btn" class="btn btn-primary">OK</button>
+            </div>
+        </div>
     `;
-    modal.style.display = 'block';
 
-    const closeButton = modal.querySelector('.close-button');
-    if (closeButton) {
-      closeButton.onclick = () => {
-        modal.style.display = 'none';
-        if (callback && type === 'question') callback(false);
-      };
-    }
+    modal.style.display = 'flex'; // Affiche la modale
 
-    const confirmBtn = modal.querySelector('#modal-confirm-btn');
-    if (confirmBtn) {
-      confirmBtn.onclick = () => {
+    const okBtn = modal.querySelector('#modal-ok-btn');
+    okBtn.onclick = () => {
         modal.style.display = 'none';
         if (callback) callback(true);
-      };
+    };
+
+    if (callback) {
+        const cancelBtn = modal.querySelector('#modal-cancel-btn');
+        cancelBtn.onclick = () => {
+            modal.style.display = 'none';
+            callback(false);
+        };
     }
 
-    const cancelBtn = modal.querySelector('#modal-cancel-btn');
-    if (cancelBtn) {
-      cancelBtn.onclick = () => {
-        modal.style.display = 'none';
-        if (callback) callback(false);
-      };
-    }
-
-    window.onclick = (event) => {
-      if (event.target == modal && type !== 'question') {
-        modal.style.display = 'none';
-        if (callback && type === 'question') callback(false);
-      }
+    // Gère le clic en dehors de la modale pour la fermer
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            if (callback) callback(false); // Si c'était une confirmation, considérer comme annulation
+        }
     };
 }
 
+/**
+ * Fonction asynchrone pour simuler confirm() avec la modale personnalisée.
+ * @param {string} message - Message de confirmation.
+ * @returns {Promise<boolean>} Une promesse qui se résout avec true si l'utilisateur confirme, false sinon.
+ */
+async function confirmModal(message) {
+    return new Promise((resolve) => {
+        displayMessageModal("Confirmation", message, "question", (result) => {
+            resolve(result);
+        });
+    });
+}
+// Remplace les fonctions globales alert et confirm par nos modales personnalisées
+window.alert = displayMessageModal.bind(null, "Information");
+window.confirm = confirmModal;
 
-// --- Fonctions utilitaires de date (synchronisées avec serveur.js et agent.js) ---
-function getWeekNumber(d) {
-    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
-    return weekNo;
+
+// --- Fonctions utilitaires pour les semaines et les heures ---
+
+/**
+ * Calcule le numéro de semaine ISO 8601 pour une date donnée.
+ * @param {Date} date - La date à utiliser.
+ * @returns {number} Le numéro de la semaine ISO.
+ */
+function getWeekNumber(date = new Date()) {
+  const _date = new Date(date.getTime());
+  _date.setHours(0, 0, 0, 0);
+  _date.setDate(_date.getDate() + 3 - ((_date.getDay() + 6) % 7)); // Ajuste au jeudi de la semaine
+  const week1 = new Date(_date.getFullYear(), 0, 4); // Le 4 janvier est toujours dans la première semaine ISO de l'année
+  return (
+    1 +
+    Math.round(
+      ((_date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
+    )
+  );
 }
 
-function getDateForDayInWeek(weekNum, dayIndex, year = new Date().getFullYear()) {
-    const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
-    const dow = simple.getDay() || 7;
-    const mondayOfISOWeek = new Date(simple);
-    mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1));
-    mondayOfISOWeek.setHours(0, 0, 0, 0);
+/**
+ * Obtient la plage de dates (début et fin) pour un numéro de semaine donné dans l'année courante.
+ * Cette fonction a été revue pour s'assurer qu'elle génère des dates valides.
+ * @param {number} weekNumber - Le numéro de la semaine.
+ * @param {number} [year=new Date().getFullYear()] - L'année.
+ * @returns {string} La plage de dates formatée (ex: "du 01/01 au 07/01").
+ */
+function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
+    // Crée une date pour le 4 janvier de l'année, qui est toujours dans la première semaine ISO
+    const jan4 = new Date(year, 0, 4);
+    // Trouve le jour de la semaine du 4 janvier (0=Dimanche, 1=Lundi...)
+    // Et ajuste pour trouver le lundi de la première semaine ISO
+    const firstMonday = new Date(jan4.setDate(jan4.getDate() - (jan4.getDay() === 0 ? 6 : jan4.getDay() - 1)));
 
-    const targetDate = new Date(mondayOfISOWeek);
-    targetDate.setDate(mondayOfISOWeek.getDate() + dayIndex);
-    return targetDate;
+    // Calcule le début de la semaine spécifiée
+    const startOfWeek = new Date(firstMonday);
+    startOfWeek.setDate(firstMonday.getDate() + (weekNumber - 1) * 7);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // La fin de la semaine est 6 jours après le début
+
+    const format = date => date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+    return `du ${format(startOfWeek)} au ${format(endOfWeek)}`;
 }
 
-function formatDate(d) {
-    return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2, '0')}`;
+
+/**
+ * Convertit une chaîne de temps "HH:MM" en nombre de minutes depuis minuit.
+ * @param {string} timeStr - La chaîne de temps (ex: "08:30").
+ * @returns {number} Le nombre total de minutes.
+ */
+function timeToMinutes(timeStr) {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
 }
 
-// Fonction pour obtenir la date au format YYYY-MM-DD
-function formatDateToYYYYMMDD(date) {
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
+/**
+ * Convertit un nombre de minutes depuis minuit en chaîne de temps "HH:MM".
+ * @param {number} totalMinutes - Le nombre total de minutes.
+ * @returns {string} La chaîne de temps formatée (ex: "08:30").
+ */
+function minutesToTime(totalMinutes) {
+    const hours = Math.floor(totalMinutes / 60) % 24;
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-
-// --- Initialisation et chargement ---
-document.addEventListener('DOMContentLoaded', async () => {
-  // Vérifier si l'agent est connecté
-  if (!agent || !agent.id) {
-    window.location.href = 'login.html'; // Rediriger vers la page de connexion
+// --- Logique principale au chargement du DOM ---
+document.addEventListener("DOMContentLoaded", async () => {
+  // Vérifie si un agent est connecté, sinon redirige vers la page de connexion
+  // Si 'agentId' est 'admin', l'accès est aussi refusé car cette page est pour les agents.
+  if (!agentId || sessionStorage.getItem('userRole') === "admin") {
+    displayMessageModal("Accès non autorisé", "Vous devez être connecté en tant qu’agent.", "error", () => {
+        window.location.href = "index.html"; // Assurez-vous que c'est la bonne page de connexion
+    });
     return;
   }
 
-  populateWeekSelect();
-  await loadAndRenderPlanning(); // Charger et afficher le planning pour la semaine par défaut
-
-  weekSelect.addEventListener('change', loadAndRenderPlanning);
-});
-
-// Peuple le sélecteur de semaine
-function populateWeekSelect() {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentWeekNumber = getWeekNumber(today);
-
-    weekSelect.innerHTML = ''; // Vide les options existantes
-
-    // Générer des options pour l'année précédente, actuelle et les 2 prochaines années
-    const startYear = currentYear - 1;
-    const endYear = currentYear + 2;
-
-    for (let year = startYear; year <= endYear; year++) {
-        // Une année peut avoir 52 ou 53 semaines ISO
-        const lastDayOfYear = new Date(year, 11, 31);
-        const maxWeekNumber = getWeekNumber(lastDayOfYear);
-
-        for (let week = 1; week <= maxWeekNumber; week++) {
-            const option = document.createElement('option');
-            const mondayOfCurrentWeek = getDateForDayInWeek(week, 0, year); // 0 pour Lundi
-            const sundayOfCurrentWeek = new Date(mondayOfCurrentWeek);
-            sundayOfCurrentWeek.setDate(mondayOfCurrentWeek.getDate() + 6);
-
-            // Vérifier si la semaine appartient bien à l'année ISO pour éviter les doublons/erreurs
-            // C'est un point délicat avec les semaines ISO, mais cette vérification aide.
-            // On s'assure que le lundi de la semaine est bien dans l'année courante ou que c'est la semaine 53/1 de transition
-            if (mondayOfCurrentWeek.getFullYear() > year + 1 || mondayOfCurrentWeek.getFullYear() < year -1) {
-                continue;
-            }
-
-            option.value = `${year}-W${week}`; // Format: "YYYY-WNN"
-            option.textContent = `Semaine ${week} (${formatDate(mondayOfCurrentWeek)} - ${formatDate(sundayOfCurrentWeek)})`;
-            weekSelect.appendChild(option);
-        }
-    }
-
-    // Sélectionne la semaine actuelle par défaut
-    weekSelect.value = `${currentYear}-W${currentWeekNumber}`;
-}
-
-/**
- * Charge le planning de l'agent depuis l'API et le rend.
- */
-async function loadAndRenderPlanning() {
-  showLoading(true);
-  noPlanningMessage.classList.add("hidden"); // Cache le message "aucun planning"
-
-  const selectedWeekValue = weekSelect.value;
-  const [yearStr, weekStr] = selectedWeekValue.split('-W');
-  const selectedWeekNumber = parseInt(weekStr, 10);
+  showLoading(true); // Affiche le spinner de chargement
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/planning/${agent.id}`, {
-      headers: {
-        'Authorization': `Bearer ${sessionStorage.getItem('jwtToken')}`
-      }
+    // Récupère le token JWT du sessionStorage
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      throw new Error('Aucun token d\'authentification trouvé.');
+    }
+
+    // Récupère le planning complet de l'agent depuis l'API
+    const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // Utiliser le token JWT pour l'authentification
+        }
     });
 
     if (!response.ok) {
-      if (response.status === 403) {
-          displayMessageModal('Accès refusé', 'Vous n\'avez pas l\'autorisation de voir ce planning.', 'error');
-      } else {
-          throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-      planningContainer.innerHTML = '';
-      noPlanningMessage.classList.remove("hidden");
-      showLoading(false);
-      return;
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Erreur HTTP: ${response.status} ${response.statusText}`);
     }
 
-    const allPlanningData = await response.json();
-    const planningForSelectedWeek = allPlanningData[`week-${selectedWeekNumber}`];
+    const planningDataAgent = await response.json();
 
-    if (!planningForSelectedWeek || Object.values(planningForSelectedWeek).every(arr => arr.length === 0)) {
-      planningContainer.innerHTML = '';
+    // Si aucun planning n'est disponible pour l'agent, affiche un message
+    if (!Object.keys(planningDataAgent).length) {
       noPlanningMessage.classList.remove("hidden");
-      showLoading(false);
+      planningContainer.innerHTML = ""; // Vide le tableau de planning
+      headerHours.innerHTML = ""; // Vide l'en-tête des heures
+      weekSelect.innerHTML = "<option value=''>Aucune semaine disponible</option>";
+      weekSelect.disabled = true; // Désactive le sélecteur
       return;
+    } else {
+      noPlanningMessage.classList.add("hidden"); // Cache le message si des données existent
+      weekSelect.disabled = false; // Active le sélecteur
     }
 
-    renderPlanningGrid(planningForSelectedWeek);
+    // Extrait toutes les clés de semaine ("S X") des données de planning
+    const weekKeys = Object.keys(planningDataAgent).filter(key => key.startsWith("S "));
+    // Convertit les clés en numéros de semaine
+    const weekNums = weekKeys.map(key => Number(key.split(" ")[1])).filter(num => !isNaN(num));
 
-  } catch (error) {
-    console.error('Erreur lors du chargement du planning :', error);
-    displayMessageModal('Erreur de chargement', 'Impossible de charger votre planning. Veuillez réessayer.', 'error');
-    planningContainer.innerHTML = '';
+    // Remplit le sélecteur de semaine
+    weekSelect.innerHTML = ""; // Vide les options existantes
+    // Trie les semaines numériquement et crée une option pour chacune
+    weekNums.sort((a, b) => a - b).forEach(week => {
+      const option = document.createElement("option");
+      option.value = `S ${week}`; // La valeur doit correspondre à la clé du planning
+      option.textContent = `Semaine ${week} ${getWeekDateRange(week)}`;
+      weekSelect.appendChild(option);
+    });
+
+    // Détermine la semaine à afficher au démarrage
+    let selectedWeekKey = sessionStorage.getItem("selectedWeek");
+    // Vérifie si la clé stockée est valide ou si la semaine actuelle est dans les données
+    const currentISOWeekKey = `S ${getWeekNumber(new Date())}`;
+
+    if (!selectedWeekKey || !weekKeys.includes(selectedWeekKey)) {
+        if (weekKeys.includes(currentISOWeekKey)) {
+            selectedWeekKey = currentISOWeekKey;
+        } else if (weekKeys.length > 0) {
+            selectedWeekKey = weekKeys[0]; // Prend la première semaine disponible si la semaine actuelle n'a pas de données
+        } else {
+            // Aucun planning disponible, devrait être géré par la condition initiale
+            return;
+        }
+    }
+    weekSelect.value = selectedWeekKey; // Sélectionne l'option dans le sélecteur
+
+    // Affiche le planning pour la semaine sélectionnée
+    updateDisplay(selectedWeekKey, planningDataAgent);
+
+    // Ajoute un écouteur d'événements pour le changement de semaine dans le sélecteur
+    weekSelect.addEventListener("change", () => {
+      sessionStorage.setItem("selectedWeek", weekSelect.value); // Met à jour la semaine en session
+      updateDisplay(weekSelect.value, planningDataAgent); // Met à jour l'affichage
+    });
+
+  } catch (err) {
+    console.error("Erreur lors du chargement :", err);
+    displayMessageModal("Erreur de Chargement", `Erreur lors du chargement du planning : ${err.message}. Veuillez réessayer ou vérifier vos accès.`, "error");
     noPlanningMessage.classList.remove("hidden");
   } finally {
-    showLoading(false);
+    showLoading(false); // Cache le spinner de chargement
   }
+});
+
+/**
+ * Fonction de mise à jour de l'affichage du planning.
+ * @param {string} weekKey - La clé de la semaine à afficher (ex: "S 25").
+ * @param {object} planningData - L'objet complet des données de planning de l'agent.
+ */
+function updateDisplay(weekKey, planningData) {
+  showWeek(weekKey, planningData);
 }
 
 /**
- * Rend la grille du planning hebdomadaire.
- * @param {object} planningData - Les données de planning pour la semaine sélectionnée.
+ * Rend la grille du planning hebdomadaire avec des barres de disponibilité continues.
+ * @param {string} weekKey - La clé de la semaine à afficher (ex: "S 25").
+ * @param {object} planningData - L'objet complet des données de planning de l'agent.
  */
-function renderPlanningGrid(planningData) {
-  planningContainer.innerHTML = ''; // Vide le conteneur pour le nouveau rendu
-  headerHours.innerHTML = ''; // Vide les heures d'en-tête
+function showWeek(weekKey, planningData) {
+  const container = planningContainer;
+  const header = headerHours;
 
-  // Crée l'en-tête des heures (de 7h à 7h le lendemain)
-  headerHours.style.gridTemplateColumns = `minmax(80px, 0.5fr) repeat(${TOTAL_GRID_SLOTS}, minmax(30px, 1fr))`;
-  const emptyCorner = document.createElement('div');
-  emptyCorner.classList.add('header-cell', 'corner-cell');
-  headerHours.appendChild(emptyCorner);
+  // Efface le contenu précédent du planning
+  container.innerHTML = "";
+  // Efface et recrée l'en-tête des heures avec la première cellule vide pour le label du jour
+  header.innerHTML = `<div class="day-label sticky-day-col"></div>`;
 
-  for (let h = 0; h < TOTAL_HOURS_DISPLAY; h++) {
-    const hour = (GRID_START_HOUR + h) % 24;
-    const hourCell = document.createElement('div');
-    hourCell.classList.add('header-cell', 'hour-label');
-    hourCell.textContent = `${String(hour).padStart(2, '0')}h`;
-    hourCell.style.gridColumn = `span ${SLOTS_PER_HOUR}`; // Span 2 demi-heures
-    headerHours.appendChild(hourCell);
+  const SLOT_COUNT = 48; // Nombre total de slots de 30 minutes sur 24h
+  const START_HOUR_GRID = 7; // Heure de début de la grille d'affichage (7h00)
+  const MINUTES_PER_SLOT = 30; // Chaque slot représente 30 minutes
+
+  // Crée les en-têtes d'heures (toutes les deux heures)
+  for (let i = START_HOUR_GRID; i < START_HOUR_GRID + 24; i += 2) {
+    const hour = i % 24;
+    const div = document.createElement("div");
+    div.className = "hour-cell";
+    div.textContent = `${String(hour).padStart(2, '0')}:00`;
+    // Chaque cellule d'heure s'étend sur 4 colonnes (2 heures * 2 slots/heure)
+    div.style.gridColumn = `span 4`;
+    header.appendChild(div);
   }
 
-  // Configure la grille principale du planning
-  planningContainer.style.gridTemplateColumns = `minmax(80px, 0.5fr) repeat(${TOTAL_GRID_SLOTS}, minmax(30px, 1fr))`; // Identique à l'en-tête pour l'alignement
+  // Pour chaque jour de la semaine
+  days.forEach(day => {
+    const row = document.createElement("div");
+    row.className = "day-row";
 
-  // Rend chaque jour de la semaine
-  days.forEach((dayName, index) => {
-    const dayAvailability = planningData[dayName] || []; // Récupère les créneaux pour ce jour
-    const row = document.createElement('div');
-    row.classList.add('planning-grid-row');
-    row.dataset.day = dayName;
-
-    // Cellule du nom du jour
-    const dayLabel = document.createElement('div');
-    dayLabel.classList.add('day-label');
-    dayLabel.textContent = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+    // Ajoute le label du jour dans la première colonne, le rendant collant
+    const dayLabel = document.createElement("div");
+    dayLabel.className = "day-label sticky-day-col";
+    dayLabel.textContent = day.charAt(0).toUpperCase() + day.slice(1);
     row.appendChild(dayLabel);
 
-    // Initialise les créneaux par défaut comme non disponibles
-    const slots = Array(TOTAL_GRID_SLOTS).fill(false); // false = non disponible
+    // Récupère les plages de disponibilité (créneaux) pour le jour et la semaine courants
+    // Les données sont attendues sous forme d'un tableau d'objets { start: index_start, end: index_end }
+    const dayRanges = planningData[weekKey]?.[day] || [];
 
-    // Marque les créneaux disponibles
-    dayAvailability.forEach(rangeStr => {
-      // Ex: "07:00 - 07:30"
-      const [startStr, endStr] = rangeStr.split(' - ');
-      const [startHour, startMinute] = startStr.split(':').map(Number);
-      const [endHour, endMinute] = endStr.split(':').map(Number);
+    // Pour chaque "slot" vide dans la grille (qui servira de fond)
+    for (let i = 0; i < SLOT_COUNT; i++) {
+        const slotDiv = document.createElement("div");
+        slotDiv.className = "slot-background";
+        row.appendChild(slotDiv);
+    }
 
-      let startMinutes = (startHour * 60 + startMinute);
-      let endMinutes = (endHour * 60 + endMinute);
+    // Traite et crée les barres visuelles pour les plages de disponibilité
+    dayRanges.forEach(range => {
+      // Les données de range.start et range.end sont des index (0-47)
+      // Convertir les index en minutes réelles pour le calcul de position et l'affichage du tooltip
+      let startMinutesActual = (range.start * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
+      // MODIFICATION ICI: endMinutesActual doit être la fin du DERNIER slot sélectionné
+      let endMinutesActual = ((range.end + 1) * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
 
-      // Gère les créneaux de nuit (ex: 19:00 - 07:00)
-      if (endMinutes <= startMinutes) {
-        endMinutes += 24 * 60; // Ajoute 24h si le créneau passe minuit
+      // Gère les plages qui traversent minuit (ex: 23:00 - 02:00)
+      // Si l'heure de fin est antérieure à l'heure de début après conversion, cela signifie qu'elle est le lendemain
+      if (endMinutesActual <= startMinutesActual) { // Condition simplifiée
+        endMinutesActual += 24 * 60; // Ajoute 24 heures pour le calcul correct de la durée
       }
 
-      // Ajuste au début de la grille d'affichage (7h)
-      const gridStartHourInMinutes = GRID_START_HOUR * 60;
+      // Calcul des positions dans la grille visuelle (par rapport à 7h00)
+      const gridStartMinutes = START_HOUR_GRID * 60;
+      let effectiveStartMinutes = Math.max(startMinutesActual, gridStartMinutes);
+      let effectiveEndMinutes = Math.min(endMinutesActual, gridStartMinutes + (24 * 60)); // Max 24 heures à partir de 7h00
 
-      // Convertit en index de créneaux de 30 minutes par rapport au début de la grille
-      let startIndex = Math.floor((startMinutes - gridStartHourInMinutes) / 30);
-      let endIndex = Math.floor((endMinutes - gridStartHourInMinutes) / 30) - 1; // -1 car endIndex est inclusif
+      // Calcule la colonne de début et l'étendue (nombre de colonnes) dans la grille
+      // La grille commence à la colonne 2 car la colonne 1 est pour le label du jour
+      const startColumn = ((effectiveStartMinutes - gridStartMinutes) / MINUTES_PER_SLOT) + 2;
+      const spanColumns = (effectiveEndMinutes - effectiveStartMinutes) / MINUTES_PER_SLOT;
 
-      // S'assurer que les indices sont dans les limites de la grille (0-47)
-      startIndex = Math.max(0, startIndex);
-      endIndex = Math.min(TOTAL_GRID_SLOTS - 1, endIndex);
-
-      for (let i = startIndex; i <= endIndex; i++) {
-        if (i >= 0 && i < TOTAL_GRID_SLOTS) {
-          slots[i] = true; // Marque le créneau comme disponible
-        }
+      // N'ajoute la barre que si elle a une longueur positive (visible)
+      if (spanColumns > 0) {
+        const bar = document.createElement("div");
+        bar.className = "availability-bar";
+        // Positionne la barre dans la grille
+        bar.style.gridColumn = `${startColumn} / span ${spanColumns}`;
+        
+        // Affichage des heures formatées dans le tooltip
+        const displayStart = minutesToTime(startMinutesActual);
+        const displayEnd = minutesToTime(endMinutesActual);
+        bar.title = `Disponible: ${displayStart} - ${displayEnd}`; 
+        
+        row.appendChild(bar); // Ajoute la barre à la ligne du jour
       }
     });
-
-    // Rend les cellules de créneaux (visuellement)
-    slots.forEach((isAvailable, slotIndex) => {
-      const slotCell = document.createElement('div');
-      slotCell.classList.add('slot-cell');
-      if (isAvailable) {
-        slotCell.classList.add('available');
-      } else {
-        slotCell.classList.add('unavailable');
-      }
-      row.appendChild(slotCell);
-    });
-
-    planningContainer.appendChild(row);
+    container.appendChild(row); // Ajoute la ligne du jour au conteneur principal du planning
   });
 }
-
 
 /**
  * Affiche ou masque le spinner de chargement.
@@ -312,6 +364,6 @@ function showLoading(isLoading) {
     if (weekSelect) weekSelect.disabled = true; // Désactive le sélecteur pendant le chargement
   } else {
     loadingSpinner.classList.add("hidden");
-    if (weekSelect) weekSelect.disabled = false; // Réactive le sélecteur
+    if (weekSelect) weekSelect.disabled = false; // Active le sélecteur après le chargement
   }
 }

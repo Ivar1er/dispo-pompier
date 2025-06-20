@@ -4,15 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Synthèse Hebdomadaire - Sapeur Pompier</title>
-  <!-- Content Security Policy pour autoriser les styles inline et les sources externes nécessaires -->
-  <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self' https://dispo-pompier.onrender.com;
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src 'self' https://fonts.gstatic.com;
-    script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
-    img-src 'self' data: https://loko-mobile-app-media.s3.eu-west-1.amazonaws.com;
-    connect-src 'self' https://dispo-pompier.onrender.com;
-  ">
   <link rel="stylesheet" href="css/synthese.css" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
@@ -38,16 +29,6 @@
     <div id="loading-spinner" class="loading-spinner hidden"></div>
 
     <a href="agent.html" class="btn btn-secondary btn-return">← Retour à mon planning</a>
-  </div>
-
-  <!-- Message Modal Structure -->
-  <div id="message-modal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <span class="close-button">&times;</span>
-      <h3 class="modal-title"></h3>
-      <p class="modal-message"></p>
-      <div class="modal-actions"></div>
-    </div>
   </div>
 
   <script src="js/synthese.js"></script>

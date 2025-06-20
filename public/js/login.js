@@ -1,118 +1,97 @@
-// js/login.js
+// login.js
 
-document.addEventListener('DOMContentLoaded', async () => {
-    const loginForm = document.getElementById('login-form');
-    const agentSelect = document.getElementById('agent-select');
-    const passwordInput = document.getElementById('password');
-    const messageContainer = document.getElementById('message-container');
+const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que cette URL est correcte
 
-    const API_BASE_URL = "https://dispo-pompier.onrender.com";
+async function login() {
+  const agentSelect = document.getElementById("agent"); // Cet élément est la liste déroulante d'agents
+  const agent = agentSelect.value.trim(); // L'identifiant (clé de l'objet USERS)
+  const passwordInput = document.getElementById("password");
+  const password = passwordInput.value.trim();
+  const errorElement = document.getElementById("error");
+  const loginButton = document.querySelector("button");
 
-    // Modale de message (copiée pour être autonome)
-    function displayMessageModal(title, message, type = "info") {
-        let modal = document.getElementById('message-modal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'message-modal';
-            modal.classList.add('modal');
-            document.body.appendChild(modal);
-        }
+  // Réinitialiser les messages d'erreur et désactiver le bouton
+  errorElement.textContent = "";
+  loginButton.disabled = true; // Désactiver le bouton pendant le chargement
+  loginButton.textContent = "Connexion en cours..."; // Changer le texte du bouton
 
-        modal.innerHTML = `
-        <div class="modal-content ${type}">
-            <span class="close-button">&times;</span>
-            <h3 class="modal-title">${title}</h3>
-            <p class="modal-message">${message}</p>
-        </div>
-        `;
-        modal.style.display = 'block';
+  if (!agent || !password) {
+    errorElement.textContent = "Veuillez sélectionner un agent et entrer un mot de passe.";
+    loginButton.disabled = false; // Réactiver le bouton
+    loginButton.textContent = "Se connecter"; // Rétablir le texte du bouton
+    return;
+  }
 
-        const closeButton = modal.querySelector('.close-button');
-        if (closeButton) {
-            closeButton.onclick = () => {
-                modal.style.display = 'none';
-            };
-        }
-        window.onclick = (event) => {
-            if (event.target == modal) {
-                modal.style.display = 'none';
-            }
-        };
-    }
-
-    // Charger la liste des agents pour le sélecteur
-    async function loadAgentsForSelect() {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/agents/names`);
-            if (!response.ok) {
-                throw new Error('Failed to load agents list');
-            }
-            const agents = await response.json();
-            
-            // Clear existing options except the first one (placeholder)
-            agentSelect.innerHTML = '<option value="">Sélectionnez votre nom d\'utilisateur</option>';
-
-            agents.forEach(agent => {
-                const option = document.createElement('option');
-                option.value = agent.id;
-                option.textContent = `${agent.prenom} ${agent.nom}`;
-                agentSelect.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Error loading agents:', error);
-            displayMessageModal('Erreur de chargement', 'Impossible de charger la liste des utilisateurs. Veuillez réessayer plus tard.', 'error');
-        }
-    }
-
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        messageContainer.textContent = ''; // Clear previous messages
-
-        const username = agentSelect.value;
-        const password = passwordInput.value;
-
-        if (!username || !password) {
-            messageContainer.textContent = 'Veuillez saisir votre nom d\'utilisateur et votre mot de passe.';
-            messageContainer.style.color = 'red';
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                sessionStorage.setItem('jwtToken', data.token);
-                // Stocker l'objet utilisateur complet (y compris id, firstName, lastName, role, qualifications...)
-                sessionStorage.setItem('agent', JSON.stringify(data.user)); 
-                
-                messageContainer.textContent = 'Connexion réussie ! Redirection...';
-                messageContainer.style.color = 'green';
-
-                // Rediriger en fonction du rôle
-                if (data.user.role === 'admin') {
-                    window.location.href = 'admin.html';
-                } else {
-                    window.location.href = 'agent.html';
-                }
-            } else {
-                messageContainer.textContent = data.message || 'Échec de la connexion.';
-                messageContainer.style.color = 'red';
-            }
-        } catch (error) {
-            console.error('Erreur lors de la connexion:', error);
-            messageContainer.textContent = 'Erreur serveur. Veuillez réessayer plus tard.';
-            messageContainer.style.color = 'red';
-        }
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: agent, password: password }),
     });
 
-    // Charger les agents au démarrage de la page
-    loadAgentsForSelect();
+    const data = await response.json();
+    console.log("DEBUG Login: Réponse API /api/login:", data); // Ajout d'un log pour voir la réponse complète
+
+    if (!response.ok) {
+      errorElement.textContent = data.message || "Erreur lors de la connexion.";
+      return;
+    }
+
+    // --- MODIFICATION ICI : Utiliser data.user.id au lieu de data.user._id ---
+    const userData = data.user || {}; // S'assurer que data.user existe, sinon utiliser un objet vide
+
+    sessionStorage.setItem("agentId", userData.id || agent); // Utilise userData.id (qui vient du serveur)
+    sessionStorage.setItem("agentPrenom", userData.prenom || ''); // Utilise userData.prenom
+    sessionStorage.setItem("agentNom", userData.nom || '');     // Utilise userData.nom
+    sessionStorage.setItem("userRole", userData.role || '');   // Utilise userData.role
+    sessionStorage.setItem("token", data.token); // Le token est au niveau racine de la réponse
+
+    // Rediriger en fonction du rôle
+    if (userData.role === "admin") { // Redirection basée sur userData.role
+      window.location.href = "admin.html";
+    } else {
+      window.location.href = "agent.html";
+    }
+  } catch (err) {
+    console.error("Erreur lors de la connexion :", err);
+    errorElement.textContent = "Impossible de se connecter au serveur. Veuillez vérifier votre connexion.";
+  } finally {
+    loginButton.disabled = false;
+    loginButton.textContent = "Se connecter";
+  }
+}
+
+
+// --- Fonction pour charger dynamiquement la liste des agents pour la liste déroulante ---
+document.addEventListener("DOMContentLoaded", async () => {
+  const agentSelect = document.getElementById("agent");
+  const errorElement = document.getElementById("error");
+
+  if (agentSelect) {
+      try {
+          const response = await fetch(`${API_BASE_URL}/api/agents/names`);
+          if (!response.ok) {
+              throw new Error('Erreur lors du chargement de la liste des agents.');
+          }
+          const agents = await response.json();
+          console.log("DEBUG Login: Agents chargés pour le sélecteur:", agents); // Log pour voir la structure des agents
+
+          agentSelect.innerHTML = '<option value="">-- Sélectionnez votre identifiant --</option>';
+
+          agents.forEach(user => {
+              const option = document.createElement("option");
+              // Utilisation de user.id pour correspondre à l'ID retourné par le serveur
+              option.value = user.id;
+              option.textContent = `${user.prenom || ''} ${user.nom || ''} (${user.id})`; // Affiche Prénom Nom (identifiant)
+              agentSelect.appendChild(option);
+          });
+      } catch (err) {
+          console.error("Erreur lors du chargement de la liste des agents :", err);
+          if (errorElement) {
+              errorElement.textContent = "Impossible de charger la liste des agents. Vérifiez la connexion au serveur.";
+          }
+      }
+  } else {
+    console.warn("Élément 'agentSelect' non trouvé. Assurez-vous que l'ID 'agent' est correct dans votre HTML.");
+  }
 });

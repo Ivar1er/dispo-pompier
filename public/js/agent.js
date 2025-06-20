@@ -1,53 +1,54 @@
-// js/agent.js
-
 document.addEventListener('DOMContentLoaded', () => {
+  // --- Affichage prénom + nom agent ---
   const agentNameDisplay = document.getElementById('agent-name-display');
-  const agentQualificationsDisplay = document.getElementById('agentQualificationsDisplay');
+  let loggedInAgentId = null; // Variable globale pour stocker l'ID de l'agent connecté
 
-  const agent = JSON.parse(sessionStorage.getItem("agent"));
+  // Fonction pour charger et afficher les informations de l'agent
+  async function loadAgentInfo() {
+    const token = sessionStorage.getItem('token'); 
 
-  // Vérifier si l'objet agent est disponible et rediriger si ce n'est pas le cas
-  if (!agent || !agent.id || !agent.firstName || !agent.lastName) {
-    console.error("Agent data not found in sessionStorage or incomplete. Redirecting to login.");
-    window.location.href = 'login.html';
-    return;
-  }
+    if (!token) {
+      console.warn('Aucun token trouvé. Affichage des informations par défaut.');
+      agentNameDisplay.textContent = 'Agent Inconnu';
+      // Rediriger vers la page de connexion si aucun token n'est trouvé
+      window.location.href = '/index.html'; // CHANGEMENT: Utiliser un chemin absolu vers votre page de connexion
+      return;
+    }
 
-  agentNameDisplay.textContent = `${agent.firstName} ${agent.lastName}`;
+    try {
+      const response = await fetch('/api/agent-info', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-  // URL de base de votre API
-  const API_BASE_URL = "https://dispo-pompier.onrender.com";
+      if (response.ok) {
+        const agentInfo = await response.json();
+        agentNameDisplay.textContent = `${agentInfo.firstName} ${agentInfo.lastName}`;
+        loggedInAgentId = agentInfo.id; 
 
-  // Fonctions utilitaires pour les qualifications (pour l'affichage)
-  let availableQualifications = [];
-  async function fetchQualificationsForDisplay() {
-      try {
-          const response = await fetch(`${API_BASE_URL}/api/qualifications`, {
-              headers: { 'Authorization': `Bearer ${sessionStorage.getItem('jwtToken')}` }
-          });
-          if (!response.ok) throw new Error('Failed to fetch qualifications');
-          availableQualifications = await response.json();
-          renderAgentQualifications();
-      } catch (error) {
-          console.error('Error fetching qualifications for display:', error);
-          agentQualificationsDisplay.textContent = 'Erreur chargement qualifications.';
+        if (loggedInAgentId) {
+            await loadWeeklySelections(loggedInAgentId, currentMonday);
+            renderSlots(currentDay);
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Erreur lors de la récupération des infos de l\'agent :', errorData.message);
+        agentNameDisplay.textContent = 'Erreur de chargement des infos';
+        if (response.status === 403) {
+          sessionStorage.removeItem('token'); 
+          window.location.href = '/index.html'; // CHANGEMENT: Utiliser un chemin absolu
+        }
       }
-  }
-
-  function renderAgentQualifications() {
-    if (agent.qualifications && agent.qualifications.length > 0) {
-      const qualificationNames = agent.qualifications.map(qId => {
-        const qual = availableQualifications.find(aq => aq.id === qId);
-        return qual ? qual.name : qId; // Afficher le nom si trouvé, sinon l'ID
-      }).join(', ').toUpperCase();
-      agentQualificationsDisplay.textContent = `Qualifications: ${qualificationNames}`;
-    } else {
-      agentQualificationsDisplay.textContent = 'Aucune qualification renseignée.';
+    } catch (error) {
+      console.error('Erreur réseau lors de la récupération des infos de l\'agent :', error);
+      agentNameDisplay.textContent = 'Erreur réseau';
     }
   }
 
-
-  // --- Fonctions de date (synchronisées avec le serveur et disponibles ici) ---
+  // --- Fonction ISO semaine ---
   function getWeekNumber(d) {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
@@ -55,6 +56,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
     return weekNo;
   }
+
+  // --- Gestion sélecteur semaine ---
+  let currentMonday = getMonday(new Date());
 
   function getMonday(d) {
     d = new Date(d);
@@ -66,323 +70,264 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function formatDate(d) {
-    return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2, '0')}`;
+    return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}`;
   }
 
-  function formatDateToYYYYMMDD(date) {
-      const year = date.getFullYear();
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      return `${year}-${month}-${day}`;
+  function formatSlotTime(startIndex) {
+    const START_HOUR = 7;
+    const totalMinutesStart = (START_HOUR * 60) + (startIndex * 30);
+    const totalMinutesEnd = totalMinutesStart + 30;
+
+    const hStart = Math.floor(totalMinutesStart / 60) % 24;
+    const mStart = totalMinutesStart % 60;
+    const hEnd = Math.floor(totalMinutesEnd / 60) % 24;
+    const mEnd = totalMinutesEnd % 60;
+
+    return `${hStart.toString().padStart(2,'0')}:${mStart.toString().padStart(2,'0')}-${hEnd.toString().padStart(2,'0')}:${mEnd.toString().padStart(2,'0')}`;
   }
 
-  function getDateForDayInWeek(weekNum, dayIndex, year = new Date().getFullYear()) {
-      const simple = new Date(year, 0, 1 + (weekNum - 1) * 7);
-      const dow = simple.getDay() || 7;
-      const mondayOfISOWeek = new Date(simple);
-      mondayOfISOWeek.setDate(simple.getDate() - (dow === 0 ? 6 : dow - 1));
-      mondayOfISOWeek.setHours(0, 0, 0, 0);
+  const SLOT_COUNT = 48;
+  const START_HOUR = 7;
 
-      const targetDate = new Date(mondayOfISOWeek);
-      targetDate.setDate(mondayOfISOWeek.getDate() + dayIndex);
-      return targetDate;
+  let selections = Array(7).fill(null).map(() => []);
+
+  let currentDay = 0;
+  let isDragging = false;
+  let dragStartIndex = null;
+  let dragEndIndex = null;
+
+  async function loadWeeklySelections(agentId, mondayDate) {
+      selections = Array(7).fill(null).map(() => []);
+
+      const year = mondayDate.getFullYear();
+      const weekNum = getWeekNumber(mondayDate);
+      const isoWeekString = `S ${weekNum}`;
+
+      try {
+          const token = sessionStorage.getItem('token');
+          if (!token) {
+              console.warn('Aucun token trouvé pour charger les sélections hebdomadaires.');
+              return;
+          }
+
+          const response = await fetch(`/api/planning/${agentId}`, {
+              method: 'GET',
+              headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+              }
+          });
+
+          if (response.ok) {
+              const planning = await response.json();
+              const currentWeekPlanning = planning[isoWeekString];
+
+              if (currentWeekPlanning) {
+                  const dayMap = {
+                      'lundi': 0, 'mardi': 1, 'mercredi': 2, 'jeudi': 3,
+                      'vendredi': 4, 'samedi': 5, 'dimanche': 6
+                  };
+
+                  for (const dayName in currentWeekPlanning) {
+                      const dayIndex = dayMap[dayName];
+                      if (dayIndex !== undefined) {
+                          selections[dayIndex] = currentWeekPlanning[dayName];
+                      }
+                  }
+              }
+          } else {
+              console.error(`Erreur lors du chargement du planning hebdomadaire: ${response.status} ${response.statusText}`);
+          }
+      } catch (error) {
+          console.error('Erreur réseau lors du chargement du planning hebdomadaire:', error);
+      }
   }
 
 
-  // --- Gestion sélecteur semaine et navigation ---
-  const weekSelect = document.getElementById('week-select');
+  function initWeekSelector() {
+    const weekSelect = document.getElementById('week-select');
+
+    weekSelect.innerHTML = '';
+
+    const weeks = [];
+    for (let i = -1; i <= 3; i++) {
+      const monday = new Date(currentMonday);
+      monday.setDate(monday.getDate() + i * 7);
+      weeks.push(monday);
+    }
+
+    weeks.forEach((mondayDate, idx) => {
+      const weekNum = getWeekNumber(mondayDate);
+      const sundayDate = new Date(mondayDate);
+      sundayDate.setDate(sundayDate.getDate() + 6);
+      const option = document.createElement('option');
+      option.value = idx;
+      option.textContent = `S ${weekNum} (${formatDate(mondayDate)} au ${formatDate(sundayDate)})`;
+      weekSelect.appendChild(option);
+    });
+
+    weekSelect.selectedIndex = 1;
+
+    weekSelect.addEventListener('change', async (event) => {
+      const selectedIndex = parseInt(event.target.value, 10);
+      const newMonday = new Date(currentMonday);
+      newMonday.setDate(newMonday.getDate() + (selectedIndex - 1) * 7);
+      currentMonday = getMonday(newMonday);
+      initWeekSelector();
+
+      if (loggedInAgentId) {
+          await loadWeeklySelections(loggedInAgentId, currentMonday);
+          renderSlots(currentDay);
+      } else {
+          selections = Array(7).fill(null).map(() => []);
+          renderSlots(currentDay);
+      }
+    });
+  }
+
   const prevWeekBtn = document.getElementById('prev-week-btn');
   const nextWeekBtn = document.getElementById('next-week-btn');
 
-  let currentYear = new Date().getFullYear();
-  let currentWeekNumber = getWeekNumber(new Date());
-
-  function populateWeekSelect() {
-    weekSelect.innerHTML = '';
-    const today = new Date();
-    const currentYearForSelect = today.getFullYear();
-    const startYear = currentYearForSelect - 1;
-    const endYear = currentYearForSelect + 2;
-
-    for (let year = startYear; year <= endYear; year++) {
-      for (let week = 1; week <= 53; week++) {
-        const option = document.createElement('option');
-        const mondayOfCurrentWeek = getDateForDayInWeek(week, 0, year);
-        const sundayOfCurrentWeek = new Date(mondayOfCurrentWeek);
-        sundayOfCurrentWeek.setDate(mondayOfCurrentWeek.getDate() + 6);
-
-        if (getWeekNumber(mondayOfCurrentWeek) !== week || mondayOfCurrentWeek.getFullYear() !== year) {
-            continue;
-        }
-
-        const dates = `${formatDate(mondayOfCurrentWeek)} - ${formatDate(sundayOfCurrentWeek)}`;
-        option.value = `${year}-W${week}`;
-        option.textContent = `Semaine ${week} (${dates})`;
-        weekSelect.appendChild(option);
-      }
+  prevWeekBtn.addEventListener('click', async () => {
+    currentMonday.setDate(currentMonday.getDate() - 7);
+    initWeekSelector();
+    if (loggedInAgentId) {
+        await loadWeeklySelections(loggedInAgentId, currentMonday);
+        renderSlots(currentDay);
+    } else {
+        selections = Array(7).fill(null).map(() => []);
+        renderSlots(currentDay);
     }
-    weekSelect.value = `${currentYear}-W${currentWeekNumber}`;
-  }
-
-  function updateWeekDisplay() {
-    const selectedWeekValue = weekSelect.value;
-    const [yearStr, weekStr] = selectedWeekValue.split('-W');
-    currentYear = parseInt(yearStr);
-    currentWeekNumber = parseInt(weekStr);
-
-    loadAndRenderAgentPlanning(agent.id, currentYear, currentWeekNumber);
-  }
-
-  weekSelect.addEventListener('change', updateWeekDisplay);
-
-  prevWeekBtn.addEventListener('click', () => {
-    let newWeekNumber = currentWeekNumber - 1;
-    let newYear = currentYear;
-    if (newWeekNumber < 1) {
-      newYear--;
-      const dateForLastWeekOfPrevYear = new Date(newYear, 11, 31);
-      newWeekNumber = getWeekNumber(dateForLastWeekOfPrevYear); 
-    }
-    weekSelect.value = `${newYear}-W${newWeekNumber}`;
-    updateWeekDisplay();
   });
 
-  nextWeekBtn.addEventListener('click', () => {
-    let newWeekNumber = currentWeekNumber + 1;
-    let newYear = currentYear;
-    const dateForLastWeekOfCurrentYear = new Date(newYear, 11, 31);
-    const maxWeek = getWeekNumber(dateForLastWeekOfCurrentYear); 
-    if (newWeekNumber > maxWeek) {
-      newYear++;
-      newWeekNumber = 1;
+  nextWeekBtn.addEventListener('click', async () => {
+    currentMonday.setDate(currentMonday.getDate() + 7);
+    initWeekSelector();
+    if (loggedInAgentId) {
+        await loadWeeklySelections(loggedInAgentId, currentMonday);
+        renderSlots(currentDay);
+    } else {
+        selections = Array(7).fill(null).map(() => []);
+        renderSlots(currentDay);
     }
-    weekSelect.value = `${newYear}-W${newWeekNumber}`;
-    updateWeekDisplay();
   });
 
-  // --- Gestion des créneaux horaires ---
-  const slotsSliderContainer = document.getElementById('slots-slider-container');
-  const selectionInfo = document.getElementById('selection-info');
+  initWeekSelector();
+
+  const dayButtons = document.querySelectorAll('.day-btn');
+  const slotsContainer = document.getElementById('slots-slider-container');
   const saveButton = document.getElementById('save-slots-btn');
   const clearButton = document.getElementById('clear-selection-btn');
-  const dayButtons = document.querySelectorAll('.day-btn');
-  const API_URL = `${API_BASE_URL}/api/agent-availability`;
-
-  let currentDay = 0;
-  let selections = {};
-
-  const START_HOUR = 7;
-  const NUMBER_OF_SLOTS = 48;
-
-  function formatSlotTimeDisplay(startIndex) {
-    const totalMinutesStart = START_HOUR * 60 + startIndex * 30;
-    const hourStart = Math.floor(totalMinutesStart / 60) % 24;
-    const minuteStart = totalMinutesStart % 60;
-
-    const totalMinutesEnd = START_HOUR * 60 + (startIndex + 1) * 30;
-    const hourEnd = Math.floor(totalMinutesEnd / 60) % 24;
-    const minuteEnd = totalMinutesEnd % 60;
-
-    return `${String(hourStart).padStart(2, '0')}:${String(minuteStart).padStart(2, '0')} - ` +
-           `${String(hourEnd).padStart(2, '0')}:${String(minuteEnd).padStart(2, '0')}`;
-  }
-
-  function getDayName(dayIndex) {
-    const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-    return days[dayIndex];
-  }
-
-  function getDateForCurrentSelection(weekNumber, dayIndex, year) {
-    const mondayOfCurrentWeek = getDateForDayInWeek(weekNumber, 0, year);
-    const targetDate = new Date(mondayOfCurrentWeek);
-    targetDate.setDate(mondayOfCurrentWeek.getDate() + dayIndex);
-    return formatDateToYYYYMMDD(targetDate);
-  }
 
   function renderSlots(dayIndex) {
-    slotsSliderContainer.innerHTML = '';
-    const currentWeekKey = `week-${currentWeekNumber}`;
-    const currentDayName = getDayName(dayIndex);
-    const daySelections = selections[currentWeekKey] ? selections[currentWeekKey][currentDayName] : [];
+    slotsContainer.innerHTML = '';
+    const daySelections = selections[dayIndex];
 
-    for (let i = 0; i < NUMBER_OF_SLOTS; i++) {
-      const slotBlock = document.createElement('div');
-      slotBlock.classList.add('time-slot-block');
-      slotBlock.dataset.index = i;
-      slotBlock.dataset.time = formatSlotTimeDisplay(i);
-      slotBlock.dataset.day = dayIndex; // Add day index to slot block
+    for (let i = 0; i < SLOT_COUNT; i++) {
+      const slot = document.createElement('div');
+      slot.classList.add('time-slot-block');
+      slot.setAttribute('data-index', i);
 
-      const slotTimeText = document.createElement('span');
-      slotTimeText.classList.add('slot-time-text');
-      slotTimeText.textContent = `${String(START_HOUR + Math.floor(i / 2)).padStart(2, '0')}:${String((i % 2) * 30).padStart(2, '0')}`;
-      
-      slotBlock.appendChild(slotTimeText);
+      const slotTime = formatSlotTime(i);
+      slot.textContent = slotTime;
+      slot.setAttribute('data-time', slotTime);
 
-      const isSelected = daySelections.some(range => i >= range.start && i <= range.end);
-      if (isSelected) {
-        slotBlock.classList.add('selected');
+      if (isSlotSelected(i, daySelections)) {
+        slot.classList.add('selected');
       }
 
-      slotBlock.addEventListener('click', (e) => {
-        // Only toggle if not part of a drag selection
-        if (!isDragging) {
-            toggleSlotSelection(i);
+      slot.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isDragging = true;
+        dragStartIndex = i;
+        dragEndIndex = i;
+        updateSelectionVisual(dragStartIndex, dragEndIndex);
+        e.preventDefault();
+      });
+
+      slot.addEventListener('mouseenter', () => {
+        if (!isDragging) return;
+        dragEndIndex = i;
+        updateSelectionVisual(dragStartIndex, dragEndIndex);
+      });
+
+      slot.addEventListener('mouseup', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        finalizeSelection(dragStartIndex, dragEndIndex);
+      });
+
+      slot.addEventListener('click', () => {
+        if (isDragging) return;
+        if (slot.classList.contains('selected')) {
+          removeSlotFromSelection(i);
+          renderSlots(currentDay);
         }
       });
-      slotBlock.addEventListener('mousedown', handleMouseDown);
-      slotBlock.addEventListener('mouseup', handleMouseUp);
-      slotsSliderContainer.appendChild(slotBlock);
+
+      slotsContainer.appendChild(slot);
     }
-    updateSelectionInfo();
-  }
 
-  // Drag selection logic
-  let isDragging = false;
-  let startDragIndex = -1;
-  let currentDragDay = -1;
-
-  function handleMouseDown(e) {
-      if (e.button !== 0) return; // Only left click
-      isDragging = true;
-      startDragIndex = parseInt(e.target.closest('.time-slot-block').dataset.index);
-      currentDragDay = parseInt(e.target.closest('.time-slot-block').dataset.day);
-
-      // Deselect all for the current day to start a fresh selection (or removal)
-      const currentWeekKey = `week-${currentWeekNumber}`;
-      const currentDayName = getDayName(currentDragDay);
-      selections[currentWeekKey][currentDayName] = [];
-      renderSlots(currentDragDay); // Clear visual selection
-
-      e.target.closest('.time-slot-block').classList.add('selected'); // Select the starting slot
-  }
-
-  function handleMouseUp(e) {
-      if (!isDragging) return;
-      isDragging = false;
-      startDragIndex = -1;
-      currentDragDay = -1;
-      // Re-render to finalize selection (the one at mouse move is temporary)
-      renderSlots(parseInt(e.target.closest('.time-slot-block').dataset.day));
-  }
-
-  slotsSliderContainer.addEventListener('mousemove', (e) => {
-      if (!isDragging || currentDragDay === -1) return;
-
-      const targetBlock = e.target.closest('.time-slot-block');
-      if (!targetBlock || parseInt(targetBlock.dataset.day) !== currentDragDay) return;
-
-      const currentHoverIndex = parseInt(targetBlock.dataset.index);
-      const currentWeekKey = `week-${currentWeekNumber}`;
-      const currentDayName = getDayName(currentDragDay);
-
-      // Clear current visual selection for the day (important for smooth drag)
-      slotsSliderContainer.querySelectorAll('.time-slot-block').forEach(block => {
-          if (parseInt(block.dataset.day) === currentDragDay) {
-              block.classList.remove('selected');
-          }
-      });
-
-      // Highlight slots between startDragIndex and currentHoverIndex
-      const minIndex = Math.min(startDragIndex, currentHoverIndex);
-      const maxIndex = Math.max(startDragIndex, currentHoverIndex);
-
-      // Dynamically create a temporary range during drag
-      const tempRanges = [{ start: minIndex, end: maxIndex }];
-      selections[currentWeekKey][currentDayName] = tempRanges; // Temporarily update selections
-
-      for (let i = minIndex; i <= maxIndex; i++) {
-          const block = slotsSliderContainer.querySelector(`[data-index="${i}"][data-day="${currentDragDay}"]`);
-          if (block) {
-              block.classList.add('selected');
-          }
-      }
-      updateSelectionInfo(); // Update info during drag
-  });
-
-  // Global mouseup to stop dragging if mouse leaves the container
-  document.addEventListener('mouseup', () => {
+    document.addEventListener('mouseup', () => {
       if (isDragging) {
-          isDragging = false;
-          // Finalize the selection based on what was selected during drag
-          // The selections object already holds the latest range from mousemove
-          renderSlots(currentDay); 
+        isDragging = false;
+        finalizeSelection(dragStartIndex, dragEndIndex);
       }
-  });
+    }, { once: true });
+  }
 
-
-  function toggleSlotSelection(index) {
-    const currentWeekKey = `week-${currentWeekNumber}`;
-    const currentDayName = getDayName(currentDay);
-
-    if (!selections[currentWeekKey]) {
-      selections[currentWeekKey] = {
-        'lundi': [], 'mardi': [], 'mercredi': [], 'jeudi': [],
-        'vendredi': [], 'samedi': [], 'dimanche': []
-      };
+  function isSlotSelected(index, daySelections) {
+    for (const range of daySelections) {
+      if (index >= range.start && index <= range.end) return true;
     }
-    
-    if (isSlotSelected(index)) {
-      removeSlotFromSelection(index);
-    } else {
-      addSlotToSelection(index);
-    }
+    return false;
+  }
+
+  function updateSelectionVisual(start, end) {
+    const minI = Math.min(start, end);
+    const maxI = Math.max(start, end);
+
+    const slots = slotsContainer.querySelectorAll('.time-slot-block');
+    slots.forEach((slot, idx) => {
+      if (idx >= minI && idx <= maxI) {
+        slot.classList.add('selected');
+      } else {
+        if (!isSlotSelected(idx, selections[currentDay])) {
+          slot.classList.remove('selected');
+        }
+      }
+    });
+  }
+
+  function finalizeSelection(start, end) {
+    const minI = Math.min(start, end);
+    const maxI = Math.max(start, end);
+    addSelectionRange(currentDay, minI, maxI);
     renderSlots(currentDay);
   }
 
-  function isSlotSelected(index) {
-    const currentWeekKey = `week-${currentWeekNumber}`;
-    const currentDayName = getDayName(currentDay);
-    const daySelections = selections[currentWeekKey] ? selections[currentWeekKey][currentDayName] : [];
-    return daySelections.some(range => index >= range.start && index <= range.end);
-  }
+  function addSelectionRange(dayIndex, start, end) {
+    let ranges = selections[dayIndex];
 
-  function addSlotToSelection(index) {
-    const currentWeekKey = `week-${currentWeekNumber}`;
-    const dayName = getDayName(currentDay);
-
-    let ranges = selections[currentWeekKey][dayName];
-    let newRanges = [];
-    let merged = false;
+    const newRange = { start, end };
+    const newRanges = [];
 
     for (const range of ranges) {
-      if (index === range.start - 1) {
-        newRanges.push({ start: index, end: range.end });
-        merged = true;
-      } else if (index === range.end + 1) {
-        newRanges.push({ start: range.start, end: index });
-        merged = true;
-      } else {
+      if (range.end < newRange.start - 1 || range.start > newRange.end + 1) {
         newRanges.push(range);
+      } else {
+        newRange.start = Math.min(newRange.start, range.start);
+        newRange.end = Math.max(newRange.end, range.end);
       }
     }
+    newRanges.push(newRange);
 
-    if (!merged) {
-      newRanges.push({ start: index, end: index });
-    }
-
-    newRanges.sort((a, b) => a.start - b.start);
-    const finalRanges = [];
-    if (newRanges.length > 0) {
-      let currentRange = newRanges[0];
-      for (let i = 1; i < newRanges.length; i++) {
-        const nextRange = newRanges[i];
-        if (nextRange.start <= currentRange.end + 1) {
-          currentRange.end = Math.max(currentRange.end, nextRange.end);
-        } else {
-          finalRanges.push(currentRange);
-          currentRange = nextRange;
-        }
-      }
-      finalRanges.push(currentRange);
-    }
-    selections[currentWeekKey][dayName] = finalRanges;
+    newRanges.sort((a,b) => a.start - b.start);
+    selections[dayIndex] = newRanges;
   }
 
   function removeSlotFromSelection(index) {
-    const currentWeekKey = `week-${currentWeekNumber}`;
-    const dayName = getDayName(currentDay);
-
-    let ranges = selections[currentWeekKey][dayName];
+    let ranges = selections[currentDay];
     const newRanges = [];
 
     for (const range of ranges) {
@@ -390,155 +335,15 @@ document.addEventListener('DOMContentLoaded', () => {
         newRanges.push(range);
       } else {
         if (index > range.start) {
-          newRanges.push({ start: range.start, end: index - 1 });
+          newRanges.push({ start: range.start, end: index -1 });
         }
         if (index < range.end) {
           newRanges.push({ start: index + 1, end: range.end });
         }
       }
     }
-    selections[currentWeekKey][dayName] = newRanges.sort((a,b) => a.start - b.start);
+    selections[currentDay] = newRanges;
   }
-
-  function updateSelectionInfo() {
-    const currentWeekKey = `week-${currentWeekNumber}`;
-    const currentDayName = getDayName(currentDay);
-    const daySelections = selections[currentWeekKey] ? selections[currentWeekKey][currentDayName] : [];
-
-    if (daySelections.length > 0) {
-      const formattedTimes = daySelections.map(range => {
-        const startFormatted = `${String(START_HOUR + Math.floor(range.start / 2)).padStart(2, '0')}:${String((range.start % 2) * 30).padStart(2, '0')}`;
-        const endFormatted = `${String(START_HOUR + Math.floor((range.end + 1) / 2)).padStart(2, '0')}:${String(((range.end + 1) % 2) * 30).padStart(2, '0')}`;
-        return `${startFormatted} - ${endFormatted}`;
-      });
-      selectionInfo.textContent = `Créneaux sélectionnés pour ${currentDayName} : ${formattedTimes.join(', ')}`;
-    } else {
-      selectionInfo.textContent = `Aucun créneau sélectionné pour ${currentDayName}.`;
-    }
-  }
-
-  // --- Chargement et sauvegarde des plannings ---
-
-  async function loadAgentPlanning(agentId) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`, {
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('jwtToken')}`
-        }
-      });
-      if (!response.ok) {
-        if (response.status === 403) {
-            displayMessageModal('Accès refusé', 'Vous n\'avez pas les droits pour accéder à ce planning.', 'error');
-            return null;
-        }
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Erreur lors du chargement du planning de l\'agent :', error);
-      displayMessageModal('Erreur de chargement', 'Impossible de charger votre planning. Veuillez réessayer.', 'error');
-      return null;
-    }
-  }
-
-  async function loadAndRenderAgentPlanning(agentId, year, weekNumber) {
-    const planningData = await loadAgentPlanning(agentId);
-    if (planningData) {
-      const weekKey = `week-${weekNumber}`;
-      
-      if (!selections[weekKey]) {
-        selections[weekKey] = {
-          'lundi': [], 'mardi': [], 'mercredi': [], 'jeudi': [],
-          'vendredi': [], 'samedi': [], 'dimanche': []
-        };
-      } else {
-        for (const dayName in selections[weekKey]) {
-          selections[weekKey][dayName] = [];
-        }
-      }
-
-      if (planningData[weekKey]) {
-        for (const dayName of ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']) {
-            const slotsForDay = planningData[weekKey][dayName] || [];
-            const ranges = [];
-            let currentRange = null;
-
-            if (Array.isArray(slotsForDay) && slotsForDay.length > 0) {
-                const slotIndices = slotsForDay.map(slotStr => {
-                    const [startTime] = slotStr.split(' - ');
-                    const [hour, minute] = startTime.split(':').map(Number);
-                    return ((hour + 24 - START_HOUR) % 24) * 2 + (minute / 30);
-                }).sort((a,b) => a - b);
-
-                for (let i = 0; i < slotIndices.length; i++) {
-                    const index = slotIndices[i];
-                    if (currentRange === null) {
-                        currentRange = { start: index, end: index };
-                    } else if (index === currentRange.end + 1) {
-                        currentRange.end = index;
-                    } else {
-                        ranges.push(currentRange);
-                        currentRange = { start: index, end: index };
-                    }
-                }
-                if (currentRange !== null) {
-                    ranges.push(currentRange);
-                }
-            }
-            selections[weekKey][dayName] = ranges;
-        }
-      } 
-    } else {
-        selections[`week-${weekNumber}`] = { 
-            'lundi': [], 'mardi': [], 'mercredi': [], 'jeudi': [],
-            'vendredi': [], 'samedi': [], 'dimanche': []
-        };
-    }
-    renderSlots(currentDay);
-  }
-
-  saveButton.addEventListener('click', async () => {
-    const currentWeekKey = `week-${currentWeekNumber}`;
-    const agentId = agent.id;
-    const currentYearForDate = currentYear;
-
-    for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-      const dayName = getDayName(dayIndex);
-      const availabilitiesForDay = selections[currentWeekKey] ? selections[currentWeekKey][dayName] : [];
-      const dateKey = getDateForCurrentSelection(currentWeekNumber, dayIndex, currentYearForDate);
-
-      try {
-        const response = await fetch(`${API_URL}/${dateKey}/${agentId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionStorage.getItem('jwtToken')}`
-          },
-          body: JSON.stringify(availabilitiesForDay)
-        });
-
-        if (!response.ok) {
-          throw new Error(`Erreur serveur lors de la sauvegarde des créneaux pour ${dayName} (${dateKey}): ${response.statusText}`);
-        }
-      } catch (error) {
-        console.error('Erreur de sauvegarde des créneaux :', error);
-        displayMessageModal('Erreur de sauvegarde', `Impossible d'enregistrer les créneaux pour ${dayName}. Veuillez réessayer.`, 'error');
-        return;
-      }
-    }
-    displayMessageModal('Succès', 'Vos créneaux ont été enregistrés !', 'success');
-  });
-
-  clearButton.addEventListener('click', () => {
-    const currentWeekKey = `week-${currentWeekNumber}`;
-    const currentDayName = getDayName(currentDay);
-    if (selections[currentWeekKey]) {
-      selections[currentWeekKey][currentDayName] = [];
-    }
-    renderSlots(currentDay);
-    displayMessageModal('Sélection effacée', 'Les créneaux de ce jour ont été effacés localement.', 'info');
-  });
 
   dayButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -554,70 +359,77 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // --- Modales de messages ---
-  function displayMessageModal(title, message, type = "info", callback = null) {
-    let modal = document.getElementById('message-modal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'message-modal';
-      modal.classList.add('modal');
-      document.body.appendChild(modal);
+  clearButton.addEventListener('click', () => {
+    selections[currentDay] = [];
+    renderSlots(currentDay);
+  });
+
+  saveButton.addEventListener('click', async () => {
+    if (!loggedInAgentId) {
+        alert('Impossible d\'enregistrer : ID de l\'agent non disponible. Veuillez vous reconnecter.');
+        return;
     }
 
-    modal.innerHTML = `
-      <div class="modal-content ${type}">
-        <span class="close-button">&times;</span>
-        <h3 class="modal-title">${title}</h3>
-        <p class="modal-message">${message}</p>
-        ${type === 'question' ? '<div class="modal-actions"><button class="btn btn-primary" id="modal-confirm-btn">Oui</button><button class="btn btn-secondary" id="modal-cancel-btn">Annuler</button></div>' : ''}
-      </div>
-    `;
-    modal.style.display = 'block';
-
-    const closeButton = modal.querySelector('.close-button');
-    if (closeButton) {
-      closeButton.onclick = () => {
-        modal.style.display = 'none';
-        if (callback && type === 'question') callback(false);
-      };
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+        alert('Impossible d\'enregistrer : non authentifié. Veuillez vous reconnecter.');
+        return;
     }
 
-    const confirmBtn = modal.querySelector('#modal-confirm-btn');
-    if (confirmBtn) {
-      confirmBtn.onclick = () => {
-        modal.style.display = 'none';
-        if (callback) callback(true);
-      };
+    const daysOfWeekNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < 7; i++) {
+        const daySelections = selections[i];
+
+        const dateForDay = new Date(currentMonday);
+        dateForDay.setDate(currentMonday.getDate() + i);
+        const dateKey = `${dateForDay.getFullYear()}-${String(dateForDay.getMonth() + 1).padStart(2, '0')}-${String(dateForDay.getDate()).padStart(2, '0')}`;
+
+        try {
+            const response = await fetch(`/api/agent-availability/${dateKey}/${loggedInAgentId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(daySelections)
+            });
+
+            if (response.ok) {
+                successCount++;
+            } else {
+                const errorData = await response.json();
+                console.error(`Erreur d'enregistrement pour le ${daysOfWeekNames[i]} (${dateKey}) :`, errorData.message);
+                errorCount++;
+            }
+        } catch (error) {
+            console.error(`Erreur réseau lors de l'enregistrement pour le ${daysOfWeekNames[i]} (${dateKey}) :`, error);
+            errorCount++;
+        }
     }
 
-    const cancelBtn = modal.querySelector('#modal-cancel-btn');
-    if (cancelBtn) {
-      cancelBtn.onclick = () => {
-        modal.style.display = 'none';
-        if (callback) callback(false);
-      };
+    if (errorCount === 0) {
+        alert('Créneaux sauvegardés avec succès pour toute la semaine !');
+    } else {
+        alert(`Enregistrement terminé avec ${successCount} succès et ${errorCount} échecs. Vérifiez la console pour les détails.`);
     }
+  });
 
-    window.onclick = (event) => {
-      if (event.target == modal && type !== 'question') {
-        modal.style.display = 'none';
-        if (callback && type === 'question') callback(false);
-      }
-    };
-  }
-
-  // --- Déconnexion ---
   const logoutButton = document.getElementById('logout-btn');
   if (logoutButton) {
-      logoutButton.addEventListener('click', () => {
-          sessionStorage.removeItem('jwtToken');
-          sessionStorage.removeItem('agent');
-          window.location.href = 'login.html';
-      });
+    logoutButton.addEventListener('click', () => {
+      sessionStorage.removeItem('token'); 
+      sessionStorage.removeItem('agentId'); 
+      sessionStorage.removeItem('agentPrenom');
+      sessionStorage.removeItem('agentNom');
+      sessionStorage.removeItem('userRole');
+
+      // CHANGEMENT CRUCIAL ICI: Utiliser un chemin absolu pour la redirection
+      window.location.href = '/index.html'; // Assurez-vous que index.html est votre page de connexion
+    });
   }
 
-  // --- Initialisation ---
-  populateWeekSelect();
-  updateWeekDisplay();
-  fetchQualificationsForDisplay(); // Fetch qualifications for display
+  loadAgentInfo();
 });
