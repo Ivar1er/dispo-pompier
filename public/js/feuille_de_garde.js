@@ -333,7 +333,7 @@ function showSpinner() {
 }
 
 /**
- * Cache le spinner de chargement.
+ * Cache le spinner de chargage.
  */
 function hideSpinner() {
   loadingSpinner.classList.add('hidden');
@@ -913,19 +913,13 @@ async function loadRosterConfig(dateKey) {
             const onDutyAgents = appData[dateKey]?.onDutyAgents || Array(10).fill('none');
 
             const filteredAvailableAgents = allAgents.filter(agent => {
-                // Vérifie si l'agent n'est PAS déjà dans la liste des agents d'astreinte
                 const isAlreadyOnDuty = onDutyAgents.includes(agent._id);
-                if (isAlreadyOnDuty) {
-                    return false;
-                }
-
                 // Récupère les disponibilités de l'agent pour la date sélectionnée
                 const agentAvailabilities = appData.personnelAvailabilities[agent._id] || {};
                 const dailyAvailabilities = agentAvailabilities[dateKey] || [];
                 
-                // Un agent est "disponible" pour être affiché dans cette liste
-                // s'il a au moins une plage de disponibilité renseignée (même la 24h par défaut)
-                return dailyAvailabilities.length > 0;
+                // N'inclut que les agents qui ne sont PAS d'astreinte ET qui ont au moins une disponibilité renseignée.
+                return !isAlreadyOnDuty && dailyAvailabilities.length > 0;
             });
 
             if (filteredAvailableAgents.length === 0) {
@@ -971,11 +965,19 @@ async function loadRosterConfig(dateKey) {
                 item.addEventListener('dragstart', handleDragStart);
 
                 const agentAvailabilities = appData.personnelAvailabilities[agent._id] || {};
-                const dailyAvailabilities = agentAvailabilities[dateKey] || [];
+                // Utilise appData.personnelAvailabilities[agent._id][dateKey] qui est déjà initialisé
+                const dailyAvailabilities = agentAvailabilities[dateKey] || []; 
 
                 const fullDayMinutes = 24 * 60; 
                 const thirtyMinInterval = 30;
                 const dayStartOffsetMinutes = 7 * 60; 
+
+                // Si aucune disponibilité n'est définie pour l'agent (dailyAvailabilities est vide),
+                // on génère une seule plage pour toute la journée 07:00-07:00 pour la barre visuelle.
+                // NOTE: Avec le nouveau filtre, dailyAvailabilities ne sera jamais vide ici si l'agent est affiché.
+                const visualAvailabilities = dailyAvailabilities.length > 0 
+                    ? dailyAvailabilities 
+                    : [{ start: "07:00", end: "07:00" }]; // Représente une indisponibilité totale si pas de plages
 
                 // Boucle pour couvrir l'ensemble de la journée de 07:00 à 07:00 le lendemain (48 créneaux de 30min)
                 // Afin de déterminer l'état de chaque segment visuel.
@@ -991,7 +993,7 @@ async function loadRosterConfig(dateKey) {
                     let isAvailable = false;
                     let originalRange = null; 
 
-                    for (const range of dailyAvailabilities) {
+                    for (const range of visualAvailabilities) { // Utilise visualAvailabilities ici
                         // Utilise la fonction doTimeRangesOverlap modifiée
                         if (doTimeRangesOverlap(currentInterval, range)) {
                             isAvailable = true;
@@ -1011,7 +1013,7 @@ async function loadRosterConfig(dateKey) {
                         const segmentText = document.createElement('span'); // Élément pour le texte
                         segmentText.classList.add('availability-segment-text');
 
-                        if (isAvailable) {
+                        if (isAvailable && dailyAvailabilities.length > 0) { // S'assurer que c'est vraiment disponible si des plages existent
                             highlightSegment.classList.add('available');
                             highlightSegment.title = `Disponible: ${originalRange.start} - ${originalRange.end}`;
                             segmentText.textContent = `${originalRange.start} - ${originalRange.end}`; // Texte pour les segments disponibles
@@ -1028,8 +1030,7 @@ async function loadRosterConfig(dateKey) {
                     });
                 }
                 
-                item.appendChild(createTooltipForAvailabilityBar(dailyAvailabilities));
-
+                item.appendChild(createTooltipForAvailabilityBar(dailyAvailabilities, dailyAvailabilities.length === 0)); // Passer true si pas de dispo
                 availablePersonnelList.appendChild(item);
             });
         }
@@ -1083,6 +1084,10 @@ async function loadRosterConfig(dateKey) {
                             const thirtyMinInterval = 30;
                             const dayStartOffsetMinutes = 7 * 60;
 
+                            const visualAvailabilities = dailyAvailabilities.length > 0 
+                                ? dailyAvailabilities 
+                                : [{ start: "07:00", end: "07:00" }]; // Représente une indisponibilité totale si pas de plages
+
                             for (let k = 0; k < (fullDayMinutes / thirtyMinInterval); k++) {
                                 let intervalStartMin = (dayStartOffsetMinutes + k * thirtyMinInterval) % fullDayMinutes;
                                 let intervalEndMin = (dayStartOffsetMinutes + (k + 1) * thirtyMinInterval) % fullDayMinutes;
@@ -1104,7 +1109,7 @@ async function loadRosterConfig(dateKey) {
                                 let isAvailable = false;
                                 let originalRange = null;
 
-                                for (const range of dailyAvailabilities) {
+                                for (const range of visualAvailabilities) {
                                     if (doTimeRangesOverlap(currentInterval, range)) {
                                         isAvailable = true;
                                         originalRange = range;
@@ -1121,7 +1126,7 @@ async function loadRosterConfig(dateKey) {
                                     const segmentText = document.createElement('span'); // Élément pour le texte
                                     segmentText.classList.add('availability-segment-text');
 
-                                    if (isAvailable) {
+                                    if (isAvailable && dailyAvailabilities.length > 0) {
                                         highlightSegment.classList.add('available');
                                         highlightSegment.title = `Disponible: ${originalRange.start} - ${originalRange.end}`;
                                         segmentText.textContent = `${originalRange.start} - ${originalRange.end}`; // Texte pour les segments disponibles
@@ -1137,7 +1142,7 @@ async function loadRosterConfig(dateKey) {
                                 });
                             }
 
-                            slot.appendChild(createTooltipForAvailabilityBar(dailyAvailabilities, true));
+                            slot.appendChild(createTooltipForAvailabilityBar(dailyAvailabilities, dailyAvailabilities.length === 0)); // Passer true si pas de dispo
                             
                             const removeBtn = slot.querySelector('.remove-agent-btn');
                             removeBtn.addEventListener('click', async (e) => {
@@ -1205,8 +1210,7 @@ async function loadRosterConfig(dateKey) {
             await loadRosterConfig(dateKey);
             await loadDailyRoster(dateKey); 
             await loadAllPersonnelAvailabilities(); // Ceci doit charger les dispo pour TOUS les agents
-            initializeDefaultTimeSlotsForDate(dateKey);
-            
+            initializeDefaultTimeSlotsForDate(dateKey); // S'assure qu'au moins un créneau par défaut existe
 
             rosterDateInput.valueAsDate = currentRosterDate;
             renderTimeSlotButtons(dateKey);
