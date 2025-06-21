@@ -540,6 +540,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const returnToFeuilleDeGardeBtn = document.getElementById('return-to-feuille-de-garde'); // Nouveau bouton
     const engineGrid = document.querySelector('.engine-grid');
     const loadingSpinner = document.getElementById('loading-spinner');
+    const loadingMessageElement = document.getElementById('loading-message-text'); // NOUVEAU : Référence au message textuel de chargement
 
     // Modale d'affectation de personnel
     const personnelAssignmentModal = document.getElementById('personnel-assignment-modal');
@@ -772,7 +773,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function loadAllDataAndRender() {
-        showLoading(true);
+        showLoading(true); // Active le spinner overlay
+        if (loadingMessageElement) {
+            loadingMessageElement.style.display = 'block'; // S'assure que le message textuel est visible
+        }
         try {
             const authOk = await checkAuthAndRedirect();
             if (!authOk) return;
@@ -788,12 +792,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Ensuite, charger les disponibilités, car elles dépendent des agents
             await loadAllAgentsAvailabilities();
 
-            renderEngines();
+            renderEngines(); // Rendre la grille des engins
         } catch (error) {
             console.error("Erreur lors du chargement initial des données:", error);
             displayMessageModal("Erreur Critique", "Impossible de charger les données initiales de l'application. Veuillez vérifier la console pour plus de détails.", "error");
         } finally {
-            showLoading(false);
+            showLoading(false); // Désactive le spinner overlay
+            if (loadingMessageElement) {
+                loadingMessageElement.style.display = 'none'; // Masque le message textuel de chargement
+            }
         }
     }
 
