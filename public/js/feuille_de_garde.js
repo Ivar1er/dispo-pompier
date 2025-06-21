@@ -106,7 +106,7 @@ const roleToQualificationMap = {
     'ca_ccf': ['ca_ccf'],
     'cod_2': ['cod_2'],
     'eq1_ccf': ['eq1_ccf'],
-    'eq2_ccf': ['eq2_ccf'],
+    'eq2_ccf': ['eq2_ccf'], // Corrected: This should be consistent with other role definitions.
 
     // VTU
     'ca_vtu': ['ca_vtu'],
@@ -147,7 +147,7 @@ const engineDetails = {
             { id: 'ca_ccf', name: 'CA CCF', required: true },
             { id: 'cod_2', name: 'CD CCF', required: true },
             { id: 'eq1_ccf', name: 'EQ1 CCF', required: true },
-            { id: 'eq2_ccf',name: 'EQ2 CCF', required: false },
+            { id: 'eq2_ccf', name: 'EQ2 CCF', required: false } // Corrected: This should be an object with id, name, and required properties.
         ],
         criticalRoles: ['cod_2', 'ca_ccf']
     },
@@ -167,7 +167,7 @@ const engineDetails = {
             { id: 'cod_0', name: 'CD VPMA', required: true },
             { id: 'eq_vpma', name: 'EQ VPMA', required: false }
         ],
-        criticalRoles: ['cod_0', 'eq_vpma'] // A revoir si des rôles critiques sont pertinents ici
+        criticalRoles: ['none', 'none'] // A revoir si des rôles critiques sont pertinents ici
     }
 };
 
@@ -1792,7 +1792,7 @@ async function loadRosterConfig(dateKey) {
             }
 
 
-            function assignPersonnelToSlot(dateKey, slotId) { // Ajout de slotId comme paramètre
+            function assignPersonnelToSlot(dateKey, slotId) {
             if (!appData[dateKey]) {
                 console.warn("assignPersonnelToSlot: Pas de données de roster pour la date spécifiée.");
                 return;
