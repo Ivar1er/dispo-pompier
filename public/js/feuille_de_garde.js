@@ -1,277 +1,22 @@
 // Styles injectés dynamiquement pour la mise à jour visuelle
 const inlineCss = `
-/* General Loader Styles */
-#loading-spinner {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.8); /* Lighter overlay */
-  z-index: 1000;
-}
-#loading-spinner.hidden {
-  display: none;
-}
-
-#loading-spinner .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e0e0e0; /* Softer border */
-  border-top-color: #4CAF50; /* Green primary color */
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Base Body Styles */
-body {
-  font-family: 'Inter', sans-serif;
-  background-color: #f9f9f9; /* Lighter background */
-  margin: 0;
-  padding: 20px;
-  color: #333;
-  line-height: 1.6;
-}
-
-/* Roster Wrapper */
-.roster-wrapper {
-  max-width: 1400px;
-  margin: 0 auto;
-  background-color: #ffffff;
-  border-radius: 8px; /* Consistent rounded corners */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Softer shadow */
-  padding: 25px;
-}
-
-/* Header */
-.roster-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 25px;
-  flex-wrap: wrap;
-  gap: 15px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  flex-wrap: wrap;
-}
-
-.roster-header h1 {
-  font-size: 2em;
-  color: #333;
-  margin: 0;
-}
-
-/* Back Button */
-.back-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 15px;
-  background-color: #f0f0f0; /* Neutral background */
-  color: #555;
-  border: 1px solid #dcdcdc;
-  border-radius: 6px;
-  text-decoration: none;
-  font-size: 0.9em;
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-}
-
-.back-button:hover {
-  background-color: #e0e0e0;
-  color: #333;
-  border-color: #ccc;
-}
-
-/* Date Selector */
-.date-selector label {
-  display: none; /* Hide label, rely on input type date */
-}
-
-.date-selector input[type="date"] {
-  padding: 8px 12px;
-  border: 1px solid #dcdcdc;
-  border-radius: 6px;
-  font-size: 1em;
-  color: #333;
-  appearance: none; /* Remove default arrow */
-  background-color: #ffffff;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.date-selector input[type="date"]:focus {
-  border-color: #4CAF50; /* Primary color on focus */
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
-}
-
-/* Navigation Buttons */
-.date-navigation-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.date-navigation-buttons button {
-  padding: 8px 12px;
-  background-color: #f0f0f0;
-  color: #555;
-  border: 1px solid #dcdcdc;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1em;
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-}
-
-.date-navigation-buttons button:hover {
-  background-color: #e0e0e0;
-  color: #333;
-  border-color: #ccc;
-}
-
-/* Refresh Button */
-.refresh-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 15px;
-  background-color: #4CAF50; /* Primary green */
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.95em;
-  font-weight: 500;
-  transition: background-color 0.2s, transform 0.1s;
-}
-
-.refresh-button:hover {
-  background-color: #43A047; /* Darker green on hover */
-  transform: translateY(-1px);
-}
-
-.refresh-button svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-}
-
-/* Roster Main Content */
-.roster-main-content {
-  display: flex;
-  gap: 25px;
-}
-
-.roster-main-content > section {
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  padding: 20px;
-}
-
-.roster-main-content > section h2 {
-  font-size: 1.5em;
-  color: #333;
-  margin-top: 0;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
-}
-
-/* Left Column - Available Personnel */
-.available-personnel {
-  flex: 1;
-  min-width: 280px;
-  max-width: 350px;
-}
-
-.available-personnel-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px; /* Spacing between agent items */
-  max-height: 70vh; /* Limit height for scrolling */
-  overflow-y: auto;
-  padding-right: 10px; /* For scrollbar */
-}
-
-.available-personnel-item {
-  background-color: #f5f5f5; /* Lighter background for items */
-  border: 1px solid #e0e0e0; /* Subtle border */
-  border-radius: 8px;
-  padding: 12px;
-  cursor: grab;
-  position: relative; /* For tooltip positioning */
-  transition: background-color 0.2s, border-color 0.2s;
-}
-
-.available-personnel-item:hover {
-  background-color: #eeeeee;
-  border-color: #ccc;
-}
-
-.available-personnel-item.dragging {
-    opacity: 0.6;
-    border-style: dashed;
-    border-color: #4CAF50;
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
-}
-
-.available-personnel-item .agent-info {
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: #333;
-}
-
-.no-available-personnel {
-  color: #888;
-  font-style: italic;
-  text-align: center;
-  padding: 10px;
-}
-
-/* Availability Bar Styles */
-.availability-bar-wrapper {
-  position: relative;
-  width: 100%;
-  height: 25px; /* Height of the bar */
-  margin-top: 5px;
-  background-color: #e0e0e0; /* Base color for unavailable parts */
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.availability-base-bar {
-  position: relative;
-  width: 100%;
-  height: 100%;
+.engine-indispo-overlay, .engine-indispo-overlay-mini {
+    background-color: rgba(0, 0, 0, 0.5); /* Adoucir le voile noir pour voir le fond (de 0.6 à 0.5) */
+    display: flex; /* Centrer le texte INDISPO */
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2em; /* Taille du texte INDISPO */
+    color: white; /* Couleur du texte INDISPO */
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8); /* Ombre pour la lisibilité */
+    font-weight: bold;
 }
 
 .availability-highlight-segment {
-  height: 100%;
-  border-radius: 0; /* Segments are rectangular */
-  opacity: 0.9;
-  box-sizing: border-box; /* Ensure padding is included */
-  font-size: 0.7em;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.availability-highlight-segment.available {
-  background-color: #4CAF50; /* Green for available */
-}
-
-.availability-highlight-segment.unavailable {
-  background-color: #ef9a9a; /* Muted red for unavailable */
+    position: absolute;
+    display: flex; /* Utiliser flexbox pour centrer le texte */
+    align-items: center;
+    justify-content: center;
+    overflow: hidden; /* Cacher le texte qui dépasse */
 }
 
 .availability-segment-text {
@@ -285,51 +30,22 @@ body {
     box-sizing: border-box; /* Inclure padding dans la largeur/hauteur */
 }
 
-/* Time Legend for Availability Bar */
-.time-legend {
-  position: absolute;
-  top: 100%; /* Below the bar */
-  left: 0;
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.7em;
-  color: #666;
-  margin-top: 2px;
-}
-.time-legend span {
-  flex: 1;
-  text-align: center;
-}
-.time-legend span:first-child { text-align: left; }
-.time-legend span:last-child { text-align: right; }
-
-
-/* Tooltip for Availability Bar */
+/* Styles pour le tooltip de disponibilité */
 .availability-bar-tooltip {
     position: absolute;
-    background-color: #424242; /* Darker grey for tooltip */
+    background-color: rgba(0, 0, 0, 0.85);
     color: white;
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 0.8em;
     white-space: nowrap;
-    z-index: 50;
-    bottom: calc(100% + 5px); /* Position above with margin */
+    z-index: 50; /* Au-dessus des autres éléments */
+    bottom: 100%; /* Positionne le tooltip au-dessus de la barre */
     left: 50%;
     transform: translateX(-50%);
-    opacity: 0; /* Start hidden */
-    visibility: hidden;
-    transition: opacity 0.2s, visibility 0.2s;
-    pointer-events: none; /* No interaction with tooltip */
+    margin-bottom: 5px; /* Petit espace entre la barre et le tooltip */
+    pointer-events: none; /* Le tooltip ne doit pas bloquer les événements de souris sur la barre */
 }
-
-.available-personnel-item:hover .availability-bar-tooltip,
-.on-duty-slot:hover .availability-bar-tooltip {
-    opacity: 1;
-    visibility: visible;
-}
-
 
 .availability-bar-tooltip ul {
     list-style: none;
@@ -344,693 +60,6 @@ body {
 
 .availability-bar-tooltip li:last-child {
     margin-bottom: 0;
-}
-
-/* Middle Column - On-Duty Agents Grid */
-.on-duty-agents {
-  flex: 1.2;
-  min-width: 320px;
-  max-width: 400px;
-}
-
-.on-duty-agents-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); /* Auto-fit for responsiveness */
-  gap: 15px;
-  max-height: 70vh;
-  overflow-y: auto;
-  padding-right: 10px;
-}
-
-.on-duty-slot {
-  background-color: #f5f5f5; /* Lighter background */
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  min-height: 100px; /* Adjusted minimum height */
-  color: #888;
-  font-style: italic;
-  position: relative; /* For the remove button */
-  transition: background-color 0.2s, border-color 0.2s;
-}
-
-.on-duty-slot.filled {
-  background-color: #e8f5e9; /* Light green if filled */
-  border-color: #a5d6a7; /* Subtle green border */
-  color: #333;
-  font-style: normal;
-  cursor: grab;
-}
-
-.on-duty-slot.filled:hover {
-  background-color: #dcedc8; /* Slightly darker green */
-  border-color: #8bc34a;
-}
-
-.on-duty-slot.drag-over {
-    border: 2px dashed #4CAF50;
-    background-color: rgba(76, 175, 80, 0.1);
-}
-
-.on-duty-slot .remove-agent-btn {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    background-color: #f44336; /* Red for remove */
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 0.8em;
-    cursor: pointer;
-    line-height: 1;
-    transition: background-color 0.2s;
-}
-
-.on-duty-slot .remove-agent-btn:hover {
-    background-color: #d32f2f;
-}
-
-/* Right Column - Roster Grid */
-.roster-grid-section {
-  flex: 3;
-  overflow-x: auto; /* Allow horizontal scrolling for large tables */
-}
-
-.roster-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 800px; /* Minimum width for the table */
-}
-
-.roster-table th, .roster-table td {
-  border: 1px solid #e0e0e0; /* Light borders */
-  padding: 10px;
-  text-align: left;
-  vertical-align: top;
-}
-
-.roster-table th {
-  background-color: #f0f0f0; /* Lighter header background */
-  font-weight: 600;
-  color: #555;
-  white-space: nowrap;
-}
-
-.roster-table td {
-  background-color: #ffffff;
-  min-width: 120px; /* Minimum width for engine cells */
-}
-
-.time-slot-cell {
-  background-color: #e9e9e9;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.roster-cell {
-  position: relative; /* For INDISPO overlay */
-}
-
-.roster-cell.drag-over {
-    border: 2px dashed #4CAF50;
-    background-color: rgba(76, 175, 80, 0.1);
-}
-
-/* Engine Display in Roster Grid */
-.engine-display {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.engine-name-mini {
-  font-weight: bold;
-  color: #333;
-}
-
-.assigned-personnel-mini {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 0.8em;
-  color: #666;
-}
-
-.assigned-personnel-mini li {
-  margin-bottom: 2px;
-}
-
-.assigned-personnel-mini .role-abbr {
-  font-weight: 600;
-  color: #4CAF50; /* Green for role abbreviation */
-}
-
-.assigned-personnel-mini .unqualified-mini {
-  color: #f44336; /* Red for unqualified */
-}
-
-.assigned-personnel-mini .missing-mini {
-  color: #ff9800; /* Orange for missing required */
-  font-weight: 500;
-}
-
-/* INDISPO Overlay */
-.engine-indispo-overlay-mini {
-    position: absolute;
-    inset: 0;
-    background-color: rgba(244, 67, 54, 0.7); /* Red overlay with transparency */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1em;
-    color: white;
-    font-weight: bold;
-    border-radius: 8px; /* Match parent */
-}
-
-/* Time Slot Buttons (Top of Roster Grid) */
-.time-slot-buttons-container {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.time-slot-button, .add-time-slot-btn {
-  padding: 8px 15px;
-  background-color: #f0f0f0;
-  color: #555;
-  border: 1px solid #dcdcdc;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9em;
-  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.time-slot-button:hover, .add-time-slot-btn:hover {
-  background-color: #e0e0e0;
-  border-color: #ccc;
-}
-
-.time-slot-button.active {
-  background-color: #4CAF50; /* Green for active */
-  color: white;
-  border-color: #4CAF50;
-  box-shadow: 0 2px 5px rgba(76, 175, 80, 0.3);
-}
-
-.time-slot-button.active:hover {
-  background-color: #43A047;
-  border-color: #43A047;
-}
-
-.delete-time-slot-btn {
-  background-color: #ffcdd2; /* Lighter red for delete */
-  color: #f44336;
-  border: none;
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 0.7em;
-  cursor: pointer;
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  transition: background-color 0.2s, color 0.2s;
-}
-
-.delete-time-slot-btn:hover {
-  background-color: #ef9a9a;
-  color: white;
-}
-
-/* Engine Details Page */
-.engine-details-page {
-  display: none; /* Hidden by default */
-  flex-direction: column;
-  gap: 20px;
-}
-
-.engine-details-header {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.engine-details-header h2 {
-  margin: 0;
-  font-size: 1.8em;
-  color: #333;
-}
-
-.engine-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-}
-
-.engine-case {
-  background-color: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: relative;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.engine-case:hover {
-  border-color: #b0b0b0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.engine-case.drag-over {
-    border: 2px dashed #4CAF50;
-    background-color: rgba(76, 175, 80, 0.1);
-}
-
-.engine-case h3 {
-  margin: 0 0 5px 0;
-  font-size: 1.3em;
-  color: #333;
-}
-
-.engine-case .places-count {
-  font-size: 0.9em;
-  color: #666;
-  margin-bottom: 10px;
-}
-
-.personnel-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.personnel-list li {
-  font-size: 1em;
-  color: #555;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.personnel-list li strong {
-  color: #333;
-  min-width: 80px; /* Align roles */
-}
-
-.unqualified-agent {
-  color: #f44336; /* Red for unqualified agent */
-  font-weight: 500;
-}
-
-.missing-required-role {
-  color: #ff9800; /* Orange for missing required role */
-  font-weight: 500;
-}
-
-.assign-engine-personnel-btn {
-  padding: 8px 15px;
-  background-color: #007bff; /* Keep blue for this specific action */
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9em;
-  align-self: flex-start; /* Align left */
-  margin-top: auto; /* Push to bottom */
-  transition: background-color 0.2s, transform 0.1s;
-}
-
-.assign-engine-personnel-btn:hover {
-  background-color: #0056b3;
-  transform: translateY(-1px);
-}
-
-/* INDISPO overlay for large engine cases */
-.engine-indispo-overlay {
-    position: absolute;
-    inset: 0;
-    background-color: rgba(244, 67, 54, 0.8); /* Red overlay with transparency */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2.5em;
-    color: white;
-    font-weight: bold;
-    border-radius: 8px;
-    z-index: 10;
-}
-
-/* Custom Modal General Styles */
-.custom-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    font-family: 'Inter', sans-serif;
-    animation: fadeIn 0.3s ease-out;
-}
-
-.custom-modal .modal-content {
-    background-color: #ffffff;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    width: 90%;
-    max-width: 700px; /* Wider for personnel assignment */
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    position: relative;
-}
-
-.custom-modal h2 {
-    margin: 0;
-    font-size: 1.8em;
-    color: #333;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #eee;
-    text-align: center;
-}
-
-.modal-body-assignment {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
-}
-
-.modal-section {
-    flex: 1;
-    min-width: 280px; /* Minimum width for each section */
-    background-color: #f9f9f9;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 15px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.modal-section h3 {
-    margin: 0 0 10px 0;
-    font-size: 1.2em;
-    color: #555;
-    text-align: center;
-}
-
-.agent-list-drag-area, .roles-drop-area {
-    min-height: 150px;
-    border: 1px dashed #ccc;
-    border-radius: 6px;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    overflow-y: auto;
-    background-color: #fdfdfd;
-}
-
-.agent-list-drag-area.drag-over, .roles-drop-area.drag-over {
-    border: 2px dashed #4CAF50;
-    background-color: rgba(76, 175, 80, 0.1);
-}
-
-.modal-available-agent-slot {
-    background-color: #e8f5e9; /* Light green for available agents */
-    border: 1px solid #a5d6a7;
-    border-radius: 6px;
-    padding: 8px 12px;
-    cursor: grab;
-    font-weight: 500;
-    color: #333;
-    transition: background-color 0.2s, border-color 0.2s;
-}
-
-.modal-available-agent-slot:hover {
-    background-color: #dcedc8;
-    border-color: #8bc34a;
-}
-
-.modal-available-agent-slot.dragging-modal {
-    opacity: 0.6;
-    border-style: dashed;
-    border-color: #4CAF50;
-    box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
-}
-
-.modal-role-slot {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    padding: 8px;
-    background-color: #f5f5f5;
-}
-
-.modal-role-slot .role-name {
-    font-weight: 600;
-    color: #555;
-    font-size: 0.9em;
-}
-
-.modal-role-slot .role-name.required-role {
-    color: #dc3545; /* Red for required roles */
-}
-
-.assigned-agent-placeholder {
-    background-color: #ffffff;
-    border: 1px dashed #ccc;
-    border-radius: 6px;
-    min-height: 40px; /* Ensure drop target is visible */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #888;
-    font-style: italic;
-    padding: 8px;
-    position: relative; /* For remove button */
-    transition: background-color 0.2s, border-color 0.2s;
-}
-
-.assigned-agent-placeholder.filled {
-    border: 1px solid #a5d6a7; /* Green border if filled */
-    background-color: #e8f5e9;
-    color: #333;
-    font-style: normal;
-}
-
-.assigned-agent-placeholder.drag-over {
-    border: 2px dashed #4CAF50;
-    background-color: rgba(76, 175, 80, 0.1);
-}
-
-.assigned-agent-name {
-    font-weight: 500;
-    cursor: grab;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.unqualified-agent-modal {
-    color: #f44336; /* Red for unqualified in modal */
-    font-weight: 600;
-}
-
-.remove-assigned-agent-btn {
-    position: absolute;
-    top: 3px;
-    right: 3px;
-    background-color: #f44336;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 0.7em;
-    cursor: pointer;
-    line-height: 1;
-    transition: background-color 0.2s;
-}
-
-.remove-assigned-agent-btn:hover {
-    background-color: #d32f2f;
-}
-
-.modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
-    margin-top: 15px;
-}
-
-.btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 6px; /* Slightly smaller border-radius for buttons */
-    cursor: pointer;
-    font-size: 0.95em;
-    font-weight: 500;
-    transition: background-color 0.2s ease, transform 0.1s ease;
-}
-
-.btn-primary {
-    background-color: #4CAF50; /* Primary green */
-    color: white;
-}
-.btn-primary:hover {
-    background-color: #43A047;
-    transform: translateY(-1px);
-}
-.btn-secondary {
-    background-color: #9e9e9e; /* Muted grey for secondary */
-    color: white;
-}
-.btn-secondary:hover {
-    background-color: #757575;
-    transform: translateY(-1px);
-}
-
-/* Modale de sélection de plage horaire */
-.modal-form-group {
-    margin-bottom: 15px;
-    display: flex;
-    flex-direction: column;
-}
-
-.modal-form-group label {
-    font-weight: 600;
-    margin-bottom: 5px;
-    color: #555;
-}
-
-.modal-form-group select {
-    padding: 8px 12px;
-    border: 1px solid #dcdcdc;
-    border-radius: 6px;
-    font-size: 1em;
-    color: #333;
-    background-color: #ffffff;
-    cursor: pointer;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.modal-form-group select:focus {
-    border-color: #4CAF50;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
-}
-
-/* Responsive adjustments */
-@media (max-width: 1024px) {
-  .roster-main-content {
-    flex-direction: column;
-  }
-
-  .available-personnel, .on-duty-agents, .roster-grid-section {
-    max-width: 100%;
-    min-width: unset;
-  }
-}
-
-@media (max-width: 768px) {
-  .roster-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .header-left {
-    flex-direction: column;
-    align-items: flex-start;
-    width: 100%;
-  }
-  .date-navigation-buttons, .refresh-button {
-    width: 100%;
-  }
-  .refresh-button {
-    justify-content: center;
-  }
-  .roster-wrapper {
-    padding: 15px;
-  }
-  .roster-main-content > section {
-    padding: 15px;
-  }
-  .modal-body-assignment {
-      flex-direction: column;
-  }
-  .modal-section {
-      min-width: unset;
-      width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  body {
-    padding: 10px;
-  }
-  .roster-wrapper {
-    padding: 10px;
-  }
-  .roster-header h1 {
-    font-size: 1.5em;
-  }
-  .back-button, .date-selector input, .date-navigation-buttons button, .refresh-button,
-  .time-slot-button, .add-time-slot-btn, .assign-engine-personnel-btn, .btn {
-    font-size: 0.85em;
-    padding: 6px 10px;
-  }
-  .on-duty-agents-grid {
-      grid-template-columns: 1fr; /* Stack on mobile */
-  }
-  .roster-table {
-      font-size: 0.85em;
-  }
-  .roster-table th, .roster-table td {
-      padding: 8px;
-  }
-  .engine-indispo-overlay-mini {
-      font-size: 0.8em;
-  }
-  .engine-case h3 {
-      font-size: 1.1em;
-  }
 }
 `;
 
@@ -1118,7 +147,7 @@ const engineDetails = {
             { id: 'ca_ccf', name: 'CA CCF', required: true },
             { id: 'cod_2', name: 'CD CCF', required: true },
             { id: 'eq1_ccf', name: 'EQ1 CCF', required: true },
-            { id: 'eq2_ccf', name: 'EQ2 CCF', required: false }
+            { id: 'eq2_ccf',name: 'EQ2 CCF', required: false },
         ],
         criticalRoles: ['cod_2', 'ca_ccf']
     },
@@ -1138,7 +167,7 @@ const engineDetails = {
             { id: 'cod_0', name: 'CD VPMA', required: true },
             { id: 'eq_vpma', name: 'EQ VPMA', required: false }
         ],
-        criticalRoles: ['none', 'none'] // A revoir si des rôles critiques sont pertinents ici
+        criticalRoles: ['cod_0', 'eq_vpma'] // A revoir si des rôles critiques sont pertinents ici
     }
 };
 
@@ -2260,4 +1289,855 @@ async function loadRosterConfig(dateKey) {
 
             modal.style.display = 'flex';
 
-            saveButton.onclick = n
+            saveButton.onclick = null;
+            cancelButton.onclick = null;
+
+            saveButton.onclick = () => {
+                const newStart = startTimeSelect.value;
+                const newEnd = endTimeSelect.value;
+                modal.style.display = 'none';
+                callback(newStart, newEnd);
+            };
+
+            cancelButton.onclick = () => {
+                modal.style.display = 'none';
+            };
+
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                modal.style.display = 'none';
+                }
+            };
+            }
+
+
+            // Variables pour le drag & drop GLOBAL (entre listes et grille)
+            let draggedAgentId = null;
+            let draggedElement = null;
+
+            function handleDragStart(e) {
+            draggedAgentId = e.target.dataset.agentId;
+            if (draggedAgentId) {
+                e.dataTransfer.setData('text/plain', draggedAgentId);
+                e.dataTransfer.effectAllowed = 'move';
+                draggedElement = e.target;
+                draggedElement.classList.add('dragging');
+            } else {
+                e.preventDefault();
+                console.warn("Dragstart aborted (GLOBAL): No agentId found on element.", e.target);
+            }
+            }
+
+            document.addEventListener('dragend', (e) => {
+                if (draggedElement) {
+                    draggedElement.classList.remove('dragging');
+                    draggedElement = null;
+                }
+                draggedAgentId = null;
+            });
+
+            function handleDragOver(e) {
+            e.preventDefault();
+            const target = e.target.closest('.on-duty-slot') || 
+                            e.target.closest('.roster-cell') || 
+                            e.target.closest('.engine-case') || 
+                            e.target.closest('.modal-role-slot') || 
+                            e.target.closest('.modal-available-agent-slot') || 
+                            e.target.closest('.assigned-agent-placeholder');
+            
+            if (target) {
+                e.dataTransfer.dropEffect = 'move';
+                if (!target.classList.contains('drag-over')) {
+                target.classList.add('drag-over');
+                }
+            } else {
+                e.dataTransfer.dropEffect = 'none';
+            }
+            }
+
+            function handleDragLeave(e) {
+            const target = e.target.closest('.on-duty-slot') || e.target.closest('.roster-cell') || e.target.closest('.engine-case') || e.target.closest('.modal-role-slot') || e.target.closest('.modal-available-agent-slot') || e.target.closest('.assigned-agent-placeholder');
+            if (target) {
+                target.classList.remove('drag-over');
+            }
+            }
+
+            async function handleDropOnDuty(e) {
+            e.preventDefault();
+            const targetSlot = e.target.closest('.on-duty-slot');
+            if (targetSlot) {
+                targetSlot.classList.remove('drag-over');
+            }
+
+            if (!targetSlot) {
+                console.warn("DropOnDuty: Target slot not found. Aborting.");
+                return;
+            }
+
+            const slotIndex = parseInt(targetSlot.dataset.slotIndex);
+            const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+            const agentId = e.dataTransfer.getData('text/plain');
+
+            if (!agentId || agentId === 'none') {
+                console.warn("DropOnDuty: Agent ID is missing or 'none'. Aborting drop.");
+                return;
+            }
+
+            const existingIndex = appData[dateKey].onDutyAgents.indexOf(agentId);
+            if (existingIndex !== -1 && existingIndex !== slotIndex) {
+                appData[dateKey].onDutyAgents[existingIndex] = 'none';
+            }
+            
+            const agentCurrentlyInSlot = appData[dateKey].onDutyAgents[slotIndex];
+            if (agentCurrentlyInSlot && agentCurrentlyInSlot !== 'none' && agentCurrentlyInSlot !== agentId) {
+            }
+
+            if (appData[dateKey] && appData[dateKey].timeSlots) {
+                Object.keys(appData[dateKey].timeSlots).forEach(sId => {
+                    const currentSlotEngines = appData[dateKey].timeSlots[sId].engines;
+                    if (currentSlotEngines) {
+                        Object.keys(currentSlotEngines).forEach(eType => {
+                            const personnel = currentSlotEngines[eType]?.personnel;
+                            if (personnel) {
+                                for (const roleId in personnel) {
+                                    if (personnel[roleId] === agentId) {
+                                        personnel[roleId] = 'none';
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
+            appData[dateKey].onDutyAgents[slotIndex] = agentId;
+            await saveDailyRoster(dateKey);
+            
+            updateDateDisplay();
+            
+            draggedAgentId = null;
+            }
+
+            async function handleDropOnEngine(e) {
+                e.preventDefault();
+                const targetElement = e.target.closest('.engine-case') || e.target.closest('.roster-cell');
+                if (targetElement) {
+                    targetElement.classList.remove('drag-over');
+                }
+
+                const agentId = e.dataTransfer.getData('text/plain');
+                const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+
+                if (!agentId || agentId === 'none') {
+                    console.warn("DropOnEngine: Agent ID is missing or 'none'. Aborting drop.");
+                    return;
+                }
+                if (!targetElement) {
+                    console.warn("Drop non valide : pas sur un engin ou une cellule de roster.");
+                    return;
+                }
+
+                const slotId = targetElement.dataset.slotId;
+                const engineType = targetElement.dataset.engineType;
+
+                if (!slotId || !engineType) {
+                    console.warn("DropOnEngine: Missing slotId or engineType on targetElement.", targetElement);
+                    return;
+                }
+
+                const onDutyAgents = appData[dateKey]?.onDutyAgents;
+                if (onDutyAgents) {
+                const onDutyIndex = onDutyAgents.indexOf(agentId);
+                if (onDutyIndex !== -1) {
+                    onDutyAgents[onDutyIndex] = 'none';
+                    await saveDailyRoster(dateKey);
+                }
+                }
+
+
+                const currentEngineAssignment = appData[dateKey]?.timeSlots?.[slotId]?.engines?.[engineType]?.personnel;
+                if (!currentEngineAssignment) {
+                    console.error(`Impossible de trouver l'affectation de l'engin pour ${engineType} dans le créneau ${slotId}.`);
+                    return;
+                }
+                let assigned = false;
+
+                const engineConfig = engineDetails[engineType];
+                if (!engineConfig) {
+                    console.error(`Configuration d'engin introuvable pour le type : ${engineType}`);
+                    return;
+                }
+
+                const agentToAssign = allAgents.find(a => a._id === agentId);
+                if (!agentToAssign) {
+                    console.error("Agent à affecter non trouvé:", agentId);
+                    return;
+                }
+
+                for (const roleDef of engineConfig.roles) {
+                    const roleId = roleDef.id;
+                    if (currentEngineAssignment[roleId] === 'none') {
+                        if (isAgentQualifiedForRole(agentToAssign, roleId)) {
+                            currentEngineAssignment[roleId] = agentId;
+                            assigned = true;
+                            break;
+                        } else {
+                        }
+                    }
+                }
+                
+                if (assigned) {
+                await saveRosterConfig(dateKey);
+                updateDateDisplay();
+                } else {
+                    displayMessageModal("Affectation Impossible", "L'agent n'a pas pu être affecté : aucun rôle libre ou l'agent n'est pas qualifié pour les rôles disponibles dans cet engin. Veuillez utiliser la modale de gestion détaillée si nécessaire.", "warning");
+                    console.warn(`Agent ${agentId} could not be assigned to ${engineType}. All roles occupied or no suitable qualified role.`);
+                }
+                draggedAgentId = null;
+            }
+
+
+            function createOnDutySlots() {
+            onDutyAgentsGrid.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const slot = document.createElement('div');
+                slot.classList.add('on-duty-slot');
+                slot.dataset.slotIndex = i;
+                onDutyAgentsGrid.appendChild(slot);
+            }
+            }
+
+            function displayEnginesForSlot(dateKey, slotId) {
+            const rosterContent = document.querySelector('.roster-content');
+            rosterContent.style.display = 'none';
+
+            engineDetailsPage.style.display = 'block';
+
+            const currentSlot = appData[dateKey]?.timeSlots?.[slotId];
+            if (!currentSlot) {
+                console.error("Créneau horaire non trouvé:", slotId);
+                return;
+            }
+
+            const engineGridContainer = engineDetailsPage.querySelector('.engine-grid');
+            engineGridContainer.innerHTML = '';
+
+            Object.entries(currentSlot.engines || {}).forEach(([engineType, assignment]) => {
+                const engineCase = document.createElement('div');
+                engineCase.classList.add('engine-case');
+                engineCase.dataset.slotId = slotId;
+                engineCase.dataset.engineType = engineType;
+
+                if (!assignment.personnel || typeof assignment.personnel !== 'object') {
+                    assignment.personnel = createEmptyEngineAssignment(engineType);
+                }
+            
+                const engConfig = engineDetails[engineType];
+                if (!engConfig) {
+                    console.warn(`Configuration d'engin introuvable pour le type : ${engineType}.`);
+                    engineCase.textContent = "Erreur config";
+                    engineGridContainer.appendChild(engineCase);
+                    return; 
+                }
+
+                let isEngineIndispo = false;
+                if (engConfig.criticalRoles) {
+                    for (const criticalRoleId of engConfig.criticalRoles) {
+                        const assignedAgentId = (assignment && assignment.personnel ? assignment.personnel[criticalRoleId] : undefined);
+                        const assignedAgent = allAgents.find(a => a._id === assignedAgentId);
+
+                        if (!assignedAgentId || assignedAgentId === 'none' || assignedAgentId === null ||
+                            (assignedAgent && !isAgentQualifiedForRole(assignedAgent, criticalRoleId))) {
+                            isEngineIndispo = true;
+                            break;
+                        }
+                    }
+                }
+
+                engineCase.innerHTML = `
+                <h3>${engConfig.name}</h3>
+                <span class="places-count">${engConfig.roles.length} places</span>
+                <ul class="personnel-list">
+                    ${engConfig.roles.map(roleDef => {
+                    const agentId = (assignment && assignment.personnel ? assignment.personnel[roleDef.id] : undefined);
+                    const agent = allAgents.find(a => a._id === agentId);
+                    const isQualified = agent && isAgentQualifiedForRole(agent, roleDef.id); 
+                    const agentDisplay = agent && agentId !== 'none' ? `${agent.prenom} ${agent.nom}` : '-----------';
+                    
+                    let roleClass = '';
+                    let roleTitle = '';
+                    if (agentId !== 'none' && !isQualified) {
+                        roleClass = 'unqualified-agent';
+                        roleTitle = `Agent ${agent.prenom} ${agent.nom} non qualifié pour le rôle ${roleDef.name}`;
+                    } else if (roleDef.required && (!agentId || agentId === 'none')) {
+                        roleClass = 'missing-required-role';
+                        roleTitle = `Rôle obligatoire ${roleDef.name} non pourvu.`;
+                    }
+
+                    return `<li class="${roleClass}" title="${roleTitle}"><strong>${roleDef.name}:</strong> ${agentDisplay}</li>`;
+                    }).join('')}
+                </ul>
+                <button class="assign-engine-personnel-btn">Gérer le personnel</button>
+                ${isEngineIndispo ? '<div class="engine-indispo-overlay">INDISPO</div>' : ''} `;
+                engineCase.querySelector('.assign-engine-personnel-btn').addEventListener('click', () => {
+                openPersonnelAssignmentModal(dateKey, slotId, engineType);
+                });
+
+                engineCase.addEventListener('dragover', handleDragOver);
+                engineCase.addEventListener('dragleave', handleDragLeave);
+                engineCase.addEventListener('drop', handleDropOnEngine);
+
+                engineGridContainer.appendChild(engineCase);
+            });
+            }
+
+            // --------------------------------------------------
+            // 5️⃣ Nouvelle Modale d'affectation du personnel aux engins
+            // --------------------------------------------------
+
+            function openPersonnelAssignmentModal(dateKey, slotId, engineType) {
+                const currentSlot = appData[dateKey].timeSlots[slotId];
+                if (!currentSlot) {
+                    console.error("Créneau horaire introuvable pour la modale:", slotId);
+                    return;
+                }
+                const currentEngine = currentSlot.engines[engineType];
+                if (!currentEngine) {
+                    console.error("Engin introuvable pour la modale:", engineType);
+                    return;
+                }
+
+                const engineConfig = engineDetails[engineType];
+                if (!engineConfig) {
+                    console.error(`Configuration d'engin introuvable pour le type : ${engineType}.`);
+                    return;
+                }
+
+                personnelAssignmentModalTitle.textContent = `Affecter le personnel pour ${engineConfig.name} (${currentSlot.range})`;
+                availableAgentsInModalList.innerHTML = '';
+                engineRolesContainer.innerHTML = '';
+
+                const onDutyAgents = appData[dateKey]?.onDutyAgents.filter(id => id !== 'none').map(id => allAgents.find(a => a._id === id));
+                
+                const assignedAgentsInThisEngine = Object.values(currentEngine.personnel || {}).filter(id => id !== 'none');
+
+                const agentsForModal = onDutyAgents.filter(agent => agent && !assignedAgentsInThisEngine.includes(agent._id));
+
+                if (agentsForModal.length === 0) {
+                    availableAgentsInModalList.innerHTML = '<p class="no-available-personnel-modal">Aucun agent d\'astreinte disponible pour l\'affectation à cet engin.</p>';
+                } else {
+                    agentsForModal.forEach(agent => {
+                        const agentDiv = document.createElement('div');
+                        agentDiv.classList.add('modal-available-agent-slot');
+                        agentDiv.dataset.agentId = agent._id;
+                        agentDiv.setAttribute('draggable', true);
+                        agentDiv.addEventListener('dragstart', handleModalDragStart);
+                        agentDiv.textContent = `${agent.prenom} ${agent.nom}`;
+                        availableAgentsInModalList.appendChild(agentDiv);
+                    });
+                }
+
+                engineConfig.roles.forEach(roleDef => {
+                    const roleDiv = document.createElement('div');
+                    roleDiv.classList.add('modal-role-slot');
+                    roleDiv.dataset.role = roleDef.id;
+                    roleDiv.dataset.slotId = slotId;
+                    roleDiv.dataset.engineType = engineType;
+
+                    const agentIdInRole = currentEngine.personnel[roleDef.id];
+                    const agentInRole = allAgents.find(a => a._id === agentIdInRole);
+
+                    const isQualified = agentInRole && isAgentQualifiedForRole(agentInRole, roleDef.id); 
+
+                    let placeholderContent;
+                    let placeholderClasses = ['assigned-agent-placeholder'];
+                    let roleNameClasses = ['role-name'];
+
+                    if (agentIdInRole !== 'none') {
+                        placeholderClasses.push('filled');
+                        let agentSpanClasses = ['assigned-agent-name'];
+                        let agentSpanTitle = '';
+                        if (!isQualified) {
+                            agentSpanClasses.push('unqualified-agent-modal');
+                            agentSpanTitle = `Non qualifié pour ce rôle (${roleDef.name})`;
+                        }
+                        placeholderContent = `
+                            <span class="${agentSpanClasses.join(' ')}" data-agent-id="${agentInRole._id}" draggable="true" title="${agentSpanTitle}">${agentInRole.prenom} ${agentInRole.nom}</span>
+                            <button class="remove-assigned-agent-btn">x</button>
+                        `;
+                    } else {
+                        placeholderContent = 'Glisser un agent ici';
+                        if (roleDef.required) {
+                            roleNameClasses.push('required-role');
+                            placeholderContent = `Glisser un agent ici (Obligatoire)`;
+                        }
+                    }
+                    
+                    roleDiv.innerHTML = `
+                        <span class="${roleNameClasses.join(' ')}">${roleDef.name}${roleDef.required ? '*' : ''}:</span>
+                        <div class="${placeholderClasses.join(' ')}" 
+                            data-current-agent-id="${agentIdInRole || 'none'}">
+                            ${placeholderContent}
+                        </div>
+                    `;
+                    
+                    const placeholder = roleDiv.querySelector('.assigned-agent-placeholder');
+                    placeholder.addEventListener('dragover', handleDragOver);
+                    placeholder.addEventListener('dragleave', handleDragLeave);
+                    placeholder.addEventListener('drop', (e) => handleModalDropOnRole(e, dateKey, slotId, engineType, roleDef.id));
+
+                    const assignedAgentSpan = roleDiv.querySelector('.assigned-agent-name');
+                    if (assignedAgentSpan) {
+                        assignedAgentSpan.addEventListener('dragstart', handleModalDragStart);
+                    }
+
+                    const removeBtn = roleDiv.querySelector('.remove-assigned-agent-btn');
+                    if (removeBtn) {
+                        removeBtn.addEventListener('click', () => {
+                            currentEngine.personnel[roleDef.id] = 'none';
+                            savePersonnelAssignments(dateKey);
+                            openPersonnelAssignmentModal(dateKey, slotId, engineType);
+                        });
+                    }
+
+                    engineRolesContainer.appendChild(roleDiv);
+                });
+
+                personnelAssignmentModal.style.display = 'flex';
+            }
+
+            function handleModalDragStart(e) {
+                const agentId = e.target.dataset.agentId;
+                if (agentId) {
+                    e.dataTransfer.setData('text/plain', agentId);
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.target.classList.add('dragging-modal');
+                } else {
+                    e.preventDefault();
+                    console.warn("Modal Dragstart aborted: No agentId found on element.", e.target);
+                }
+            }
+
+            personnelAssignmentModal.addEventListener('dragend', (e) => {
+                const draggedModalElement = document.querySelector('.dragging-modal');
+                if (draggedModalElement) {
+                    draggedModalElement.classList.remove('dragging-modal');
+                }
+            });
+
+
+            async function handleModalDropOnRole(e, dateKey, slotId, engineType, targetRoleId) {
+                e.preventDefault();
+                const placeholder = e.target.closest('.assigned-agent-placeholder');
+                if (placeholder) {
+                    placeholder.classList.remove('drag-over');
+                }
+
+                const newAgentId = e.dataTransfer.getData('text/plain');
+                if (!newAgentId || newAgentId === 'none') {
+                    console.warn("handleModalDropOnRole: Agent ID is missing or 'none'. Aborting drop.");
+                    return;
+                }
+
+                const agentToAssign = allAgents.find(a => a._id === newAgentId);
+                if (!agentToAssign) {
+                    console.error("Agent non trouvé pour l'affectation:", newAgentId);
+                    return;
+                }
+
+                if (!isAgentQualifiedForRole(agentToAssign, targetRoleId)) {
+                    const roleName = engineDetails[engineType]?.roles.find(r => r.id === targetRoleId)?.name || targetRoleId;
+                    displayMessageModal("Qualification Requise", `L'agent ${agentToAssign.prenom} ${agentToAssign.nom} n'a pas la qualification requise pour le rôle "${roleName}".`, "error");
+                    return;
+                }
+
+                const currentEnginePersonnel = appData[dateKey].timeSlots[slotId].engines[engineType].personnel;
+
+                // Retirer l'agent de tous les autres rôles dans CET engin (pour éviter qu'il occupe plusieurs rôles dans le même engin)
+                for (const roleIdInEngine in currentEnginePersonnel) {
+                    if (currentEnginePersonnel[roleIdInEngine] === newAgentId) {
+                        currentEnginePersonnel[roleIdInEngine] = 'none';
+                        break; // Supprime une seule fois si l'agent est trouvé
+                    }
+                }
+
+                // Assigner l'agent au nouveau rôle
+                currentEnginePersonnel[targetRoleId] = newAgentId;
+
+                await saveRosterConfig(dateKey);
+                // On rafraîchit la modale pour refléter les changements
+                openPersonnelAssignmentModal(dateKey, slotId, engineType);
+                // On rafraîchit l'affichage principal
+                updateDateDisplay();
+            }
+
+
+            // --- Fonctions de fermeture de la modale ---
+            closePersonnelAssignmentModalBtn.addEventListener('click', () => {
+                personnelAssignmentModal.style.display = 'none';
+                showMainRosterGrid();
+            });
+            personnelAssignmentModal.addEventListener('click', (e) => {
+                if (e.target === personnelAssignmentModal) {
+                    personnelAssignmentModal.style.display = 'none';
+                    showMainRosterGrid();
+                }
+            });
+
+
+            async function savePersonnelAssignments(dateKey) {
+            const currentKey = dateKey || formatDateToYYYYMMDD(currentRosterDate);
+            await saveRosterConfig(currentKey);
+            updateDateDisplay();
+            }
+
+
+            function assignPersonnelToSlot(dateKey, slotId) { // Ajout de slotId comme paramètre
+            if (!appData[dateKey]) {
+                console.warn("assignPersonnelToSlot: Pas de données de roster pour la date spécifiée.");
+                return;
+            }
+            const currentSlot = appData[dateKey].timeSlots[slotId];
+            if (!currentSlot) {
+                console.warn("assignPersonnelToSlot: Créneau horaire non trouvé:", slotId);
+                return;
+            }
+
+            const onDutyAgents = appData[dateKey].onDutyAgents.filter(id => id !== 'none');
+
+            // Réinitialiser les affectations pour ce créneau/engin avant de réassigner
+            Object.keys(currentSlot.engines).forEach(engineType => {
+                Object.keys(currentSlot.engines[engineType].personnel).forEach(roleId => {
+                    currentSlot.engines[engineType].personnel[roleId] = 'none';
+                });
+            });
+
+            // Créer une copie triée des agents d'astreinte disponibles pour l'affectation automatique
+            // Triage: agents avec plus de qualifications en premier, puis par ID (ou nom)
+            const availableAgentsForAuto = [...onDutyAgents].sort((aId1, aId2) => {
+                const agent1 = allAgents.find(a => a._id === aId1);
+                const agent2 = allAgents.find(a => a._id === aId2);
+                return (agent2?.qualifications?.length || 0) - (agent1?.qualifications?.length || 0); // Plus de qualifs en premier
+            });
+
+
+            // Trier les types d'engin : ceux avec le plus de rôles critiques en premier, puis le plus de rôles au total
+            const sortedEngineTypes = Object.keys(engineDetails).sort((a, b) => {
+                const criticalA = engineDetails[a].criticalRoles?.length || 0;
+                const criticalB = engineDetails[b].criticalRoles?.length || 0;
+                const rolesA = engineDetails[a].roles?.length || 0;
+                const rolesB = engineDetails[b].roles?.length || 0;
+                return (criticalB - criticalA) || (rolesB - rolesA); // Plus de rôles critiques, puis plus de rôles au total
+            });
+
+            sortedEngineTypes.forEach(engineType => {
+                const rolesForEngine = engineDetails[engineType].roles;
+                // Trier les rôles : critiques/obligatoires en premier
+                rolesForEngine.sort((rA, rB) => {
+                    const isCriticalA = engineDetails[engineType].criticalRoles?.includes(rA.id);
+                    const isCriticalB = engineDetails[engineType].criticalRoles?.includes(rB.id);
+                    const isRequiredA = rA.required;
+                    const isRequiredB = rB.required;
+
+                    // Priorité 1: Rôles critiques ET obligatoires
+                    if (isCriticalA && isRequiredA && (!isCriticalB || !isRequiredB)) return -1;
+                    if ((!isCriticalA || !isRequiredA) && isCriticalB && isRequiredB) return 1;
+                    // Priorité 2: Rôles obligatoires (si pas déjà géré par P1)
+                    if (isRequiredA && !isRequiredB) return -1;
+                    if (!isRequiredA && isRequiredB) return 1;
+                    // Priorité 3: Rôles critiques (si pas déjà géré par P1/P2)
+                    if (isCriticalA && !isCriticalB) return -1;
+                    if (!isCriticalA && isCriticalB) return 1;
+                    return 0; // Pas de différence de priorité
+                }).forEach(roleDef => {
+                    const roleId = roleDef.id;
+                    if (availableAgentsForAuto.length > 0) {
+                        let bestAgentIndex = -1;
+                        // Trouver le meilleur agent qualifié DANS la liste des agents disponibles
+                        for (let i = 0; i < availableAgentsForAuto.length; i++) {
+                            const agent = allAgents.find(a => a._id === availableAgentsForAuto[i]);
+                            if (agent && isAgentQualifiedForRole(agent, roleId)) {
+                                bestAgentIndex = i;
+                                break;
+                            }
+                        }
+
+                        let agentToAssignId;
+                        if (bestAgentIndex !== -1) {
+                            // Supprimer l'agent de la liste des disponibles une fois affecté
+                            agentToAssignId = availableAgentsForAuto.splice(bestAgentIndex, 1)[0];
+                        } else if (!roleDef.required) {
+                            // Si le rôle n'est pas obligatoire et aucun qualifié, prendre le premier disponible
+                            agentToAssignId = availableAgentsForAuto.shift(); 
+                            const agent = allAgents.find(a => a._id === agentToAssignId);
+                            if (agent) {
+                                console.warn(`Génération auto: Aucun agent qualifié trouvé pour le rôle '${roleId}' dans l'engin '${engineType}'. Agent '${agent.prenom} ${agent.nom}' affecté sans qualification spécifique (rôle non obligatoire).`);
+                            }
+                        } else {
+                            console.warn(`Génération auto: Rôle obligatoire '${roleId}' dans l'engin '${engineType}' n'a pas pu être pourvu par un agent qualifié ou un agent du tout.`);
+                        }
+                        
+                        if (agentToAssignId) {
+                            currentSlot.engines[engineType].personnel[roleId] = agentToAssignId;
+                        }
+                    } else {
+                        console.warn(`Génération auto: Plus d'agents disponibles pour affecter le rôle '${roleId}' dans l'engin '${engineType}'.`);
+                    }
+                });
+            });
+            }
+
+            async function generateAutomaticRoster(dateKey) {
+            if (!appData[dateKey]) {
+                console.warn("Pas de données de roster pour la date spécifiée. Impossible de générer automatiquement.");
+                return;
+            }
+            showSpinner();
+            // Réinitialiser les affectations de tous les engins pour tous les créneaux de la date
+            Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
+                Object.keys(appData[dateKey].timeSlots[slotId].engines).forEach(engineType => {
+                    appData[dateKey].timeSlots[slotId].engines[engineType].personnel = createEmptyEngineAssignment(engineType);
+                });
+            });
+
+
+            Object.keys(appData[dateKey].timeSlots).forEach(slotId => {
+                assignPersonnelToSlot(dateKey, slotId);
+            });
+            await saveRosterConfig(dateKey);
+            await saveDailyRoster(dateKey); // Sauvegarde également les agents d'astreinte après la génération
+            updateDateDisplay();
+            hideSpinner();
+            }
+
+            function showMainRosterGrid() {
+            engineDetailsPage.style.display = 'none';
+            document.querySelector('.roster-content').style.display = 'block';
+            document.querySelectorAll('.time-slot-button').forEach(b => b.classList.remove('active'));
+            }
+
+
+            document.addEventListener('DOMContentLoaded', async () => {
+            // Inject custom CSS
+            const styleElement = document.createElement('style');
+            styleElement.textContent = inlineCss;
+            document.head.appendChild(styleElement);
+
+            const role = sessionStorage.getItem("userRole");
+            if (role !== "admin") {
+                // Rediriger si l'utilisateur n'est pas admin, en effaçant le token
+                sessionStorage.clear();
+                return window.location.href = "index.html";
+            }
+
+            rosterDateInput.valueAsDate = currentRosterDate;
+
+            prevDayButton.addEventListener('click', async () => {
+                currentRosterDate.setDate(currentRosterDate.getDate() - 1);
+                await updateDateDisplay();
+            });
+            nextDayButton.addEventListener('click', async () => {
+                currentRosterDate.setDate(currentRosterDate.getDate() + 1);
+                await updateDateDisplay();
+            });
+
+            rosterDateInput.addEventListener('change', async (e) => {
+                currentRosterDate = e.target.valueAsDate;
+                await updateDateDisplay();
+            });
+
+            generateAutoBtn.addEventListener('click', async () => {
+                const confirmed = await confirm("Générer automatiquement ce planning ? Cela écrasera les affectations manuelles et pourra modifier les agents d'astreinte.");
+                if (confirmed) {
+                await generateAutomaticRoster(formatDateToYYYYMMDD(currentRosterDate));
+                displayMessageModal("Génération Automatique", "Le planning a été généré automatiquement avec succès.", "success");
+                }
+            });
+
+            backToRosterBtn.addEventListener('click', showMainRosterGrid);
+
+            createOnDutySlots(); // Cela initialise la grille d'astreinte
+
+            // Appel de updateDateDisplay pour charger les données et rendre l'interface dès le chargement de la page
+            await updateDateDisplay(); 
+
+            showMainRosterGrid(); // Affiche la grille principale après chargement initial complet.
+            });
+
+            // Fonctions utilitaires de la modale (qui étaient en commentaire dans les versions précédentes)
+            function minutesToHeure(mins) {
+                const h = Math.floor(mins / 60).toString().padStart(2, '0');
+                const m = (mins % 60).toString().padStart(2, '0');
+                return h + ':' + m;
+            }
+
+            // La fonction displayMessageModal est présente ici pour assurer sa disponibilité.
+            function displayMessageModal(title, message, type = "info", callback = null) {
+                let modal = document.getElementById('custom-message-modal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'custom-message-modal';
+                    modal.className = 'modal-overlay';
+                    document.body.appendChild(modal);
+
+                    // Styles CSS pour la modale (vous pouvez les déplacer dans un fichier CSS)
+                    const modalCss = `
+                        .modal-overlay {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background-color: rgba(0, 0, 0, 0.6);
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            z-index: 1000;
+                            font-family: 'Inter', sans-serif;
+                        }
+                        .modal-content {
+                            background-color: #fff;
+                            padding: 25px 35px;
+                            border-radius: 12px;
+                            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                            width: 90%;
+                            max-width: 450px;
+                            animation: fadeIn 0.3s ease-out;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 20px;
+                        }
+                        .modal-header {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            border-bottom: 1px solid #eee;
+                            padding-bottom: 15px;
+                            margin-bottom: 15px;
+                        }
+                        .modal-header h2 {
+                            margin: 0;
+                            color: #333;
+                            font-size: 1.5em;
+                        }
+                        .modal-body {
+                            color: #555;
+                            font-size: 1em;
+                            line-height: 1.6;
+                        }
+                        .modal-footer {
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: 10px;
+                            padding-top: 15px;
+                            border-top: 1px solid #eee;
+                            margin-top: 15px;
+                        }
+                        .btn {
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 0.95em;
+                            font-weight: 500;
+                            transition: background-color 0.2s ease, transform 0.1s ease;
+                        }
+                        .btn-primary {
+                            background-color: #007bff;
+                            color: white;
+                        }
+                        .btn-primary:hover {
+                            background-color: #0056b3;
+                            transform: translateY(-1px);
+                        }
+                        .btn-secondary {
+                            background-color: #6c757d;
+                            color: white;
+                        }
+                        .btn-secondary:hover {
+                            background-color: #5a6268;
+                            transform: translateY(-1px);
+                        }
+                        .modal-icon {
+                            font-size: 2em;
+                            margin-right: 15px;
+                            align-self: flex-start;
+                        }
+                        .modal-icon.info { color: #007bff; }
+                        .modal-icon.success { color: #28a745; }
+                        .modal-icon.warning { color: #ffc107; }
+                        .modal-icon.error { color: #dc3545; }
+                        .modal-icon.question { color: #6c757d; }
+
+                        @keyframes fadeIn {
+                            from { opacity: 0; transform: scale(0.9); }
+                            to { opacity: 1; transform: scale(1); }
+                        }
+                    `;
+                    const styleSheet = document.createElement("style");
+                    styleSheet.type = "text/css";
+                    styleSheet.innerText = modalCss;
+                    document.head.appendChild(styleSheet);
+                }
+
+                let iconHtml = '';
+                switch (type) {
+                    case 'info': iconHtml = '💡'; break;
+                    case 'success': iconHtml = '✅'; break;
+                    case 'warning': iconHtml = '⚠️'; break;
+                    case 'error': iconHtml = '❌'; break;
+                    case 'question': iconHtml = '❓'; break;
+                }
+
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <span class="modal-icon ${type}">${iconHtml}</span>
+                            <h2>${title}</h2>
+                        </div>
+                        <div class="modal-body">
+                            <p>${message}</p>
+                        </div>
+                        <div class="modal-footer">
+                            ${callback ? '<button id="modal-cancel-btn" class="btn btn-secondary">Annuler</button>' : ''}
+                            <button id="modal-ok-btn" class="btn btn-primary">OK</button>
+                        </div>
+                    </div>
+                `;
+
+                modal.style.display = 'flex';
+
+                const okBtn = modal.querySelector('#modal-ok-btn');
+                okBtn.onclick = () => {
+                    modal.style.display = 'none';
+                    if (callback) callback(true);
+                };
+
+                if (callback) {
+                    const cancelBtn = modal.querySelector('#modal-cancel-btn');
+                    cancelBtn.onclick = () => {
+                        modal.style.display = 'none';
+                        callback(false);
+                    };
+                }
+
+                modal.onclick = (e) => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                        if (callback) callback(false);
+                    }
+                };
+            }
+            // Remplacement des fonctions natives alert et confirm pour utiliser les modales personnalisées
+            // Ces lignes étaient déjà présentes à la fin du fichier, je les laisse telles quelles
+            // pour garantir qu'elles prennent le dessus sur les fonctions natives.
+            window.confirm = (message) => {
+                return new Promise((resolve) => {
+                    displayMessageModal("Confirmation", message, "question", (result) => {
+                        resolve(result);
+                    });
+                });
+            };
+            window.alert = (message) => {
+                displayMessageModal("Information", message, "info");
+            };
