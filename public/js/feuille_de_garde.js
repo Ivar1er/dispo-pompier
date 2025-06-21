@@ -877,7 +877,6 @@ async function loadRosterConfig(dateKey) {
                           ${engConfig.roles.map(roleDef => {
                               const agentId = (assignment && assignment.personnel ? assignment.personnel[roleDef.id] : undefined);
                               const agent = allAgents.find(a => a._id === agentId);
-                              const agentDisplay = agent && agentId !== 'none' ? `${agent.prenom.charAt(0)}. ${agent.nom}` : '';
                               const isQualified = agent && isAgentQualifiedForRole(agent, roleDef.id);
                               
                               let agentClass = '';
