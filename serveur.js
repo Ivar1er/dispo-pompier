@@ -43,6 +43,7 @@ const USERS_FILE_PATH          = path.join(PERSISTENT_DIR, 'users.json');
 const QUALIFICATIONS_FILE_PATH = path.join(PERSISTENT_DIR, 'qualifications.json');
 const GRADES_FILE_PATH         = path.join(PERSISTENT_DIR, 'grades.json');
 const FUNCTIONS_FILE_PATH      = path.join(PERSISTENT_DIR, 'functions.json'); // Maintenu pour compatibilité
+const ENGINES_FILE_PATH        = path.join(PERSISTENT_DIR, 'engines.json'); // NOUVEAU: Chemin pour les engins
 const ROSTER_CONFIG_DIR        = path.join(PERSISTENT_DIR, 'roster_configs');
 const DAILY_ROSTER_DIR         = path.join(PERSISTENT_DIR, 'daily_rosters');
 const AGENT_AVAILABILITY_DIR   = path.join(PERSISTENT_DIR, 'agent_availabilities'); // Dossier pour les dispo individuelles
@@ -52,6 +53,7 @@ let USERS = {};
 let AVAILABLE_QUALIFICATIONS = [];
 let AVAILABLE_GRADES = [];
 let AVAILABLE_FUNCTIONS = [];
+let AVAILABLE_ENGINES = []; // NOUVEAU: Variable pour stocker les engins
 
 // Mot de passe par défaut pour l'admin, utilisé si aucun fichier users.json n'existe au démarrage
 const DEFAULT_ADMIN_PASSWORD = 'supersecureadminpassword'; // À CHANGER EN PROD ET UTILISER UNE VARIABLE D'ENV !
@@ -189,7 +191,7 @@ async function saveUsers() {
     }
 }
 
-// --- Fonctions génériques de chargement/sauvegarde pour les qualifications, grades, fonctions ---
+// --- Fonctions génériques de chargement/sauvegarde pour les qualifications, grades, fonctions, ENGINES ---
 
 async function loadData(filePath, defaultData, setterFunction, name) {
     try {
@@ -243,6 +245,42 @@ async function loadFunctions() {
 }
 async function saveFunctions() { await saveData(FUNCTIONS_FILE_PATH, AVAILABLE_FUNCTIONS); }
 
+// NOUVEAU: Fonctions de chargement et sauvegarde des engins
+async function loadEngines() {
+    await loadData(ENGINES_FILE_PATH, [
+        {
+            id: 'vsav1',
+            name: 'VSAV 1',
+            roles: [
+                { id: 'ch_vsav', name: 'Chef d\'agrès VSAV', qualificationIds: ['ca_vsav'], gradeIds: [] },
+                { id: 'cod_vsav', name: 'Conducteur VSAV', qualificationIds: ['cod_0'], gradeIds: [] },
+                { id: 'eq1_vsav', name: 'Équipier 1 VSAV', qualificationIds: ['eq_vsav'], gradeIds: [] },
+                { id: 'eq2_vsav', name: 'Équipier 2 VSAV', qualificationIds: ['eq_vsav'], gradeIds: [] }
+            ]
+        },
+        {
+            id: 'fpt1',
+            name: 'FPT 1',
+            roles: [
+                { id: 'ch_fpt', name: 'Chef d\'agrès FPT', qualificationIds: ['ca_fpt'], gradeIds: [] },
+                { id: 'cod_fpt', name: 'Conducteur FPT', qualificationIds: ['cod_1'], gradeIds: [] },
+                { id: 'eq1_fpt', name: 'Équipier 1 FPT', qualificationIds: ['eq1_fpt'], gradeIds: [] },
+                { id: 'eq2_fpt', name: 'Équipier 2 FPT', qualificationIds: ['eq2_fpt'], gradeIds: [] }
+            ]
+        },
+        {
+            id: 'vtu1',
+            name: 'VTU 1',
+            roles: [
+                { id: 'ch_vtu', name: 'Chef d\'agrès VTU', qualificationIds: ['ca_vtu'], gradeIds: [] },
+                { id: 'cod_vtu', name: 'Conducteur VTU', qualificationIds: ['cod_0'], gradeIds: [] }
+            ]
+        }
+    ], (data) => AVAILABLE_ENGINES = data, 'engines');
+}
+async function saveEngines() { await saveData(ENGINES_FILE_PATH, AVAILABLE_ENGINES); }
+
+
 // --- Initialisation des dossiers de données au démarrage du serveur ---
 
 async function initializeDataFolders() {
@@ -260,6 +298,7 @@ async function initializeDataFolders() {
     await loadQualifications();
     await loadGrades();
     await loadFunctions();
+    await loadEngines(); // NOUVEAU: Charger les engins au démarrage
     console.log('[INFO] Serveur initialisé et données chargées.');
 })();
 
@@ -585,6 +624,50 @@ app.delete('/api/functions/:id', authenticateToken, authorizeAdmin, async (req, 
     if (modified) await saveUsers();
     res.json({ message: 'Fonction supprimée.' });
 });
+
+// NOUVEAU: Routes de gestion des engins (Admin)
+app.get('/api/engines', authenticateToken, authorizeAdmin, (req, res) => {
+    res.json(AVAILABLE_ENGINES);
+});
+
+app.post('/api/engines', authenticateToken, authorizeAdmin, async (req, res) => {
+    const { id, name, roles } = req.body;
+    const key = id.toLowerCase();
+    if (!id || !name || !Array.isArray(roles)) {
+        return res.status(400).json({ message: 'Champs manquants ou format invalide.' });
+    }
+    if (AVAILABLE_ENGINES.some(e => e.id === key)) {
+        return res.status(409).json({ message: 'Cet engin existe déjà.' });
+    }
+    AVAILABLE_ENGINES.push({ id: key, name, roles });
+    await saveEngines();
+    res.status(201).json({ message: 'Engin ajouté', engine: { id: key, name, roles } });
+});
+
+app.put('/api/engines/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+    const key = req.params.id.toLowerCase();
+    const { name, roles } = req.body;
+    const idx = AVAILABLE_ENGINES.findIndex(e => e.id === key);
+    if (idx === -1) {
+        return res.status(404).json({ message: 'Engin non trouvé.' });
+    }
+    if (name) AVAILABLE_ENGINES[idx].name = name;
+    if (Array.isArray(roles)) AVAILABLE_ENGINES[idx].roles = roles;
+    await saveEngines();
+    res.json({ message: 'Engin mis à jour', engine: AVAILABLE_ENGINES[idx] });
+});
+
+app.delete('/api/engines/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+    const key = req.params.id.toLowerCase();
+    const before = AVAILABLE_ENGINES.length;
+    AVAILABLE_ENGINES = AVAILABLE_ENGINES.filter(e => e.id !== key);
+    if (AVAILABLE_ENGINES.length === before) {
+        return res.status(404).json({ message: 'Engin non trouvé.' });
+    }
+    await saveEngines();
+    res.json({ message: 'Engin supprimé.' });
+});
+
 
 // --- Routes de la feuille de garde (Configuration Admin) ---
 // Gère la configuration des créneaux horaires et des affectations d'engin pour une date donnée.
