@@ -106,7 +106,7 @@ const roleToQualificationMap = {
     'ca_ccf': ['ca_ccf'],
     'cod_2': ['cod_2'],
     'eq1_ccf': ['eq1_ccf'],
-    'eq2_ccf': ['eq2_ccf'], // Corrected: This should be consistent with other role definitions.
+    'eq2_ccf': ['eq2_ccf'], 
 
     // VTU
     'ca_vtu': ['ca_vtu'],
@@ -147,7 +147,7 @@ const engineDetails = {
             { id: 'ca_ccf', name: 'CA CCF', required: true },
             { id: 'cod_2', name: 'CD CCF', required: true },
             { id: 'eq1_ccf', name: 'EQ1 CCF', required: true },
-            { id: 'eq2_ccf', name: 'EQ2 CCF', required: false } // Corrected: This should be an object with id, name, and required properties.
+            { id: 'eq2_ccf', name: 'EQ2 CCF', required: false } 
         ],
         criticalRoles: ['cod_2', 'ca_ccf']
     },
@@ -619,7 +619,11 @@ async function loadRosterConfig(dateKey) {
             // Si 'availabilities' est absent ou null/undefined, l'agent sera considéré indisponible (tableau vide).
             allPersonnelWithAPIResponse.forEach(agent => {
                 const availabilitiesForAgent = agent.availabilities || []; 
-                appData.personnelAvailabilities[agent._id][dateKey] = availabilitiesForAgent;
+                // Correction de l'erreur: Assurez-vous que appData.personnelAvailabilities[agent._id] est un objet
+                if (!appData.personnelAvailabilities[agent._id]) {
+                    appData.personnelAvailabilities[agent._id] = {};
+                }
+                appData.personnelAvailabilities[agent._id][dateKey] = availabilitiesForAgent; 
             });
 
           } catch (error) {
