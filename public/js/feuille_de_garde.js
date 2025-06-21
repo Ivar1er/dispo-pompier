@@ -611,6 +611,7 @@ async function loadRosterConfig(dateKey) {
             }
             
             const data = await resp.json(); // data contient { available: [...], onCall: [...] }
+            console.log(`[DEBUG] API Response for agent-availability (${dateKey}):`, data); // DEBUG LOG
             
             // Combiner les agents disponibles et d'astreinte renvoyés par l'API
             const allPersonnelWithAPIResponse = [...(data.available || []), ...(data.onCall || [])];
@@ -623,7 +624,8 @@ async function loadRosterConfig(dateKey) {
                 if (!appData.personnelAvailabilities[agent._id]) {
                     appData.personnelAvailabilities[agent._id] = {};
                 }
-                appData.personnelAvailabilities[agent._id][dateKey] = availabilitiesForAgent; 
+                appData.personnelAvailabilities[agent._id][dateKey] = availabilitiesForAgent;
+                console.log(`[DEBUG] Processed avail for agent ${agent._id} (${agent.prenom} ${agent.nom}):`, availabilitiesForAgent); // DEBUG LOG
             });
 
           } catch (error) {
@@ -922,8 +924,13 @@ async function loadRosterConfig(dateKey) {
                 const agentAvailabilities = appData.personnelAvailabilities[agent._id] || {};
                 const dailyAvailabilities = agentAvailabilities[dateKey] || [];
                 
-                // N'inclut que les agents qui ne sont PAS d'astreinte ET qui ont au moins une disponibilité renseignée.
-                return !isAlreadyOnDuty && dailyAvailabilities.length > 0;
+                const shouldInclude = !isAlreadyOnDuty && dailyAvailabilities.length > 0;
+
+                // DEBUG LOG: Affiche pourquoi un agent est exclu s'il n'est pas d'astreinte mais n'a pas de dispo
+                if (!shouldInclude && !isAlreadyOnDuty) {
+                    console.warn(`[DEBUG] Agent "${agent.prenom} ${agent.nom}" (ID: ${agent._id}) exclu du "Personnel Disponible" car dailyAvailabilities.length est 0. Disponibilités :`, dailyAvailabilities);
+                }
+                return shouldInclude;
             });
 
             if (filteredAvailableAgents.length === 0) {
@@ -1209,32 +1216,42 @@ async function loadRosterConfig(dateKey) {
 
             async function updateDateDisplay() {
             showSpinner();
-            const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-            await fetchAllAgents(); 
-            await loadRosterConfig(dateKey);
-            await loadDailyRoster(dateKey); 
-            await loadAllPersonnelAvailabilities(); // Ceci doit charger les dispo pour TOUS les agents
-            initializeDefaultTimeSlotsForDate(dateKey); // S'assure qu'au moins un créneau par défaut existe
+            try {
+                const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+                await fetchAllAgents(); 
+                await loadRosterConfig(dateKey);
+                await loadDailyRoster(dateKey); 
+                await loadAllPersonnelAvailabilities(); // Ceci doit charger les dispo pour TOUS les agents
+                initializeDefaultTimeSlotsForDate(dateKey); // S'assure qu'au moins un créneau par défaut existe
 
-            rosterDateInput.valueAsDate = currentRosterDate;
-            renderTimeSlotButtons(dateKey);
-            renderPersonnelLists(); // Appel pour rafraîchir la liste des agents disponibles
-            renderOnDutyAgentsGrid(); // Appel pour rafraîchir la grille des agents d'astreinte
-            renderRosterGrid();
-            hideSpinner();
+                rosterDateInput.valueAsDate = currentRosterDate;
+                renderTimeSlotButtons(dateKey);
+                renderPersonnelLists(); // Appel pour rafraîchir la liste des agents disponibles
+                renderOnDutyAgentsGrid(); // Appel pour rafraîchir la grille des agents d'astreinte
+                renderRosterGrid();
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour et du rendu de l'affichage:", error);
+                // Si l'erreur n'a pas déjà été gérée par une modale de session expirée,
+                // afficher une alerte plus générique.
+                if (!error.message.includes('Session expirée')) {
+                    displayMessageModal("Erreur d'Affichage", `Une erreur est survenue lors du chargement ou de l'affichage des données : ${error.message}`, "error");
+                }
+            } finally {
+                hideSpinner();
             }
+        }
 
-            // --------------------------------------------------
-            // 4️⃣ Handlers & Bootstrap
-            // --------------------------------------------------
+        // --------------------------------------------------
+        // 4️⃣ Handlers & Bootstrap
+        // --------------------------------------------------
 
-            /**
-             * Affiche une modale pour sélectionner une plage horaire.
-             * @param {string} currentStart - Heure de début par défaut (HH:MM).
-             * @param {string} currentEnd - Heure de fin par défaut (HH:MM).
-             * @param {function(string, string)} callback - Fonction appelée avec les nouvelles heures (start, end) si l'utilisateur valide.
-             */
-            function showTimeRangeSelectionModal(currentStart, currentEnd, callback) {
+        /**
+         * Affiche une modale pour sélectionner une plage horaire.
+         * @param {string} currentStart - Heure de début par défaut (HH:MM).
+         * @param {string} currentEnd - Heure de fin par défaut (HH:MM).
+         * @param {function(string, string)} callback - Fonction appelée avec les nouvelles heures (start, end) si l'utilisateur valide.
+         */
+        function showTimeRangeSelectionModal(currentStart, currentEnd, callback) {
             let modal = document.getElementById('time-range-modal');
             if (!modal) {
                 modal = document.createElement('div');
