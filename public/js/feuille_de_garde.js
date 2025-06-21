@@ -729,6 +729,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isoWeekString = `S ${currentWeekNumber}`;
         const daysOfWeekNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
+        // Calculer le lundi de la semaine de la date sélectionnée
+        const currentDayOfWeek = appData.currentDate.getDay(); // 0 = Dimanche, 1 = Lundi, ..., 6 = Samedi
+        const diffToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek; // Jours à retrancher pour arriver au lundi
+        const mondayOfCurrentWeek = new Date(appData.currentDate);
+        mondayOfCurrentWeek.setDate(appData.currentDate.getDate() + diffToMonday);
+        mondayOfCurrentWeek.setHours(0, 0, 0, 0); // Important: réinitialiser l'heure pour éviter des décalages de date
+
         for (const agentId in appData.agents) {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/planning/${agentId}`, { headers: getAuthHeaders() });
@@ -741,13 +748,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (planning && planning[isoWeekString]) {
                     appData.personnelAvailabilities[agentId] = {}; // Initialiser l'objet pour cet agent
-                    for (let i = 0; i < 7; i++) {
-                        const dateForDay = new Date(appData.currentDate);
-                        dateForDay.setDate(appData.currentDate.getDate() + (i - (appData.currentDate.getDay() || 7) + 1)); // Réglage au lundi de la semaine en cours
-                        dateForDay.setDate(dateForDay.getDate() + i); // Décalage pour chaque jour de la semaine
+                    for (let i = 0; i < 7; i++) { // Pour chaque jour de la semaine (Lundi à Dimanche)
+                        const dateForDay = new Date(mondayOfCurrentWeek);
+                        dateForDay.setDate(mondayOfCurrentWeek.getDate() + i); // Obtenir la date exacte pour chaque jour de la semaine
                         const dateKey = formatDateToYYYYMMDD(dateForDay);
 
-                        const dayName = daysOfWeekNames[i];
+                        const dayName = daysOfWeekNames[i]; // Nom du jour (ex: 'lundi')
                         const availabilitiesForAgent = planning[isoWeekString][dayName] || [];
 
                         // Assurez-vous que l'objet pour l'agent existe avant d'assigner
@@ -827,7 +833,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Création des lignes de disponibilité pour chaque heure (07h00 - 06h30)
             for (let i = 0; i < 24; i++) { // Afficher 24h, de 07h00 à 06h30
                 const hourStart = (7 + i) % 24;
-                const hourEnd = (7 + i + 1) % 24;
+                // const hourEnd = (7 + i + 1) % 24; // Non utilisé directement ici pour le label de ligne
 
                 const availabilityLine = document.createElement('div');
                 availabilityLine.classList.add('availability-line');
@@ -844,25 +850,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Ajouter les segments de disponibilité ici
                 // Chaque segment représente 30 minutes. Il y a 2 segments par heure.
                 const startSlotIndex = i * 2; // Index du premier créneau de 30 min pour cette heure
-                const endSlotIndex = startSlotIndex + 1; // Index du deuxième créneau
+                // const endSlotIndex = startSlotIndex + 1; // Index du deuxième créneau (non utilisé tel quel pour la boucle j)
 
                 // Parcourir les créneaux de 30 minutes de l'heure en cours
-                for (let j = startSlotIndex; j <= endSlotIndex; j++) {
-                    // Calculer le début et la fin réels du créneau de 30 minutes
-                    // const currentSlotStartHour = (7 + Math.floor(j / 2)) % 24;
-                    // const currentSlotStartMinute = (j % 2) * 30;
-                    // const currentSlotEndHour = (7 + Math.floor((j + 1) / 2)) % 24;
-                    // const currentSlotEndMinute = ((j + 1) % 2) * 30;
-                    // const slotTimeLabel = `${String(currentSlotStartHour).padStart(2, '0')}:${String(currentSlotStartMinute).padStart(2, '0')}-${String(currentSlotEndHour).padStart(2, '0')}:${String(currentSlotEndMinute).padStart(2, '0')}`;
+                for (let j = 0; j < 2; j++) { // j=0 pour le premier 30min, j=1 pour le second 30min
+                    const current30MinSlotIndex = startSlotIndex + j; // Index global du créneau 0-47
 
-
-                    const relevantAgentsForRoles = getAgentsAvailableForEngineRoles(engine, j);
+                    const relevantAgentsForRoles = getAgentsAvailableForEngineRoles(engine, current30MinSlotIndex);
 
                     if (relevantAgentsForRoles.length > 0) {
                         // Il y a des agents disponibles pour au moins un rôle de cet engin à ce créneau
                         const segment = document.createElement('div');
                         segment.classList.add('availability-segment');
-                        segment.style.left = `${(j % 2) * 50}%`; // 0% pour le premier créneau, 50% pour le second
+                        segment.style.left = `${j * 50}%`; // 0% pour le premier créneau (j=0), 50% pour le second (j=1)
                         segment.style.width = '50%'; // Chaque segment fait 50% de la largeur de la barre d'heure
                         barContainer.appendChild(segment);
 
@@ -875,7 +875,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         // Aucun agent disponible pour cet engin à ce créneau
                         const overlayMini = document.createElement('div');
                         overlayMini.classList.add('engine-indispo-overlay-mini');
-                        overlayMini.style.left = `${(j % 2) * 50}%`;
+                        overlayMini.style.left = `${j * 50}%`;
                         overlayMini.style.width = '50%';
                         overlayMini.textContent = 'X'; // Ou un indicateur visuel de non-disponibilité
                         barContainer.appendChild(overlayMini);
@@ -1035,6 +1035,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        allAgents.sort((a, b) => { // Trie les agents par nom pour un affichage cohérent
+            const nameA = `${a.prenom} ${a.nom}`;
+            const nameB = `${b.prenom} ${b.nom}`;
+            return nameA.localeCompare(nameB);
+        });
+
+
         allAgents.forEach(agent => {
             const agentAvailabilities = appData.personnelAvailabilities[agent.id]?.[dateKey] || [];
             const isAgentAvailableToday = agentAvailabilities.length > 0;
@@ -1042,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const agentCard = document.createElement('div');
             agentCard.classList.add('agent-card');
             agentCard.dataset.agentId = agent.id;
-            agentCard.draggable = true; // Rendre les cartes d'agent draggable
+            agentCard.draggable = true; // Rendre les cartes d'agent draggable par défaut
 
             let qualificationsText = agent.qualifications.map(id => appData.qualifications[id] || id).join(', ');
             let gradesText = agent.grades.map(id => appData.grades[id] || id).join(', ');
@@ -1059,6 +1066,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!isAgentAvailableToday) {
                  agentCard.style.opacity = '0.6';
                  agentCard.draggable = false; // Rendre non-draggable s'il est indisponible
+                 agentCard.style.cursor = 'not-allowed'; // Changer le curseur
             }
 
             agentCard.addEventListener('dragstart', (e) => {
@@ -1083,11 +1091,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         availableAgentsList.addEventListener('drop', (e) => {
             e.preventDefault();
-            const agentId = e.dataTransfer.getData('text/plain');
-            // Logique pour remettre l'agent dans la liste des disponibles (si déplacé d'un rôle)
-            // Pour l'instant, on se contente de le re-rendre
+            // L'idée est que si on lâche un agent ici, il est "non affecté"
+            // Cela ne nécessite pas de logique complexe ici si l'agent est déjà dans la liste
+            // C'est surtout utile si on veut "désaffecter" un agent d'un rôle.
+            // Pour l'instant, on se contente de re-rendre pour s'assurer de la cohérence visuelle.
             renderAvailableAgentsInModal();
-            renderEngineRolesInModal(currentEngineForAssignment);
+            renderEngineRolesInModal(currentEngineForAssignment); // Re-render les rôles aussi pour rafraîchir
         });
     }
 
@@ -1127,6 +1136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Placeholder pour l'agent affecté
             const assignedAgentDiv = document.createElement('div');
             assignedAgentDiv.classList.add('assigned-agent-container');
+            // Initialisez avec un placeholder si aucun agent n'est affecté (logique à définir si on stocke les affectations)
             assignedAgentDiv.innerHTML = `<span class="placeholder-text">Glissez un agent ici</span>`;
             roleSlot.appendChild(assignedAgentDiv);
 
@@ -1157,22 +1167,34 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     // Vérifier si l'agent a les qualifications/grades requis pour ce rôle
-                    const hasQualification = role.qualificationIds.every(qualId => agent.qualifications.includes(qualId));
-                    const hasGrade = role.gradeIds.every(gradeId => agent.grades.includes(gradeId));
+                    const hasAllQualifications = role.qualificationIds.every(qualId => agent.qualifications.includes(qualId));
+                    const hasAllGrades = role.gradeIds.every(gradeId => agent.grades.includes(gradeId));
 
-                    if (role.qualificationIds.length > 0 && !hasQualification) {
-                         displayMessageModal("Affectation Impossible", `${agent.prenom} ${agent.nom} ne possède pas toutes les qualifications requises pour le rôle de ${role.name}.`, "warning");
-                         return;
+                    let missingRequirements = [];
+                    if (role.qualificationIds.length > 0 && !hasAllQualifications) {
+                         const missingQuals = role.qualificationIds.filter(qualId => !agent.qualifications.includes(qualId))
+                                             .map(id => appData.qualifications[id] || id);
+                         missingRequirements.push(`qualifications manquantes : ${missingQuals.join(', ')}`);
                     }
-                    if (role.gradeIds.length > 0 && !hasGrade) {
-                        displayMessageModal("Affectation Impossible", `${agent.prenom} ${agent.nom} ne possède pas tous les grades requis pour le rôle de ${role.name}.`, "warning");
+                    if (role.gradeIds.length > 0 && !hasAllGrades) {
+                        const missingGrades = role.gradeIds.filter(gradeId => !agent.grades.includes(gradeId))
+                                            .map(id => appData.grades[id] || id);
+                        missingRequirements.push(`grades manquants : ${missingGrades.join(', ')}`);
+                    }
+
+                    if (missingRequirements.length > 0) {
+                        displayMessageModal(
+                            "Affectation Impossible",
+                            `${agent.prenom} ${agent.nom} ne possède pas toutes les exigences requises pour le rôle de ${role.name}:<br>${missingRequirements.join('<br>')}`,
+                            "warning"
+                        );
                         return;
                     }
 
 
                     // Mettre à jour l'affichage pour montrer l'agent affecté
                     assignedAgentDiv.innerHTML = `
-                        <span class="assigned-agent">
+                        <span class="assigned-agent" data-assigned-agent-id="${agent.id}">
                             ${agent.prenom} ${agent.nom}
                             <button class="remove-agent-btn" data-agent-id="${agent.id}">&times;</button>
                         </span>
@@ -1182,7 +1204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         removeEvent.stopPropagation(); // Empêche le drop de se déclencher à nouveau
                         assignedAgentDiv.innerHTML = `<span class="placeholder-text">Glissez un agent ici</span>`;
                         // Optionnel: remettre l'agent dans la liste des disponibles si on le souhaite
-                        renderAvailableAgentsInModal();
+                        renderAvailableAgentsInModal(); // Re-rendre la liste des agents disponibles
                     });
 
                     // Optionnel: Supprimer l'agent de la liste des disponibles si un seul rôle par agent
