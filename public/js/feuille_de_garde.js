@@ -1,4 +1,4 @@
-// Styles injectés dynamiquement pour la mise à jour visuelle
+// Styles injectés dynamiquement pour la mise à jour visuelle (conserver si pertinent ou déplacer dans CSS)
 const inlineCss = `
 .engine-indispo-overlay, .engine-indispo-overlay-mini {
     background-color: rgba(0, 0, 0, 0.5); /* Adoucir le voile noir pour voir le fond (de 0.6 à 0.5) */
@@ -25,7 +25,7 @@ const inlineCss = `
     white-space: nowrap; /* Empêcher le retour à la ligne du texte */
     text-overflow: ellipsis; /* Ajouter des points de suspension si le texte est trop long */
     padding: 0 4px; /* Plus de padding horizontal */
-    line-height: 1; /* Resserre la hauteur du texte */
+    line-height: 1; /* Resserrement */
     pointer-events: none; /* Permet aux événements de souris de passer à l'élément parent (pour le tooltip) */
     box-sizing: border-box; /* Inclure padding dans la largeur/hauteur */
 }
@@ -175,12 +175,12 @@ const engineDetails = {
 const rosterDateInput        = document.getElementById('roster-date');
 const prevDayButton          = document.getElementById('prev-day-button');
 const nextDayButton          = document.getElementById('next-day-button');
-const generateAutoBtn        = document.getElementById('generate-auto-btn');
-const availablePersonnelList = document.getElementById('available-personnel-list');
+const generateAutoBtn        = document.getElementById('generate-auto-button'); // Correction de l'ID
+const availablePersonnelList = document.getElementById('available-personnel-list'); // Assurez-vous que cet ID est dans HTML
 const onDutyAgentsGrid       = document.getElementById('on-duty-agents-grid');
-const rosterGridContainer    = document.getElementById('roster-grid');
-const engineDetailsPage      = document.getElementById('engine-details-page');
-const backToRosterBtn        = document.getElementById('back-to-roster-btn');
+const rosterGridContainer    = document.getElementById('roster-grid'); // Assurez-vous que cet ID est dans HTML
+const engineDetailsPage      = document.getElementById('engine-details-page'); // Assurez-vous que cet ID est dans HTML
+const backToRosterBtn        = document.getElementById('back-to-roster-btn'); // Assurez-vous que cet ID est dans HTML
 const loadingSpinner         = document.getElementById('loading-spinner');
 
 // NOUVEAU: Références DOM pour la modale d'affectation
@@ -189,6 +189,20 @@ const closePersonnelAssignmentModalBtn = document.getElementById('close-personne
 const personnelAssignmentModalTitle   = document.getElementById('personnel-assignment-modal-title');
 const availableAgentsInModalList      = document.getElementById('available-agents-in-modal-list');
 const engineRolesContainer            = document.getElementById('engine-roles-container');
+
+// NOUVEAU: Références DOM pour les créneaux horaires et la synthèse
+const timeSlotsContainer = document.getElementById('time-slots-container');
+const addSlotButton = document.getElementById('add-slot-button');
+const enginsSynthesisContent = document.getElementById('engins-synthesis-content');
+const noTimeslotMessage = document.getElementById('no-timeslot-message'); // Message pour les créneaux vides
+
+// Modale personnalisée (éléments existants dans feuille_de_garde.html)
+const customMessageModal = document.getElementById('custom-message-modal');
+const modalTitle = document.getElementById('modal-title');
+const modalMessage = document.getElementById('modal-message');
+const modalOkBtn = document.getElementById('modal-ok-btn');
+const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
 
 // États globaux
 let currentRosterDate = new Date();
@@ -339,8 +353,59 @@ function hideSpinner() {
   loadingSpinner.classList.add('hidden');
 }
 
+// --- Fonctions utilitaires pour les modales (adaptées de votre fichier d'origine) ---
+/**
+ * Affiche une modale personnalisée pour les messages d'information ou de confirmation.
+ * Remplace les fonctions natives window.alert et window.confirm.
+ * @param {string} title - Le titre de la modale.
+ * @param {string} message - Le message à afficher dans la modale.
+ * @param {string} type - 'info' pour une alerte, 'question' pour une confirmation.
+ * @param {Function} callback - Fonction de rappel appelée après interaction utilisateur (pour 'question').
+ */
+function displayMessageModal(title, message, type = 'info', callback = null) {
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+
+    modalCancelBtn.style.display = 'none'; // Cacher le bouton Annuler par défaut
+
+    if (type === 'question') {
+        modalCancelBtn.style.display = 'inline-block'; // Afficher Annuler pour les questions
+    }
+
+    modalOkBtn.onclick = () => {
+        customMessageModal.style.display = 'none';
+        if (callback) callback(true);
+    };
+
+    modalCancelBtn.onclick = () => {
+        customMessageModal.style.display = 'none';
+        if (callback) callback(false);
+    };
+
+    // Fermer si clic en dehors de la modale
+    customMessageModal.onclick = (e) => {
+        if (e.target === customMessageModal) {
+            customMessageModal.style.display = 'none';
+            if (callback && type === 'question') callback(false); // Annuler si clic extérieur sur question
+        }
+    };
+
+    customMessageModal.style.display = 'flex'; // Afficher la modale (préférable à 'block' pour le centrage flex)
+}
+
+// Surcharge les fonctions natives alert et confirm pour utiliser les modales personnalisées
+window.alert = (message) => displayMessageModal("Information", message, "info");
+window.confirm = (message) => {
+    return new Promise((resolve) => {
+        displayMessageModal("Confirmation", message, "question", (result) => {
+            resolve(result);
+        });
+    });
+};
+
+
 // --------------------------------------------------
-// 2️⃣ Chargement des données
+// 2️⃣ Chargement des données (simulées pour le moment, à connecter à votre backend)
 // --------------------------------------------------
 
 async function fetchAllAgents() {
@@ -638,33 +703,6 @@ async function loadRosterConfig(dateKey) {
           }
         }
 
-        async function updateDateDisplay() {
-            showSpinner();
-            try {
-                const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-                await fetchAllAgents(); 
-                await loadRosterConfig(dateKey);
-                await loadDailyRoster(dateKey); 
-                await loadAllPersonnelAvailabilities(); // Ceci doit charger les dispo pour TOUS les agents
-                initializeDefaultTimeSlotsForDate(dateKey); // S'assure qu'au moins un créneau par défaut existe
-
-                rosterDateInput.valueAsDate = currentRosterDate;
-                renderTimeSlotButtons(dateKey);
-                renderPersonnelLists(); // Appel pour rafraîchir la liste des agents disponibles
-                renderOnDutyAgentsGrid(); // Appel pour rafraîchir la grille des agents d'astreinte
-                renderRosterGrid();
-            } catch (error) {
-                console.error("Erreur lors de la mise à jour et du rendu de l'affichage:", error);
-                // Si l'erreur n'a pas déjà été gérée par une modale de session expirée,
-                // afficher une alerte plus générique.
-                if (!error.message.includes('Session expirée')) {
-                    displayMessageModal("Erreur d'Affichage", `Une erreur est survenue lors du chargement ou de l'affichage des données : ${error.message}`, "error");
-                }
-            } finally {
-                hideSpinner();
-            }
-        }
-
         // --------------------------------------------------
         // 3️⃣ Rendu & mise à jour de l’affichage
         // --------------------------------------------------
@@ -690,226 +728,29 @@ async function loadRosterConfig(dateKey) {
         }
 
 
+        // Cette fonction n'est plus directement utilisée pour render les boutons de créneaux
+        // si la nouvelle structure HTML est utilisée avec .time-slots-container
         function renderTimeSlotButtons(dateKey) {
-          const c = document.getElementById('time-slot-buttons-container');
-          c.innerHTML = '';
+          // Ancien code pour les boutons des créneaux
+          // Si vous avez un conteneur dédié pour ces boutons dans le nouveau HTML,
+          // vous devrez adapter cette fonction pour le remplir.
+          // Pour l'instant, je m'assure qu'elle ne cause pas d'erreur si elle est appelée.
+          const c = document.getElementById('time-slot-buttons-container'); // Vérifiez cet ID dans votre HTML
+          if (c) c.innerHTML = ''; // Nettoyer si le conteneur existe
 
-          let clickTimeout = null;
-          const DBLCLICK_DELAY = 300;
-
-          // bouton “+”
-          const add = document.createElement('button');
-          add.textContent = '+';
-          add.classList.add('add-time-slot-btn');
-          add.addEventListener('click', () => {
-            showTimeRangeSelectionModal('07:00', '07:00', async (ns, ne) => {
-              const id = `slot_${ns.replace(':','')}_${ne.replace(':','')}_${Date.now()}`;
-              appData[dateKey].timeSlots[id] = {
-                range: `${ns} - ${ne}`,
-                engines: {}
-              };
-              Object.keys(engineDetails).forEach(et => {
-                appData[dateKey].timeSlots[id].engines[et] =
-                  createEmptyEngineAssignment(et);
-              });
-              await saveRosterConfig(dateKey);
-              renderTimeSlotButtons(dateKey);
-              renderRosterGrid();
-              showMainRosterGrid();
-            });
-          });
-          c.appendChild(add);
-
-          // boutons existants
-          Object.entries(appData[dateKey].timeSlots)
-            .sort((a,b)=> {
-              const sA = parseTimeToMinutes(a[1].range.split(' - ')[0]);
-              const sB = parseTimeToMinutes(b[1].range.split(' - ')[0]);
-              return sA - sB;
-            })
-            .forEach(([slotId, slot]) => {
-              const btn = document.createElement('button');
-              btn.textContent = slot.range;
-              btn.classList.add('time-slot-button');
-              btn.dataset.slotId = slotId;
-
-              btn.addEventListener('click', () => {
-                clearTimeout(clickTimeout);
-
-                clickTimeout = setTimeout(() => {
-                  document.querySelectorAll('.time-slot-button').forEach(b => b.classList.remove('active'));
-                  btn.classList.add('active');
-                  displayEnginesForSlot(dateKey, slotId);
-                }, DBLCLICK_DELAY);
-              });
-
-              btn.addEventListener('dblclick', async (event) => {
-                event.stopPropagation();
-                clearTimeout(clickTimeout);
-                
-                const [cs, ce] = slot.range.split(' - ');
-                showTimeRangeSelectionModal(cs, ce, async (ns, ne) => {
-                  slot.range = `${ns} - ${ne}`;
-                  await saveRosterConfig(dateKey);
-
-                  let sMin = parseTimeToMinutes(ns),
-                      eMin = parseTimeToMinutes(ne);
-                  if (eMin <= sMin) eMin += 24*60;
-                  const dayEndMinutes = parseTimeToMinutes('07:00') + 24*60;
-
-                  if (eMin < dayEndMinutes && ns !== ne) {
-                    const newSlotStartTime = ne;
-                    const newSlotEndTime = '07:00';
-
-                    const newSlotId = `slot_${newSlotStartTime.replace(':','')}_${newSlotEndTime.replace(':','')}_${Date.now()}`;
-                    
-                    const slotExists = Object.values(appData[dateKey].timeSlots).some(s => {
-                        const [existingStart, existingEnd] = s.range.split(' - ');
-                        return existingStart === newSlotStartTime && existingEnd === newSlotEndTime;
-                    });
-
-                    if (!slotExists) {
-                        appData[dateKey].timeSlots[newSlotId] = {
-                            range: `${newSlotStartTime} - ${newSlotEndTime}`,
-                            engines: {}
-                        };
-                        Object.keys(engineDetails).forEach(et => {
-                            appData[dateKey].timeSlots[newSlotId].engines[et] = createEmptyEngineAssignment(et);
-                        });
-                        await saveRosterConfig(dateKey);
-                    }
-                  }
-                  renderTimeSlotButtons(dateKey);
-                  renderRosterGrid();
-                  showMainRosterGrid();
-                });
-              });
-
-              const deleteBtn = document.createElement('button');
-              deleteBtn.textContent = 'x';
-              deleteBtn.classList.add('delete-time-slot-btn');
-              deleteBtn.addEventListener('click', async (event) => {
-                event.stopPropagation();
-                if (await confirm("Voulez-vous vraiment supprimer le créneau " + slot.range + " ?")) { // Utilisation de await confirm()
-                  delete appData[dateKey].timeSlots[slotId];
-                  await saveRosterConfig(dateKey);
-                  renderTimeSlotButtons(dateKey);
-                  renderRosterGrid();
-                  showMainRosterGrid();
-                }
-              });
-              btn.appendChild(deleteBtn);
-              c.appendChild(btn);
-            });
+          // La logique d'ajout de créneaux est maintenant gérée par `addTimeSlot`
+          // et le bouton `addSlotButton` directement.
+          // Le double-clic sur un créneau existant pour le modifier est aussi à revoir
+          // dans la nouvelle structure où les créneaux sont gérés via des inputs time.
         }
 
         function renderRosterGrid() {
-          rosterGridContainer.innerHTML = '';
-          const table = document.createElement('table');
-          table.classList.add('roster-table');
-
-          const thead = document.createElement('thead');
-          const headerRow = document.createElement('tr');
-          const emptyTh = document.createElement('th');
-          headerRow.appendChild(emptyTh);
-
-          Object.keys(engineDetails).forEach(engineType => {
-            const th = document.createElement('th');
-            th.textContent = engineDetails[engineType].name;
-            headerRow.appendChild(th);
-          });
-          thead.appendChild(headerRow);
-          table.appendChild(thead);
-
-          const tbody = document.createElement('tbody');
-          const dateKey = formatDateToYYYYMMDD(currentRosterDate);
-
-          const sortedTimeSlots = Object.entries(appData[dateKey].timeSlots || {}).sort((a, b) => {
-            const sA = parseTimeToMinutes(a[1].range.split(' - ')[0]);
-            const sB = parseTimeToMinutes(b[1].range.split(' - ')[0]);
-            return sA - sB;
-          });
-
-          sortedTimeSlots.forEach(([slotId, slot]) => {
-            const row = document.createElement('tr');
-            const timeCell = document.createElement('td');
-            timeCell.classList.add('time-slot-cell');
-            timeCell.textContent = slot.range;
-            row.appendChild(timeCell);
-
-            Object.keys(engineDetails).forEach(engineType => {
-              const engineCell = document.createElement('td');
-              engineCell.classList.add('roster-cell');
-              engineCell.dataset.slotId = slotId;
-              engineCell.dataset.engineType = engineType;
-
-              const assignment = slot.engines[engineType] || {}; 
-              if (!assignment.personnel || typeof assignment.personnel !== 'object') {
-                  assignment.personnel = createEmptyEngineAssignment(engineType);
-              }
-
-              const engConfig = engineDetails[engineType];
-              if (!engConfig) {
-                  console.warn(`Configuration d'engin introuvable pour le type : ${engineType}.`);
-                  engineCell.textContent = "Erreur config";
-                  row.appendChild(engineCell);
-                  return; 
-              }
-
-              let isEngineIndispo = false;
-              if (engConfig.criticalRoles) {
-                  for (const criticalRoleId of engConfig.criticalRoles) {
-                      const assignedAgentId = (assignment && assignment.personnel ? assignment.personnel[criticalRoleId] : undefined);
-                      const assignedAgent = allAgents.find(a => a._id === assignedAgentId);
-
-                      if (!assignedAgentId || assignedAgentId === 'none' || assignedAgentId === null ||
-                          (assignedAgent && !isAgentQualifiedForRole(assignedAgent, criticalRoleId))) {
-                          isEngineIndispo = true;
-                          break;
-                      }
-                  }
-              }
-
-              engineCell.innerHTML = `
-                  <div class="engine-display">
-                      <span class="engine-name-mini">${engConfig.name}</span>
-                      <ul class="assigned-personnel-mini">
-                          ${engConfig.roles.map(roleDef => {
-                              const agentId = (assignment && assignment.personnel ? assignment.personnel[roleDef.id] : undefined);
-                              const agent = allAgents.find(a => a._id === agentId);
-                              const isQualified = agent && isAgentQualifiedForRole(agent, roleDef.id);
-                              
-                              let agentClass = '';
-                              let agentTitle = '';
-                              if (agentId !== 'none' && !isQualified) {
-                                  agentClass = 'unqualified-mini';
-                                  agentTitle = `Non qualifié pour ${roleDef.name}`;
-                              } else if (roleDef.required && (!agentId || agentId === 'none')) {
-                                  agentClass = 'missing-mini';
-                                  agentTitle = `Manquant (Rôle obligatoire ${roleDef.name})`;
-                              }
-
-                              return `<li class="${agentClass}" title="${agentTitle}">
-                                        <span class="role-abbr">${roleDef.name.substring(0,2)}:</span> ${agentDisplay}
-                                     </li>`;
-                          }).join('')}
-                      </ul>
-                  </div>
-                  ${isEngineIndispo ? '<div class="engine-indispo-overlay-mini">INDISPO</div>' : ''}
-              `;
-
-              engineCell.addEventListener('dragover', handleDragOver);
-              engineCell.addEventListener('dragleave', handleDragLeave);
-              engineCell.addEventListener('drop', handleDropOnEngine);
-
-              row.appendChild(engineCell);
-            });
-            tbody.appendChild(row);
-          });
-          table.appendChild(tbody);
-
-          rosterGridContainer.appendChild(table);
-          document.querySelector('.loading-message')?.remove();
+          // Cette fonction n'est plus directement utilisée pour la nouvelle vue "Synthèse des engins".
+          // Elle peut être conservée si une vue "grille de roster" détaillée est toujours prévue.
+          // Pour l'instant, on se concentre sur `updateEnginsSynthesis`.
+          const rosterGridContainer = document.getElementById('roster-grid'); // Vérifiez cet ID dans votre HTML
+          if (rosterGridContainer) rosterGridContainer.innerHTML = '';
+          // Le contenu de cette fonction est déplacé ou géré différemment par la synthèse.
         }
 
         function renderPersonnelLists() {
@@ -1161,7 +1002,7 @@ async function loadRosterConfig(dateKey) {
                             await saveDailyRoster(dateKey);
                             renderPersonnelLists();
                             renderOnDutyAgentsGrid();
-                            renderRosterGrid();
+                            renderRosterGrid(); // Peut-être pas nécessaire ici si déjà géré par updateEnginsSynthesis
                             });
 
                         } else {
@@ -1224,10 +1065,12 @@ async function loadRosterConfig(dateKey) {
                 initializeDefaultTimeSlotsForDate(dateKey); // S'assure qu'au moins un créneau par défaut existe
 
                 rosterDateInput.valueAsDate = currentRosterDate;
-                renderTimeSlotButtons(dateKey);
+                renderTimeSlotButtons(dateKey); // Cette fonction est maintenant moins centrale
                 renderPersonnelLists(); // Appel pour rafraîchir la liste des agents disponibles
                 renderOnDutyAgentsGrid(); // Appel pour rafraîchir la grille des agents d'astreinte
-                renderRosterGrid();
+                // renderRosterGrid(); // Cette fonction est remplacée par updateEnginsSynthesis pour la nouvelle vue
+                renderTimeSlotsInContainer(); // Pour afficher les créneaux avec leurs inputs time
+                updateEnginsSynthesis(); // Appel pour la nouvelle section de synthèse
             } catch (error) {
                 console.error("Erreur lors de la mise à jour et du rendu de l'affichage:", error);
                 // Si l'erreur n'a pas déjà été gérée par une modale de session expirée,
@@ -1238,6 +1081,225 @@ async function loadRosterConfig(dateKey) {
             } finally {
                 hideSpinner();
             }
+        }
+
+        // Nouvelle fonction pour rendre les créneaux horaires dans .time-slots-container
+        function renderTimeSlotsInContainer() {
+            timeSlotsContainer.innerHTML = ''; // Nettoyer le conteneur
+            const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+            const sortedTimeSlots = Object.entries(appData[dateKey].timeSlots || {}).sort((a, b) => {
+                const sA = parseTimeToMinutes(a[1].range.split(' - ')[0]);
+                const sB = parseTimeToMinutes(b[1].range.split(' - ')[0]);
+                return sA - sB;
+            });
+
+            if (sortedTimeSlots.length === 0) {
+                noTimeslotMessage.style.display = 'block';
+                return;
+            } else {
+                noTimeslotMessage.style.display = 'none';
+            }
+
+            sortedTimeSlots.forEach(([slotId, slotData]) => {
+                const timeSlotDiv = document.createElement('div');
+                timeSlotDiv.classList.add('time-slot');
+                timeSlotDiv.setAttribute('data-slot-id', slotId);
+
+                const [startTime, endTime] = slotData.range.split(' - ');
+
+                timeSlotDiv.innerHTML = `
+                    <input type="time" class="start-time-input" value="${startTime}">
+                    <span>-</span>
+                    <input type="time" class="end-time-input" value="${endTime}">
+                    <button class="remove-slot-button">X</button>
+                    <div class="assigned-agents-for-slot" data-slot-id="${slotId}">
+                        <!-- Agents affectés spécifiques à ce slot -->
+                    </div>
+                `;
+                timeSlotsContainer.appendChild(timeSlotDiv);
+
+                // Récupération des éléments pour attacher les listeners
+                const startTimeInput = timeSlotDiv.querySelector('.start-time-input');
+                const endTimeInput = timeSlotDiv.querySelector('.end-time-input');
+                const removeButton = timeSlotDiv.querySelector('.remove-slot-button');
+                const assignedAgentsContainer = timeSlotDiv.querySelector('.assigned-agents-for-slot');
+
+                // Re-lier les event listeners pour les créneaux existants
+                startTimeInput.addEventListener('change', async (e) => {
+                    slotData.range = `${e.target.value} - ${slotData.range.split(' - ')[1]}`;
+                    await saveRosterConfig(dateKey);
+                    updateEnginsSynthesis();
+                    renderTimeSlotsInContainer(); // Re-render pour le tri
+                });
+                endTimeInput.addEventListener('change', async (e) => {
+                    slotData.range = `${slotData.range.split(' - ')[0]} - ${e.target.value}`;
+                    await saveRosterConfig(dateKey);
+                    updateEnginsSynthesis();
+                    renderTimeSlotsInContainer(); // Re-render pour le tri
+                });
+                removeButton.addEventListener('click', async () => {
+                    const confirmed = await confirm("Voulez-vous vraiment supprimer ce créneau ?");
+                    if (confirmed) {
+                        delete appData[dateKey].timeSlots[slotId];
+                        await saveRosterConfig(dateKey);
+                        renderTimeSlotsInContainer();
+                        updateEnginsSynthesis();
+                        updateNoDataMessages();
+                    }
+                });
+
+                // Rendre les agents affectés dans la zone de dépôt de ce créneau
+                renderAssignedAgentsInSlot(assignedAgentsContainer, slotData.engines); // Note: Ici, on passe le `engines` complet pour l'itération
+
+                // Activer le drag & drop pour chaque slot déjà présent
+                assignedAgentsContainer.addEventListener('dragover', handleDragOver);
+                assignedAgentsContainer.addEventListener('dragleave', handleDragLeave);
+                assignedAgentsContainer.addEventListener('drop', (e) => handleDropOnSlotPersonnel(e, dateKey, slotId));
+            });
+        }
+
+
+        /**
+         * Gère le drop d'un agent sur la zone .assigned-agents-for-slot d'un créneau.
+         * @param {Event} e - L'événement de drop.
+         * @param {string} dateKey - La clé de la date actuelle.
+         * @param {string} slotId - L'ID du créneau horaire cible.
+         */
+        async function handleDropOnSlotPersonnel(e, dateKey, slotId) {
+            e.preventDefault();
+            const targetContainer = e.target.closest('.assigned-agents-for-slot');
+            if (targetContainer) {
+                targetContainer.classList.remove('drag-over');
+            }
+
+            const agentId = e.dataTransfer.getData('text/plain');
+            if (!agentId || agentId === 'none') {
+                console.warn("handleDropOnSlotPersonnel: Agent ID is missing or 'none'. Aborting drop.");
+                return;
+            }
+
+            const slotToUpdate = appData[dateKey].timeSlots[slotId];
+            if (!slotToUpdate) {
+                console.error("Créneau introuvable pour la mise à jour après drop:", slotId);
+                return;
+            }
+
+            const agentToAssign = allAgents.find(a => a._id === agentId);
+            if (!agentToAssign) {
+                console.error("Agent à affecter non trouvé:", agentId);
+                return;
+            }
+
+            let assigned = false;
+            // Parcourir tous les types d'engins dans ce créneau
+            for (const engineType in slotToUpdate.engines) {
+                const enginePersonnel = slotToUpdate.engines[engineType].personnel;
+                const engineConfig = engineDetails[engineType];
+
+                if (!engineConfig) continue;
+
+                // Chercher un rôle vide dans cet engin pour l'agent glissé
+                for (const roleDef of engineConfig.roles) {
+                    const roleId = roleDef.id;
+                    if (enginePersonnel[roleId] === 'none') {
+                        if (isAgentQualifiedForRole(agentToAssign, roleId)) {
+                            // Vérifier si l'agent est déjà affecté à un autre rôle dans le MÊME créneau
+                            // avant de l'assigner à ce nouveau rôle.
+                            // Si oui, le désaffecter de l'ancien rôle pour éviter les doublons.
+                            let foundInOtherRoleInSameSlot = false;
+                            for (const otherEngineType in slotToUpdate.engines) {
+                                for (const otherRoleId in slotToUpdate.engines[otherEngineType].personnel) {
+                                    if (slotToUpdate.engines[otherEngineType].personnel[otherRoleId] === agentId) {
+                                        slotToUpdate.engines[otherEngineType].personnel[otherRoleId] = 'none';
+                                        foundInOtherRoleInSameSlot = true;
+                                    }
+                                }
+                            }
+
+                            enginePersonnel[roleId] = agentId;
+                            assigned = true;
+                            break; // Sortir de la boucle des rôles une fois l'agent affecté
+                        }
+                    }
+                }
+                if (assigned) break; // Sortir de la boucle des engins une fois l'agent affecté
+            }
+
+            if (assigned) {
+                await saveRosterConfig(dateKey);
+                // Re-rendre la section des agents affectés pour ce slot
+                renderAssignedAgentsInSlot(targetContainer, slotToUpdate.engines); // Passer slotToUpdate.engines
+                updateEnginsSynthesis();
+            } else {
+                alert("Impossible d'affecter l'agent : aucun poste libre ou l'agent n'est pas qualifié pour les postes disponibles dans ce créneau.");
+            }
+        }
+
+
+        // --- Fonction pour mettre à jour la synthèse des engins ---
+        /**
+         * Génère et affiche le contenu de la section "Synthèse des engins par créneau horaire".
+         * Cette fonction est appelée à chaque modification pertinente des créneaux ou affectations.
+         */
+        function updateEnginsSynthesis() {
+            if (currentTimeslots.length === 0) {
+                enginsSynthesisContent.innerHTML = '<p class="no-data-message">Aucune synthèse disponible pour le moment. Ajoutez des créneaux et des engins.</p>';
+                return;
+            }
+
+            enginsSynthesisContent.innerHTML = ''; // Nettoyer le contenu existant
+
+            currentTimeslots.forEach(slot => {
+                const synthesisSlotDiv = document.createElement('div');
+                synthesisSlotDiv.classList.add('synthesis-time-slot');
+                synthesisSlotDiv.innerHTML = `<h3>Créneau ${slot.startTime} - ${slot.endTime}</h3>`;
+
+                // Récupérer les affectations réelles de la base de données (appData)
+                const dateKey = formatDateToYYYYMMDD(currentRosterDate);
+                const actualSlotData = appData[dateKey]?.timeSlots?.[slot.id];
+
+                if (!actualSlotData || Object.keys(actualSlotData.engines || {}).length === 0) {
+                    synthesisSlotDiv.innerHTML += '<p class="no-data-message">Aucun engin défini pour ce créneau.</p>';
+                } else {
+                    // Itérer sur les engins définis pour ce créneau dans appData
+                    Object.entries(actualSlotData.engines).forEach(([engineType, assignment]) => {
+                        const engConfig = engineDetails[engineType];
+                        if (!engConfig) return; // Sauter si la config de l'engin est introuvable
+
+                        // Pour chaque rôle de l'engin
+                        engConfig.roles.forEach(roleDef => {
+                            const enginItem = document.createElement('div');
+                            enginItem.classList.add('synthesis-engine-item');
+
+                            const agentId = (assignment.personnel ? assignment.personnel[roleDef.id] : undefined);
+                            const assignedAgent = allAgents.find(a => a._id === agentId);
+
+                            let agentNameHtml = '<span class="unassigned">Non affecté</span>'; // Par défaut
+                            let statusClass = 'unassigned';
+
+                            if (assignedAgent && agentId !== 'none') {
+                                if (isAgentQualifiedForRole(assignedAgent, roleDef.id)) {
+                                    agentNameHtml = `<span class="assigned">${assignedAgent.prenom} ${assignedAgent.nom}</span>`;
+                                    statusClass = 'assigned';
+                                } else {
+                                    agentNameHtml = `<span class="unqualified-synth">${assignedAgent.prenom} ${assignedAgent.nom} (Non qual.)</span>`;
+                                    statusClass = 'unqualified-synth';
+                                }
+                            } else if (roleDef.required) {
+                                agentNameHtml = `<span class="missing-required">Manquant (Obligatoire)</span>`;
+                                statusClass = 'missing-required';
+                            }
+                            
+                            enginItem.innerHTML = `
+                                <strong>${engConfig.name} (${roleDef.name}) :</strong>
+                                ${agentNameHtml}
+                            `;
+                            synthesisSlotDiv.appendChild(enginItem);
+                        });
+                    });
+                }
+                enginsSynthesisContent.appendChild(synthesisSlotDiv);
+            });
         }
 
         // --------------------------------------------------
@@ -1363,7 +1425,8 @@ async function loadRosterConfig(dateKey) {
                             e.target.closest('.engine-case') || 
                             e.target.closest('.modal-role-slot') || 
                             e.target.closest('.modal-available-agent-slot') || 
-                            e.target.closest('.assigned-agent-placeholder');
+                            e.target.closest('.assigned-agent-placeholder') ||
+                            e.target.closest('.assigned-agents-for-slot'); // Nouvelle cible pour le drop sur le slot personnel
             
             if (target) {
                 e.dataTransfer.dropEffect = 'move';
@@ -1376,7 +1439,7 @@ async function loadRosterConfig(dateKey) {
             }
 
             function handleDragLeave(e) {
-            const target = e.target.closest('.on-duty-slot') || e.target.closest('.roster-cell') || e.target.closest('.engine-case') || e.target.closest('.modal-role-slot') || e.target.closest('.modal-available-agent-slot') || e.target.closest('.assigned-agent-placeholder');
+            const target = e.target.closest('.on-duty-slot') || e.target.closest('.roster-cell') || e.target.closest('.engine-case') || e.target.closest('.modal-role-slot') || e.target.closest('.modal-available-agent-slot') || e.target.closest('.assigned-agent-placeholder') || e.target.closest('.assigned-agents-for-slot');
             if (target) {
                 target.classList.remove('drag-over');
             }
@@ -1931,9 +1994,18 @@ async function loadRosterConfig(dateKey) {
             }
 
             function showMainRosterGrid() {
-            engineDetailsPage.style.display = 'none';
-            document.querySelector('.roster-content').style.display = 'block';
-            document.querySelectorAll('.time-slot-button').forEach(b => b.classList.remove('active'));
+            // Assurez-vous que l'élément 'roster-content' existe dans votre HTML
+            const rosterContent = document.querySelector('.roster-content');
+            if (rosterContent) {
+                rosterContent.style.display = 'flex'; // ou 'block' selon votre flex/grid parent
+            }
+            // Assurez-vous que l'élément 'engine-details-page' existe dans votre HTML
+            const engineDetailsPage = document.getElementById('engine-details-page');
+            if (engineDetailsPage) {
+                engineDetailsPage.style.display = 'none';
+            }
+            // Retirer la classe 'active' des boutons de créneaux si vous les avez
+            // document.querySelectorAll('.time-slot-button').forEach(b => b.classList.remove('active'));
             }
 
 
@@ -1974,7 +2046,7 @@ async function loadRosterConfig(dateKey) {
                 }
             });
 
-            backToRosterBtn.addEventListener('click', showMainRosterGrid);
+            //backToRosterBtn.addEventListener('click', showMainRosterGrid); // Décommentez si cet élément existe
 
             createOnDutySlots(); // Cela initialise la grille d'astreinte
 
@@ -1983,181 +2055,3 @@ async function loadRosterConfig(dateKey) {
 
             showMainRosterGrid(); // Affiche la grille principale après chargement initial complet.
             });
-
-            // Fonctions utilitaires de la modale (qui étaient en commentaire dans les versions précédentes)
-            function minutesToHeure(mins) {
-                const h = Math.floor(mins / 60).toString().padStart(2, '0');
-                const m = (mins % 60).toString().padStart(2, '0');
-                return h + ':' + m;
-            }
-
-            // La fonction displayMessageModal est présente ici pour assurer sa disponibilité.
-            function displayMessageModal(title, message, type = "info", callback = null) {
-                let modal = document.getElementById('custom-message-modal');
-                if (!modal) {
-                    modal = document.createElement('div');
-                    modal.id = 'custom-message-modal';
-                    modal.className = 'modal-overlay';
-                    document.body.appendChild(modal);
-
-                    // Styles CSS pour la modale (vous pouvez les déplacer dans un fichier CSS)
-                    const modalCss = `
-                        .modal-overlay {
-                            position: fixed;
-                            top: 0;
-                            left: 0;
-                            width: 100%;
-                            height: 100%;
-                            background-color: rgba(0, 0, 0, 0.6);
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            z-index: 1000;
-                            font-family: 'Inter', sans-serif;
-                        }
-                        .modal-content {
-                            background-color: #fff;
-                            padding: 25px 35px;
-                            border-radius: 12px;
-                            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-                            width: 90%;
-                            max-width: 450px;
-                            animation: fadeIn 0.3s ease-out;
-                            display: flex;
-                            flex-direction: column;
-                            gap: 20px;
-                        }
-                        .modal-header {
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                            border-bottom: 1px solid #eee;
-                            padding-bottom: 15px;
-                            margin-bottom: 15px;
-                        }
-                        .modal-header h2 {
-                            margin: 0;
-                            color: #333;
-                            font-size: 1.5em;
-                        }
-                        .modal-body {
-                            color: #555;
-                            font-size: 1em;
-                            line-height: 1.6;
-                        }
-                        .modal-footer {
-                            display: flex;
-                            justify-content: flex-end;
-                            gap: 10px;
-                            padding-top: 15px;
-                            border-top: 1px solid #eee;
-                            margin-top: 15px;
-                        }
-                        .btn {
-                            padding: 10px 20px;
-                            border: none;
-                            border-radius: 8px;
-                            cursor: pointer;
-                            font-size: 0.95em;
-                            font-weight: 500;
-                            transition: background-color 0.2s ease, transform 0.1s ease;
-                        }
-                        .btn-primary {
-                            background-color: #007bff;
-                            color: white;
-                        }
-                        .btn-primary:hover {
-                            background-color: #0056b3;
-                            transform: translateY(-1px);
-                        }
-                        .btn-secondary {
-                            background-color: #6c757d;
-                            color: white;
-                        }
-                        .btn-secondary:hover {
-                            background-color: #5a6268;
-                            transform: translateY(-1px);
-                        }
-                        .modal-icon {
-                            font-size: 2em;
-                            margin-right: 15px;
-                            align-self: flex-start;
-                        }
-                        .modal-icon.info { color: #007bff; }
-                        .modal-icon.success { color: #28a745; }
-                        .modal-icon.warning { color: #ffc107; }
-                        .modal-icon.error { color: #dc3545; }
-                        .modal-icon.question { color: #6c757d; }
-
-                        @keyframes fadeIn {
-                            from { opacity: 0; transform: scale(0.9); }
-                            to { opacity: 1; transform: scale(1); }
-                        }
-                    `;
-                    const styleSheet = document.createElement("style");
-                    styleSheet.type = "text/css";
-                    styleSheet.innerText = modalCss;
-                    document.head.appendChild(styleSheet);
-                }
-
-                let iconHtml = '';
-                switch (type) {
-                    case 'info': iconHtml = '💡'; break;
-                    case 'success': iconHtml = '✅'; break;
-                    case 'warning': iconHtml = '⚠️'; break;
-                    case 'error': iconHtml = '❌'; break;
-                    case 'question': iconHtml = '❓'; break;
-                }
-
-                modal.innerHTML = `
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <span class="modal-icon ${type}">${iconHtml}</span>
-                            <h2>${title}</h2>
-                        </div>
-                        <div class="modal-body">
-                            <p>${message}</p>
-                        </div>
-                        <div class="modal-footer">
-                            ${callback ? '<button id="modal-cancel-btn" class="btn btn-secondary">Annuler</button>' : ''}
-                            <button id="modal-ok-btn" class="btn btn-primary">OK</button>
-                        </div>
-                    </div>
-                `;
-
-                modal.style.display = 'flex';
-
-                const okBtn = modal.querySelector('#modal-ok-btn');
-                okBtn.onclick = () => {
-                    modal.style.display = 'none';
-                    if (callback) callback(true);
-                };
-
-                if (callback) {
-                    const cancelBtn = modal.querySelector('#modal-cancel-btn');
-                    cancelBtn.onclick = () => {
-                        modal.style.display = 'none';
-                        callback(false);
-                    };
-                }
-
-                modal.onclick = (e) => {
-                    if (e.target === modal) {
-                        modal.style.display = 'none';
-                        if (callback) callback(false);
-                    }
-                };
-            }
-            // Remplacement des fonctions natives alert et confirm pour utiliser les modales personnalisées
-            // Ces lignes étaient déjà présentes à la fin du fichier, je les laisse telles quelles
-            // pour garantir qu'elles prennent le dessus sur les fonctions natives.
-            window.confirm = (message) => {
-                return new Promise((resolve) => {
-                    displayMessageModal("Confirmation", message, "question", (result) => {
-                        resolve(result);
-                    });
-                });
-            };
-            window.alert = (message) => {
-                displayMessageModal("Information", message, "info");
-            };

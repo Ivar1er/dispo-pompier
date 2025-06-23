@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feuille de Garde - Centre BEAUNE</title>
-    <link rel="stylesheet" href="css/feuille_de_garde.css">
+    <title>Feuille de garde du centre BEAUNE</title>
+    <link rel="stylesheet" href="feuille_de_garde.css">
+    <!-- Police Inter depuis Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <div id="loading-spinner" class="loading-spinner hidden">
-    <div class="spinner"></div>
-  </div>
-  
+    <!-- Loader global (caché par défaut) -->
+    <div id="loading-spinner" class="loading-spinner hidden">
+        <div class="spinner"></div>
+    </div>
+
     <div class="roster-wrapper">
         <header class="roster-header">
             <div class="header-left">
@@ -22,80 +24,72 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>
                     </button>
                     <label for="roster-date" class="sr-only">Sélectionner la date</label>
-                    <input type="date" id="roster-date">
+                    <input type="date" id="roster-date" class="date-input">
                     <button id="next-day-button" class="date-nav-button">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
                     </button>
                 </div>
-                <button id="generate-auto-btn" class="refresh-button">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.76 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.76-2.74L21 16"/><path d="M21 21v-5h-5"/></svg>
-                    Générer Auto
-                </button>
             </div>
-            <h1 class="roster-title">Feuille de garde du centre BEAUNE</h1>
+            <div class="header-center">
+                <button id="generate-auto-button" class="btn btn-primary">Générer Auto</button>
+                <h1>Feuille de garde du centre BEAUNE</h1>
+            </div>
             <div class="header-right">
-                <button id="logout-btn" class="btn btn-secondary">Déconnexion</button>
+                <button id="logout-button" class="btn btn-secondary">Déconnexion</button>
             </div>
         </header>
 
-        <section class="main-content">
-            <div class="roster-content">
-                <div id="time-slot-buttons-container" class="time-slot-buttons">
-                    <!-- Les boutons de créneaux horaires seront générés ici par JS -->
+        <div class="roster-content">
+            <!-- Conteneur pour les deux colonnes côte à côte -->
+            <div class="columns-container">
+                <!-- Section Personnel Disponible -->
+                <div class="personnel-disponible-section panel">
+                    <h2>Personnel Disponible</h2>
+                    <div id="time-slots-container" class="time-slots-list">
+                        <!-- Les créneaux horaires seront ajoutés ici par JS -->
+                        <p class="no-data-message" id="no-timeslot-message">Aucun créneau horaire défini pour cette journée.</p>
+                    </div>
+                    <button id="add-slot-button" class="btn btn-success add-slot-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M12 5v14M5 12h14"/></svg>
+                        Ajouter un créneau
+                    </button>
                 </div>
-                <div id="roster-grid" class="roster-grid-container">
-                    <p class="loading-message">Chargement de la feuille de garde ...</p>
+
+                <!-- Section Agents d'astreinte -->
+                <div class="agents-astreinte-section panel">
+                    <h2>Agents d'astreinte</h2>
+                    <div id="agents-grid-container" class="agents-grid">
+                        <!-- Les agents d'astreinte seront ajoutés ici par JS -->
+                        <!-- Placeholder pour démontrer la structure, seront générés par JS -->
+                        <!-- <div class="agent-card" draggable="true" data-agent-id="1">Astreinte 1</div> -->
+                    </div>
+                    <p class="drag-info">Seuls les agents glissés ici seront utilisés pour la génération automatique et l'affectation manuelle.</p>
                 </div>
             </div>
 
-            <div class="personnel-section">
-                <h2>Personnel Disponible</h2>
-                <div id="available-personnel-list" class="available-personnel-list drag-area">
-                    <p class="loading-message">Chargement du personnel disponible...</p>
+            <!-- Nouvelle Section : Synthèse des engins par créneau horaire -->
+            <div class="engins-synthesis-section panel">
+                <h2>Synthèse des engins par créneau horaire</h2>
+                <div id="engins-synthesis-content" class="synthesis-content">
+                    <!-- Le contenu de la synthèse sera généré ici par JS -->
+                    <p class="no-data-message">Aucune synthèse disponible pour le moment. Ajoutez des créneaux et des engins.</p>
                 </div>
             </div>
-
-            <div class="on-duty-section">
-                <h2>Agents d'astreinte</h2>
-                <div id="on-duty-agents-grid" class="on-duty-agents-grid drop-area">
-                    <!-- Les slots d'astreinte seront générés ici par JS -->
-                </div>
-                <p class="info-text">Seuls les agents glissés ici seront utilisés pour la génération automatique et l'affectation manuelle.</p>
-            </div>
-        </section>
-        
-        <div id="engine-details-page" class="engine-details-page" style="display: none;">
-            <div class="page-header-details">
-                <button id="back-to-roster-btn" class="back-button">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                    Retour à la feuille de garde
-                </button>
-            </div>
-            <div class="engine-grid">
-                </div>
         </div>
     </div>
 
-    <div id="personnel-assignment-modal" class="custom-modal" style="display: none;">
+    <!-- Modale de confirmation/message personnalisée (à maintenir si utilisée) -->
+    <div id="custom-message-modal" class="custom-modal" style="display: none;">
         <div class="modal-content">
-            <h2 id="personnel-assignment-modal-title">Affecter le personnel</h2>
-            <div class="modal-body-assignment">
-                <div class="modal-section available-agents">
-                    <h3>Agents d'astreinte disponibles</h3>
-                    <div id="available-agents-in-modal-list" class="agent-list-drag-area">
-                        </div>
-                </div>
-                <div class="modal-section engine-roles">
-                    <h3>Rôles de l'engin</h3>
-                    <div id="engine-roles-container" class="roles-drop-area">
-                        </div>
-                </div>
-            </div>
+            <h2 id="modal-title"></h2>
+            <p id="modal-message"></p>
             <div class="modal-actions">
-                <button id="close-personnel-assignment-modal-btn" class="btn btn-secondary">Fermer</button>
+                <button id="modal-ok-btn" class="btn btn-primary">OK</button>
+                <button id="modal-cancel-btn" class="btn btn-secondary" style="display: none;">Annuler</button>
             </div>
         </div>
     </div>
-    <script src="js/feuille_de_garde.js"></script>
+
+    <script src="feuille_de_garde.js"></script>
 </body>
 </html>
