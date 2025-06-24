@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalTitle = document.getElementById('modal-title');
     const modalMessage = document.getElementById('modal-message');
     const modalOkBtn = document.getElementById('modal-ok-btn');
-    const modalCancelBtn = document.getElementById('modal-cancel-btn');
+    const modalCancelBtn = document='modal-cancel-btn';
 
     // --- Variables d'état globales (maintenant remplies par l'API) ---
     let currentDate = new Date(); // Date de la feuille de garde affichée
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Formate une date en YYYY-MM-DD
+    // Formate une date engetFullYear-MM-DD
     const formatDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -344,8 +344,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 agentCard.dataset.agentName = agent.username;
 
                 agentCard.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, username: agent.username }));
+                    const agentDataString = JSON.stringify({ id: agent.id, username: agent.username });
+                    e.dataTransfer.setData('text/plain', agentDataString);
                     e.dataTransfer.effectAllowed = 'move'; // Peut être déplacé vers un rôle
+                    console.log('Dragstart (Personnel Disponible): Setting data for agent', agent.id, ':', agentDataString);
                 });
 
                 // --- Affichage des créneaux de disponibilité (maintenant via CSS hover) ---
@@ -396,8 +398,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Configure le dragstart pour les agents d'astreinte (vers les créneaux journaliers)
                 agentCard.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, username: agent.username || agent.name })); // Assurez-vous de passer 'username'
+                    const agentDataString = JSON.stringify({ id: agent.id, username: agent.username || agent.name });
+                    e.dataTransfer.setData('text/plain', agentDataString);
                     e.dataTransfer.effectAllowed = 'move'; // Peut être déplacé vers un créneau/engin
+                    console.log('Dragstart (Agents d\'astreinte): Setting data for agent', agent.id, ':', agentDataString);
                 });
 
                 // Écouteur pour le bouton de suppression de l'agent d'astreinte
@@ -659,7 +663,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let agentData;
             try {
-                agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const rawData = e.dataTransfer.getData('text/plain');
+                console.log('Drop (OnCall DropZone): Raw data received:', rawData); // Log raw data
+                if (!rawData) { // Vérification explicite de la chaîne vide
+                    await showModal('Erreur de données', 'Les données de l\'agent glissé sont manquantes. Veuillez réessayer.', false);
+                    return;
+                }
+                agentData = JSON.parse(rawData);
             } catch (error) {
                 console.error('Erreur lors du parsing des données de glisser-déposer de l\'agent d\'astreinte :', error);
                 await showModal('Erreur de données', 'Les données de l\'agent glissé sont invalides. Veuillez réessayer.', false);
@@ -743,16 +753,27 @@ document.addEventListener('DOMContentLoaded', () => {
             roleDropZoneElement.classList.remove('drag-invalid-role');
 
             let agentData;
+            const rawData = e.dataTransfer.getData('text/plain');
+            console.log('Dragover (Role DropZone): Raw data received:', rawData); // Log raw data
+            
+            if (!rawData) { // Vérification explicite de la chaîne vide
+                console.error('Dragover (Role DropZone): DataTransfer is empty. Cannot parse JSON. This typically means dragstart failed.');
+                roleDropZoneElement.classList.add('drag-invalid-role');
+                e.dataTransfer.dropEffect = 'none'; // Empêche le drop
+                return;
+            }
+
             try {
-                agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+                agentData = JSON.parse(rawData);
             } catch (error) {
-                console.error('Erreur lors du parsing des données de glisser-déposer (dragover) :', error);
+                console.error('Erreur lors du parsing des données de glisser-déposer (dragover) :', error, 'Raw data:', rawData);
                 roleDropZoneElement.classList.add('drag-invalid-role');
                 e.dataTransfer.dropEffect = 'none'; // Empêche le drop
                 return;
             }
 
             if (!agentData || !agentData.id) {
+                console.error('Dragover (Role DropZone): Incomplete agent data.', agentData);
                 roleDropZoneElement.classList.add('drag-invalid-role');
                 e.dataTransfer.dropEffect = 'none'; // Empêche le drop
                 return;
@@ -782,16 +803,24 @@ document.addEventListener('DOMContentLoaded', () => {
             roleDropZoneElement.classList.remove('drag-invalid-role');
 
             let agentData;
+            const rawData = e.dataTransfer.getData('text/plain');
+            console.log('Drop (Role DropZone): Raw data received:', rawData); // Log raw data
+            
+            if (!rawData) { // Vérification explicite de la chaîne vide
+                await showModal('Erreur de données', 'Les données de l\'agent glissé sont manquantes lors du dépôt. Veuillez réessayer.', false);
+                return;
+            }
+
             try {
-                agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+                agentData = JSON.parse(rawData);
             } catch (error) {
-                console.error('Erreur lors du parsing des données de glisser-déposer (drop) :', error);
+                console.error('Erreur lors du parsing des données de glisser-déposer (drop) :', error, 'Raw data:', rawData);
                 await showModal('Erreur de données', 'Les données de l\'agent glissé sont invalides. Veuillez réessayer.', false);
                 return;
             }
 
             if (!agentData || !agentData.id) {
-                await showModal('Erreur de données', 'Les informations de l\'agent sont incomplètes. Veuillez réessayer.', false);
+                await showModal('Erreur de données', 'Les informations de l\'agent sont incomplètes lors du dépôt. Veuillez réessayer.', false);
                 return;
             }
 
