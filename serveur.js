@@ -275,7 +275,6 @@ async function loadEngines() {
                 { id: 'ch_vsav', name: 'Chef d\'agrès VSAV', qualificationIds: ['ca_vsav'], gradeIds: [] },
                 { id: 'cod_vsav', name: 'Conducteur VSAV', qualificationIds: ['cod_0'], gradeIds: [] },
                 { id: 'eq1_vsav', name: 'Équipier 1 VSAV', qualificationIds: ['eq_vsav'], gradeIds: [] },
-                { id: 'eq2_vsav', name: 'Équipier 2 VSAV', qualificationIds: ['eq_vsav'], gradeIds: [] }
             ]
         },
         {

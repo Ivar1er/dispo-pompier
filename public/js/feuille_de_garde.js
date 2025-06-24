@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Formate une date engetFullYear-MM-DD
+    // Formate une date en YYYY-MM-DD
     const formatDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -242,7 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await response.json();
             
-            // Les données sont chargées depuis le backend, elles représentent l'état réel.
             onCallAgents = data.onCall || [];
             availablePersonnel = data.available || []; // availablePersonnel contient maintenant les qualifications
 
@@ -376,10 +375,17 @@ document.addEventListener('DOMContentLoaded', () => {
             onCallAgents.forEach(agent => {
                 const agentCard = document.createElement('div');
                 agentCard.className = 'agent-card';
-                agentCard.textContent = agent.username || agent.name; // Fallback au cas où
+                // ATTENTION: suppression de agentCard.textContent pour éviter l'écrasement de innerHTML
+                // agentCard.textContent = agent.username || agent.name; 
                 agentCard.draggable = true;
                 agentCard.dataset.agentId = agent.id;
                 agentCard.dataset.agentName = agent.username || agent.name; // Fallback
+
+                // Le nom de l'agent est maintenant inclus directement dans innerHTML
+                agentCard.innerHTML = `
+                    <span>${agent.username || agent.name}</span>
+                    <button class="remove-on-call-agent-tag" data-agent-id="${agent.id}" aria-label="Supprimer cet agent de la liste d'astreinte">x</button>
+                `;
 
                 // Configure le dragstart pour les agents d'astreinte (vers les créneaux journaliers)
                 agentCard.addEventListener('dragstart', (e) => {
@@ -388,10 +394,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 // Écouteur pour le bouton de suppression de l'agent d'astreinte
-                agentCard.querySelector('.remove-on-call-agent-tag').addEventListener('click', (e) => {
-                    const agentIdToRemove = e.target.dataset.agentId;
-                    removeAgentFromOnCallList(agentIdToRemove);
-                });
+                // Le querySelector trouvera maintenant le bouton car il est bien dans le innerHTML
+                const removeButton = agentCard.querySelector('.remove-on-call-agent-tag');
+                if (removeButton) { // Vérification de sécurité, bien que non strictement nécessaire après la correction
+                    removeButton.addEventListener('click', (e) => {
+                        const agentIdToRemove = e.target.dataset.agentId;
+                        removeAgentFromOnCallList(agentIdToRemove);
+                    });
+                }
+
 
                 onCallAgentsGrid.appendChild(agentCard);
             });
@@ -748,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- NOUVEAU: Setup pour les zones de drop des RÔLES spécifiques aux engins ---
+    // --- Setup pour les zones de drop des RÔLES spécifiques aux engins ---
     const setupRoleDropZone = (roleDropZoneElement, slotId) => {
         roleDropZoneElement.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -757,8 +768,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const requiredQualificationId = roleDropZoneElement.dataset.qualificationId;
             const agentInOnCall = onCallAgents.find(a => a.id === agentData.id);
 
+            // Vérifier si l'agent existe et s'il a la qualification requise
             if (agentInOnCall && (!requiredQualificationId || (agentInOnCall.qualifications && agentInOnCall.qualifications.includes(requiredQualificationId)))) {
-                 roleDropZoneElement.classList.add('drag-over'); // Ajout d'une classe pour le style
+                 roleDropZoneElement.classList.add('drag-over'); // Style pour drop valide
             } else {
                  roleDropZoneElement.classList.add('drag-over-invalid'); // Style pour drop invalide
                  e.dataTransfer.dropEffect = 'none'; // Empêche le drop
