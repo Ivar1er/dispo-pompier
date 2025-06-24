@@ -53,7 +53,7 @@ body {
     background-color: #e9ecef;
     border-bottom: 1px solid #dee2e6;
     border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
+    border-top-right-radius: 8_px;
     flex-wrap: wrap; /* Permet un bon comportement sur mobile */
     gap: 15px; /* Espacement entre les éléments du header */
 }
@@ -278,6 +278,10 @@ body {
     text-align: center;
     box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     transition: background-color 0.2s, transform 0.1s;
+
+    /* Styles ajoutés/modifiés pour la tooltip */
+    position: relative; /* Rend la carte un conteneur de positionnement pour les éléments absolus */
+    overflow: visible; /* Assure que la tooltip n'est pas coupée */
 }
 
 .agent-card:hover {
@@ -288,6 +292,33 @@ body {
     cursor: grabbing;
     transform: translateY(0);
 }
+
+/* Styles pour la tooltip de disponibilité */
+.availability-tooltip {
+    position: absolute;
+    bottom: 100%; /* Positionne au-dessus de la carte de l'agent */
+    left: 50%; /* Centre horizontalement */
+    transform: translateX(-50%) translateY(-10px); /* Ajuste pour le centrage et un léger décalage */
+    background-color: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    font-size: 0.85em;
+    white-space: nowrap; /* Empêche le texte de revenir à la ligne */
+    z-index: 101; /* Assure qu'elle est au-dessus d'autres éléments */
+    opacity: 0; /* Cachée par défaut */
+    visibility: hidden; /* Cachée par défaut */
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s; /* Transition fluide */
+}
+
+/* Affichage de la tooltip au survol de la carte de l'agent */
+.agent-card:hover .availability-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0); /* Anime en place */
+}
+
 
 .drag-info {
     font-size: 0.85em;

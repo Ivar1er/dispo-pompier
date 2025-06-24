@@ -202,43 +202,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.dataTransfer.effectAllowed = 'copy'; // Peut être copié vers la zone d'astreinte
                 });
 
-                // --- Affichage des créneaux de disponibilité au survol ---
-                agentCard.addEventListener('mouseenter', (e) => {
-                    if (agent.availabilities && agent.availabilities.length > 0) {
-                        const tooltip = document.createElement('div');
-                        tooltip.className = 'availability-tooltip';
-                        // Convertit les index de créneaux en plages horaires lisibles
-                        const slotsText = agent.availabilities.map(slotRange => {
-                            const startH = horaires[slotRange.start] ? horaires[slotRange.start].split(' - ')[0] : 'Inconnu';
-                            const endH = horaires[slotRange.end] ? horaires[slotRange.end].split(' - ')[1] : 'Inconnu';
-                            return `${startH} - ${endH}`;
-                        }).join('<br>');
+                // --- Affichage des créneaux de disponibilité (maintenant via CSS hover) ---
+                if (agent.availabilities && agent.availabilities.length > 0) {
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'availability-tooltip';
+                    // Convertit les index de créneaux en plages horaires lisibles
+                    const slotsText = agent.availabilities.map(slotRange => {
+                        const startH = horaires[slotRange.start] ? horaires[slotRange.start].split(' - ')[0] : 'Inconnu';
+                        const endH = horaires[slotRange.end] ? horaires[slotRange.end].split(' - ')[1] : 'Inconnu';
+                        return `${startH} - ${endH}`;
+                    }).join('<br>');
 
-                        tooltip.innerHTML = `
-                            <strong>Disponibilité:</strong><br>
-                            ${slotsText}
-                        `;
-                        // Positionnement simple à côté de la carte de l'agent
-                        tooltip.style.position = 'absolute';
-                        tooltip.style.left = `${e.clientX + 15}px`; // Ajuste la position
-                        tooltip.style.top = `${e.clientY + 15}px`;
-                        tooltip.style.backgroundColor = '#333';
-                        tooltip.style.color = 'white';
-                        tooltip.style.padding = '8px';
-                        tooltip.style.borderRadius = '5px';
-                        tooltip.style.zIndex = '100';
-                        document.body.appendChild(tooltip);
-                        agentCard.dataset.tooltipId = 'tooltip-' + agent.id; // Stocke l'ID du tooltip
-                    }
-                });
-
-                agentCard.addEventListener('mouseleave', () => {
-                    const tooltipId = agentCard.dataset.tooltipId;
-                    const existingTooltip = document.querySelector(`[data-tooltip-id="${tooltipId}"]`);
-                    if (existingTooltip) {
-                        existingTooltip.remove();
-                    }
-                });
+                    tooltip.innerHTML = `
+                        <strong>Disponibilité:</strong><br>
+                        ${slotsText}
+                    `;
+                    agentCard.appendChild(tooltip); // Ajoute la tooltip comme enfant de la carte d'agent
+                }
                 // --- Fin affichage survol ---
 
                 availablePersonnelList.appendChild(agentCard);
