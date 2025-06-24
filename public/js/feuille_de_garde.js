@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Rend les agents dans la section "Agents d'astreinte" (cible de drop)
+    // Rend les agents dans la section "Agents d'astreinte" (cible de drop et draggable)
     const renderOnCallAgents = () => {
         onCallAgentsGrid.innerHTML = '';
         if (onCallAgents.length === 0) {
@@ -183,16 +183,26 @@ document.addEventListener('DOMContentLoaded', () => {
             noOnCallAgentsMessage.style.display = 'none';
             onCallAgents.forEach(agent => {
                 const agentCard = document.createElement('div');
-                agentCard.className = 'agent-card'; // Réutilise le style de carte
-                agentCard.textContent = agent.name;
-                agentCard.draggable = true; // Ces agents peuvent aussi être glissés vers les créneaux journaliers
+                agentCard.className = 'agent-card';
                 agentCard.dataset.agentId = agent.id;
                 agentCard.dataset.agentName = agent.name;
+                agentCard.draggable = true; // Ces agents peuvent être glissés vers les créneaux journaliers
+
+                agentCard.innerHTML = `
+                    <span>${agent.name}</span>
+                    <button class="remove-on-call-agent-tag" data-agent-id="${agent.id}" aria-label="Supprimer cet agent de la liste d'astreinte">x</button>
+                `;
 
                 // Configure le dragstart pour les agents d'astreinte (vers les créneaux journaliers)
                 agentCard.addEventListener('dragstart', (e) => {
                     e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, name: agent.name }));
                     e.dataTransfer.effectAllowed = 'move'; // Peut être déplacé vers un créneau
+                });
+
+                // Écouteur pour le bouton de suppression de l'agent d'astreinte
+                agentCard.querySelector('.remove-on-call-agent-tag').addEventListener('click', (e) => {
+                    const agentIdToRemove = e.target.dataset.agentId;
+                    removeAgentFromOnCallList(agentIdToRemove);
                 });
 
                 onCallAgentsGrid.appendChild(agentCard);
@@ -231,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${slot.assignedAgents.map(agent => `
                     <span class="assigned-agent-tag" data-agent-id="${agent.id}">
                         ${agent.name}
-                        <button class="remove-assigned-agent-tag" data-agent-id="${agent.id}">x</button>
+                        <button class="remove-assigned-agent-tag" data-agent-id="${agent.id}" aria-label="Retirer l'agent du créneau">x</button>
                     </span>
                 `).join('')}
             </div>
@@ -243,8 +253,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const startTimeInput = div.querySelector('.start-time');
         const endTimeInput = div.querySelector('.end-time');
 
+        // Capture la valeur initiale de l'heure de fin pour la logique de création de nouveau créneau
+        let initialEndTime = slot.endTime;
+
         startTimeInput.addEventListener('change', (e) => updateSlotTime(slot.id, 'startTime', e.target.value));
-        endTimeInput.addEventListener('change', (e) => updateSlotTime(slot.id, 'endTime', e.target.value));
+        endTimeInput.addEventListener('change', (e) => {
+            const newEndTime = e.target.value;
+            updateSlotTime(slot.id, 'endTime', newEndTime);
+            // Logique pour créer un nouveau créneau automatiquement
+            if (initialEndTime === '07:00' && newEndTime === '15:00') {
+                createConsecutiveSlot(newEndTime);
+            }
+            initialEndTime = newEndTime; // Mettre à jour pour la prochaine modification
+        });
 
         div.querySelector('.remove-slot-button').addEventListener('click', () => removeDailyRosterSlot(slot.id));
 
@@ -324,13 +345,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Ajout d'un nouveau créneau horaire au roster journalier
+    // Ajout d'un nouveau créneau horaire au roster journalier (par défaut 07:00-07:00)
     addSlotButton.addEventListener('click', () => {
         const newSlotId = `slot-${Date.now()}`;
         const newSlot = {
             id: newSlotId,
-            startTime: '08:00',
-            endTime: '12:00',
+            startTime: '07:00', // Heure de début par défaut
+            endTime: '07:00',   // Heure de fin par défaut
             assignedAgents: []
         };
         dailyRosterSlots.push(newSlot);
@@ -340,6 +361,22 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`Créneau ${newSlot.id} ajouté au roster.`);
         // Ici, tu enverrais cette action à ton backend
     });
+
+    // Fonction pour créer un créneau consécutif (15:00 - 07:00)
+    const createConsecutiveSlot = (previousEndTime) => {
+        const newSlotId = `slot-${Date.now()}-auto`;
+        const newSlot = {
+            id: newSlotId,
+            startTime: previousEndTime, // Commence à l'heure de fin du précédent
+            endTime: '07:00', // Fin à 07:00
+            assignedAgents: []
+        };
+        dailyRosterSlots.push(newSlot);
+        renderDailyRosterSlots();
+        updateEnginsSynthesis();
+        timeSlotsContainer.scrollTop = timeSlotsContainer.scrollHeight;
+        console.log(`Nouveau créneau consécutif (${newSlot.startTime}-${newSlot.endTime}) créé automatiquement.`);
+    };
 
     // Mise à jour de l'heure d'un créneau dans le roster journalier
     const updateSlotTime = (slotId, timeType, value) => {
@@ -374,11 +411,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupOnCallDropZone = (dropZoneElement) => {
         dropZoneElement.addEventListener('dragover', (e) => {
             e.preventDefault(); // Permet le dépôt
-            if (e.dataTransfer.effectAllowed === 'copy') { // Si l'agent vient de "Personnel Disponible"
-                dropZoneElement.style.backgroundColor = '#dff0d8'; // Feedback visuel pour la copie
-            } else if (e.dataTransfer.effectAllowed === 'move') { // Si l'agent vient de "Agents d'astreinte" (pour réordonner)
-                dropZoneElement.style.backgroundColor = '#cfe2f3'; // Feedback visuel pour le déplacement
-            }
+            // e.dataTransfer.effectAllowed peut être "copy" (si vient de Personnel Disponible) ou "move" (si vient de Agents d'astreinte pour réordonner)
+            dropZoneElement.style.backgroundColor = '#dff0d8'; // Feedback visuel
         });
 
         dropZoneElement.addEventListener('dragleave', () => {
@@ -401,6 +435,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 showModal('Agent déjà sélectionné', `L'agent ${agentData.name} est déjà dans la liste des agents d'astreinte.`, false);
             }
         });
+    };
+
+    // Supprimer un agent de la liste "Agents d'astreinte"
+    const removeAgentFromOnCallList = async (agentId) => {
+        const confirm = await showModal(
+            'Confirmer la suppression',
+            'Êtes-vous sûr de vouloir retirer cet agent de la liste des agents d\'astreinte ?',
+            true
+        );
+        if (confirm) {
+            onCallAgents = onCallAgents.filter(agent => agent.id !== agentId);
+            renderOnCallAgents();
+            console.log(`Agent ${agentId} retiré de la liste d'astreinte.`);
+            // Ici, tu enverrais cette suppression à ton backend
+        }
     };
 
     // Configuration de la zone de dépôt pour les créneaux horaires journaliers
