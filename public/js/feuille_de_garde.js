@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Formate une date en YYYY-MM-DD
+    // Formate une date engetFullYear-MM-DD
     const formatDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -375,13 +375,11 @@ document.addEventListener('DOMContentLoaded', () => {
             onCallAgents.forEach(agent => {
                 const agentCard = document.createElement('div');
                 agentCard.className = 'agent-card';
-                // ATTENTION: suppression de agentCard.textContent pour éviter l'écrasement de innerHTML
-                // agentCard.textContent = agent.username || agent.name; 
                 agentCard.draggable = true;
                 agentCard.dataset.agentId = agent.id;
                 agentCard.dataset.agentName = agent.username || agent.name; // Fallback
 
-                // Le nom de l'agent est maintenant inclus directement dans innerHTML
+                // Le nom de l'agent est inclus directement dans innerHTML
                 agentCard.innerHTML = `
                     <span>${agent.username || agent.name}</span>
                     <button class="remove-on-call-agent-tag" data-agent-id="${agent.id}" aria-label="Supprimer cet agent de la liste d'astreinte">x</button>
@@ -394,9 +392,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 // Écouteur pour le bouton de suppression de l'agent d'astreinte
-                // Le querySelector trouvera maintenant le bouton car il est bien dans le innerHTML
                 const removeButton = agentCard.querySelector('.remove-on-call-agent-tag');
-                if (removeButton) { // Vérification de sécurité, bien que non strictement nécessaire après la correction
+                if (removeButton) {
                     removeButton.addEventListener('click', (e) => {
                         const agentIdToRemove = e.target.dataset.agentId;
                         removeAgentFromOnCallList(agentIdToRemove);
@@ -763,29 +760,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupRoleDropZone = (roleDropZoneElement, slotId) => {
         roleDropZoneElement.addEventListener('dragover', (e) => {
             e.preventDefault();
-            // Optional: check qualification here for visual feedback
+            // Supprimer les classes précédentes pour un feedback propre
+            roleDropZoneElement.classList.remove('drag-valid-role');
+            roleDropZoneElement.classList.remove('drag-invalid-role');
+
             const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
             const requiredQualificationId = roleDropZoneElement.dataset.qualificationId;
-            const agentInOnCall = onCallAgents.find(a => a.id === agentData.id);
+            const fullAgent = onCallAgents.find(a => a.id === agentData.id);
 
-            // Vérifier si l'agent existe et s'il a la qualification requise
-            if (agentInOnCall && (!requiredQualificationId || (agentInOnCall.qualifications && agentInOnCall.qualifications.includes(requiredQualificationId)))) {
-                 roleDropZoneElement.classList.add('drag-over'); // Style pour drop valide
+            // Vérifier si l'agent est d'astreinte et s'il a la qualification requise
+            if (fullAgent && (!requiredQualificationId || (fullAgent.qualifications && fullAgent.qualifications.includes(requiredQualificationId)))) {
+                 roleDropZoneElement.classList.add('drag-valid-role'); // Style pour drop valide (vert)
+                 e.dataTransfer.dropEffect = 'move'; // Permet le drop
             } else {
-                 roleDropZoneElement.classList.add('drag-over-invalid'); // Style pour drop invalide
+                 roleDropZoneElement.classList.add('drag-invalid-role'); // Style pour drop invalide (rouge)
                  e.dataTransfer.dropEffect = 'none'; // Empêche le drop
             }
         });
 
         roleDropZoneElement.addEventListener('dragleave', () => {
-            roleDropZoneElement.classList.remove('drag-over');
-            roleDropZoneElement.classList.remove('drag-over-invalid');
+            roleDropZoneElement.classList.remove('drag-valid-role');
+            roleDropZoneElement.classList.remove('drag-invalid-role');
         });
 
         roleDropZoneElement.addEventListener('drop', async (e) => {
             e.preventDefault();
-            roleDropZoneElement.classList.remove('drag-over');
-            roleDropZoneElement.classList.remove('drag-over-invalid');
+            roleDropZoneElement.classList.remove('drag-valid-role');
+            roleDropZoneElement.classList.remove('drag-invalid-role');
 
             const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
             const agentToAssign = { id: agentData.id, username: agentData.username };
@@ -801,7 +802,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // 2. Vérifier la qualification
+            // 2. Vérifier la qualification (double-check au drop pour éviter les contournements visuels)
             if (requiredQualificationId && (!fullAgent.qualifications || !fullAgent.qualifications.includes(requiredQualificationId))) {
                 const roleName = roleDropZoneElement.querySelector('.role-name').textContent;
                 const engineName = centerEngines.find(e => e.id === engineId)?.name || engineId.toUpperCase();
@@ -824,16 +825,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // Retirer l'agent de TOUS les autres rôles de ce MÊME créneau s'il y était
-                centerEngines.forEach(eng => {
-                    eng.roles.forEach(rol => {
-                        if (slot.assignedEngines[eng.id] && slot.assignedEngines[eng.id][rol.id] && 
-                            slot.assignedEngines[eng.id][rol.id].id === agentToAssign.id &&
-                            !(eng.id === engineId && rol.id === roleId)) { // Ne pas retirer du rôle actuel si c'est le même
-                            slot.assignedEngines[eng.id][rol.id] = null;
+                // NOUVEAU: Retirer l'agent de TOUS les autres rôles de CE MÊME ENGIN s'il y était
+                // Un agent peut occuper un seul poste au sein du même engin.
+                const targetEngineDefinition = centerEngines.find(e => e.id === engineId);
+                if (targetEngineDefinition) {
+                    targetEngineDefinition.roles.forEach(rol => {
+                        if (slot.assignedEngines[engineId] && slot.assignedEngines[engineId][rol.id] &&
+                            slot.assignedEngines[engineId][rol.id].id === agentToAssign.id &&
+                            rol.id !== roleId) { // Si l'agent est dans un autre rôle au sein du *même* engin, le retirer.
+                            slot.assignedEngines[engineId][rol.id] = null;
                         }
                     });
-                });
+                }
                 
                 // Assigner l'agent au rôle actuel
                 slot.assignedEngines[engineId][roleId] = agentToAssign;
@@ -930,20 +933,27 @@ document.addEventListener('DOMContentLoaded', () => {
             dailyRosterSlots.push(newSlot);
         });
 
-        // Tente d'assigner les agents aux rôles en respectant les qualifications
+        // Tente d'assigner les agents aux rôles en respectant les qualifications et la règle "un poste par engin"
         dailyRosterSlots.forEach(slot => {
+            // Créer une liste des agents déjà assignés dans ce slot pour éviter les doublons au sein d'un même créneau global
+            const assignedAgentIdsInSlot = new Set(); 
+
             centerEngines.forEach(engine => {
                 engine.roles.forEach(role => {
-                    // Trouver un agent d'astreinte disponible (non assigné dans ce slot) qui a la qualification requise
+                    // Si un rôle est déjà occupé (par exemple, par une affectation manuelle ou précédente)
+                    if (slot.assignedEngines[engine.id][role.id]) {
+                        assignedAgentIdsInSlot.add(slot.assignedEngines[engine.id][role.id].id);
+                        return; // Passer à la prochaine itération si déjà assigné
+                    }
+
                     const foundAgent = onCallAgents.find(agent => 
-                        !Object.values(slot.assignedEngines).some(engineRoles => 
-                            Object.values(engineRoles).some(assigned => assigned && assigned.id === agent.id)
-                        ) && // S'assurer que l'agent n'est pas déjà assigné à un autre rôle dans ce même créneau
+                        !assignedAgentIdsInSlot.has(agent.id) && // L'agent n'est pas déjà assigné dans ce même slot
                         (agent.qualifications && agent.qualifications.includes(role.qualificationId)) // Vérifier la qualification
                     );
 
                     if (foundAgent) {
                         slot.assignedEngines[engine.id][role.id] = { id: foundAgent.id, username: foundAgent.username };
+                        assignedAgentIdsInSlot.add(foundAgent.id); // Ajouter l'agent à la liste des assignés pour ce slot
                     } else {
                         console.warn(`Aucun agent d'astreinte qualifié ("${role.qualificationId}") et disponible trouvé pour le rôle "${role.name}" de l'engin "${engine.name}" dans le créneau "${slot.startTime}-${slot.endTime}".`);
                     }

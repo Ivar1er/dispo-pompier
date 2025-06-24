@@ -281,7 +281,6 @@ body {
 
     /* Styles ajoutés/modifiés pour la tooltip */
     position: relative; /* Rend la carte un conteneur de positionnement pour les éléments absolus */
-    /* REMOVED: overflow: visible; -> non nécessaire avec la nouvelle approche */
 }
 
 .agent-card:hover {
@@ -637,10 +636,20 @@ body {
     cursor: pointer; /* Indique qu'il est cliquable */
 }
 
-.role-slot.drag-over {
-    background-color: #d0eefd; /* Bleu plus foncé au survol de drag */
-    border-color: #40a9ff;
+/* Feedback visuel pour le glisser-déposer */
+.role-slot.drag-valid-role {
+    background-color: #dff0d8; /* Vert très clair */
+    border-color: #28a745; /* Vert plus prononcé */
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.5); /* Ombre verte */
 }
+
+.role-slot.drag-invalid-role {
+    background-color: #f8d7da; /* Rouge très clair */
+    border-color: #dc3545; /* Rouge plus prononcé */
+    box-shadow: 0 0 8px rgba(220, 53, 69, 0.5); /* Ombre rouge */
+    cursor: not-allowed; /* Curseur "interdit" */
+}
+
 
 .role-slot .role-name {
     font-weight: 600;
