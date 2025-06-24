@@ -20,9 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeSlotsContainer = document.getElementById('time-slots-container');
     const noDailyTimeslotMessage = document.getElementById('no-daily-timeslot-message');
 
-    // Section "Synthèse des engins"
-    const enginsSynthesisContent = document.getElementById('engins-synthesis-content');
-
     // Modale
     const customMessageModal = document.getElementById('custom-message-modal');
     const modalTitle = document.getElementById('modal-title');
@@ -39,8 +36,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Constantes et Helpers (copiés de admin.js pour la cohérence des créneaux horaires) ---
     const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que c'est la bonne URL
-    const horaires = []; // Créneaux 30 min sur 24h, de 07h00 à 06h30 du lendemain
-    const startHourDisplay = 7;
+    
+    // Génère des points de temps par intervalles de 30 minutes sur 24h, de 00:00 à 23:30.
+    // Cela sera utilisé pour les sélecteurs d'heure.
+    const timePoints = [];
+    for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 30) {
+            timePoints.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+        }
+    }
+
+    // Définition des horaires complets (pour affichage dans tooltips par exemple)
+    const horaires = [];
+    const startHourDisplay = 7; // L'affichage démarre à 07h00
     for (let i = 0; i < 48; i++) {
         const currentSlotHour = (startHourDisplay + Math.floor(i / 2)) % 24;
         const currentSlotMinute = (i % 2) * 30;
@@ -73,21 +81,21 @@ document.addEventListener('DOMContentLoaded', () => {
             id: 'vsav', name: 'VSAV', roles: [
                 { id: 'ch_agr_vsav', name: 'Chef d\'agrès', qualificationId: 'ca_vsav' },
                 { id: 'cond_vsav', name: 'Conducteur', qualificationId: 'cod_0' },
-                { id: 'eq_vsav', name: 'Équipier', qualificationId: 'eq_vsav' }, // Rôle unique pour Equipier
+                { id: 'eq_vsav', name: 'Équipier', qualificationId: 'eq_vsav' }, 
             ]
         },
         { 
             id: 'vtu', name: 'VTU', roles: [
                 { id: 'ch_agr_vtu', name: 'Chef d\'agrès', qualificationId: 'ca_vtu' },
                 { id: 'cond_vtu', name: 'Conducteur', qualificationId: 'cod_0' },
-                { id: 'eq_vtu', name: 'Équipier', qualificationId: 'eq_vtu' }, // Rôle unique pour Equipier
+                { id: 'eq_vtu', name: 'Équipier', qualificationId: 'eq_vtu' }, 
             ]
         },
         { 
             id: 'vpma', name: 'VPMA', roles: [
                 { id: 'ch_agr_vpma', name: 'Chef d\'agrès', qualificationId: 'ca_vpma' },
                 { id: 'cond_vpma', name: 'Conducteur', qualificationId: 'cod_0' },
-                { id: 'eq_vpma', name: 'Équipier', qualificationId: 'eq_vpma' }, // Rôle unique pour Equipier
+                { id: 'eq_vpma', name: 'Équipier', qualificationId: 'eq_vpma' }, 
             ]
         }
     ];
@@ -123,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Formate une date engetFullYear-MM-DD
+    // Formate une date en YYYY-MM-DD
     const formatDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -257,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAvailablePersonnel(); // Va filtrer selon activeQualificationFilter
             renderOnCallAgents();
             renderDailyRosterSlots();
-            updateEnginsSynthesis();
+            // Suppression de l'appel à updateEnginsSynthesis();
             toggleLoader(false);
         }
     };
@@ -345,6 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const tooltip = document.createElement('div');
                     tooltip.className = 'availability-tooltip';
                     const slotsText = agent.availabilities.map(slotRange => {
+                        // Utiliser les index pour mapper aux horaires complets si nécessaire pour l'affichage de la tooltip
                         const startH = horaires[slotRange.start] ? horaires[slotRange.start].split(' - ')[0] : 'Inconnu';
                         const endH = horaires[slotRange.end] ? horaires[slotRange.end].split(' - ')[1] : 'Inconnu';
                         return `${startH} - ${endH}`;
@@ -437,6 +446,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        // Génère les options pour les sélecteurs d'heure
+        const generateTimeOptions = (selectedTime) => {
+            return timePoints.map(time => `<option value="${time}" ${time === selectedTime ? 'selected' : ''}>${time}</option>`).join('');
+        };
+
         // Construction du HTML pour les engins et leurs rôles dans le créneau
         const enginsHtml = centerEngines.map(engine => {
             const rolesHtml = engine.roles.map(role => {
@@ -480,9 +494,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         div.innerHTML = `
             <div class="time-slot-header">
-                <input type="time" class="time-input start-time" value="${slot.startTime}">
+                <select class="time-input start-time">${generateTimeOptions(slot.startTime)}</select>
                 <span>-</span>
-                <input type="time" class="time-input end-time" value="${slot.endTime}">
+                <select class="time-input end-time">${generateTimeOptions(slot.endTime)}</select>
                 <button class="remove-slot-button" aria-label="Supprimer ce créneau">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                 </button>
@@ -494,21 +508,21 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        // Add event listeners for time inputs
-        const startTimeInput = div.querySelector('.start-time');
-        const endTimeInput = div.querySelector('.end-time');
+        // Add event listeners for time inputs (now select elements)
+        const startTimeSelect = div.querySelector('.start-time');
+        const endTimeSelect = div.querySelector('.end-time');
 
-        let initialEndTime = slot.endTime;
+        let initialEndTime = slot.endTime; // Garder pour la logique de créneau consécutif
 
-        startTimeInput.addEventListener('change', async (e) => {
+        startTimeSelect.addEventListener('change', async (e) => {
             slot.startTime = e.target.value; // Update local state
-            updateEnginsSynthesis();
+            // Suppression de l'appel à updateEnginsSynthesis();
             await saveDailyRosterSlotsToBackend(); // Save after local update
         });
-        endTimeInput.addEventListener('change', async (e) => {
+        endTimeSelect.addEventListener('change', async (e) => {
             const newEndTime = e.target.value;
             slot.endTime = newEndTime; // Update local state
-            updateEnginsSynthesis();
+            // Suppression de l'appel à updateEnginsSynthesis();
             if (initialEndTime === '07:00' && newEndTime === '15:00') {
                 createConsecutiveSlot(newEndTime);
             }
@@ -556,50 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return div;
     };
 
-    // Met à jour la synthèse des engins
-    const updateEnginsSynthesis = () => {
-        enginsSynthesisContent.innerHTML = '';
-        if (dailyRosterSlots.length === 0) {
-            enginsSynthesisContent.innerHTML = '<p class="no-data-message">Aucune synthèse disponible pour le moment. Ajoutez des créneaux et des engins.</p>';
-            return;
-        }
-
-        dailyRosterSlots.forEach(slot => {
-            const synthesisSlotDiv = document.createElement('div');
-            synthesisSlotDiv.className = 'synthesis-time-slot';
-            synthesisSlotDiv.innerHTML = `<h3>${slot.startTime} - ${slot.endTime}</h3>`;
-
-            let hasAssignmentsInSlot = false;
-            centerEngines.forEach(engine => {
-                let agentsAssignedToEngineRoles = []; // Pour stocker les agents par rôle dans cet engin
-                engine.roles.forEach(role => {
-                    const assignedAgent = slot.assignedEngines[engine.id][role.id];
-                    if (assignedAgent) {
-                        agentsAssignedToEngineRoles.push(`${role.name}: ${assignedAgent.username || assignedAgent.name}`);
-                        hasAssignmentsInSlot = true;
-                    }
-                });
-
-                if (agentsAssignedToEngineRoles.length > 0) {
-                    synthesisSlotDiv.innerHTML += `
-                        <div class="synthesis-engine-item">
-                            <strong>${engine.name}:</strong>
-                            <span class="assigned">${agentsAssignedToEngineRoles.join('; ')}</span>
-                        </div>
-                    `;
-                }
-            });
-
-            if (!hasAssignmentsInSlot) {
-                synthesisSlotDiv.innerHTML += `
-                    <div class="synthesis-engine-item">
-                        <strong>Aucun agent affecté aux engins pour ce créneau.</strong>
-                    </div>
-                `;
-            }
-            enginsSynthesisContent.appendChild(synthesisSlotDiv);
-        });
-    };
+    // Suppression de la fonction updateEnginsSynthesis()
 
 
     // --- Logique des événements ---
@@ -634,8 +605,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const newSlotId = `slot-${Date.now()}`;
         const newSlot = {
             id: newSlotId,
-            startTime: '07:00',
-            endTime: '07:00',
+            startTime: '07:00', // Valeur par défaut
+            endTime: '07:00',   // Valeur par défaut
             assignedAgents: [], // Gardé pour compatibilité mais non utilisé directement ici
             assignedEngines: {} // Initialisé avec des objets vides pour chaque engin/rôle
         };
@@ -648,7 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         dailyRosterSlots.push(newSlot);
         renderDailyRosterSlots();
-        updateEnginsSynthesis();
+        // Suppression de l'appel à updateEnginsSynthesis();
         timeSlotsContainer.scrollTop = timeSlotsContainer.scrollHeight;
         console.log(`Créneau ${newSlot.id} ajouté au roster.`);
         await saveDailyRosterSlotsToBackend();
@@ -659,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newSlot = {
             id: newSlotId,
             startTime: previousEndTime,
-            endTime: '07:00',
+            endTime: '07:00', // Valeur par défaut
             assignedAgents: [],
             assignedEngines: {}
         };
@@ -671,7 +642,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         dailyRosterSlots.push(newSlot);
         renderDailyRosterSlots();
-        updateEnginsSynthesis();
+        // Suppression de l'appel à updateEnginsSynthesis();
         timeSlotsContainer.scrollTop = timeSlotsContainer.scrollHeight;
         console.log(`Nouveau créneau consécutif (${newSlot.startTime}-${newSlot.endTime}) créé automatiquement.`);
         await saveDailyRosterSlotsToBackend();
@@ -830,10 +801,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const targetEngineDefinition = centerEngines.find(e => e.id === engineId);
                 if (targetEngineDefinition) {
                     targetEngineDefinition.roles.forEach(rol => {
-                        if (slot.assignedEngines[engineId] && slot.assignedEngines[engineId][rol.id] &&
-                            slot.assignedEngines[engineId][rol.id].id === agentToAssign.id &&
+                        if (slot.assignedEngines[engine.id] && slot.assignedEngines[engine.id][rol.id] &&
+                            slot.assignedEngines[engine.id][rol.id].id === agentToAssign.id &&
                             rol.id !== roleId) { // Si l'agent est dans un autre rôle au sein du *même* engin, le retirer.
-                            slot.assignedEngines[engineId][rol.id] = null;
+                            slot.assignedEngines[engine.id][rol.id] = null;
                         }
                     });
                 }
@@ -841,7 +812,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Assigner l'agent au rôle actuel
                 slot.assignedEngines[engineId][roleId] = agentToAssign;
                 renderDailyRosterSlots(); // Re-render le créneau pour voir le changement
-                updateEnginsSynthesis(); // Mettre à jour la synthèse
+                // Suppression de l'appel à updateEnginsSynthesis();
                 console.log(`Agent ${agentToAssign.username} assigné au rôle ${roleId} de l'engin ${engineId} du créneau ${slotId}.`);
 
                 toggleLoader(true);
@@ -867,7 +838,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (slot && slot.assignedEngines[engineId] && slot.assignedEngines[engineId][roleId]) {
                 slot.assignedEngines[engineId][roleId] = null; // Dé-assigner l'agent
                 renderDailyRosterSlots(); // Re-render pour voir le changement
-                updateEnginsSynthesis(); // Mettre à jour la synthèse
+                // Suppression de l'appel à updateEnginsSynthesis();
                 console.log(`Agent ${agentId} retiré du rôle ${roleId} de l'engin ${engineId} du créneau ${slotId}.`);
 
                 toggleLoader(true);
@@ -894,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirm) {
             dailyRosterSlots = dailyRosterSlots.filter(s => s.id !== slotId);
             renderDailyRosterSlots();
-            updateEnginsSynthesis();
+            // Suppression de l'appel à updateEnginsSynthesis();
             console.log(`Créneau ${slotId} supprimé.`);
             toggleLoader(true); 
             const saveSuccess = await saveDailyRosterSlotsToBackend(); 

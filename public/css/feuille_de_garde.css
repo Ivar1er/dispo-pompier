@@ -214,8 +214,7 @@ body {
 
 .personnel-disponible-section h2,
 .agents-astreinte-section h2,
-.daily-roster-section h2, /* Ajout de la nouvelle section ici */
-.engins-synthesis-section h2 {
+.daily-roster-section h2 { /* Synthèse des engins section supprimée */
     margin-top: 0;
     color: #333;
     border-bottom: 1px solid #eee;
@@ -360,13 +359,22 @@ body {
     width: 100%;
 }
 
-.time-slot input[type="time"] {
+/* Styles pour les sélecteurs d'heure (NOUVEAU) */
+.time-input {
     padding: 8px;
     border: 1px solid #ced4da;
     border-radius: 4px;
     font-size: 1em;
-    width: 80px;
+    width: 80px; /* Peut être ajusté si les valeurs prennent trop de place */
+    background-color: #fff;
+    cursor: pointer;
 }
+.time-input:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
 
 .time-slot span {
     font-weight: 500;
@@ -442,7 +450,7 @@ body {
 }
 
 
-/* Nouvelle section : Synthèse des engins */
+/* Ancienne section : Synthèse des engins - SUPPRIMÉE
 .engins-synthesis-section {
     flex-grow: 1;
 }
@@ -476,7 +484,7 @@ body {
 
 .synthesis-engine-item {
     display: flex;
-    flex-direction: column; /* Empile les rôles pour la synthèse */
+    flex-direction: column; 
     align-items: flex-start;
     padding: 8px 0;
     border-bottom: 1px dotted #c3e6cb;
@@ -488,13 +496,13 @@ body {
 
 .synthesis-engine-item strong {
     color: #495057;
-    margin-bottom: 4px; /* Espace sous le nom de l'engin */
+    margin-bottom: 4px; 
 }
 
 .synthesis-engine-item span.assigned {
     color: #28a745;
     font-weight: 500;
-    margin-left: 0; /* Plus de marge si c'est empilé */
+    margin-left: 0; 
 }
 
 .synthesis-engine-item span.unassigned {
@@ -502,8 +510,9 @@ body {
     font-style: italic;
     margin-left: 0;
 }
+*/
 
-/* Modale personnalisée (inchangée, mais assurez-vous que les styles sont présents) */
+/* Modale personnalisée (inchangée) */
 .custom-modal {
     position: fixed;
     z-index: 1001;
