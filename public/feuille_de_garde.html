@@ -41,32 +41,40 @@
         </header>
 
         <div class="roster-content">
-            <!-- Conteneur pour les deux colonnes côte à côte -->
             <div class="columns-container">
-                <!-- Section Personnel Disponible -->
+                <!-- Section Personnel Disponible (Source de glisser-déposer) -->
                 <div class="personnel-disponible-section panel">
                     <h2>Personnel Disponible</h2>
-                    <div id="time-slots-container" class="time-slots-list">
-                        <!-- Les créneaux horaires seront ajoutés ici par JS -->
-                        <p class="no-data-message" id="no-timeslot-message">Aucun créneau horaire défini pour cette journée.</p>
+                    <div id="available-personnel-list" class="agents-grid">
+                        <!-- Les cartes d'agents disponibles seront ajoutées ici par JS -->
+                        <p class="no-data-message" id="no-available-personnel-message">Aucun personnel disponible pour cette journée.</p>
                     </div>
-                    <button id="add-slot-button" class="btn btn-success add-slot-button">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M12 5v14M5 12h14"/></svg>
-                        Ajouter un créneau
-                    </button>
+                    <p class="drag-info">Glissez les agents ci-dessus vers la section "Agents d'astreinte" pour les sélectionner.</p> <!-- Mise à jour du message -->
                 </div>
 
-                <!-- Section Agents d'astreinte -->
+                <!-- Section Agents d'astreinte (Cible de glisser-déposer pour sélection des agents d'astreinte) -->
                 <div class="agents-astreinte-section panel">
-                    <h2>Agents d'astreinte</h2>
-                    <div id="agents-grid-container" class="agents-grid">
-                        <!-- Les agents d'astreinte seront ajoutés ici par JS -->
-                        <!-- Placeholder pour démontrer la structure, seront générés par JS -->
-                        <!-- <div class="agent-card" draggable="true" data-agent-id="1">Astreinte 1</div> -->
+                    <h2>Agents d'astreinte (Sélectionnés)</h2>
+                    <div id="on-call-agents-grid" class="agents-grid">
+                        <!-- Les agents sélectionnés pour l'astreinte seront ajoutés ici par JS -->
+                        <p class="no-data-message" id="no-on-call-agents-message">Glissez des agents de la section "Personnel Disponible" ici.</p>
                     </div>
-                    <p class="drag-info">Seuls les agents glissés ici seront utilisés pour la génération automatique et l'affectation manuelle.</p>
                 </div>
             </div>
+
+            <!-- Nouvelle Section : Planification des Créneaux Journaliers -->
+            <div class="daily-roster-section panel">
+                <h2>Planification des Créneaux Journaliers</h2>
+                <div id="time-slots-container" class="time-slots-list">
+                    <!-- Les créneaux horaires de la journée seront ajoutés ici par JS -->
+                    <p class="no-data-message" id="no-daily-timeslot-message">Aucun créneau horaire défini pour cette journée.</p>
+                </div>
+                <button id="add-slot-button" class="btn btn-success add-slot-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M12 5v14M5 12h14"/></svg>
+                    Ajouter un créneau au roster
+                </button>
+            </div>
+
 
             <!-- Nouvelle Section : Synthèse des engins par créneau horaire -->
             <div class="engins-synthesis-section panel">
@@ -91,7 +99,6 @@
         </div>
     </div>
 
-    <!-- Le chemin vers le JS a été mis à jour pour pointer vers le dossier 'js' -->
     <script src="js/feuille_de_garde.js"></script>
 </body>
 </html>

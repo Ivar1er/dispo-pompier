@@ -204,7 +204,8 @@ body {
 }
 
 .personnel-disponible-section,
-.agents-astreinte-section {
+.agents-astreinte-section,
+.daily-roster-section { /* Ajout de la nouvelle section ici */
     flex: 1; /* Permet aux colonnes de prendre l'espace disponible */
     min-width: 380px; /* Largeur minimale pour éviter un écrasement */
     display: flex;
@@ -213,6 +214,7 @@ body {
 
 .personnel-disponible-section h2,
 .agents-astreinte-section h2,
+.daily-roster-section h2, /* Ajout de la nouvelle section ici */
 .engins-synthesis-section h2 {
     margin-top: 0;
     color: #333;
@@ -234,12 +236,76 @@ body {
     margin-bottom: 15px;
 }
 
-/* Styles pour les créneaux horaires */
-.time-slots-list {
-    flex-grow: 1; /* Permet à la liste de prendre l'espace disponible */
-    max-height: 400px; /* Limite la hauteur pour le défilement */
-    overflow-y: auto; /* Active le défilement si le contenu dépasse */
-    padding-right: 10px; /* Espace pour la barre de défilement */
+/* Styles pour la liste du personnel disponible (draggable) */
+#available-personnel-list { /* Nouvelle ID */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+    min-height: 150px; /* Pour que la zone soit visible */
+    border: 2px dashed #e0e0e0; /* Bordure plus discrète, car c'est la source */
+    background-color: #fcfcfc; /* Fond léger */
+    padding: 15px;
+    border-radius: 8px;
+    align-content: flex-start;
+    flex-grow: 1;
+    overflow-y: auto; /* Permet le défilement si beaucoup d'agents */
+}
+
+/* Styles pour les agents d'astreinte (cible de dépôt) */
+#on-call-agents-grid { /* Nouvelle ID */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+    min-height: 150px; /* Pour que la zone soit visible */
+    border: 2px dashed #b0d8f5; /* Bordure plus visible pour la zone de glisser-déposer */
+    background-color: #f0f8ff; /* Fond léger */
+    padding: 15px;
+    border-radius: 8px;
+    align-content: flex-start; /* Aligne les éléments au début du conteneur */
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.agent-card { /* Utilisé pour les agents disponibles ET les agents d'astreinte */
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 25px;
+    cursor: grab;
+    font-size: 0.95em;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.agent-card:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+.agent-card:active {
+    cursor: grabbing;
+    transform: translateY(0);
+}
+
+.drag-info {
+    font-size: 0.85em;
+    color: #666;
+    text-align: center;
+    margin-top: 10px;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+
+/* Styles pour les créneaux horaires journaliers (Daily Roster Section) */
+.time-slots-list { /* Anciennement time-slots-container, réutilisé pour la nouvelle section */
+    flex-grow: 1;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
     margin-bottom: 15px;
 }
 
@@ -253,7 +319,7 @@ body {
     border-radius: 6px;
     background-color: #fefefe;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    flex-wrap: wrap; /* Permet aux éléments de passer à la ligne */
+    flex-wrap: wrap;
 }
 
 .time-slot input[type="time"] {
@@ -261,7 +327,7 @@ body {
     border: 1px solid #ced4da;
     border-radius: 4px;
     font-size: 1em;
-    width: 80px; /* Ajuster la largeur */
+    width: 80px;
 }
 
 .time-slot span {
@@ -277,23 +343,23 @@ body {
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.9em;
-    margin-left: auto; /* Aligne à droite */
+    margin-left: auto;
 }
 .time-slot .remove-slot-button:hover {
     background-color: #c82333;
 }
 
-.add-slot-button {
-    align-self: flex-start; /* Aligne le bouton à gauche */
-    margin-top: auto; /* Le pousse vers le bas du conteneur flex */
+.add-slot-button { /* Ce bouton est maintenant dans la nouvelle section */
+    align-self: flex-start;
+    margin-top: auto;
 }
 
-/* Zone de dépôt des agents dans les créneaux */
+/* Zone de dépôt des agents dans les créneaux (pour la planification journalière) */
 .assigned-agents-for-slot {
-    border: 1px dashed #aed6f1; /* Bordure plus claire */
-    background-color: #ebf5fb; /* Fond plus clair */
+    border: 1px dashed #aed6f1;
+    background-color: #ebf5fb;
     min-height: 40px;
-    width: 100%; /* Prend toute la largeur disponible */
+    width: 100%;
     border-radius: 4px;
     padding: 8px;
     margin-top: 10px;
@@ -333,59 +399,13 @@ body {
 }
 
 
-/* Styles pour les agents d'astreinte */
-.agents-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 15px;
-    min-height: 150px; /* Pour que la zone soit visible */
-    border: 2px dashed #b0d8f5; /* Bordure plus visible pour la zone de glisser-déposer */
-    background-color: #f0f8ff; /* Fond léger */
-    padding: 15px;
-    border-radius: 8px;
-    align-content: flex-start; /* Aligne les éléments au début du conteneur */
-}
-
-.agent-card {
-    background-color: #007bff;
-    color: white;
-    padding: 10px 15px;
-    border-radius: 25px;
-    cursor: grab;
-    font-size: 0.95em;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-    transition: background-color 0.2s, transform 0.1s;
-}
-
-.agent-card:hover {
-    background-color: #0056b3;
-    transform: translateY(-2px);
-}
-.agent-card:active {
-    cursor: grabbing;
-    transform: translateY(0);
-}
-
-.drag-info {
-    font-size: 0.85em;
-    color: #666;
-    text-align: center;
-    margin-top: 10px;
-    background-color: #f8f9fa;
-    padding: 10px;
-    border-radius: 5px;
-}
-
 /* Nouvelle section : Synthèse des engins */
 .engins-synthesis-section {
-    /* Utilise la classe .panel déjà définie pour les styles de base */
-    flex-grow: 1; /* Permet de prendre l'espace restant en hauteur */
+    flex-grow: 1;
 }
 
 .synthesis-content {
-    min-height: 100px; /* Pour que la section soit visible */
+    min-height: 100px;
     padding: 15px;
     border: 1px solid #e0e0e0;
     border-radius: 6px;
@@ -395,16 +415,16 @@ body {
 .synthesis-time-slot {
     margin-bottom: 20px;
     padding: 15px;
-    border: 1px solid #d1ecf1; /* Bordure info */
+    border: 1px solid #d1ecf1;
     border-radius: 7px;
-    background-color: #e2f3f5; /* Fond info */
+    background-color: #e2f3f5;
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
 .synthesis-time-slot h3 {
     margin-top: 0;
     margin-bottom: 12px;
-    color: #0c5460; /* Couleur texte info */
+    color: #0c5460;
     font-size: 1.2em;
     font-weight: 600;
     border-bottom: 1px dashed #aed6f1;
@@ -416,7 +436,7 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 8px 0;
-    border-bottom: 1px dotted #c3e6cb; /* Ligne plus claire */
+    border-bottom: 1px dotted #c3e6cb;
 }
 
 .synthesis-engine-item:last-child {
@@ -424,7 +444,7 @@ body {
 }
 
 .synthesis-engine-item strong {
-    flex-basis: 45%; /* Plus d'espace pour le nom de l'engin/rôle */
+    flex-basis: 45%;
     color: #495057;
 }
 
@@ -435,11 +455,11 @@ body {
 }
 
 .synthesis-engine-item span.assigned {
-    color: #28a745; /* Vert pour les affectés */
+    color: #28a745;
 }
 
 .synthesis-engine-item span.unassigned {
-    color: #dc3545; /* Rouge pour les postes vides */
+    color: #dc3545;
     font-style: italic;
 }
 
@@ -509,9 +529,9 @@ body {
         flex-direction: column; /* Les colonnes s'empilent sur mobile */
     }
     .personnel-disponible-section,
-    .agents-astreinte-section {
+    .agents-astreinte-section,
+    .daily-roster-section { /* Ajout de la nouvelle section ici */
         min-width: unset; /* Annule la largeur minimale */
         width: 100%;
     }
 }
-

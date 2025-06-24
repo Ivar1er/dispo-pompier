@@ -5,12 +5,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevDayButton = document.getElementById('prev-day-button');
     const nextDayButton = document.getElementById('next-day-button');
     const generateAutoButton = document.getElementById('generate-auto-button');
-    const logoutButton = document.getElementById('logout-button'); // Pour l'exemple
-    const addSlotButton = document.getElementById('add-slot-button');
+    const logoutButton = document.getElementById('logout-button');
+    const addSlotButton = document.getElementById('add-slot-button'); // Bouton pour ajouter un créneau au roster journalier
+
+    // Section "Personnel Disponible"
+    const availablePersonnelList = document.getElementById('available-personnel-list');
+    const noAvailablePersonnelMessage = document.getElementById('no-available-personnel-message');
+
+    // Section "Agents d'astreinte"
+    const onCallAgentsGrid = document.getElementById('on-call-agents-grid');
+    const noOnCallAgentsMessage = document.getElementById('no-on-call-agents-message');
+
+    // Section "Planification des Créneaux Journaliers"
     const timeSlotsContainer = document.getElementById('time-slots-container');
-    const noTimeslotMessage = document.getElementById('no-timeslot-message');
-    const agentsGridContainer = document.getElementById('agents-grid-container');
+    const noDailyTimeslotMessage = document.getElementById('no-daily-timeslot-message');
+
+    // Section "Synthèse des engins"
     const enginsSynthesisContent = document.getElementById('engins-synthesis-content');
+
+    // Modale
     const customMessageModal = document.getElementById('custom-message-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalMessage = document.getElementById('modal-message');
@@ -19,15 +32,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Variables d'état ---
     let currentDate = new Date(); // Date de la feuille de garde affichée
-    let availableAgents = [ // Agents d'astreinte (simulés)
-        { id: 'agent-1', name: 'Dupont Jean' },
-        { id: 'agent-2', name: 'Martin Sophie' },
-        { id: 'agent-3', name: 'Bernard Marc' },
-        { id: 'agent-4', name: 'Petit Amélie' },
-        { id: 'agent-5', name: 'Durand Paul' },
-        { id: 'agent-6', name: 'Moreau Claire' },
+
+    // Données simulées pour tous les agents du centre avec leur disponibilité
+    // Dans une application réelle, ceci viendrait d'une base de données
+    let allCenterPersonnel = [
+        { id: 'agent-A', name: 'Alain Dubois', availability: [{ day: 24, month: 6, year: 2025, slots: ['08:00-12:00', '14:00-18:00'] }, { day: 25, month: 6, year: 2025, slots: ['09:00-13:00'] }] },
+        { id: 'agent-B', name: 'Béatrice Roy', availability: [{ day: 24, month: 6, year: 2025, slots: ['10:00-16:00'] }] },
+        { id: 'agent-C', name: 'Charles Blanc', availability: [{ day: 24, month: 6, year: 2025, slots: ['08:00-12:00'] }] },
+        { id: 'agent-D', name: 'Delphine Fort', availability: [] }, // Non disponible ce jour
+        { id: 'agent-E', name: 'Émile Leroux', availability: [{ day: 24, month: 6, year: 2025, slots: ['13:00-17:00'] }] },
+        { id: 'agent-F', name: 'Fanny Vidal', availability: [{ day: 25, month: 6, year: 2025, slots: ['08:00-12:00'] }] },
     ];
-    let rosterData = []; // Structure pour stocker les créneaux et agents affectés pour la journée active
+
+    // Agents disponibles pour la date actuelle (filtré de allCenterPersonnel)
+    let availablePersonnel = [];
+
+    // Agents sélectionnés pour l'astreinte pour la journée (via glisser-déposer)
+    let onCallAgents = [];
+
+    // Créneaux horaires et agents assignés pour le roster journalier
+    let dailyRosterSlots = [];
 
     // --- Fonctions utilitaires ---
 
@@ -72,13 +96,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Initialisation et rendu ---
 
-    // Met à jour l'input de date et charge la feuille de garde
-    const updateDateAndLoadRoster = async () => {
+    // Met à jour l'input de date et charge les données
+    const updateDateAndLoadData = async () => {
         rosterDateInput.value = formatDate(currentDate);
         toggleLoader(true);
-        await simulateDataFetch(); // Simule un appel API
-        renderTimeSlots();
-        renderAgentsGrid();
+        await simulateDataFetch(); // Simule un appel API pour récupérer les données de la journée
+        filterAvailablePersonnel(); // Filtre les agents disponibles pour le jour
+        renderAvailablePersonnel();
+        renderOnCallAgents(); // Assure que les agents d'astreinte sont affichés
+        renderDailyRosterSlots(); // Affiche les créneaux journaliers
         updateEnginsSynthesis();
         toggleLoader(false);
     };
@@ -87,34 +113,115 @@ document.addEventListener('DOMContentLoaded', () => {
     const simulateDataFetch = () => {
         return new Promise(resolve => {
             setTimeout(() => {
-                // Ici, tu chargerais rosterData pour la currentDate depuis ta base de données
-                // Pour l'exemple, nous allons réinitialiser ou charger des données factices
-                rosterData = []; // Réinitialiser pour chaque jour pour cet exemple
+                // Dans une vraie application, tu chargerais onCallAgents et dailyRosterSlots
+                // pour la currentDate depuis ta base de données.
+                // Pour l'exemple, nous allons les réinitialiser ou charger des données factices.
+                // onCallAgents = []; // Réinitialiser pour chaque jour pour cet exemple
+                // dailyRosterSlots = []; // Réinitialiser pour chaque jour pour cet exemple
+                // Ou charger des données de test
+                if (formatDate(currentDate) === '2025-06-24') {
+                     onCallAgents = [{ id: 'agent-A', name: 'Alain Dubois' }, { id: 'agent-C', name: 'Charles Blanc' }];
+                     dailyRosterSlots = [
+                         { id: 'slot-1', startTime: '08:00', endTime: '12:00', assignedAgents: [{ id: 'agent-A', name: 'Alain Dubois' }] },
+                         { id: 'slot-2', startTime: '12:00', endTime: '16:00', assignedAgents: [] }
+                     ];
+                } else {
+                     onCallAgents = [];
+                     dailyRosterSlots = [];
+                }
                 resolve();
             }, 500); // Délai de 0.5 seconde pour simuler le chargement
         });
     };
 
-    // Rend les créneaux horaires
-    const renderTimeSlots = () => {
-        timeSlotsContainer.innerHTML = ''; // Vide le conteneur existant
-        if (rosterData.length === 0) {
-            noTimeslotMessage.style.display = 'block';
+    // Filtre le personnel disponible pour la journée sélectionnée
+    const filterAvailablePersonnel = () => {
+        const currentDay = currentDate.getDate();
+        const currentMonth = currentDate.getMonth() + 1;
+        const currentYear = currentDate.getFullYear();
+
+        availablePersonnel = allCenterPersonnel.filter(agent =>
+            agent.availability.some(avail =>
+                avail.day === currentDay &&
+                avail.month === currentMonth &&
+                avail.year === currentYear
+            )
+        );
+    };
+
+    // Rend les agents dans la section "Personnel Disponible" (sources de drag)
+    const renderAvailablePersonnel = () => {
+        availablePersonnelList.innerHTML = '';
+        if (availablePersonnel.length === 0) {
+            noAvailablePersonnelMessage.style.display = 'block';
         } else {
-            noTimeslotMessage.style.display = 'none';
-            rosterData.sort((a, b) => a.startTime.localeCompare(b.startTime)); // Trie par heure
-            rosterData.forEach(slot => {
+            noAvailablePersonnelMessage.style.display = 'none';
+            availablePersonnel.forEach(agent => {
+                const agentCard = document.createElement('div');
+                agentCard.className = 'agent-card';
+                agentCard.textContent = agent.name;
+                agentCard.draggable = true;
+                agentCard.dataset.agentId = agent.id;
+                agentCard.dataset.agentName = agent.name;
+
+                // Configure le dragstart pour les agents disponibles
+                agentCard.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, name: agent.name }));
+                    e.dataTransfer.effectAllowed = 'copy'; // Peut être copié vers la zone d'astreinte
+                });
+                availablePersonnelList.appendChild(agentCard);
+            });
+        }
+    };
+
+    // Rend les agents dans la section "Agents d'astreinte" (cible de drop)
+    const renderOnCallAgents = () => {
+        onCallAgentsGrid.innerHTML = '';
+        if (onCallAgents.length === 0) {
+            noOnCallAgentsMessage.style.display = 'block';
+        } else {
+            noOnCallAgentsMessage.style.display = 'none';
+            onCallAgents.forEach(agent => {
+                const agentCard = document.createElement('div');
+                agentCard.className = 'agent-card'; // Réutilise le style de carte
+                agentCard.textContent = agent.name;
+                agentCard.draggable = true; // Ces agents peuvent aussi être glissés vers les créneaux journaliers
+                agentCard.dataset.agentId = agent.id;
+                agentCard.dataset.agentName = agent.name;
+
+                // Configure le dragstart pour les agents d'astreinte (vers les créneaux journaliers)
+                agentCard.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, name: agent.name }));
+                    e.dataTransfer.effectAllowed = 'move'; // Peut être déplacé vers un créneau
+                });
+
+                onCallAgentsGrid.appendChild(agentCard);
+            });
+        }
+        // Configure la zone de dépôt pour les agents d'astreinte
+        setupOnCallDropZone(onCallAgentsGrid);
+    };
+
+    // Rend les créneaux horaires journaliers
+    const renderDailyRosterSlots = () => {
+        timeSlotsContainer.innerHTML = '';
+        if (dailyRosterSlots.length === 0) {
+            noDailyTimeslotMessage.style.display = 'block';
+        } else {
+            noDailyTimeslotMessage.style.display = 'none';
+            dailyRosterSlots.sort((a, b) => a.startTime.localeCompare(b.startTime));
+            dailyRosterSlots.forEach(slot => {
                 const slotElement = createTimeSlotElement(slot);
                 timeSlotsContainer.appendChild(slotElement);
             });
         }
     };
 
-    // Crée un élément HTML pour un créneau horaire
+    // Crée un élément HTML pour un créneau horaire journalier
     const createTimeSlotElement = (slot) => {
         const div = document.createElement('div');
         div.className = 'time-slot';
-        div.dataset.slotId = slot.id; // Stocke l'ID du créneau
+        div.dataset.slotId = slot.id;
 
         div.innerHTML = `
             <input type="time" class="time-input start-time" value="${slot.startTime}">
@@ -128,65 +235,42 @@ document.addEventListener('DOMContentLoaded', () => {
                     </span>
                 `).join('')}
             </div>
-            <button class="remove-slot-button">
+            <button class="remove-slot-button" aria-label="Supprimer ce créneau">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
             </button>
         `;
 
-        // Ajoute les écouteurs d'événements pour les inputs de temps (mise à jour du rosterData)
         const startTimeInput = div.querySelector('.start-time');
         const endTimeInput = div.querySelector('.end-time');
 
         startTimeInput.addEventListener('change', (e) => updateSlotTime(slot.id, 'startTime', e.target.value));
         endTimeInput.addEventListener('change', (e) => updateSlotTime(slot.id, 'endTime', e.target.value));
 
+        div.querySelector('.remove-slot-button').addEventListener('click', () => removeDailyRosterSlot(slot.id));
 
-        // Ajoute l'écouteur d'événements pour la suppression du créneau
-        div.querySelector('.remove-slot-button').addEventListener('click', () => removeTimeSlot(slot.id));
-
-        // Ajoute les écouteurs pour la suppression des agents assignés
         div.querySelectorAll('.remove-assigned-agent-tag').forEach(button => {
             button.addEventListener('click', (e) => {
                 const agentIdToRemove = e.target.dataset.agentId;
-                removeAgentFromSlot(slot.id, agentIdToRemove);
+                removeAgentFromDailyRosterSlot(slot.id, agentIdToRemove);
             });
         });
 
-        // Configure les zones de dépôt pour le drag & drop
+        // Configure la zone de dépôt pour les agents dans ce créneau
         const dropZone = div.querySelector('.assigned-agents-for-slot');
-        setupDropZone(dropZone);
+        setupDailyRosterSlotDropZone(dropZone);
 
         return div;
-    };
-
-    // Rend la grille des agents disponibles
-    const renderAgentsGrid = () => {
-        agentsGridContainer.innerHTML = '';
-        availableAgents.forEach(agent => {
-            const agentCard = document.createElement('div');
-            agentCard.className = 'agent-card';
-            agentCard.textContent = agent.name;
-            agentCard.draggable = true;
-            agentCard.dataset.agentId = agent.id;
-            agentCard.dataset.agentName = agent.name; // Pour récupérer facilement le nom
-
-            agentCard.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, name: agent.name }));
-                e.dataTransfer.effectAllowed = 'copy';
-            });
-            agentsGridContainer.appendChild(agentCard);
-        });
     };
 
     // Met à jour la synthèse des engins (simplifiée)
     const updateEnginsSynthesis = () => {
         enginsSynthesisContent.innerHTML = '';
-        if (rosterData.length === 0) {
+        if (dailyRosterSlots.length === 0) {
             enginsSynthesisContent.innerHTML = '<p class="no-data-message">Aucune synthèse disponible pour le moment. Ajoutez des créneaux et des engins.</p>';
             return;
         }
 
-        rosterData.forEach(slot => {
+        dailyRosterSlots.forEach(slot => {
             const synthesisSlotDiv = document.createElement('div');
             synthesisSlotDiv.className = 'synthesis-time-slot';
             synthesisSlotDiv.innerHTML = `<h3>${slot.startTime} - ${slot.endTime}</h3>`;
@@ -209,13 +293,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             // Ajoutez ici la logique pour afficher les engins réels si tu en as
-            // Par exemple :
-            // if (slot.assignedEngines && slot.assignedEngines.length > 0) {
-            //     slot.assignedEngines.forEach(engine => {
-            //         synthesisSlotDiv.innerHTML += `<p>${engine.name} : ${engine.status}</p>`;
-            //     });
-            // }
-
             enginsSynthesisContent.appendChild(synthesisSlotDiv);
         });
     };
@@ -226,17 +303,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Navigation de date
     prevDayButton.addEventListener('click', () => {
         currentDate.setDate(currentDate.getDate() - 1);
-        updateDateAndLoadRoster();
+        updateDateAndLoadData();
     });
 
     nextDayButton.addEventListener('click', () => {
         currentDate.setDate(currentDate.getDate() + 1);
-        updateDateAndLoadRoster();
+        updateDateAndLoadData();
     });
 
     rosterDateInput.addEventListener('change', (e) => {
         currentDate = new Date(e.target.value);
-        updateDateAndLoadRoster();
+        updateDateAndLoadData();
     });
 
     // Bouton Déconnexion (simulé)
@@ -247,56 +324,61 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Ajout d'un nouveau créneau horaire
+    // Ajout d'un nouveau créneau horaire au roster journalier
     addSlotButton.addEventListener('click', () => {
-        const newSlotId = `slot-${Date.now()}`; // ID unique basé sur le timestamp
+        const newSlotId = `slot-${Date.now()}`;
         const newSlot = {
             id: newSlotId,
-            startTime: '08:00', // Valeur par défaut
-            endTime: '12:00',   // Valeur par défaut
+            startTime: '08:00',
+            endTime: '12:00',
             assignedAgents: []
         };
-        rosterData.push(newSlot);
-        renderTimeSlots(); // Re-rend toute la liste
+        dailyRosterSlots.push(newSlot);
+        renderDailyRosterSlots();
         updateEnginsSynthesis();
-        // Optionnel: Faire défiler vers le nouveau créneau
         timeSlotsContainer.scrollTop = timeSlotsContainer.scrollHeight;
+        console.log(`Créneau ${newSlot.id} ajouté au roster.`);
+        // Ici, tu enverrais cette action à ton backend
     });
 
-    // Mise à jour de l'heure d'un créneau
+    // Mise à jour de l'heure d'un créneau dans le roster journalier
     const updateSlotTime = (slotId, timeType, value) => {
-        const slotIndex = rosterData.findIndex(s => s.id === slotId);
+        const slotIndex = dailyRosterSlots.findIndex(s => s.id === slotId);
         if (slotIndex > -1) {
-            rosterData[slotIndex][timeType] = value;
-            // Pas besoin de re-rendre tout, juste mettre à jour la synthèse
+            dailyRosterSlots[slotIndex][timeType] = value;
             updateEnginsSynthesis();
             console.log(`Créneau ${slotId} - ${timeType} mis à jour à ${value}`);
             // Ici, tu enverrais cette mise à jour à ton backend
         }
     };
 
-    // Suppression d'un créneau horaire
-    const removeTimeSlot = async (slotId) => {
+    // Suppression d'un créneau horaire du roster journalier
+    const removeDailyRosterSlot = async (slotId) => {
         const confirm = await showModal(
             'Confirmer la suppression',
-            'Êtes-vous sûr de vouloir supprimer ce créneau horaire ?',
+            'Êtes-vous sûr de vouloir supprimer ce créneau horaire du roster ?',
             true
         );
         if (confirm) {
-            rosterData = rosterData.filter(slot => slot.id !== slotId);
-            renderTimeSlots();
+            dailyRosterSlots = dailyRosterSlots.filter(slot => slot.id !== slotId);
+            renderDailyRosterSlots();
             updateEnginsSynthesis();
-            console.log(`Créneau ${slotId} supprimé.`);
+            console.log(`Créneau ${slotId} supprimé du roster.`);
             // Ici, tu enverrais cette suppression à ton backend
         }
     };
 
     // --- Logique Drag & Drop ---
 
-    const setupDropZone = (dropZoneElement) => {
+    // Configuration de la zone de dépôt pour les agents d'astreinte
+    const setupOnCallDropZone = (dropZoneElement) => {
         dropZoneElement.addEventListener('dragover', (e) => {
             e.preventDefault(); // Permet le dépôt
-            dropZoneElement.style.backgroundColor = '#dff0d8'; // Feedback visuel
+            if (e.dataTransfer.effectAllowed === 'copy') { // Si l'agent vient de "Personnel Disponible"
+                dropZoneElement.style.backgroundColor = '#dff0d8'; // Feedback visuel pour la copie
+            } else if (e.dataTransfer.effectAllowed === 'move') { // Si l'agent vient de "Agents d'astreinte" (pour réordonner)
+                dropZoneElement.style.backgroundColor = '#cfe2f3'; // Feedback visuel pour le déplacement
+            }
         });
 
         dropZoneElement.addEventListener('dragleave', () => {
@@ -305,37 +387,75 @@ document.addEventListener('DOMContentLoaded', () => {
 
         dropZoneElement.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropZoneElement.style.backgroundColor = ''; // Réinitialise le feedback visuel
+            dropZoneElement.style.backgroundColor = '';
+
+            const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+
+            // Ajoute l'agent à la liste des agents d'astreinte s'il n'y est pas déjà
+            if (!onCallAgents.some(a => a.id === agentData.id)) {
+                onCallAgents.push(agentData);
+                renderOnCallAgents();
+                console.log(`Agent ${agentData.name} ajouté aux agents d'astreinte.`);
+                // Ici, tu enverrais cette affectation à ton backend
+            } else {
+                showModal('Agent déjà sélectionné', `L'agent ${agentData.name} est déjà dans la liste des agents d'astreinte.`, false);
+            }
+        });
+    };
+
+    // Configuration de la zone de dépôt pour les créneaux horaires journaliers
+    const setupDailyRosterSlotDropZone = (dropZoneElement) => {
+        dropZoneElement.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            // Autorise le dépôt uniquement si l'agent vient de la liste des agents d'astreinte
+            const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            if (onCallAgents.some(a => a.id === agentData.id)) { // Vérifie que l'agent est bien d'astreinte
+                 dropZoneElement.style.backgroundColor = '#dff0d8';
+            }
+        });
+
+        dropZoneElement.addEventListener('dragleave', () => {
+            dropZoneElement.style.backgroundColor = '';
+        });
+
+        dropZoneElement.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZoneElement.style.backgroundColor = '';
 
             const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
             const slotId = dropZoneElement.dataset.slotId;
 
-            assignAgentToSlot(slotId, agentData);
+            // Assigne l'agent au créneau journalier s'il est un agent d'astreinte et pas déjà assigné
+            if (onCallAgents.some(a => a.id === agentData.id)) {
+                assignAgentToDailyRosterSlot(slotId, agentData);
+            } else {
+                showModal('Agent non éligible', 'Seuls les agents de la section "Agents d\'astreinte" peuvent être assignés aux créneaux journaliers.', false);
+            }
         });
     };
 
-    // Assigner un agent à un créneau
-    const assignAgentToSlot = (slotId, agent) => {
-        const slot = rosterData.find(s => s.id === slotId);
-        if (slot && !slot.assignedAgents.some(a => a.id === agent.id)) { // Empêche les doublons
+    // Assigner un agent à un créneau journalier
+    const assignAgentToDailyRosterSlot = (slotId, agent) => {
+        const slot = dailyRosterSlots.find(s => s.id === slotId);
+        if (slot && !slot.assignedAgents.some(a => a.id === agent.id)) {
             slot.assignedAgents.push(agent);
-            renderTimeSlots(); // Re-render pour mettre à jour l'affichage
+            renderDailyRosterSlots(); // Re-render pour mettre à jour l'affichage
             updateEnginsSynthesis();
-            console.log(`Agent ${agent.name} assigné au créneau ${slotId}`);
+            console.log(`Agent ${agent.name} assigné au créneau ${slotId} du roster journalier.`);
             // Ici, tu enverrais cette affectation à ton backend
         } else if (slot && slot.assignedAgents.some(a => a.id === agent.id)) {
             showModal('Agent déjà assigné', `L'agent ${agent.name} est déjà assigné à ce créneau.`, false);
         }
     };
 
-    // Retirer un agent d'un créneau
-    const removeAgentFromSlot = (slotId, agentId) => {
-        const slot = rosterData.find(s => s.id === slotId);
+    // Retirer un agent d'un créneau journalier
+    const removeAgentFromDailyRosterSlot = (slotId, agentId) => {
+        const slot = dailyRosterSlots.find(s => s.id === slotId);
         if (slot) {
             slot.assignedAgents = slot.assignedAgents.filter(agent => agent.id !== agentId);
-            renderTimeSlots();
+            renderDailyRosterSlots();
             updateEnginsSynthesis();
-            console.log(`Agent ${agentId} retiré du créneau ${slotId}`);
+            console.log(`Agent ${agentId} retiré du créneau ${slotId} du roster journalier.`);
             // Ici, tu enverrais cette suppression à ton backend
         }
     };
@@ -347,30 +467,40 @@ document.addEventListener('DOMContentLoaded', () => {
         await showModal('Génération automatique', 'Lancement de la génération automatique de la feuille de garde. Cela peut prendre quelques instants...', false);
         console.log('Déclenchement de la génération automatique...');
 
+        // Vider les créneaux existants et les agents assignés pour une nouvelle génération
+        dailyRosterSlots = [];
+
         // Simulation de la logique d'affectation automatique
-        // Pour l'exemple, nous allons simplement assigner le premier agent disponible à chaque créneau vide
-        rosterData.forEach(slot => {
-            if (slot.assignedAgents.length === 0 && availableAgents.length > 0) {
-                const agentToAssign = availableAgents[0]; // Prend le premier agent
-                slot.assignedAgents.push(agentToAssign);
-                // Dans une vraie application, tu aurais une logique plus complexe ici:
-                // - Vérifier la disponibilité de l'agent sur plusieurs créneaux
-                // - Respecter des règles (compétences, heures max, etc.)
-                // - Marquer l'agent comme "occupé" pour ce créneau
+        // Crée quelques créneaux par défaut
+        dailyRosterSlots.push(
+            { id: `slot-${Date.now()}-1`, startTime: '08:00', endTime: '12:00', assignedAgents: [] },
+            { id: `slot-${Date.now()}-2`, startTime: '12:00', endTime: '16:00', assignedAgents: [] },
+            { id: `slot-${Date.now()}-3`, startTime: '16:00', endTime: '20:00', assignedAgents: [] }
+        );
+
+        // Assigne des agents d'astreinte aux créneaux de manière simple
+        // Si tu as 3 créneaux et 2 agents d'astreinte, les 2 premiers créneaux auront un agent.
+        dailyRosterSlots.forEach((slot, index) => {
+            if (onCallAgents.length > 0 && index < onCallAgents.length) {
+                slot.assignedAgents.push(onCallAgents[index]);
+            } else if (onCallAgents.length === 0) {
+                 // Gérer le cas où il n'y a pas d'agents d'astreinte
+                 console.warn("Aucun agent d'astreinte disponible pour l'affectation automatique.");
             }
         });
 
+
         setTimeout(() => { // Simule le temps de traitement
-            renderTimeSlots();
+            renderDailyRosterSlots();
             updateEnginsSynthesis();
             toggleLoader(false);
             showModal('Génération terminée', 'La feuille de garde a été générée automatiquement avec succès (simulation).');
             console.log('Génération automatique terminée.');
-            // Ici, tu enverrais le rosterData mis à jour à ton backend
+            // Ici, tu enverrais le dailyRosterSlots mis à jour à ton backend
         }, 1500);
     });
 
 
     // --- Initialisation au chargement de la page ---
-    updateDateAndLoadRoster(); // Charge la feuille de garde pour la date actuelle au démarrage
+    updateDateAndLoadData(); // Charge les données pour la date actuelle au démarrage
 });
