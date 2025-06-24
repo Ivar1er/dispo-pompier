@@ -262,95 +262,91 @@ function updateDisplay(weekKey, planningData) {
 
 /**
  * Rend la grille du planning hebdomadaire avec des barres de disponibilité continues.
+ * Met le label du jour et la barre de disponibilité sur la même ligne.
  * @param {string} weekKey - La clé de la semaine à afficher (ex: "S 25").
  * @param {object} planningData - L'objet complet des données de planning de l'agent.
  */
 function showWeek(weekKey, planningData) {
-  const container = planningContainer;
-  const header = headerHours;
+  const container = planningContainer; // This is #planning-container (class: planning-grid-content)
+  const header = headerHours; // This is #header-hours
 
-  // Efface le contenu précédent du planning
+  // Clear previous content
   container.innerHTML = "";
-  // Efface et recrée l'en-tête des heures avec la première cellule vide pour le label du jour
-  header.innerHTML = `<div class="day-label sticky-day-col"></div>`;
+  header.innerHTML = ""; // Clear header too
 
-  const SLOT_COUNT = 48; // Nombre total de slots de 30 minutes sur 24h
-  const START_HOUR_GRID = 7; // Heure de début de la grille d'affichage (7h00)
-  const MINUTES_PER_SLOT = 30; // Chaque slot représente 30 minutes
+  const SLOT_COUNT = 48; // Total 30-min slots over 24h
+  const START_HOUR_GRID = 7; // Visual grid starts at 7 AM
+  const MINUTES_PER_SLOT = 30; // Each slot is 30 minutes
 
-  // Crée les en-têtes d'heures (toutes les deux heures)
-  for (let i = START_HOUR_GRID; i < START_HOUR_GRID + 24; i += 2) {
-    const hour = i % 24;
-    const div = document.createElement("div");
-    div.className = "hour-cell";
-    div.textContent = `${String(hour).padStart(2, '0')}:00`;
-    // Chaque cellule d'heure s'étend sur 4 colonnes (2 heures * 2 slots/heure)
-    div.style.gridColumn = `span 4`;
-    header.appendChild(div);
+  // 1. Render Header Hours
+  const headerDayLabelPlaceholder = document.createElement("div");
+  headerDayLabelPlaceholder.className = "day-label-header-placeholder"; // New class for placeholder
+  header.appendChild(headerDayLabelPlaceholder);
+
+  for (let i = START_HOUR_GRID; i < START_HOUR_GRID + 24; i += 2) { // Display hours every 2 hours
+      const hour = i % 24;
+      const div = document.createElement("div");
+      div.className = "hour-cell";
+      div.textContent = `${String(hour).padStart(2, '0')}:00`;
+      header.appendChild(div);
   }
 
-  // Pour chaque jour de la semaine
+  // 2. Render Daily Rows
   days.forEach(day => {
-    const row = document.createElement("div");
-    row.className = "day-row";
+      const rowContainer = document.createElement("div");
+      rowContainer.className = "day-row-container"; // Each day gets its own flex container
 
-    // Ajoute le label du jour dans la première colonne, le rendant collant
-    const dayLabel = document.createElement("div");
-    dayLabel.className = "day-label sticky-day-col";
-    dayLabel.textContent = day.charAt(0).toUpperCase() + day.slice(1);
-    row.appendChild(dayLabel);
+      // Day Label
+      const dayLabel = document.createElement("div");
+      dayLabel.className = "day-label"; // Style defined in CSS
+      dayLabel.textContent = day.charAt(0).toUpperCase() + day.slice(1);
+      rowContainer.appendChild(dayLabel);
 
-    // Récupère les plages de disponibilité (créneaux) pour le jour et la semaine courants
-    // Les données sont attendues sous forme d'un tableau d'objets { start: index_start, end: index_end }
-    const dayRanges = planningData[weekKey]?.[day] || [];
+      // Availability Slots Wrapper (this will be a grid itself)
+      const availabilityWrapper = document.createElement("div");
+      availabilityWrapper.className = "availability-slots-wrapper"; // New class
+      rowContainer.appendChild(availabilityWrapper);
 
-    // Pour chaque "slot" vide dans la grille (qui servira de fond)
-    for (let i = 0; i < SLOT_COUNT; i++) {
-        const slotDiv = document.createElement("div");
-        slotDiv.className = "slot-background";
-        row.appendChild(slotDiv);
-    }
-
-    // Traite et crée les barres visuelles pour les plages de disponibilité
-    dayRanges.forEach(range => {
-      // Les données de range.start et range.end sont des index (0-47)
-      // Convertir les index en minutes réelles pour le calcul de position et l'affichage du tooltip
-      let startMinutesActual = (range.start * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
-      // MODIFICATION ICI: endMinutesActual doit être la fin du DERNIER slot sélectionné
-      let endMinutesActual = ((range.end + 1) * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
-
-      // Gère les plages qui traversent minuit (ex: 23:00 - 02:00)
-      // Si l'heure de fin est antérieure à l'heure de début après conversion, cela signifie qu'elle est le lendemain
-      if (endMinutesActual <= startMinutesActual) { // Condition simplifiée
-        endMinutesActual += 24 * 60; // Ajoute 24 heures pour le calcul correct de la durée
+      // Add 48 background slots to the wrapper
+      for (let i = 0; i < SLOT_COUNT; i++) {
+          const slotDiv = document.createElement("div");
+          slotDiv.className = "slot-background";
+          availabilityWrapper.appendChild(slotDiv);
       }
 
-      // Calcul des positions dans la grille visuelle (par rapport à 7h00)
-      const gridStartMinutes = START_HOUR_GRID * 60;
-      let effectiveStartMinutes = Math.max(startMinutesActual, gridStartMinutes);
-      let effectiveEndMinutes = Math.min(endMinutesActual, gridStartMinutes + (24 * 60)); // Max 24 heures à partir de 7h00
+      // Get availability ranges for the current day
+      const dayRanges = planningData[weekKey]?.[day] || [];
 
-      // Calcule la colonne de début et l'étendue (nombre de colonnes) dans la grille
-      // La grille commence à la colonne 2 car la colonne 1 est pour le label du jour
-      const startColumn = ((effectiveStartMinutes - gridStartMinutes) / MINUTES_PER_SLOT) + 2;
-      const spanColumns = (effectiveEndMinutes - effectiveStartMinutes) / MINUTES_PER_SLOT;
+      // Add availability bars to the wrapper
+      dayRanges.forEach(range => {
+          // Calculate actual start/end minutes for tooltip
+          let startMinutesActual = (range.start * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
+          let endMinutesActual = ((range.end + 1) * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
 
-      // N'ajoute la barre que si elle a une longueur positive (visible)
-      if (spanColumns > 0) {
-        const bar = document.createElement("div");
-        bar.className = "availability-bar";
-        // Positionne la barre dans la grille
-        bar.style.gridColumn = `${startColumn} / span ${spanColumns}`;
-        
-        // Affichage des heures formatées dans le tooltip
-        const displayStart = minutesToTime(startMinutesActual);
-        const displayEnd = minutesToTime(endMinutesActual);
-        bar.title = `Disponible: ${displayStart} - ${displayEnd}`; 
-        
-        row.appendChild(bar); // Ajoute la barre à la ligne du jour
-      }
-    });
-    container.appendChild(row); // Ajoute la ligne du jour au conteneur principal du planning
+          // Handle overnight ranges
+          if (endMinutesActual <= startMinutesActual) {
+              endMinutesActual += 24 * 60;
+          }
+
+          // Calculate effective start/end minutes within the 24-hour display grid (from 7 AM)
+          const gridStartMinutes = START_HOUR_GRID * 60;
+          let effectiveStartMinutes = Math.max(startMinutesActual, gridStartMinutes);
+          let effectiveEndMinutes = Math.min(endMinutesActual, gridStartMinutes + (24 * 60));
+
+          // Calculate position and span in the `availability-slots-wrapper`'s grid
+          // Columns are 1-indexed in CSS grid, and we have 48 slots.
+          const startColumnInWrapper = ((effectiveStartMinutes - gridStartMinutes) / MINUTES_PER_SLOT) + 1;
+          const spanColumns = (effectiveEndMinutes - effectiveStartMinutes) / MINUTES_PER_SLOT;
+
+          if (spanColumns > 0) {
+              const bar = document.createElement("div");
+              bar.className = "availability-bar";
+              bar.style.gridColumn = `${startColumnInWrapper} / span ${spanColumns}`;
+              bar.title = `Disponible: ${minutesToTime(startMinutesActual)} - ${minutesToTime(endMinutesActual)}`;
+              availabilityWrapper.appendChild(bar); // Append bar to the new wrapper
+          }
+      });
+      container.appendChild(rowContainer); // Append the whole day row to the main planning container
   });
 }
 

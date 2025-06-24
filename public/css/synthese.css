@@ -107,95 +107,123 @@ body {
 .planning-wrapper {
     overflow-x: auto; /* Permet le défilement si le contenu dépasse */
     padding-bottom: 10px; /* Espace pour la barre de défilement */
+    /* Nouveau: Le wrapper devient un flex container pour le header et le planning-container */
+    display: flex;
+    flex-direction: column;
 }
 
-/* Grille principale du planning */
+/* Grille principale du planning - Conteneur des lignes de jour */
 .planning-grid-content {
-    display: grid;
-    /* La première colonne est pour les jours (sticky), les 48 suivantes pour les slots de 30 min */
-    grid-template-columns: 120px repeat(48, minmax(20px, 1fr)); 
+    display: flex; /* Changed to flex */
+    flex-direction: column; /* Stack rows vertically */
     border: 1px solid var(--light-gray);
     border-radius: var(--border-radius-medium);
     background-color: #f9f9f9;
-    padding: 10px; 
+    padding: 0; /* No padding here, day-row-container will handle it */
     position: relative;
-    min-width: calc(120px + (48 * 20px)); /* 1080px */
+    /* min-width will be handled by children */
 }
 
-/* En-tête des heures */
+/* En-tête des heures - maintenant un flex container */
 .header-hours {
-    display: grid;
-    /* Les colonnes de l'en-tête doivent correspondre EXACTEMENT aux colonnes de la grille de planning */
-    grid-template-columns: 120px repeat(48, minmax(20px, 1fr)); 
+    display: flex; /* Changed to flex */
     background-color: var(--primary-color);
     color: white;
     font-weight: 600;
     border-radius: var(--border-radius-medium) var(--border-radius-medium) 0 0;
-    overflow: hidden; 
-    margin-bottom: -1px; 
+    overflow: hidden;
+    margin-bottom: -1px;
     position: sticky;
     top: 0;
     z-index: 10;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    /* La largeur minimale doit correspondre à celle de .planning-grid-content */
-    min-width: calc(120px + (48 * 20px)); /* 1080px */
+    /* min-width will be handled by children */
+}
+
+.day-label-header-placeholder { /* NEW CLASS: Empty cell for alignment with day labels */
+    width: 120px; /* Fixed width to align with day labels */
+    flex-shrink: 0; /* Don't let it shrink */
+    background-color: var(--primary-color); /* Match header background */
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px 0; /* Match hour-cell padding */
 }
 
 .hour-cell {
     padding: 10px 0;
     text-align: center;
-    border-right: 1px solid rgba(255, 255, 255, 0.2); 
-    font-size: 0.9em; 
-    white-space: nowrap; 
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.9em;
+    white-space: nowrap;
+    flex: 1; /* Each hour takes equal flex space */
+    min-width: 40px; /* Each 2-hour label spans 4 slots, so this is for one slot min width */
 }
-/* La dernière heure affichée ne doit pas avoir de bordure droite */
-.hour-cell:last-child { 
+.hour-cell:last-child {
     border-right: none;
 }
 
 
-/* Styles pour les lignes de jour */
-.day-row {
-    display: contents; 
+/* Day row container */
+.day-row-container { /* NEW CLASS */
+    display: flex; /* Day label and availability wrapper side-by-side */
+    align-items: center; /* Vertically align content */
+    border-bottom: 1px solid #f0f0f0;
+    background-color: var(--card-background); /* White background for the row */
+}
+.day-row-container:last-child {
+    border-bottom: none;
 }
 
-.day-label {
-    grid-column: 1;
+/* Day label on the left of each row */
+.day-label { /* Original class, but now child of .day-row-container */
+    width: 120px; /* Fixed width */
+    flex-shrink: 0;
     padding: 15px 10px;
-    background-color: var(--card-background);
-    border-bottom: 1px solid var(--light-gray);
     font-weight: 600;
     text-align: left;
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    position: sticky; 
+    position: sticky;
     left: 0;
-    z-index: 5; 
-}
-.day-row:last-child .day-label {
-    border-bottom: none; 
+    z-index: 5;
+    background-color: var(--card-background); /* Ensure it stays white on scroll */
+    border-right: 1px solid var(--light-gray); /* Separator from slots */
 }
 
-/* Fond pour chaque slot horaire (invisible, sert de grille) */
+/* Wrapper for the 48 availability slots */
+.availability-slots-wrapper { /* NEW CLASS */
+    display: grid; /* This is where the 48 slots grid lives */
+    grid-template-columns: repeat(48, minmax(20px, 1fr)); /* 48 equal columns for 30-min slots */
+    flex-grow: 1; /* Take up remaining horizontal space in .day-row-container */
+    min-height: 40px; /* Minimum height for the slot area */
+    height: 100%; /* Ensure it fills parent height */
+    position: relative; /* For positioning availability-bar */
+    padding: 0; /* No padding inside the grid itself */
+}
+
+/* Background for each slot (now direct grid item of availability-slots-wrapper) */
 .slot-background {
-    border: none; 
-    min-height: 40px; 
+    border-right: 1px dotted rgba(0,0,0,0.05); /* Vertical lines between slots */
+    min-height: 40px; /* Match min-height of wrapper */
     box-sizing: border-box;
-    background-color: var(--free-slot-color); 
+    background-color: var(--free-slot-color); /* To visualize grid cells */
+    grid-row: 1; /* Ensures it stays on the first (and only) grid row */
+}
+.slot-background:last-child {
+    border-right: none;
 }
 
-/* Barre de disponibilité */
+/* Availability bar - positioned within the availability-slots-wrapper grid */
 .availability-bar {
     background-color: var(--availability-bar-color);
     border-radius: var(--border-radius-small);
-    height: 30px; 
-    margin: 5px 0; 
-    position: relative; 
-    z-index: 6; 
-    grid-row: auto; 
-    align-self: center; 
-    box-shadow: 0 2px 5px rgba(0,123,255,0.2); 
+    height: 30px;
+    margin: 5px 0; /* Vertical margin to center within 40px slot height */
+    position: relative;
+    z-index: 6;
+    grid-row: 1; /* CRUCIAL: Forces it onto the first (and only) grid row of slots-display-wrapper */
+    align-self: center; /* Vertically center in the grid cell */
+    box-shadow: 0 2px 5px rgba(0,123,255,0.2);
     transition: transform 0.1s ease-in-out;
 }
 
@@ -374,26 +402,15 @@ body {
         font-size: 1em;
         padding: 10px 15px;
     }
-    .planning-grid-content, .header-hours {
-        min-width: calc(120px + (48 * 18px)); 
-    }
-    .day-label {
-        padding: 10px 5px;
+    /* Les éléments de la grille principale deviennent flexibles en largeur */
+    .day-label-header-placeholder, .day-label {
+        width: 100px; /* Reduce day label width */
     }
     .hour-cell {
-        font-size: 0.8em;
-        padding: 8px 0;
+        min-width: 30px; /* Adjust min width for smaller screens */
     }
-    .slot-background {
-        min-height: 35px;
-    }
-    .availability-bar {
-        height: 25px;
-        margin: 5px 0;
-    }
-    .btn-return {
-        padding: 12px 25px; /* Ajustement pour les tablettes */
-        font-size: 0.9em;
+    .availability-slots-wrapper {
+        grid-template-columns: repeat(48, minmax(18px, 1fr)); /* Smaller slot min-width */
     }
 }
 
@@ -418,16 +435,21 @@ body {
     .planning-wrapper {
         overflow-x: auto;
     }
-    .planning-grid-content, .header-hours {
-        grid-template-columns: 80px repeat(48, 1fr);
-        min-width: 960px;
+    /* Les en-têtes et les lignes de jour s'adaptent au défilement */
+    .header-hours, .day-row-container {
+        min-width: calc(80px + (48 * 15px)); /* Sum of (day label width + all slots min-width) */
     }
-    .day-label {
-        font-size: 0.9em;
+    .day-label-header-placeholder, .day-label {
+        width: 80px; /* Further reduce day label width */
     }
     .hour-cell {
+        min-width: 15px; /* Adjust hour cell min width */
         font-size: 0.7em;
         padding: 5px 0;
+    }
+    .availability-slots-wrapper {
+        grid-template-columns: repeat(48, minmax(15px, 1fr)); /* Even smaller slot min-width */
+        min-height: 30px;
     }
     .slot-background {
         min-height: 30px;
@@ -451,15 +473,19 @@ body {
     .page-title {
         font-size: 1.5rem;
     }
-    .planning-grid-content, .header-hours {
-        grid-template-columns: 60px repeat(48, 1fr);
-        min-width: 860px;
+    .header-hours, .day-row-container {
+        min-width: calc(60px + (48 * 12px)); /* Adjust for smallest screens */
     }
-    .day-label {
+    .day-label-header-placeholder, .day-label {
+        width: 60px; /* Smallest day label width */
         font-size: 0.8em;
     }
     .hour-cell {
         font-size: 0.6em;
+    }
+    .availability-slots-wrapper {
+        grid-template-columns: repeat(48, minmax(12px, 1fr));
+        min-height: 25px;
     }
     .slot-background {
         min-height: 25px;
