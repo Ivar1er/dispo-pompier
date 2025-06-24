@@ -34,6 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let dailyRosterSlots = []; // Créneaux horaires et agents assignés pour le roster journalier
     let activeQualificationFilter = null; // Nouvelle variable pour le filtre de qualification
 
+    // NOUVEAU: Variable globale pour stocker l'ID de l'agent en cours de glissement
+    let draggingAgentId = null; 
+
     // --- Constantes et Helpers (copiés de admin.js pour la cohérence des créneaux horaires) ---
     const API_BASE_URL = "https://dispo-pompier.onrender.com"; // Assurez-vous que c'est la bonne URL
     
@@ -347,7 +350,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const agentDataString = JSON.stringify({ id: agent.id, username: agent.username });
                     e.dataTransfer.setData('text/plain', agentDataString);
                     e.dataTransfer.effectAllowed = 'move'; // Peut être déplacé vers un rôle
+                    draggingAgentId = agent.id; // Stocke l'ID globalement
                     console.log('Dragstart (Personnel Disponible): Setting data for agent', agent.id, ':', agentDataString);
+                });
+                // Nouvelle écouteur pour dragend pour nettoyer draggingAgentId
+                agentCard.addEventListener('dragend', () => {
+                    draggingAgentId = null; 
+                    console.log('Dragend: draggingAgentId reset.');
                 });
 
                 // --- Affichage des créneaux de disponibilité (maintenant via CSS hover) ---
@@ -401,7 +410,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const agentDataString = JSON.stringify({ id: agent.id, username: agent.username || agent.name });
                     e.dataTransfer.setData('text/plain', agentDataString);
                     e.dataTransfer.effectAllowed = 'move'; // Peut être déplacé vers un créneau/engin
+                    draggingAgentId = agent.id; // Stocke l'ID globalement
                     console.log('Dragstart (Agents d\'astreinte): Setting data for agent', agent.id, ':', agentDataString);
+                });
+                // Nouvelle écouteur pour dragend pour nettoyer draggingAgentId
+                agentCard.addEventListener('dragend', () => {
+                    draggingAgentId = null; 
+                    console.log('Dragend: draggingAgentId reset.');
                 });
 
                 // Écouteur pour le bouton de suppression de l'agent d'astreinte
@@ -752,35 +767,19 @@ document.addEventListener('DOMContentLoaded', () => {
             roleDropZoneElement.classList.remove('drag-valid-role');
             roleDropZoneElement.classList.remove('drag-invalid-role');
 
-            let agentData;
-            const rawData = e.dataTransfer.getData('text/plain');
-            console.log('Dragover (Role DropZone): Raw data received:', rawData); // Log raw data
+            // Utiliser draggingAgentId au lieu de e.dataTransfer.getData()
+            const agentId = draggingAgentId; 
+            console.log('Dragover (Role DropZone): Checking agent with ID from global variable:', agentId);
             
-            if (!rawData) { // Vérification explicite de la chaîne vide
-                console.error('Dragover (Role DropZone): DataTransfer is empty. Cannot parse JSON. This typically means dragstart failed.');
-                roleDropZoneElement.classList.add('drag-invalid-role');
-                e.dataTransfer.dropEffect = 'none'; // Empêche le drop
-                return;
-            }
-
-            try {
-                agentData = JSON.parse(rawData);
-            } catch (error) {
-                console.error('Erreur lors du parsing des données de glisser-déposer (dragover) :', error, 'Raw data:', rawData);
-                roleDropZoneElement.classList.add('drag-invalid-role');
-                e.dataTransfer.dropEffect = 'none'; // Empêche le drop
-                return;
-            }
-
-            if (!agentData || !agentData.id) {
-                console.error('Dragover (Role DropZone): Incomplete agent data.', agentData);
+            if (!agentId) { 
+                console.error('Dragover (Role DropZone): No draggingAgentId set. This means dragstart did not properly initiate.');
                 roleDropZoneElement.classList.add('drag-invalid-role');
                 e.dataTransfer.dropEffect = 'none'; // Empêche le drop
                 return;
             }
 
             const requiredQualificationId = roleDropZoneElement.dataset.qualificationId;
-            const fullAgent = onCallAgents.find(a => a.id === agentData.id);
+            const fullAgent = onCallAgents.find(a => a.id === agentId);
 
             // Vérifier si l'agent est d'astreinte ET s'il a la qualification requise
             if (fullAgent && (!requiredQualificationId || (fullAgent.qualifications && fullAgent.qualifications.includes(requiredQualificationId)))) {
@@ -802,29 +801,16 @@ document.addEventListener('DOMContentLoaded', () => {
             roleDropZoneElement.classList.remove('drag-valid-role');
             roleDropZoneElement.classList.remove('drag-invalid-role');
 
-            let agentData;
-            const rawData = e.dataTransfer.getData('text/plain');
-            console.log('Drop (Role DropZone): Raw data received:', rawData); // Log raw data
+            // Utiliser draggingAgentId au lieu de e.dataTransfer.getData()
+            const agentId = draggingAgentId;
+            console.log('Drop (Role DropZone): Using agent ID from global variable:', agentId);
+
+            if (!agentId) {
+                await showModal('Erreur de données', 'Aucun agent n\'est en cours de glissement. Veuillez réessayer.', false);
+                return;
+            }
             
-            if (!rawData) { // Vérification explicite de la chaîne vide
-                await showModal('Erreur de données', 'Les données de l\'agent glissé sont manquantes lors du dépôt. Veuillez réessayer.', false);
-                return;
-            }
-
-            try {
-                agentData = JSON.parse(rawData);
-            } catch (error) {
-                console.error('Erreur lors du parsing des données de glisser-déposer (drop) :', error, 'Raw data:', rawData);
-                await showModal('Erreur de données', 'Les données de l\'agent glissé sont invalides. Veuillez réessayer.', false);
-                return;
-            }
-
-            if (!agentData || !agentData.id) {
-                await showModal('Erreur de données', 'Les informations de l\'agent sont incomplètes lors du dépôt. Veuillez réessayer.', false);
-                return;
-            }
-
-            const agentToAssign = { id: agentData.id, username: agentData.username };
+            const agentToAssign = { id: agentId, username: (onCallAgents.find(a => a.id === agentId)?.username || 'Agent inconnu') };
             const engineId = roleDropZoneElement.dataset.engineId;
             const roleId = roleDropZoneElement.dataset.roleId;
             const requiredQualificationId = roleDropZoneElement.dataset.qualificationId;
