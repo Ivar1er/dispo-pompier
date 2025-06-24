@@ -139,7 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         } catch (error) {
             console.error('Erreur lors de la sauvegarde des agents d\'astreinte :', error);
-            // Pas de modale ici, le rollback gérera l'affichage de l'erreur via updateDateAndLoadData() si nécessaire
             return false;
         }
     };
@@ -169,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         } catch (error) {
             console.error('Erreur lors de la sauvegarde des créneaux journaliers :', error);
-            // Pas de modale ici, l'appelant gérera
             return false;
         }
     };
@@ -262,7 +260,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Configure le dragstart pour les agents disponibles
                 agentCard.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, name: agent.username }));
+                    // Important : passer username ici pour la cohérence
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, username: agent.username }));
                     e.dataTransfer.effectAllowed = 'copy'; // Peut être copié vers la zone d'astreinte
                 });
 
@@ -300,18 +299,20 @@ document.addEventListener('DOMContentLoaded', () => {
             onCallAgents.forEach(agent => {
                 const agentCard = document.createElement('div');
                 agentCard.className = 'agent-card';
+                // Assurez-vous que l'agent a une propriété 'username'
+                agentCard.textContent = agent.username || agent.name; // Fallback au cas où
+                agentCard.draggable = true;
                 agentCard.dataset.agentId = agent.id;
-                agentCard.dataset.agentName = agent.username; // Utilise le nom complet
-                agentCard.draggable = true; // Ces agents peuvent être glissés vers les créneaux journaliers
+                agentCard.dataset.agentName = agent.username || agent.name; // Fallback
 
                 agentCard.innerHTML = `
-                    <span>${agent.username}</span>
+                    <span>${agent.username || agent.name}</span>
                     <button class="remove-on-call-agent-tag" data-agent-id="${agent.id}" aria-label="Supprimer cet agent de la liste d'astreinte">x</button>
                 `;
 
                 // Configure le dragstart pour les agents d'astreinte (vers les créneaux journaliers)
                 agentCard.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, name: agent.username }));
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, username: agent.username || agent.name })); // Assurez-vous de passer 'username'
                     e.dataTransfer.effectAllowed = 'move'; // Peut être déplacé vers un créneau
                 });
 
@@ -356,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="assigned-agents-for-slot" data-slot-id="${slot.id}">
                 ${slot.assignedAgents.map(agent => `
                     <span class="assigned-agent-tag" data-agent-id="${agent.id}">
-                        ${agent.name}
+                        ${agent.name || agent.username}
                         <button class="remove-assigned-agent-tag" data-agent-id="${agent.id}" aria-label="Retirer l'agent du créneau">x</button>
                     </span>
                 `).join('')}
@@ -431,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     synthesisSlotDiv.innerHTML += `
                         <div class="synthesis-engine-item">
                             <strong>Agent assigné</strong>
-                            <span class="assigned">${agent.name}</span>
+                            <span class="assigned">${agent.name || agent.username}</span>
                         </div>
                     `;
                 });
@@ -515,13 +516,15 @@ document.addEventListener('DOMContentLoaded', () => {
             dropZoneElement.style.backgroundColor = '';
 
             const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            // Assurez-vous d'utiliser 'username' pour la cohérence des données
+            const agentToAdd = { id: agentData.id, username: agentData.username }; 
 
             // Vérifie si l'agent n'est PAS déjà dans la liste onCallAgents LOCALE
-            if (!onCallAgents.some(a => a.id === agentData.id)) {
+            if (!onCallAgents.some(a => a.id === agentToAdd.id)) {
                 // Étape 1: Mettre à jour l'état local immédiatement
-                onCallAgents.push(agentData);
+                onCallAgents.push(agentToAdd);
                 // Retirer l'agent de la liste des disponibles LOCALE
-                availablePersonnel = availablePersonnel.filter(agent => agent.id !== agentData.id);
+                availablePersonnel = availablePersonnel.filter(agent => agent.id !== agentToAdd.id);
 
                 // Étape 2: Rafraîchir l'UI immédiatement
                 renderOnCallAgents(); 
@@ -533,20 +536,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!success) {
                     // Étape 4: Si la sauvegarde échoue, annuler les changements locaux
                     await showModal('Erreur de sauvegarde', 'La sélection de l\'agent d\'astreinte n\'a pas pu être sauvegardée. L\'agent a été replacé. Veuillez réessayer.');
-                    // Revert des changements locaux
-                    onCallAgents = onCallAgents.filter(a => a.id !== agentData.id);
-                    // Trouver l'agent original avec ses disponibilités pour le remettre correctement
-                    // Pour cet exemple, nous allons recharger toutes les données pour resynchroniser propre.
                     await updateDateAndLoadData(); // Force un re-sync complet depuis le serveur
-                    console.error(`Échec de l'ajout de l'agent ${agentData.name} aux agents d'astreinte.`);
+                    console.error(`Échec de l'ajout de l'agent ${agentToAdd.username} aux agents d'astreinte.`);
                 } else {
-                    console.log(`Agent ${agentData.name} ajouté aux agents d'astreinte et sauvegardé.`);
+                    console.log(`Agent ${agentToAdd.username} ajouté aux agents d'astreinte et sauvegardé.`);
                 }
             } else {
-                // Si l'agent est déjà dans la liste locale (peut-être à cause d'un échec de save précédent non corrigé)
-                // On affiche un message et on force un rechargement pour resynchroniser l'UI avec le backend.
-                showModal('Agent déjà sélectionné', `L'agent ${agentData.name} est déjà dans la liste des agents d'astreinte (synchronisation en cours).`, false);
-                await updateDateAndLoadData(); 
+                // Si l'agent est déjà dans la liste locale
+                showModal('Agent déjà sélectionné', `L'agent ${agentToAdd.username} est déjà dans la liste des agents d'astreinte.`, false);
+                await updateDateAndLoadData(); // Force un re-sync pour s'assurer de la cohérence visuelle
             }
         });
     };
@@ -560,20 +558,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirm) {
             // Étape 1: Identifier l'agent à retirer
             const agentToRemove = onCallAgents.find(agent => agent.id === agentId);
-            if (!agentToRemove) return; // Agent non trouvé, rien à faire
+            if (!agentToRemove) return;
 
             // Étape 2: Mettre à jour l'état local immédiatement
             onCallAgents = onCallAgents.filter(agent => agent.id !== agentId);
-            // Si l'agent retiré était disponible pour le jour actuel, l'ajouter à availablePersonnel localement
-            const originalAvailability = availablePersonnel.find(a => a.id === agentId) || availablePersonnel.find(a => a.id === agentId); // Check initialement disponible
-            if (originalAvailability) { // Si l'agent est potentiellement disponible
-                // On pourrait chercher l'agent dans les données brutes disponibles pour le jour
-                // Pour simplifier et garantir la cohérence, on va le rajouter et laisser updateDateAndLoadData() le filtrer proprement ensuite
-                // Mais pour une réactivité immédiate, on l'ajoute directement si absent.
-                if (!availablePersonnel.some(a => a.id === agentToRemove.id)) {
-                    availablePersonnel.push(agentToRemove); // Ajout local temporaire
-                }
-            }
             
             // Retirer l'agent de tous les créneaux où il est affecté dans le roster journalier localement
             dailyRosterSlots.forEach(slot => {
@@ -582,19 +570,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Étape 3: Rafraîchir l'UI immédiatement
             renderOnCallAgents(); 
-            renderAvailablePersonnel();
             renderDailyRosterSlots(); 
             updateEnginsSynthesis();
 
             // Étape 4: Tenter de sauvegarder la nouvelle liste sur le backend
-            const success = await saveOnCallAgentsToBackend();
+            const saveOnCallSuccess = await saveOnCallAgentsToBackend();
+            const saveRosterSuccess = await saveDailyRosterSlotsToBackend(); // Sauvegarde aussi les créneaux car l'agent en a été retiré
 
-            if (!success) {
+            if (!saveOnCallSuccess || !saveRosterSuccess) {
                 // Étape 5: Si la sauvegarde échoue, annuler les changements locaux
-                await showModal('Erreur de sauvegarde', 'La suppression de l\'agent d\'astreinte n\'a pas pu être sauvegardée. L\'agent a été replacé. Veuillez réessayer.');
+                await showModal('Erreur de sauvegarde', 'La suppression de l\'agent d\'astreinte n\'a pas pu être sauvegardée. L\'interface va se resynchroniser.');
                 await updateDateAndLoadData(); // Force un re-sync complet depuis le serveur
                 console.error(`Échec de la suppression pour l'agent ${agentId}.`);
             } else {
+                await updateDateAndLoadData(); // Force un re-sync complet même en cas de succès pour la cohérence
                 console.log(`Agent ${agentId} retiré de la liste d'astreinte et de ses affectations, et remis dans le personnel disponible (si éligible) et sauvegardé.`);
             }
         }
@@ -620,11 +609,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
             const slotId = dropZoneElement.dataset.slotId;
 
+            // Assurez-vous que l'agent est bien d'astreinte avant de l'assigner
             if (onCallAgents.some(a => a.id === agentData.id)) {
                 // Capture l'état actuel avant modification pour rollback
                 const previousDailyRosterSlots = JSON.parse(JSON.stringify(dailyRosterSlots));
 
-                const success = assignAgentToDailyRosterSlot(slotId, agentData); // Affectation locale
+                // Affectation locale
+                const agentToAssign = { id: agentData.id, name: agentData.username }; // Utilise username pour le nom de l'agent affecté
+                const success = assignAgentToDailyRosterSlot(slotId, agentToAssign); 
+                
                 if (success) {
                     const saveSuccess = await saveDailyRosterSlotsToBackend(); // Sauvegarde après affectation
                     if (!saveSuccess) {
@@ -633,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         renderDailyRosterSlots();
                         updateEnginsSynthesis();
                     } else {
-                        console.log(`Agent ${agentData.name} assigné au créneau ${slotId} et sauvegardé.`);
+                        console.log(`Agent ${agentData.username} assigné au créneau ${slotId} et sauvegardé.`);
                     }
                 } else {
                     // assignAgentToDailyRosterSlot a déjà affiché une modale si l'agent est déjà assigné
@@ -651,10 +644,10 @@ document.addEventListener('DOMContentLoaded', () => {
             slot.assignedAgents.push(agent);
             renderDailyRosterSlots();
             updateEnginsSynthesis();
-            console.log(`Agent ${agent.name} assigné au créneau ${slotId} du roster journalier.`);
+            console.log(`Agent ${agent.name || agent.username} assigné au créneau ${slotId} du roster journalier.`);
             return true;
         } else if (slot && slot.assignedAgents.some(a => a.id === agent.id)) {
-            showModal('Agent déjà assigné', `L'agent ${agent.name} est déjà assigné à ce créneau.`, false);
+            showModal('Agent déjà assigné', `L'agent ${agent.name || agent.username} est déjà assigné à ce créneau.`, false);
             return false;
         }
         return false;
@@ -695,15 +688,19 @@ document.addEventListener('DOMContentLoaded', () => {
         await showModal('Génération automatique', 'Lancement de la génération automatique de la feuille de garde. Cela peut prendre quelques instants...', false);
         console.log('Déclenchement de la génération automatique...');
 
+        // Réinitialise les créneaux pour la génération
         dailyRosterSlots = [];
 
+        // Crée des créneaux par défaut
         dailyRosterSlots.push(
             { id: `slot-${Date.now()}-1`, startTime: '07:00', endTime: '07:00', assignedAgents: [] },
         );
 
+        // Assigne des agents d'astreinte aux créneaux de manière simple
         dailyRosterSlots.forEach((slot, index) => {
             if (onCallAgents.length > 0 && index < onCallAgents.length) {
-                slot.assignedAgents.push(onCallAgents[index]);
+                // Assurez-vous d'utiliser 'username' ou 'name' de l'agent d'astreinte
+                slot.assignedAgents.push({ id: onCallAgents[index].id, name: onCallAgents[index].username || onCallAgents[index].name });
             } else if (onCallAgents.length === 0) {
                  console.warn("Aucun agent d'astreinte disponible pour l'affectation automatique.");
             }
