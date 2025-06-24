@@ -122,8 +122,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (formatDate(currentDate) === '2025-06-24') {
                      onCallAgents = [{ id: 'agent-A', name: 'Alain Dubois' }, { id: 'agent-C', name: 'Charles Blanc' }];
                      dailyRosterSlots = [
-                         { id: 'slot-1', startTime: '08:00', endTime: '12:00', assignedAgents: [{ id: 'agent-A', name: 'Alain Dubois' }] },
-                         { id: 'slot-2', startTime: '12:00', endTime: '16:00', assignedAgents: [] }
+                         { id: 'slot-1', startTime: '07:00', endTime: '12:00', assignedAgents: [{ id: 'agent-A', name: 'Alain Dubois' }] },
+                         { id: 'slot-2', startTime: '12:00', endTime: '07:00', assignedAgents: [] }
                      ];
                 } else {
                      onCallAgents = [];
@@ -146,6 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 avail.month === currentMonth &&
                 avail.year === currentYear
             )
+        ).filter(agent =>
+            // S'assure que les agents déjà dans 'onCallAgents' n'apparaissent plus dans 'availablePersonnel'
+            !onCallAgents.some(onCallAgent => onCallAgent.id === agent.id)
         );
     };
 
@@ -169,6 +172,48 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.dataTransfer.setData('text/plain', JSON.stringify({ id: agent.id, name: agent.name }));
                     e.dataTransfer.effectAllowed = 'copy'; // Peut être copié vers la zone d'astreinte
                 });
+
+                // --- Affichage des créneaux de disponibilité au survol ---
+                agentCard.addEventListener('mouseenter', (e) => {
+                    const agentDetails = allCenterPersonnel.find(p => p.id === agent.id);
+                    if (agentDetails) {
+                        const currentDayAvailability = agentDetails.availability.find(avail =>
+                            avail.day === currentDate.getDate() &&
+                            avail.month === currentDate.getMonth() + 1 &&
+                            avail.year === currentDate.getFullYear()
+                        );
+
+                        if (currentDayAvailability && currentDayAvailability.slots.length > 0) {
+                            const tooltip = document.createElement('div');
+                            tooltip.className = 'availability-tooltip';
+                            tooltip.innerHTML = `
+                                <strong>Disponibilité:</strong><br>
+                                ${currentDayAvailability.slots.map(slot => `<span>${slot}</span>`).join('<br>')}
+                            `;
+                            // Positionnement simple à côté de la carte de l'agent
+                            tooltip.style.position = 'absolute';
+                            tooltip.style.left = `${e.clientX + 15}px`; // Ajuste la position
+                            tooltip.style.top = `${e.clientY + 15}px`;
+                            tooltip.style.backgroundColor = '#333';
+                            tooltip.style.color = 'white';
+                            tooltip.style.padding = '8px';
+                            tooltip.style.borderRadius = '5px';
+                            tooltip.style.zIndex = '100';
+                            document.body.appendChild(tooltip);
+                            agentCard.dataset.tooltipId = 'tooltip-' + agent.id; // Stocke l'ID du tooltip
+                        }
+                    }
+                });
+
+                agentCard.addEventListener('mouseleave', () => {
+                    const tooltipId = agentCard.dataset.tooltipId;
+                    const existingTooltip = document.querySelector(`[data-tooltip-id="${tooltipId}"]`);
+                    if (existingTooltip) {
+                        existingTooltip.remove();
+                    }
+                });
+                // --- Fin affichage survol ---
+
                 availablePersonnelList.appendChild(agentCard);
             });
         }
@@ -260,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
         endTimeInput.addEventListener('change', (e) => {
             const newEndTime = e.target.value;
             updateSlotTime(slot.id, 'endTime', newEndTime);
-            // Logique pour créer un nouveau créneau automatiquement
+            // Logique pour créer un nouveau créneau automatiquement si 07:00 -> 15:00
             if (initialEndTime === '07:00' && newEndTime === '15:00') {
                 createConsecutiveSlot(newEndTime);
             }
@@ -429,7 +474,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!onCallAgents.some(a => a.id === agentData.id)) {
                 onCallAgents.push(agentData);
                 renderOnCallAgents();
-                console.log(`Agent ${agentData.name} ajouté aux agents d'astreinte.`);
+                // Retire l'agent de la liste du personnel disponible
+                filterAvailablePersonnel(); // Refiltrer pour exclure l'agent maintenant d'astreinte
+                renderAvailablePersonnel(); // Re-rendre la liste du personnel disponible
+                console.log(`Agent ${agentData.name} ajouté aux agents d'astreinte et retiré du personnel disponible.`);
                 // Ici, tu enverrais cette affectation à ton backend
             } else {
                 showModal('Agent déjà sélectionné', `L'agent ${agentData.name} est déjà dans la liste des agents d'astreinte.`, false);
@@ -445,9 +493,25 @@ document.addEventListener('DOMContentLoaded', () => {
             true
         );
         if (confirm) {
+            // Retire l'agent de la liste d'astreinte
             onCallAgents = onCallAgents.filter(agent => agent.id !== agentId);
             renderOnCallAgents();
-            console.log(`Agent ${agentId} retiré de la liste d'astreinte.`);
+
+            // Ré-ajoute l'agent à la liste du personnel disponible (s'il était disponible à la base)
+            const agentRestored = allCenterPersonnel.find(agent => agent.id === agentId);
+            if (agentRestored) {
+                 filterAvailablePersonnel(); // Refiltrer pour inclure l'agent à nouveau disponible
+                 renderAvailablePersonnel(); // Re-rendre la liste du personnel disponible
+            }
+
+            // Supprime l'agent de tous les créneaux où il est affecté dans le roster journalier
+            dailyRosterSlots.forEach(slot => {
+                slot.assignedAgents = slot.assignedAgents.filter(agent => agent.id !== agentId);
+            });
+            renderDailyRosterSlots(); // Re-rendre les créneaux pour mettre à jour
+            updateEnginsSynthesis(); // Mettre à jour la synthèse
+
+            console.log(`Agent ${agentId} retiré de la liste d'astreinte et de ses affectations, et remis dans le personnel disponible.`);
             // Ici, tu enverrais cette suppression à ton backend
         }
     };
@@ -522,9 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Simulation de la logique d'affectation automatique
         // Crée quelques créneaux par défaut
         dailyRosterSlots.push(
-            { id: `slot-${Date.now()}-1`, startTime: '08:00', endTime: '12:00', assignedAgents: [] },
-            { id: `slot-${Date.now()}-2`, startTime: '12:00', endTime: '16:00', assignedAgents: [] },
-            { id: `slot-${Date.now()}-3`, startTime: '16:00', endTime: '20:00', assignedAgents: [] }
+            { id: `slot-${Date.now()}-1`, startTime: '07:00', endTime: '07:00', assignedAgents: [] },
         );
 
         // Assigne des agents d'astreinte aux créneaux de manière simple
