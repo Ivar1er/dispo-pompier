@@ -205,7 +205,7 @@ body {
 
 .personnel-disponible-section,
 .agents-astreinte-section,
-.daily-roster-section { /* Ajout de la nouvelle section ici */
+.daily-roster-section {
     flex: 1; /* Permet aux colonnes de prendre l'espace disponible */
     min-width: 380px; /* Largeur minimale pour éviter un écrasement */
     display: flex;
@@ -214,7 +214,7 @@ body {
 
 .personnel-disponible-section h2,
 .agents-astreinte-section h2,
-.daily-roster-section h2 { /* Synthèse des engins section supprimée */
+.daily-roster-section h2 {
     margin-top: 0;
     color: #333;
     border-bottom: 1px solid #eee;
@@ -236,7 +236,7 @@ body {
 }
 
 /* Styles pour la liste du personnel disponible (draggable) */
-#available-personnel-list { /* Nouvelle ID */
+#available-personnel-list {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -252,7 +252,7 @@ body {
 }
 
 /* Styles pour les agents d'astreinte (cible de dépôt) */
-#on-call-agents-grid { /* Nouvelle ID */
+#on-call-agents-grid {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -332,7 +332,7 @@ body {
 
 
 /* Styles pour les créneaux horaires journaliers (Daily Roster Section) */
-.time-slots-list { /* Anciennement time-slots-container, réutilisé pour la nouvelle section */
+.time-slots-list {
     flex-grow: 1;
     max-height: 400px;
     overflow-y: auto;
@@ -398,7 +398,7 @@ body {
     background-color: #c82333;
 }
 
-.add-slot-button { /* Ce bouton est maintenant dans la nouvelle section */
+.add-slot-button {
     align-self: flex-start;
     margin-top: auto;
 }
@@ -416,7 +416,6 @@ body {
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-    /* Rendre hidden si non utilisé pour la visibilité par engin */
     display: none; 
 }
 
@@ -432,162 +431,35 @@ body {
 }
 
 .remove-assigned-agent-tag {
-    background-color: #c82333;
-    color: white;
+    background: none;
     border: none;
-    border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    font-size: 0.7em;
+    color: white;
+    margin-left: 5px;
+    font-weight: bold;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    padding: 0 3px;
     line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s;
 }
 .remove-assigned-agent-tag:hover {
-    background-color: #b01c2e;
+    opacity: 1;
+    color: #ffcccc;
 }
 
-
-/* Ancienne section : Synthèse des engins - SUPPRIMÉE
-.engins-synthesis-section {
-    flex-grow: 1;
+/* Styles pour les agents filtrés dans la liste "Personnel Disponible" */
+.agent-card.filtered {
+    border: 2px solid #28a745; /* Bordure verte pour les agents filtrés */
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.6); /* Ombre lumineuse */
+    transform: scale(1.02); /* Légère mise en avant */
 }
 
-.synthesis-content {
-    min-height: 100px;
-    padding: 15px;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    background-color: #fcfcfc;
+/* Adjustments for the main daily-roster-section */
+.daily-roster-section {
+    flex-grow: 2; /* Permet à cette section de prendre plus d'espace */
+    min-width: 600px; /* Augmenter la largeur minimale pour mieux afficher les engins */
 }
 
-.synthesis-time-slot {
-    margin-bottom: 20px;
-    padding: 15px;
-    border: 1px solid #d1ecf1;
-    border-radius: 7px;
-    background-color: #e2f3f5;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-}
-
-.synthesis-time-slot h3 {
-    margin-top: 0;
-    margin-bottom: 12px;
-    color: #0c5460;
-    font-size: 1.2em;
-    font-weight: 600;
-    border-bottom: 1px dashed #aed6f1;
-    padding-bottom: 8px;
-}
-
-.synthesis-engine-item {
-    display: flex;
-    flex-direction: column; 
-    align-items: flex-start;
-    padding: 8px 0;
-    border-bottom: 1px dotted #c3e6cb;
-}
-
-.synthesis-engine-item:last-child {
-    border-bottom: none;
-}
-
-.synthesis-engine-item strong {
-    color: #495057;
-    margin-bottom: 4px; 
-}
-
-.synthesis-engine-item span.assigned {
-    color: #28a745;
-    font-weight: 500;
-    margin-left: 0; 
-}
-
-.synthesis-engine-item span.unassigned {
-    color: #dc3545;
-    font-style: italic;
-    margin-left: 0;
-}
-*/
-
-/* Modale personnalisée (inchangée) */
-.custom-modal {
-    position: fixed;
-    z-index: 1001;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-content {
-    background-color: #fff;
-    padding: 30px;
-    border-radius: 10px;
-    width: 90%;
-    max-width: 500px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    text-align: center;
-}
-
-.modal-content h2 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    color: #333;
-    font-size: 1.5em;
-}
-
-.modal-content p {
-    margin-bottom: 25px;
-    color: #555;
-    line-height: 1.6;
-}
-
-.modal-actions {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .roster-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .roster-header .header-center {
-        flex-direction: column;
-        text-align: center;
-    }
-    .date-selector {
-        width: 100%;
-        justify-content: center;
-    }
-    .roster-header h1 {
-        font-size: 1.3em;
-        text-align: center;
-        width: 100%;
-    }
-    .columns-container {
-        flex-direction: column; /* Les colonnes s'empilent sur mobile */
-    }
-    .personnel-disponible-section,
-    .agents-astreinte-section,
-    .daily-roster-section { /* Ajout de la nouvelle section ici */
-        min-width: unset; /* Annule la largeur minimale */
-        width: 100%;
-    }
-    /* Adapter la grille des engins sur mobile */
-    .engines-container {
-        grid-template-columns: 1fr; /* Une seule colonne sur mobile */
-    }
-}
 
 /* NOUVEAUX STYLES POUR LES ENGINS ET RÔLES DANS LES CRÉNEAUX JOURNALIERS */
 
@@ -611,6 +483,8 @@ body {
     text-align: center;
     display: flex;
     flex-direction: column;
+    position: relative; /* TRÈS IMPORTANT pour l'overlay */
+    overflow: hidden; /* Pour que l'overlay arrondi ne déborde pas */
 }
 
 .engine-block h3 {
@@ -714,15 +588,28 @@ body {
     color: #ffcccc;
 }
 
-/* Styles pour les agents filtrés dans la liste "Personnel Disponible" */
-.agent-card.filtered {
-    border: 2px solid #28a745; /* Bordure verte pour les agents filtrés */
-    box-shadow: 0 0 8px rgba(40, 167, 69, 0.6); /* Ombre lumineuse */
-    transform: scale(1.02); /* Légère mise en avant */
+/* NOUVEAU: Styles pour l'overlay INDISPO */
+.indispo-overlay {
+    position: absolute;
+    inset: 0; /* Prend toute la surface du parent positionné */
+    background-color: rgba(0, 0, 0, 0.7); /* Noir transparent */
+    color: yellow;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    z-index: 2; /* S'assure qu'il est au-dessus du contenu de l'engin */
+    border-radius: inherit; /* Hérite le border-radius de l'engine-block */
+    opacity: 0; /* Caché par défaut */
+    visibility: hidden; /* Caché par défaut */
+    transition: opacity 0.3s ease, visibility 0.3s ease; /* Transition douce */
+    pointer-events: none; /* Permet les interactions avec les éléments en dessous par défaut */
 }
 
-/* Adjustments for the main daily-roster-section */
-.daily-roster-section {
-    flex-grow: 2; /* Permet à cette section de prendre plus d'espace */
-    min-width: 600px; /* Augmenter la largeur minimale pour mieux afficher les engins */
+/* Rendre l'overlay visible quand l'engin est en état d'indisponibilité */
+.engine-block.is-indispo .indispo-overlay {
+    opacity: 1;
+    visibility: visible;
 }

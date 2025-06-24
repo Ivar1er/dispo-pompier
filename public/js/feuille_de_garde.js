@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalTitle = document.getElementById('modal-title');
     const modalMessage = document.getElementById('modal-message');
     const modalOkBtn = document.getElementById('modal-ok-btn');
-    const modalCancelBtn = document='modal-cancel-btn';
+    const modalCancelBtn = document.getElementById('modal-cancel-btn'); // Corrigé ici
 
     // --- Variables d'état globales (maintenant remplies par l'API) ---
     let currentDate = new Date(); // Date de la feuille de garde affichée
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let dailyRosterSlots = []; // Créneaux horaires et agents assignés pour le roster journalier
     let activeQualificationFilter = null; // Nouvelle variable pour le filtre de qualification
 
-    // NOUVEAU: Variable globale pour stocker l'ID de l'agent en cours de glissement
+    // Variable globale pour stocker l'ID de l'agent en cours de glissement
     let draggingAgentId = null; 
 
     // --- Constantes et Helpers (copiés de admin.js pour la cohérence des créneaux horaires) ---
@@ -68,39 +68,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const centerEngines = [
         { 
             id: 'fpt', name: 'FPT', roles: [
-                { id: 'ch_agr_fpt', name: 'Chef d\'agrès', qualificationId: 'ca_fpt' },
-                { id: 'cond_fpt', name: 'Conducteur', qualificationId: 'cod_1' },
-                { id: 'eq1_fpt', name: 'Équipier 1', qualificationId: 'eq1_fpt' },
-                { id: 'eq2_fpt', name: 'Équipier 2', qualificationId: 'eq2_fpt' },
+                { id: 'ch_agr_fpt', name: 'Chef d\'agrès', qualificationId: 'ca_fpt', type: 'CA' },
+                { id: 'cond_fpt', name: 'Conducteur', qualificationId: 'cod_1', type: 'CD' },
+                { id: 'eq1_fpt', name: 'Équipier 1', qualificationId: 'eq1_fpt', type: 'EQ' },
+                { id: 'eq2_fpt', name: 'Équipier 2', qualificationId: 'eq2_fpt', type: 'EQ' },
             ]
         },
         { 
             id: 'ccf', name: 'CCF', roles: [
-                { id: 'ch_agr_ccf', name: 'Chef d\'agrès', qualificationId: 'ca_ccf' },
-                { id: 'cond_ccf', name: 'Conducteur', qualificationId: 'cod_2' },
-                { id: 'eq1_ccf', name: 'Équipier 1', qualificationId: 'eq1_ccf' },
-                { id: 'eq2_ccf', name: 'Équipier 2', qualificationId: 'eq2_ccf' },
+                { id: 'ch_agr_ccf', name: 'Chef d\'agrès', qualificationId: 'ca_ccf', type: 'CA' },
+                { id: 'cond_ccf', name: 'Conducteur', qualificationId: 'cod_2', type: 'CD' },
+                { id: 'eq1_ccf', name: 'Équipier 1', qualificationId: 'eq1_ccf', type: 'EQ' },
+                { id: 'eq2_ccf', name: 'Équipier 2', qualificationId: 'eq2_ccf', type: 'EQ' },
             ]
         },
         { 
             id: 'vsav', name: 'VSAV', roles: [
-                { id: 'ch_agr_vsav', name: 'Chef d\'agrès', qualificationId: 'ca_vsav' },
-                { id: 'cond_vsav', name: 'Conducteur', qualificationId: 'cod_0' },
-                { id: 'eq_vsav', name: 'Équipier', qualificationId: 'eq_vsav' }, 
+                { id: 'ch_agr_vsav', name: 'Chef d\'agrès', qualificationId: 'ca_vsav', type: 'CA' },
+                { id: 'cond_vsav', name: 'Conducteur', qualificationId: 'cod_0', type: 'CD' },
+                { id: 'eq_vsav', name: 'Équipier', qualificationId: 'eq_vsav', type: 'EQ' }, 
             ]
         },
         { 
             id: 'vtu', name: 'VTU', roles: [
-                { id: 'ch_agr_vtu', name: 'Chef d\'agrès', qualificationId: 'ca_vtu' },
-                { id: 'cond_vtu', name: 'Conducteur', qualificationId: 'cod_0' },
-                { id: 'eq_vtu', name: 'Équipier', qualificationId: 'eq_vtu' }, 
+                { id: 'ch_agr_vtu', name: 'Chef d\'agrès', qualificationId: 'ca_vtu', type: 'CA' },
+                { id: 'cond_vtu', name: 'Conducteur', qualificationId: 'cod_0', type: 'CD' },
+                { id: 'eq_vtu', name: 'Équipier', qualificationId: 'eq_vtu', type: 'EQ' }, 
             ]
         },
         { 
             id: 'vpma', name: 'VPMA', roles: [
-                { id: 'ch_agr_vpma', name: 'Chef d\'agrès', qualificationId: 'ca_vpma' },
-                { id: 'cond_vpma', name: 'Conducteur', qualificationId: 'cod_0' },
-                { id: 'eq_vpma', name: 'Équipier', qualificationId: 'eq_vpma' }, 
+                { id: 'ch_agr_vpma', name: 'Chef d\'agrès', qualificationId: 'ca_vpma', type: 'CA' },
+                { id: 'cond_vpma', name: 'Conducteur', qualificationId: 'cod_0', type: 'CD' },
+                { id: 'eq_vpma', name: 'Équipier', qualificationId: 'eq_vpma', type: 'EQ' }, 
             ]
         }
     ];
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Formate une date engetFullYear-MM-DD
+    // Formate une date en YYYY-MM-DD
     const formatDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -269,6 +269,8 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAvailablePersonnel(); // Va filtrer selon activeQualificationFilter
             renderOnCallAgents();
             renderDailyRosterSlots();
+            // Appel initial de la fonction de mise à jour visuelle des engins
+            dailyRosterSlots.forEach(slot => updateEngineAvailabilityVisuals(slot.id));
             toggleLoader(false);
         }
     };
@@ -502,11 +504,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
 
             return `
-                <div class="engine-block">
+                <div class="engine-block" data-engine-id="${engine.id}">
                     <h3>${engine.name}</h3>
                     <div class="roles-container">
                         ${rolesHtml}
                     </div>
+                    <div class="indispo-overlay">INDISPO</div>
                 </div>
             `;
         }).join('');
@@ -536,6 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimeSelect.addEventListener('change', async (e) => {
             slot.startTime = e.target.value; // Update local state
             await saveDailyRosterSlotsToBackend(); // Save after local update
+            updateEngineAvailabilityVisuals(slot.id); // Update visuals after change
         });
         endTimeSelect.addEventListener('change', async (e) => {
             const newEndTime = e.target.value;
@@ -544,6 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 createConsecutiveSlot(newEndTime);
             }
             await saveDailyRosterSlotsToBackend(); // Save after local update
+            updateEngineAvailabilityVisuals(slot.id); // Update visuals after change
             initialEndTime = newEndTime;
         });
 
@@ -551,6 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
         div.querySelector('.remove-slot-button').addEventListener('click', async () => {
             await removeDailyRosterSlot(slot.id);
             await saveDailyRosterSlotsToBackend(); // Save after removal
+            // Pas besoin d'appeler updateEngineAvailabilityVisuals ici car le slot est supprimé
         });
 
         // Setup drop zones and click listeners for each role slot
@@ -581,11 +587,75 @@ document.addEventListener('DOMContentLoaded', () => {
                 const slotId = e.target.dataset.slotId;
                 await removeAgentFromSlotRole(slotId, engineId, roleId, agentIdToRemove);
                 await saveDailyRosterSlotsToBackend(); // Save after de-assignment
+                updateEngineAvailabilityVisuals(slotId); // Update visuals after change
             });
         });
 
         return div;
     };
+
+
+    /**
+     * Met à jour l'affichage de la disponibilité des engins pour un créneau donné,
+     * en appliquant un overlay "INDISPO" si les conditions de personnel ne sont pas remplies.
+     * @param {string} slotId L'ID du créneau horaire à évaluer.
+     */
+    const updateEngineAvailabilityVisuals = (slotId) => {
+        const slot = dailyRosterSlots.find(s => s.id === slotId);
+        if (!slot) return;
+
+        // Récupère l'élément DOM du créneau horaire
+        const slotElement = document.querySelector(`.time-slot[data-slot-id="${slotId}"]`);
+        if (!slotElement) return;
+
+        centerEngines.forEach(engineDef => {
+            const engineBlockElement = slotElement.querySelector(`.engine-block[data-engine-id="${engineDef.id}"]`);
+            if (!engineBlockElement) return;
+
+            const assignedAgentsInEngine = {};
+            let totalAssigned = 0;
+
+            // Collecte les agents assignés par type de rôle pour cet engin et compte le total
+            engineDef.roles.forEach(roleDef => {
+                const assignedAgent = slot.assignedEngines[engineDef.id][roleDef.id];
+                if (assignedAgent) {
+                    assignedAgentsInEngine[roleDef.type] = assignedAgentsInEngine[roleDef.type] || [];
+                    assignedAgentsInEngine[roleDef.type].push(assignedAgent);
+                    totalAssigned++;
+                }
+            });
+
+            let isDispo = true;
+
+            if (engineDef.id === 'fpt' || engineDef.id === 'ccf') {
+                // Conditions pour FPT et CCF: 3 personnel minimum (CA, CD, EQ)
+                const hasCA = (assignedAgentsInEngine['CA'] && assignedAgentsInEngine['CA'].length > 0);
+                const hasCD = (assignedAgentsInEngine['CD'] && assignedAgentsInEngine['CD'].length > 0);
+                const hasEQ = (assignedAgentsInEngine['EQ'] && assignedAgentsInEngine['EQ'].length > 0);
+                
+                if (!(hasCA && hasCD && hasEQ && totalAssigned >= 3)) {
+                    isDispo = false;
+                }
+            } else if (['vsav', 'vtu', 'vpma'].includes(engineDef.id)) {
+                // Conditions pour VSAV, VTU, VPMA: 2 personnel minimum (CD et (CA ou EQ))
+                const hasCD = (assignedAgentsInEngine['CD'] && assignedAgentsInEngine['CD'].length > 0);
+                const hasCAOrEQ = ( (assignedAgentsInEngine['CA'] && assignedAgentsInEngine['CA'].length > 0) || 
+                                    (assignedAgentsInEngine['EQ'] && assignedAgentsInEngine['EQ'].length > 0) );
+
+                if (!(hasCD && hasCAOrEQ && totalAssigned >= 2)) {
+                    isDispo = false;
+                }
+            }
+            
+            // Applique ou retire la classe 'is-indispo'
+            if (isDispo) {
+                engineBlockElement.classList.remove('is-indispo');
+            } else {
+                engineBlockElement.classList.add('is-indispo');
+            }
+        });
+    };
+
 
     // --- Logique des événements ---
 
@@ -636,6 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
         timeSlotsContainer.scrollTop = timeSlotsContainer.scrollHeight;
         console.log(`Créneau ${newSlot.id} ajouté au roster.`);
         await saveDailyRosterSlotsToBackend();
+        updateEngineAvailabilityVisuals(newSlot.id); // Update visuals for the new slot
     });
 
     const createConsecutiveSlot = async (previousEndTime) => {
@@ -658,6 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
         timeSlotsContainer.scrollTop = timeSlotsContainer.scrollHeight;
         console.log(`Nouveau créneau consécutif (${newSlot.startTime}-${newSlot.endTime}) créé automatiquement.`);
         await saveDailyRosterSlotsToBackend();
+        updateEngineAvailabilityVisuals(newSlot.id); // Update visuals for the new slot
     };
 
     // --- Logique Drag & Drop ---
@@ -896,7 +968,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 await updateDateAndLoadData(); // Toujours resynchroniser
                 toggleLoader(false);
-                return saveSuccess;
             }
             return false;
         }
@@ -983,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setTimeout(async () => {
             if (success) {
-                await updateDateAndLoadData();
+                await updateDateAndLoadData(); // Cette fonction appellera updateEngineAvailabilityVisuals
                 toggleLoader(false);
                 showModal('Génération terminée', 'La feuille de garde a été générée automatiquement avec succès avec affectation aux engins.');
                 console.log('Génération automatique terminée.');
