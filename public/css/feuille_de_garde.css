@@ -344,7 +344,7 @@ body {
 
 .time-slot {
     display: flex;
-    align-items: center;
+    flex-direction: column; /* Changé pour empiler en colonne */
     gap: 10px;
     margin-bottom: 12px;
     padding: 10px 15px;
@@ -352,7 +352,13 @@ body {
     border-radius: 6px;
     background-color: #fefefe;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    flex-wrap: wrap;
+}
+
+.time-slot-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
 }
 
 .time-slot input[type="time"] {
@@ -377,6 +383,9 @@ body {
     cursor: pointer;
     font-size: 0.9em;
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .time-slot .remove-slot-button:hover {
     background-color: #c82333;
@@ -400,6 +409,8 @@ body {
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
+    /* Rendre hidden si non utilisé pour la visibilité par engin */
+    display: none; 
 }
 
 .assigned-agent-tag {
@@ -466,8 +477,8 @@ body {
 
 .synthesis-engine-item {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column; /* Empile les rôles pour la synthèse */
+    align-items: flex-start;
     padding: 8px 0;
     border-bottom: 1px dotted #c3e6cb;
 }
@@ -477,23 +488,20 @@ body {
 }
 
 .synthesis-engine-item strong {
-    flex-basis: 45%;
     color: #495057;
-}
-
-.synthesis-engine-item span {
-    flex-basis: 50%;
-    text-align: right;
-    font-weight: 500;
+    margin-bottom: 4px; /* Espace sous le nom de l'engin */
 }
 
 .synthesis-engine-item span.assigned {
     color: #28a745;
+    font-weight: 500;
+    margin-left: 0; /* Plus de marge si c'est empilé */
 }
 
 .synthesis-engine-item span.unassigned {
     color: #dc3545;
     font-style: italic;
+    margin-left: 0;
 }
 
 /* Modale personnalisée (inchangée, mais assurez-vous que les styles sont présents) */
@@ -567,4 +575,136 @@ body {
         min-width: unset; /* Annule la largeur minimale */
         width: 100%;
     }
+    /* Adapter la grille des engins sur mobile */
+    .engines-container {
+        grid-template-columns: 1fr; /* Une seule colonne sur mobile */
+    }
+}
+
+/* NOUVEAUX STYLES POUR LES ENGINS ET RÔLES DANS LES CRÉNEAUX JOURNALIERS */
+
+.engines-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Colonnes fluides, min 180px */
+    gap: 15px;
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.engine-block {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.engine-block h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #007bff;
+    font-size: 1.1em;
+    font-weight: 700;
+}
+
+.roles-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-grow: 1; /* Permet aux rôles de prendre l'espace disponible dans le bloc engin */
+}
+
+.role-slot {
+    background-color: #e6f7ff; /* Bleu clair */
+    border: 1px dashed #91d5ff; /* Bordure plus légère */
+    border-radius: 6px;
+    padding: 8px;
+    min-height: 50px; /* Pour une zone de drop visible */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    font-size: 0.9em;
+    color: #333;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    cursor: pointer; /* Indique qu'il est cliquable */
+}
+
+.role-slot.drag-over {
+    background-color: #d0eefd; /* Bleu plus foncé au survol de drag */
+    border-color: #40a9ff;
+}
+
+.role-slot .role-name {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #0056b3;
+}
+
+.role-slot .agent-assignment {
+    font-weight: 500;
+    color: #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.role-slot .placeholder-text {
+    color: #999;
+    font-style: italic;
+}
+
+.assigned-agent-tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: #007bff; /* Couleur de l'agent assigné */
+    color: white;
+    padding: 4px 8px;
+    border-radius: 20px; /* Plus arrondi */
+    margin-top: 5px;
+    font-size: 0.85em;
+    max-width: 95%; /* Ajusté pour éviter le débordement */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.assigned-agent-tag .remove-assigned-agent-from-role {
+    background: none;
+    border: none;
+    color: white;
+    margin-left: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 3px;
+    line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.assigned-agent-tag .remove-assigned-agent-from-role:hover {
+    opacity: 1;
+    color: #ffcccc;
+}
+
+/* Styles pour les agents filtrés dans la liste "Personnel Disponible" */
+.agent-card.filtered {
+    border: 2px solid #28a745; /* Bordure verte pour les agents filtrés */
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.6); /* Ombre lumineuse */
+    transform: scale(1.02); /* Légère mise en avant */
+}
+
+/* Adjustments for the main daily-roster-section */
+.daily-roster-section {
+    flex-grow: 2; /* Permet à cette section de prendre plus d'espace */
+    min-width: 600px; /* Augmenter la largeur minimale pour mieux afficher les engins */
 }
