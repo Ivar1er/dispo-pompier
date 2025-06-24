@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Formate une date en YYYY-MM-DD
+    // Formate une date engetFullYear-MM-DD
     const formatDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -516,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dropZoneElement.style.backgroundColor = '';
 
             const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
-            // Assurez-vous d'utiliser 'username' pour la cohérence des données, en créant un nouvel objet agentToAdd
+            // Crée l'objet agent avec la propriété 'username' pour la cohérence
             const agentToAdd = { id: agentData.id, username: agentData.username }; 
 
             // Vérifie si l'agent n'est PAS déjà dans la liste onCallAgents LOCALE
@@ -578,17 +578,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const saveOnCallSuccess = await saveOnCallAgentsToBackend();
             const saveRosterSuccess = await saveDailyRosterSlotsToBackend(); // Sauvegarde aussi les créneaux car l'agent en a été retiré
 
+            // Étape 5: Toujours recharger depuis le backend après une tentative de modification/suppression
+            // Cela garantit que l'UI est synchronisée avec la source de vérité (le backend).
             if (!saveOnCallSuccess || !saveRosterSuccess) {
-                // Étape 5: Si la sauvegarde échoue, informer l'utilisateur et recharger l'état du backend
-                await showModal('Erreur de sauvegarde', 'La suppression de l\'agent d\'astreinte n\'a pas pu être sauvegardée. L\'interface va se resynchroniser.');
-                await updateDateAndLoadData(); // Force un re-sync complet depuis le serveur
-                console.error(`Échec de la suppression pour l'agent ${agentId}.`);
-            } else {
-                // Étape 5 (suite): Si la sauvegarde réussit, recharger pour assurer que l'agent réapparaît à gauche si éligible (disponible)
-                // updateDateAndLoadData va re-filtrer availablePersonnel en fonction de ce qui est désormais sur le backend.
-                await updateDateAndLoadData(); 
-                console.log(`Agent ${agentId} retiré de la liste d'astreinte et de ses affectations, et remis dans le personnel disponible (si éligible) et sauvegardé.`);
+                 await showModal('Erreur de sauvegarde', 'La suppression de l\'agent d\'astreinte n\'a pas pu être sauvegardée. L\'interface va se resynchroniser.');
             }
+            await updateDateAndLoadData(); // Ceci est la clé de la resynchronisation
+            console.log(`Agent ${agentId} retiré de la liste d'astreinte localement. Synchronisation avec le backend effectuée.`);
         }
     };
 
