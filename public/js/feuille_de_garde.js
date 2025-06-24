@@ -47,9 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Définition des horaires complets (pour affichage dans tooltips par exemple)
+    // Cette constante "horaires" sert à mapper les index de disponibilité aux heures lisibles.
+    // Elle ne sert pas pour les dropdowns d'heures directement.
     const horaires = [];
     const startHourDisplay = 7; // L'affichage démarre à 07h00
-    for (let i = 0; i < 48; i++) {
+    for (let i = 0; i < 48; i++) { // 48 créneaux de 30 min sur 24h
         const currentSlotHour = (startHourDisplay + Math.floor(i / 2)) % 24;
         const currentSlotMinute = (i % 2) * 30;
         const endSlotHour = (startHourDisplay + Math.floor((i + 1) / 2)) % 24;
@@ -162,7 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Sauvegarde la liste des agents d'astreinte sur le backend
-    // Accepte un paramètre explicite pour la liste des IDs à sauvegarder
     const saveOnCallAgentsToBackend = async (onDutyAgentIdsToSave) => {
         try {
             const dateKey = formatDate(currentDate);
@@ -258,14 +259,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Erreur lors du chargement des données de la feuille de garde :', error);
             await showModal('Erreur de chargement', `Impossible de charger les données : ${error.message}`);
-            availablePersonnel = [];
+            availablePersonnel = []; // Réinitialise les données si erreur
             onCallAgents = [];
             dailyRosterSlots = [];
         } finally {
             renderAvailablePersonnel(); // Va filtrer selon activeQualificationFilter
             renderOnCallAgents();
             renderDailyRosterSlots();
-            // Suppression de l'appel à updateEnginsSynthesis();
             toggleLoader(false);
         }
     };
@@ -516,13 +516,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         startTimeSelect.addEventListener('change', async (e) => {
             slot.startTime = e.target.value; // Update local state
-            // Suppression de l'appel à updateEnginsSynthesis();
             await saveDailyRosterSlotsToBackend(); // Save after local update
         });
         endTimeSelect.addEventListener('change', async (e) => {
             const newEndTime = e.target.value;
             slot.endTime = newEndTime; // Update local state
-            // Suppression de l'appel à updateEnginsSynthesis();
             if (initialEndTime === '07:00' && newEndTime === '15:00') {
                 createConsecutiveSlot(newEndTime);
             }
@@ -570,9 +568,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return div;
     };
 
-    // Suppression de la fonction updateEnginsSynthesis()
-
-
     // --- Logique des événements ---
 
     prevDayButton.addEventListener('click', () => {
@@ -619,7 +614,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         dailyRosterSlots.push(newSlot);
         renderDailyRosterSlots();
-        // Suppression de l'appel à updateEnginsSynthesis();
         timeSlotsContainer.scrollTop = timeSlotsContainer.scrollHeight;
         console.log(`Créneau ${newSlot.id} ajouté au roster.`);
         await saveDailyRosterSlotsToBackend();
@@ -642,7 +636,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         dailyRosterSlots.push(newSlot);
         renderDailyRosterSlots();
-        // Suppression de l'appel à updateEnginsSynthesis();
         timeSlotsContainer.scrollTop = timeSlotsContainer.scrollHeight;
         console.log(`Nouveau créneau consécutif (${newSlot.startTime}-${newSlot.endTime}) créé automatiquement.`);
         await saveDailyRosterSlotsToBackend();
@@ -664,7 +657,21 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             dropZoneElement.style.backgroundColor = '';
 
-            const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            let agentData;
+            try {
+                agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            } catch (error) {
+                console.error('Erreur lors du parsing des données de glisser-déposer de l\'agent d\'astreinte :', error);
+                await showModal('Erreur de données', 'Les données de l\'agent glissé sont invalides. Veuillez réessayer.', false);
+                return; 
+            }
+
+            // Vérifier si agentData est valide
+            if (!agentData || !agentData.id) {
+                await showModal('Erreur de données', 'Les informations de l\'agent sont incomplètes. Veuillez réessayer.', false);
+                return;
+            }
+
             const agentToAdd = { id: agentData.id, username: agentData.username }; 
 
             const currentOnCallAgentIds = onCallAgents.map(a => a.id);
@@ -735,11 +742,26 @@ document.addEventListener('DOMContentLoaded', () => {
             roleDropZoneElement.classList.remove('drag-valid-role');
             roleDropZoneElement.classList.remove('drag-invalid-role');
 
-            const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            let agentData;
+            try {
+                agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            } catch (error) {
+                console.error('Erreur lors du parsing des données de glisser-déposer (dragover) :', error);
+                roleDropZoneElement.classList.add('drag-invalid-role');
+                e.dataTransfer.dropEffect = 'none'; // Empêche le drop
+                return;
+            }
+
+            if (!agentData || !agentData.id) {
+                roleDropZoneElement.classList.add('drag-invalid-role');
+                e.dataTransfer.dropEffect = 'none'; // Empêche le drop
+                return;
+            }
+
             const requiredQualificationId = roleDropZoneElement.dataset.qualificationId;
             const fullAgent = onCallAgents.find(a => a.id === agentData.id);
 
-            // Vérifier si l'agent est d'astreinte et s'il a la qualification requise
+            // Vérifier si l'agent est d'astreinte ET s'il a la qualification requise
             if (fullAgent && (!requiredQualificationId || (fullAgent.qualifications && fullAgent.qualifications.includes(requiredQualificationId)))) {
                  roleDropZoneElement.classList.add('drag-valid-role'); // Style pour drop valide (vert)
                  e.dataTransfer.dropEffect = 'move'; // Permet le drop
@@ -759,7 +781,20 @@ document.addEventListener('DOMContentLoaded', () => {
             roleDropZoneElement.classList.remove('drag-valid-role');
             roleDropZoneElement.classList.remove('drag-invalid-role');
 
-            const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            let agentData;
+            try {
+                agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            } catch (error) {
+                console.error('Erreur lors du parsing des données de glisser-déposer (drop) :', error);
+                await showModal('Erreur de données', 'Les données de l\'agent glissé sont invalides. Veuillez réessayer.', false);
+                return;
+            }
+
+            if (!agentData || !agentData.id) {
+                await showModal('Erreur de données', 'Les informations de l\'agent sont incomplètes. Veuillez réessayer.', false);
+                return;
+            }
+
             const agentToAssign = { id: agentData.id, username: agentData.username };
             const engineId = roleDropZoneElement.dataset.engineId;
             const roleId = roleDropZoneElement.dataset.roleId;
@@ -796,15 +831,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // NOUVEAU: Retirer l'agent de TOUS les autres rôles de CE MÊME ENGIN s'il y était
+                // Retirer l'agent de TOUS les autres rôles de CE MÊME ENGIN s'il y était
                 // Un agent peut occuper un seul poste au sein du même engin.
                 const targetEngineDefinition = centerEngines.find(e => e.id === engineId);
                 if (targetEngineDefinition) {
                     targetEngineDefinition.roles.forEach(rol => {
-                        if (slot.assignedEngines[engine.id] && slot.assignedEngines[engine.id][rol.id] &&
-                            slot.assignedEngines[engine.id][rol.id].id === agentToAssign.id &&
+                        if (slot.assignedEngines[engineId] && slot.assignedEngines[engineId][rol.id] &&
+                            slot.assignedEngines[engineId][rol.id].id === agentToAssign.id &&
                             rol.id !== roleId) { // Si l'agent est dans un autre rôle au sein du *même* engin, le retirer.
-                            slot.assignedEngines[engine.id][rol.id] = null;
+                            slot.assignedEngines[engineId][rol.id] = null;
                         }
                     });
                 }
@@ -812,7 +847,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Assigner l'agent au rôle actuel
                 slot.assignedEngines[engineId][roleId] = agentToAssign;
                 renderDailyRosterSlots(); // Re-render le créneau pour voir le changement
-                // Suppression de l'appel à updateEnginsSynthesis();
                 console.log(`Agent ${agentToAssign.username} assigné au rôle ${roleId} de l'engin ${engineId} du créneau ${slotId}.`);
 
                 toggleLoader(true);
@@ -838,7 +872,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (slot && slot.assignedEngines[engineId] && slot.assignedEngines[engineId][roleId]) {
                 slot.assignedEngines[engineId][roleId] = null; // Dé-assigner l'agent
                 renderDailyRosterSlots(); // Re-render pour voir le changement
-                // Suppression de l'appel à updateEnginsSynthesis();
                 console.log(`Agent ${agentId} retiré du rôle ${roleId} de l'engin ${engineId} du créneau ${slotId}.`);
 
                 toggleLoader(true);
@@ -865,7 +898,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirm) {
             dailyRosterSlots = dailyRosterSlots.filter(s => s.id !== slotId);
             renderDailyRosterSlots();
-            // Suppression de l'appel à updateEnginsSynthesis();
             console.log(`Créneau ${slotId} supprimé.`);
             toggleLoader(true); 
             const saveSuccess = await saveDailyRosterSlotsToBackend(); 
