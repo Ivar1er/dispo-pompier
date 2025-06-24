@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Formate une date engetFullYear-MM-DD
+    // Formate une date en YYYY-MM-DD
     const formatDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const onDutyAgentIds = onCallAgents.map(agent => agent.id);
 
             const response = await fetch(`${API_BASE_URL}/api/daily-roster/${dateKey}`, {
-                method: 'POST',
+                method: 'POST', // Assurez-vous que le backend gère bien le POST pour la mise à jour
                 headers: getAuthHeaders(),
                 body: JSON.stringify({ onDutyAgents: onDutyAgentIds })
             });
@@ -516,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dropZoneElement.style.backgroundColor = '';
 
             const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
-            // Assurez-vous d'utiliser 'username' pour la cohérence des données
+            // Assurez-vous d'utiliser 'username' pour la cohérence des données, en créant un nouvel objet agentToAdd
             const agentToAdd = { id: agentData.id, username: agentData.username }; 
 
             // Vérifie si l'agent n'est PAS déjà dans la liste onCallAgents LOCALE
@@ -534,15 +534,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const success = await saveOnCallAgentsToBackend(); 
 
                 if (!success) {
-                    // Étape 4: Si la sauvegarde échoue, annuler les changements locaux
-                    await showModal('Erreur de sauvegarde', 'La sélection de l\'agent d\'astreinte n\'a pas pu être sauvegardée. L\'agent a été replacé. Veuillez réessayer.');
+                    // Étape 4: Si la sauvegarde échoue, informer l'utilisateur et recharger l'état du backend
+                    await showModal('Erreur de sauvegarde', 'La sélection de l\'agent d\'astreinte n\'a pas pu être sauvegardée. L\'interface va se resynchroniser. Veuillez réessayer.');
                     await updateDateAndLoadData(); // Force un re-sync complet depuis le serveur
                     console.error(`Échec de l'ajout de l'agent ${agentToAdd.username} aux agents d'astreinte.`);
                 } else {
                     console.log(`Agent ${agentToAdd.username} ajouté aux agents d'astreinte et sauvegardé.`);
+                    // Pas besoin de recharger ici, l'état local est déjà à jour et a été sauvegardé
                 }
             } else {
-                // Si l'agent est déjà dans la liste locale
+                // Si l'agent est déjà dans la liste locale (peut arriver si backend n'a pas mis à jour avant un nouveau drop)
                 showModal('Agent déjà sélectionné', `L'agent ${agentToAdd.username} est déjà dans la liste des agents d'astreinte.`, false);
                 await updateDateAndLoadData(); // Force un re-sync pour s'assurer de la cohérence visuelle
             }
@@ -556,7 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
             true
         );
         if (confirm) {
-            // Étape 1: Identifier l'agent à retirer
+            // Étape 1: Identifier l'agent à retirer (pour info dans les logs)
             const agentToRemove = onCallAgents.find(agent => agent.id === agentId);
             if (!agentToRemove) return;
 
@@ -568,22 +569,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 slot.assignedAgents = slot.assignedAgents.filter(agent => agent.id !== agentId);
             });
 
-            // Étape 3: Rafraîchir l'UI immédiatement
+            // Étape 3: Rafraîchir l'UI immédiatement (pour que l'agent disparaisse de droite)
             renderOnCallAgents(); 
             renderDailyRosterSlots(); 
             updateEnginsSynthesis();
 
-            // Étape 4: Tenter de sauvegarder la nouvelle liste sur le backend
+            // Étape 4: Tenter de sauvegarder les nouvelles listes sur le backend
             const saveOnCallSuccess = await saveOnCallAgentsToBackend();
             const saveRosterSuccess = await saveDailyRosterSlotsToBackend(); // Sauvegarde aussi les créneaux car l'agent en a été retiré
 
             if (!saveOnCallSuccess || !saveRosterSuccess) {
-                // Étape 5: Si la sauvegarde échoue, annuler les changements locaux
+                // Étape 5: Si la sauvegarde échoue, informer l'utilisateur et recharger l'état du backend
                 await showModal('Erreur de sauvegarde', 'La suppression de l\'agent d\'astreinte n\'a pas pu être sauvegardée. L\'interface va se resynchroniser.');
                 await updateDateAndLoadData(); // Force un re-sync complet depuis le serveur
                 console.error(`Échec de la suppression pour l'agent ${agentId}.`);
             } else {
-                await updateDateAndLoadData(); // Force un re-sync complet même en cas de succès pour la cohérence
+                // Étape 5 (suite): Si la sauvegarde réussit, recharger pour assurer que l'agent réapparaît à gauche si éligible (disponible)
+                // updateDateAndLoadData va re-filtrer availablePersonnel en fonction de ce qui est désormais sur le backend.
+                await updateDateAndLoadData(); 
                 console.log(`Agent ${agentId} retiré de la liste d'astreinte et de ses affectations, et remis dans le personnel disponible (si éligible) et sauvegardé.`);
             }
         }
@@ -592,10 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupDailyRosterSlotDropZone = (dropZoneElement) => {
         dropZoneElement.addEventListener('dragover', (e) => {
             e.preventDefault();
-            const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
-            if (onCallAgents.some(a => a.id === agentData.id)) {
-                 dropZoneElement.style.backgroundColor = '#dff0d8';
-            }
+            dropZoneElement.style.backgroundColor = '#dff0d8';
         });
 
         dropZoneElement.addEventListener('dragleave', () => {
@@ -611,9 +611,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Assurez-vous que l'agent est bien d'astreinte avant de l'assigner
             if (onCallAgents.some(a => a.id === agentData.id)) {
-                // Capture l'état actuel avant modification pour rollback
-                const previousDailyRosterSlots = JSON.parse(JSON.stringify(dailyRosterSlots));
-
                 // Affectation locale
                 const agentToAssign = { id: agentData.id, name: agentData.username }; // Utilise username pour le nom de l'agent affecté
                 const success = assignAgentToDailyRosterSlot(slotId, agentToAssign); 
@@ -622,9 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const saveSuccess = await saveDailyRosterSlotsToBackend(); // Sauvegarde après affectation
                     if (!saveSuccess) {
                         await showModal('Erreur d\'affectation', 'L\'affectation de l\'agent au créneau n\'a pas pu être sauvegardée. L\'affectation a été annulée. Veuillez réessayer.');
-                        dailyRosterSlots = previousDailyRosterSlots; // Revert
-                        renderDailyRosterSlots();
-                        updateEnginsSynthesis();
+                        await updateDateAndLoadData(); // Recharger pour annuler la modification si la sauvegarde échoue
                     } else {
                         console.log(`Agent ${agentData.username} assigné au créneau ${slotId} et sauvegardé.`);
                     }
@@ -662,9 +657,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirm) {
             const slot = dailyRosterSlots.find(s => s.id === slotId);
             if (slot) {
-                // Capture l'état avant modification pour rollback
-                const previousDailyRosterSlots = JSON.parse(JSON.stringify(dailyRosterSlots));
-
                 slot.assignedAgents = slot.assignedAgents.filter(agent => agent.id !== agentId);
                 renderDailyRosterSlots();
                 updateEnginsSynthesis();
@@ -672,9 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const saveSuccess = await saveDailyRosterSlotsToBackend(); // Sauvegarde après la suppression
                 if (!saveSuccess) {
                     await showModal('Erreur de suppression', 'La suppression de l\'affectation n\'a pas pu être sauvegardée. L\'affectation a été restaurée. Veuillez réessayer.');
-                    dailyRosterSlots = previousDailyRosterSlots; // Revert
-                    renderDailyRosterSlots();
-                    updateEnginsSynthesis();
+                    await updateDateAndLoadData(); // Recharger pour annuler le changement si la sauvegarde échoue
                 }
                 return saveSuccess; // Indique le succès de la persistance
             }
