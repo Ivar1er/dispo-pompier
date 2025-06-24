@@ -170,7 +170,7 @@ async function loadUsers() {
                     username: "Jean Dupont", // Ajouté pour la cohérence
                     mdp: hashedAgentPassword,
                     role: "agent",
-                    qualifications: ["ca_vsav"],
+                    qualifications: ["ca_vsav", "cod_1", "eq1_fpt"], // Exemple de qualifications
                     grades: ["sap"],
                     functions: [],
                     availability: [
@@ -185,7 +185,7 @@ async function loadUsers() {
                     username: "Marie Curie", // Ajouté pour la cohérence
                     mdp: hashedAgentPassword,
                     role: "agent",
-                    qualifications: ["eq_fpt"],
+                    qualifications: ["eq_vsav", "cod_0", "ca_fpt"], // Exemple de qualifications
                     grades: ["cpl"],
                     functions: [],
                     availability: [
@@ -241,8 +241,9 @@ async function loadQualifications() {
         { id: 'ca_vtu', name: 'CA VTU' }, { id: 'ca_vpma', name: 'CA VPMA' },
         { id: 'ca_ccf', name: 'CA CCF' }, { id: 'cod_0', name: 'CD VSAV / VTU / VPMA' },
         { id: 'cod_1', name: 'CD FPT' }, { id: 'cod_2', name: 'CD CCF' },
-        { id: 'eq_vsav', name: 'EQ VSAV' }, { id: 'eq_vtu', name: 'EQ VTU' },
-        { id: 'eq_vpma', name: 'EQ VPMA' }, { id: 'eq1_fpt', name: 'EQ1 FPT' },
+        { id: 'eq_vsav', name: 'EQ VSAV' }, { id: 'eq_vtu', name: 'EQ VTU' }, // Ajouté pour VTU
+        { id: 'eq_vpma', name: 'EQ VPMA' }, // Ajouté pour VPMA
+        { id: 'eq1_fpt', name: 'EQ1 FPT' },
         { id: 'eq2_fpt', name: 'EQ2 FPT' }, { id: 'eq1_ccf', name: 'EQ1 CCF' },
         { id: 'eq2_ccf', name: 'EQ2 CCF' },
     ], (data) => AVAILABLE_QUALIFICATIONS = data, 'qualifications');
@@ -400,7 +401,7 @@ app.get('/api/agent-info', authenticateToken, (req, res) => {
     // Elles incluent maintenant prenom et nom grâce à la modification dans la route /api/login
     const { id, prenom, nom, role } = req.user;
     // Ajout du champ username pour la cohérence avec le frontend
-    const username = `${prenom} ${nom}`; 
+    const username = `${prenom} ${nom}`;
     res.json({ id, firstName: prenom, lastName: nom, username, role });
 });
 
@@ -703,7 +704,7 @@ app.get('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async 
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         console.error(`[ERREUR Serveur] Format de date invalide pour roster-config: ${dateKey}`);
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
     try {
@@ -724,10 +725,10 @@ app.get('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async 
 app.post('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const { timeSlots } = req.body; // onDutyAgents est géré par la route daily-roster
-    if (!timeSlots) { 
+    if (!timeSlots) {
         return res.status(400).json({ message: 'Missing timeSlots data.' });
     }
     const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
@@ -742,7 +743,7 @@ app.post('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async
                 console.warn(`[WARN Serveur] Erreur de lecture de la config existante pour ${dateKey}, mais continuons:`, readErr);
             }
         }
-        
+
         // Fusionner avec les timeSlots fournis, mais conserver les onDutyAgents existants
         const configToSave = {
             timeSlots: timeSlots,
@@ -765,7 +766,7 @@ app.get('/api/daily-roster/:dateKey', authenticateToken, async (req, res) => { /
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         console.error(`[ERREUR Serveur] Format de date invalide pour daily-roster: ${dateKey}`);
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
     try {
@@ -785,7 +786,7 @@ app.get('/api/daily-roster/:dateKey', authenticateToken, async (req, res) => { /
 app.post('/api/daily-roster/:dateKey', authenticateToken, authorizeAdmin, async (req, res) => {
     const dateKey = req.params.dateKey;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Invalid date format. ExpectedYYYY-MM-DD.' });
     }
     const { onDutyAgents } = req.body; // Liste des IDs des agents d'astreinte
     if (!Array.isArray(onDutyAgents)) { // Assurez-vous que c'est un tableau
@@ -807,12 +808,11 @@ app.post('/api/daily-roster/:dateKey', authenticateToken, authorizeAdmin, async 
 // NOUVELLE ROUTE : Obtenir les disponibilités des agents et les agents d'astreinte pour une date
 // C'est l'endpoint que le frontend '/admin.js' ou 'feuille_de_garde.js' appelle.
 app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => {
-    const dateKey = req.params.date; // Date au format YYYY-MM-DD
+    const dateKey = req.params.date; // Date au formatYYYY-MM-DD
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-        return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
+        return res.status(400).json({ message: 'Format de date invalide. AttenduYYYY-MM-DD.' });
     }
 
-    let allAvailableAgentsWithDetails = []; // Tous les agents avec dispo pour le jour
     let onCallAgentIdsFromBackend = []; // IDs des agents d'astreinte tels que lus du backend
 
     try {
@@ -853,27 +853,32 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
             }
         }
         
-        // Construire la liste de TOUS les agents avec leurs détails de disponibilité
-        allAvailableAgentsWithDetails = allUsersIds.filter(id => USERS[id] && (USERS[id].role === 'agent' || USERS[id].role === 'admin'))
+        // Construire la liste de TOUS les agents avec leurs détails de disponibilité et qualifications
+        const allAgentsWithDetails = allUsersIds.filter(id => USERS[id] && (USERS[id].role === 'agent' || USERS[id].role === 'admin'))
             .map(id => {
                 const user = USERS[id];
                 return {
                     id: id,
                     username: `${user.prenom} ${user.nom}`, // Concatène prénom et nom pour l'affichage
-                    qualifications: user.qualifications || [],
+                    qualifications: user.qualifications || [], // ** Assurez-vous que cette ligne est là **
                     availabilities: agentAvailabilitiesMap[id] || []
                 };
             });
 
         // Filtrer les "disponibles" : ceux qui ont des disponibilités ET qui NE SONT PAS d'astreinte
-        const finalAvailable = allAvailableAgentsWithDetails.filter(agent => {
+        const finalAvailable = allAgentsWithDetails.filter(agent => {
             return agent.availabilities.length > 0 && !onCallAgentIdsFromBackend.includes(agent.id);
         });
 
         // Filtrer les "d'astreinte" : ceux dont l'ID est dans onCallAgentIdsFromBackend
-        const finalOnCall = allAvailableAgentsWithDetails.filter(agent => 
+        // Et s'assurer que leurs qualifications sont bien incluses
+        const finalOnCall = allAgentsWithDetails.filter(agent =>
             onCallAgentIdsFromBackend.includes(agent.id)
-        );
+        ).map(agent => ({
+            id: agent.id,
+            username: agent.username,
+            qualifications: agent.qualifications // Les qualifications sont déjà dans allAgentsWithDetails
+        }));
 
         res.json({ available: finalAvailable, onCall: finalOnCall });
 
@@ -887,7 +892,7 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
 // Route pour sauvegarder le planning d'un agent spécifique pour UNE DATE
 // C'est l'endpoint que la page de planning individuelle appelle
 app.post('/api/agent-availability/:dateKey/:agentId', authenticateToken, async (req, res) => {
-    const dateKey = req.params.dateKey; // YYYY-MM-DD
+    const dateKey = req.params.dateKey; //YYYY-MM-DD
     const agentId = req.params.agentId.toLowerCase();
     const availabilities = req.body; // C'est un tableau d'objets {start, end}
 

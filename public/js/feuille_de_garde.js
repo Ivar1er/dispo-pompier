@@ -73,20 +73,21 @@ document.addEventListener('DOMContentLoaded', () => {
             id: 'vsav', name: 'VSAV', roles: [
                 { id: 'ch_agr_vsav', name: 'Chef d\'agrès', qualificationId: 'ca_vsav' },
                 { id: 'cond_vsav', name: 'Conducteur', qualificationId: 'cod_0' },
-                { id: 'eq1_vsav', name: 'Équipier 1', qualificationId: 'eq_vsav' },
-                { id: 'eq2_vsav', name: 'Équipier 2', qualificationId: 'eq_vsav' },
+                { id: 'eq_vsav', name: 'Équipier', qualificationId: 'eq_vsav' }, // Rôle unique pour Equipier
             ]
         },
         { 
             id: 'vtu', name: 'VTU', roles: [
                 { id: 'ch_agr_vtu', name: 'Chef d\'agrès', qualificationId: 'ca_vtu' },
                 { id: 'cond_vtu', name: 'Conducteur', qualificationId: 'cod_0' },
+                { id: 'eq_vtu', name: 'Équipier', qualificationId: 'eq_vtu' }, // Rôle unique pour Equipier
             ]
         },
         { 
             id: 'vpma', name: 'VPMA', roles: [
                 { id: 'ch_agr_vpma', name: 'Chef d\'agrès', qualificationId: 'ca_vpma' },
                 { id: 'cond_vpma', name: 'Conducteur', qualificationId: 'cod_0' },
+                { id: 'eq_vpma', name: 'Équipier', qualificationId: 'eq_vpma' }, // Rôle unique pour Equipier
             ]
         }
     ];
@@ -122,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Formate une date en YYYY-MM-DD
+    // Formate une date engetFullYear-MM-DD
     const formatDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -241,8 +242,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await response.json();
             
+            // Les données sont chargées depuis le backend, elles représentent l'état réel.
             onCallAgents = data.onCall || [];
-            availablePersonnel = data.available || [];
+            availablePersonnel = data.available || []; // availablePersonnel contient maintenant les qualifications
 
             await loadDailyRosterSlots(dateKey); // Charge les créneaux journaliers spécifiques
             
@@ -282,9 +284,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Assurer que chaque engin a une structure de rôle vide si elle n'existe pas
                 centerEngines.forEach(engine => {
-                    newSlot.assignedEngines[engine.id] = newSlot.assignedEngines[engine.id] || {}; // Objet pour les rôles
+                    newSlot.assignedEngines[engine.id] = newSlot.assignedEngines[engine.id] || {}; // Objet pour les rôles de cet engin
                     engine.roles.forEach(role => {
-                        newSlot.assignedEngines[engine.id][role.id] = newSlot.assignedEngines[engine.id][role.id] || null; // Null ou {} si plusieurs agents par rôle
+                        // S'assurer que le rôle est initialisé à null s'il n'y a pas d'agent assigné
+                        // Ou conserver l'agent assigné s'il existe déjà dans les données chargées
+                        newSlot.assignedEngines[engine.id][role.id] = newSlot.assignedEngines[engine.id][role.id] || null;
                     });
                 });
                 return newSlot;
@@ -315,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (personnelToRender.length === 0) {
             noAvailablePersonnelMessage.style.display = 'block';
             if (activeQualificationFilter) {
-                 noAvailablePersonnelMessage.textContent = `Aucun personnel disponible avec la qualification : ${activeQualificationFilter}`;
+                 noAvailablePersonnelMessage.textContent = `Aucun personnel disponible avec la qualification : "${activeQualificationFilter}"`;
             } else {
                  noAvailablePersonnelMessage.textContent = 'Aucun personnel disponible pour la date sélectionnée.';
             }
@@ -323,6 +327,10 @@ document.addEventListener('DOMContentLoaded', () => {
             personnelToRender.forEach(agent => {
                 const agentCard = document.createElement('div');
                 agentCard.className = 'agent-card';
+                // Ajouter la classe 'filtered' si l'agent est affiché en raison du filtre actif
+                if (activeQualificationFilter) {
+                    agentCard.classList.add('filtered');
+                }
                 agentCard.textContent = agent.username;
                 agentCard.draggable = true;
                 agentCard.dataset.agentId = agent.id;
@@ -372,11 +380,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 agentCard.draggable = true;
                 agentCard.dataset.agentId = agent.id;
                 agentCard.dataset.agentName = agent.username || agent.name; // Fallback
-
-                agentCard.innerHTML = `
-                    <span>${agent.username || agent.name}</span>
-                    <button class="remove-on-call-agent-tag" data-agent-id="${agent.id}" aria-label="Supprimer cet agent de la liste d'astreinte">x</button>
-                `;
 
                 // Configure le dragstart pour les agents d'astreinte (vers les créneaux journaliers)
                 agentCard.addEventListener('dragstart', (e) => {
@@ -515,6 +518,10 @@ document.addEventListener('DOMContentLoaded', () => {
         div.querySelectorAll('.role-slot').forEach(roleDropZone => {
             setupRoleDropZone(roleDropZone, slot.id);
             roleDropZone.addEventListener('click', (e) => {
+                // Si l'agent est cliqué à l'intérieur du rôle (cible de suppression), ne pas filtrer
+                if (e.target.classList.contains('remove-assigned-agent-from-role')) {
+                    return;
+                }
                 const qualificationId = roleDropZone.dataset.qualificationId;
                 if (activeQualificationFilter === qualificationId) {
                     activeQualificationFilter = null; // Désactiver le filtre si on clique deux fois
@@ -556,20 +563,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let hasAssignmentsInSlot = false;
             centerEngines.forEach(engine => {
-                let agentsAssignedToEngine = [];
+                let agentsAssignedToEngineRoles = []; // Pour stocker les agents par rôle dans cet engin
                 engine.roles.forEach(role => {
                     const assignedAgent = slot.assignedEngines[engine.id][role.id];
                     if (assignedAgent) {
-                        agentsAssignedToEngine.push(`${role.name}: ${assignedAgent.username || assignedAgent.name}`);
+                        agentsAssignedToEngineRoles.push(`${role.name}: ${assignedAgent.username || assignedAgent.name}`);
                         hasAssignmentsInSlot = true;
                     }
                 });
 
-                if (agentsAssignedToEngine.length > 0) {
+                if (agentsAssignedToEngineRoles.length > 0) {
                     synthesisSlotDiv.innerHTML += `
                         <div class="synthesis-engine-item">
                             <strong>${engine.name}:</strong>
-                            <span class="assigned">${agentsAssignedToEngine.join('; ')}</span>
+                            <span class="assigned">${agentsAssignedToEngineRoles.join('; ')}</span>
                         </div>
                     `;
                 }
@@ -745,27 +752,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupRoleDropZone = (roleDropZoneElement, slotId) => {
         roleDropZoneElement.addEventListener('dragover', (e) => {
             e.preventDefault();
-            roleDropZoneElement.classList.add('drag-over'); // Ajout d'une classe pour le style
+            // Optional: check qualification here for visual feedback
+            const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const requiredQualificationId = roleDropZoneElement.dataset.qualificationId;
+            const agentInOnCall = onCallAgents.find(a => a.id === agentData.id);
+
+            if (agentInOnCall && (!requiredQualificationId || (agentInOnCall.qualifications && agentInOnCall.qualifications.includes(requiredQualificationId)))) {
+                 roleDropZoneElement.classList.add('drag-over'); // Ajout d'une classe pour le style
+            } else {
+                 roleDropZoneElement.classList.add('drag-over-invalid'); // Style pour drop invalide
+                 e.dataTransfer.dropEffect = 'none'; // Empêche le drop
+            }
         });
 
         roleDropZoneElement.addEventListener('dragleave', () => {
             roleDropZoneElement.classList.remove('drag-over');
+            roleDropZoneElement.classList.remove('drag-over-invalid');
         });
 
         roleDropZoneElement.addEventListener('drop', async (e) => {
             e.preventDefault();
             roleDropZoneElement.classList.remove('drag-over');
+            roleDropZoneElement.classList.remove('drag-over-invalid');
 
             const agentData = JSON.parse(e.dataTransfer.getData('text/plain'));
             const agentToAssign = { id: agentData.id, username: agentData.username };
             const engineId = roleDropZoneElement.dataset.engineId;
             const roleId = roleDropZoneElement.dataset.roleId;
+            const requiredQualificationId = roleDropZoneElement.dataset.qualificationId;
             
-            // Vérifier si l'agent est bien dans la liste des agents d'astreinte
-            if (!onCallAgents.some(a => a.id === agentToAssign.id)) {
+            const fullAgent = onCallAgents.find(a => a.id === agentToAssign.id);
+
+            // 1. Vérifier si l'agent est bien dans la liste des agents d'astreinte
+            if (!fullAgent) {
                 await showModal('Agent non éligible', 'Seuls les agents de la section "Agents d\'astreinte" peuvent être assignés aux rôles des engins.', false);
                 return;
             }
+
+            // 2. Vérifier la qualification
+            if (requiredQualificationId && (!fullAgent.qualifications || !fullAgent.qualifications.includes(requiredQualificationId))) {
+                const roleName = roleDropZoneElement.querySelector('.role-name').textContent;
+                const engineName = centerEngines.find(e => e.id === engineId)?.name || engineId.toUpperCase();
+                await showModal('Qualification requise', `L'agent "${fullAgent.username}" ne possède pas la qualification requise ("${requiredQualificationId}") pour le rôle "${roleName}" de l'engin "${engineName}".`, false);
+                return; // Empêche le drop
+            }
+
 
             const slot = dailyRosterSlots.find(s => s.id === slotId);
             if (slot) {
@@ -773,7 +804,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (slot.assignedEngines[engineId][roleId]) {
                     const replaceConfirm = await showModal(
                         'Remplacer l\'agent ?',
-                        `Le rôle ${roleDropZoneElement.querySelector('.role-name').textContent} est déjà assigné à ${slot.assignedEngines[engineId][roleId].username}. Voulez-vous le remplacer par ${agentToAssign.username} ?`,
+                        `Le rôle "${roleDropZoneElement.querySelector('.role-name').textContent}" est déjà assigné à "${slot.assignedEngines[engineId][roleId].username}". Voulez-vous le remplacer par "${agentToAssign.username}" ?`,
                         true
                     );
                     if (!replaceConfirm) {
@@ -782,14 +813,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Retirer l'agent de TOUS les autres rôles de ce MÊME créneau s'il y était
-                let agentMoved = false;
                 centerEngines.forEach(eng => {
                     eng.roles.forEach(rol => {
                         if (slot.assignedEngines[eng.id] && slot.assignedEngines[eng.id][rol.id] && 
                             slot.assignedEngines[eng.id][rol.id].id === agentToAssign.id &&
                             !(eng.id === engineId && rol.id === roleId)) { // Ne pas retirer du rôle actuel si c'est le même
                             slot.assignedEngines[eng.id][rol.id] = null;
-                            agentMoved = true;
                         }
                     });
                 });
@@ -889,40 +918,22 @@ document.addEventListener('DOMContentLoaded', () => {
             dailyRosterSlots.push(newSlot);
         });
 
-        let currentAgentIndex = 0;
+        // Tente d'assigner les agents aux rôles en respectant les qualifications
         dailyRosterSlots.forEach(slot => {
             centerEngines.forEach(engine => {
                 engine.roles.forEach(role => {
-                    // Trouver un agent d'astreinte disponible qui a la qualification requise
+                    // Trouver un agent d'astreinte disponible (non assigné dans ce slot) qui a la qualification requise
                     const foundAgent = onCallAgents.find(agent => 
                         !Object.values(slot.assignedEngines).some(engineRoles => 
                             Object.values(engineRoles).some(assigned => assigned && assigned.id === agent.id)
-                        ) && // S'assurer que l'agent n'est pas déjà assigné dans ce même créneau
-                        (availablePersonnel.find(ap => ap.id === agent.id)?.qualifications || []).includes(role.qualificationId)
+                        ) && // S'assurer que l'agent n'est pas déjà assigné à un autre rôle dans ce même créneau
+                        (agent.qualifications && agent.qualifications.includes(role.qualificationId)) // Vérifier la qualification
                     );
 
                     if (foundAgent) {
                         slot.assignedEngines[engine.id][role.id] = { id: foundAgent.id, username: foundAgent.username };
                     } else {
-                        // Fallback: si aucun agent qualifié n'est trouvé, ou s'il n'y a plus d'agents disponibles,
-                        // essayer d'assigner les agents d'astreinte en séquence sans tenir compte de la qualification,
-                        // mais en évitant les doublons dans le créneau.
-                        let fallbackAgent = null;
-                        for (let i = 0; i < onCallAgents.length; i++) {
-                            const agent = onCallAgents[i];
-                            const isAssignedInSlot = Object.values(slot.assignedEngines).some(engineRoles => 
-                                Object.values(engineRoles).some(assigned => assigned && assigned.id === agent.id)
-                            );
-                            if (!isAssignedInSlot) {
-                                fallbackAgent = agent;
-                                break;
-                            }
-                        }
-                        if (fallbackAgent) {
-                            slot.assignedEngines[engine.id][role.id] = { id: fallbackAgent.id, username: fallbackAgent.username };
-                        } else {
-                            console.warn(`Plus d'agents d'astreinte disponibles ou qualifiés pour le rôle ${role.name} de l'engin ${engine.name} dans ce créneau.`);
-                        }
+                        console.warn(`Aucun agent d'astreinte qualifié ("${role.qualificationId}") et disponible trouvé pour le rôle "${role.name}" de l'engin "${engine.name}" dans le créneau "${slot.startTime}-${slot.endTime}".`);
                     }
                 });
             });
