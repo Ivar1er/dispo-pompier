@@ -148,35 +148,54 @@ async function loadUsers() {
         if (err.code === 'ENOENT') {
             // Si le fichier users.json n'existe pas, créer un utilisateur admin par défaut
             const hashedDefaultPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
+            const hashedAgentPassword = await bcrypt.hash("password", 10); // Mot de passe simple pour les agents
+
             USERS = {
                 admin: {
+                    id: 'admin', // Ajout de l'ID pour être cohérent avec les autres agents
                     prenom: "Admin",
-                    nom: "Principal", // Nom modifié pour être plus distinct
+                    nom: "Principal",
+                    username: "Admin Principal", // Ajouté pour la cohérence
                     mdp: hashedDefaultPassword,
                     role: "admin",
                     qualifications: [],
                     grades: [],
-                    functions: []
+                    functions: [],
+                    availability: [] // Ajouté pour la cohérence
                 },
                 agent1: {
+                    id: 'agent1',
                     prenom: "Jean",
                     nom: "Dupont",
-                    mdp: await bcrypt.hash("password123", 10),
+                    username: "Jean Dupont", // Ajouté pour la cohérence
+                    mdp: hashedAgentPassword,
                     role: "agent",
                     qualifications: ["ca_vsav"],
-                    grades: ["sap"]
+                    grades: ["sap"],
+                    functions: [],
+                    availability: [
+                        // Exemple de disponibilité pour la date actuelle
+                        { "year": new Date().getFullYear(), "month": new Date().getMonth() + 1, "day": new Date().getDate(), "slots": [{ "start": 14, "end": 28 }] }
+                    ]
                 },
                 agent2: {
+                    id: 'agent2',
                     prenom: "Marie",
                     nom: "Curie",
-                    mdp: await bcrypt.hash("password123", 10),
+                    username: "Marie Curie", // Ajouté pour la cohérence
+                    mdp: hashedAgentPassword,
                     role: "agent",
                     qualifications: ["eq_fpt"],
-                    grades: ["cpl"]
+                    grades: ["cpl"],
+                    functions: [],
+                    availability: [
+                        // Exemple de disponibilité pour la date actuelle
+                        { "year": new Date().getFullYear(), "month": new Date().getMonth() + 1, "day": new Date().getDate(), "slots": [{ "start": 0, "end": 14 }] }
+                    ]
                 }
             };
             await saveUsers();
-            console.log(`[INFO] Utilisateurs par défaut créés (admin, agent1, agent2). Admin: id: admin, mdp: ${DEFAULT_ADMIN_PASSWORD}.`);
+            console.log(`[INFO] Utilisateurs par défaut créés (admin, agent1, agent2). Admin: id: admin, mdp: ${DEFAULT_ADMIN_PASSWORD}. Agents: mdp: password.`);
         } else {
             console.error('[ERREUR] Erreur lors du chargement des utilisateurs :', err);
         }
@@ -380,7 +399,9 @@ app.get('/api/agent-info', authenticateToken, (req, res) => {
     // Les informations de l'agent sont disponibles dans req.user grâce à authenticateToken
     // Elles incluent maintenant prenom et nom grâce à la modification dans la route /api/login
     const { id, prenom, nom, role } = req.user;
-    res.json({ id, firstName: prenom, lastName: nom, role });
+    // Ajout du champ username pour la cohérence avec le frontend
+    const username = `${prenom} ${nom}`; 
+    res.json({ id, firstName: prenom, lastName: nom, username, role });
 });
 
 
@@ -401,6 +422,7 @@ app.get('/api/admin/agents', authenticateToken, authorizeAdmin, (req, res) => {
             _id: id,
             prenom: u.prenom,
             nom: u.nom,
+            username: u.username, // Assurez-vous que le champ username est inclus
             qualifications: u.qualifications || [],
             grades: u.grades || [],
             functions: u.functions || []
@@ -417,6 +439,7 @@ app.get('/api/admin/agents/:id', authenticateToken, authorizeAdmin, (req, res) =
             _id: agentId,
             prenom: agent.prenom,
             nom: agent.nom,
+            username: agent.username, // Assurez-vous que le champ username est inclus
             qualifications: agent.qualifications || [],
             grades: agent.grades || [],
             functions: agent.functions || []
@@ -436,16 +459,19 @@ app.post('/api/admin/agents', authenticateToken, authorizeAdmin, async (req, res
     if (USERS[key]) return res.status(409).json({ message: 'L\'agent existe déjà.' });
 
     USERS[key] = {
+        id: key, // Ajout de l'ID pour être cohérent
         nom,
         prenom,
+        username: `${prenom} ${nom}`, // Création du username pour l'affichage
         mdp: await bcrypt.hash(password, 10),
         role: 'agent', // Rôle par défaut 'agent'
         qualifications: qualifications || [],
         grades: grades || [],
-        functions: functions || []
+        functions: functions || [],
+        availability: [] // Initialise l'historique de disponibilité
     };
     await saveUsers();
-    res.status(201).json({ message: 'Agent ajouté', agent: { id: key, nom, prenom, qualifications, grades, functions } });
+    res.status(201).json({ message: 'Agent ajouté', agent: { id: key, nom, prenom, username: USERS[key].username, qualifications, grades, functions } });
 });
 
 // Mettre à jour un agent existant (protégé par admin)
@@ -457,6 +483,7 @@ app.put('/api/admin/agents/:id', authenticateToken, authorizeAdmin, async (req, 
     const { nom, prenom, newPassword, qualifications, grades, functions } = req.body;
     if (nom) USERS[key].nom = nom;
     if (prenom) USERS[key].prenom = prenom;
+    USERS[key].username = `${USERS[key].prenom} ${USERS[key].nom}`; // Mise à jour du username
     if (Array.isArray(qualifications)) USERS[key].qualifications = qualifications;
     if (Array.isArray(grades)) USERS[key].grades = grades;
     if (Array.isArray(functions)) USERS[key].functions = functions;
@@ -464,7 +491,7 @@ app.put('/api/admin/agents/:id', authenticateToken, authorizeAdmin, async (req, 
         USERS[key].mdp = await bcrypt.hash(newPassword, 10);
     }
     await saveUsers();
-    res.json({ message: 'Agent mis à jour', agent: { id: key, nom: USERS[key].nom, prenom: USERS[key].prenom, qualifications: USERS[key].qualifications, grades: USERS[key].grades, functions: USERS[key].functions } });
+    res.json({ message: 'Agent mis à jour', agent: { id: key, nom: USERS[key].nom, prenom: USERS[key].prenom, username: USERS[key].username, qualifications: USERS[key].qualifications, grades: USERS[key].grades, functions: USERS[key].functions } });
 });
 
 // Supprimer un agent (protégé par admin)
@@ -503,7 +530,7 @@ app.delete('/api/admin/agents/:id', authenticateToken, authorizeAdmin, async (re
 app.get('/api/agents/names', (req, res) => {
     const list = Object.entries(USERS)
         .filter(([_, u]) => u.role === 'agent' || u.role === 'admin')
-        .map(([id, u]) => ({ id, prenom: u.prenom, nom: u.nom }));
+        .map(([id, u]) => ({ id, prenom: u.prenom, nom: u.nom, username: u.username })); // Inclure username
     res.json(list);
 });
 
@@ -699,13 +726,30 @@ app.post('/api/roster-config/:dateKey', authenticateToken, authorizeAdmin, async
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
     }
-    const { timeSlots, onDutyAgents } = req.body;
-    if (!timeSlots) { // onDutyAgents peut être vide si la config est juste des créneaux
+    const { timeSlots } = req.body; // onDutyAgents est géré par la route daily-roster
+    if (!timeSlots) { 
         return res.status(400).json({ message: 'Missing timeSlots data.' });
     }
     const filePath = path.join(ROSTER_CONFIG_DIR, `${dateKey}.json`);
     try {
-        await fs.writeFile(filePath, JSON.stringify({ timeSlots, onDutyAgents }, null, 2), 'utf8');
+        // Lire la config existante pour préserver onDutyAgents si la config n'a pas été chargée avant
+        let existingConfig = {};
+        try {
+            const currentData = await fs.readFile(filePath, 'utf8');
+            existingConfig = JSON.parse(currentData);
+        } catch (readErr) {
+            if (readErr.code !== 'ENOENT') {
+                console.warn(`[WARN Serveur] Erreur de lecture de la config existante pour ${dateKey}, mais continuons:`, readErr);
+            }
+        }
+        
+        // Fusionner avec les timeSlots fournis, mais conserver les onDutyAgents existants
+        const configToSave = {
+            timeSlots: timeSlots,
+            onDutyAgents: existingConfig.onDutyAgents || [] // Préserve la liste des onDutyAgents si elle existe
+        };
+
+        await fs.writeFile(filePath, JSON.stringify(configToSave, null, 2), 'utf8');
         console.log(`[INFO Serveur] Roster config saved for ${dateKey}.`);
         res.json({ message: 'Roster config saved.' });
     } catch (err) {
@@ -743,12 +787,14 @@ app.post('/api/daily-roster/:dateKey', authenticateToken, authorizeAdmin, async 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
     }
-    const { onDutyAgents } = req.body;
-    if (!onDutyAgents) {
-        return res.status(400).json({ message: 'Missing onDutyAgents data.' });
+    const { onDutyAgents } = req.body; // Liste des IDs des agents d'astreinte
+    if (!Array.isArray(onDutyAgents)) { // Assurez-vous que c'est un tableau
+        return res.status(400).json({ message: 'Missing or invalid onDutyAgents data. Expected an array.' });
     }
     const filePath = path.join(DAILY_ROSTER_DIR, `${dateKey}.json`);
     try {
+        // >>> IMPORTANT : Remplacez la liste existante par la nouvelle liste fournie.
+        // Assurez-vous que l'objet complet sauvegardé est { onDutyAgents: [...] }
         await fs.writeFile(filePath, JSON.stringify({ onDutyAgents }, null, 2), 'utf8');
         console.log(`[INFO Serveur] Daily roster saved for ${dateKey}.`);
         res.json({ message: 'Daily roster saved.' });
@@ -766,8 +812,8 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
         return res.status(400).json({ message: 'Format de date invalide. Attendu YYYY-MM-DD.' });
     }
 
-    let availablePersonnel = [];
-    let onCallAgents = [];
+    let allAvailableAgentsWithDetails = []; // Tous les agents avec dispo pour le jour
+    let onCallAgentIdsFromBackend = []; // IDs des agents d'astreinte tels que lus du backend
 
     try {
         // 1. Récupérer les agents d'astreinte pour cette date depuis daily_roster
@@ -776,10 +822,7 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
             const dailyRosterData = await fs.readFile(dailyRosterFilePath, 'utf8');
             const dailyRoster = JSON.parse(dailyRosterData);
             if (dailyRoster && Array.isArray(dailyRoster.onDutyAgents)) {
-                // Filtrer les 'none' et récupérer les détails des agents
-                onCallAgents = dailyRoster.onDutyAgents.filter(id => id !== 'none')
-                    .map(id => USERS[id.toLowerCase()]) // Assurez-vous que l'ID est en minuscule
-                    .filter(agent => agent); // Filtrer les agents non trouvés
+                onCallAgentIdsFromBackend = dailyRoster.onDutyAgents.filter(id => id !== 'none');
             }
         } catch (err) {
             if (err.code === 'ENOENT') {
@@ -791,18 +834,17 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
 
         // 2. Récupérer les disponibilités détaillées pour tous les agents pour cette date
         const allUsersIds = Object.keys(USERS);
-        const agentAvailabilitiesMap = {}; // { agentId: [{ start: "HH:MM", end: "HH:MM" }] }
+        const agentAvailabilitiesMap = {}; // { agentId: [{ start: index, end: index }] }
 
         for (const userId of allUsersIds) {
             const user = USERS[userId];
-            if (user.role === 'agent' || user.role === 'admin') { // Inclure les admins si nécessaire
+            if (user && (user.role === 'agent' || user.role === 'admin')) { // Inclure les admins si nécessaire
                 const agentAvailabilityFilePath = path.join(AGENT_AVAILABILITY_DIR, dateKey, `${userId}.json`);
                 try {
                     const agentAvailabilityData = await fs.readFile(agentAvailabilityFilePath, 'utf8');
                     agentAvailabilitiesMap[userId] = JSON.parse(agentAvailabilityData);
                 } catch (err) {
                     if (err.code === 'ENOENT') {
-                        // console.log(`[INFO Serveur] No availability file for agent ${userId} on ${dateKey}.`);
                         agentAvailabilitiesMap[userId] = []; // Aucun fichier = aucune dispo pour ce jour
                     } else {
                         console.error(`[ERREUR Serveur] Erreur de lecture du fichier de dispo de l'agent ${userId} pour ${dateKey}:`, err);
@@ -811,37 +853,29 @@ app.get('/api/agent-availability/:date', authenticateToken, async (req, res) => 
             }
         }
         
-        // Déterminer le "personnel disponible" basé sur l'existence de disponibilités
-        // Ici, un agent est "disponible" s'il a au moins une plage de disponibilité renseignée
-        availablePersonnel = allUsersIds.filter(id => {
-            const user = USERS[id];
-            if (user.role === 'agent' || user.role === 'admin') {
-                // S'assurer qu'il y a des disponibilités non vides pour cette date
-                return agentAvailabilitiesMap[id] && agentAvailabilitiesMap[id].length > 0;
-            }
-            return false;
-        }).map(id => {
-            // Remplace l'ID par le nom complet pour le front-end
-            const user = USERS[id];
-            return {
-                id: id,
-                username: `${user.prenom} ${user.nom}`, // Concatène prénom et nom
-                qualifications: user.qualifications || [],
-                availabilities: agentAvailabilitiesMap[id] || []
-            };
+        // Construire la liste de TOUS les agents avec leurs détails de disponibilité
+        allAvailableAgentsWithDetails = allUsersIds.filter(id => USERS[id] && (USERS[id].role === 'agent' || USERS[id].role === 'admin'))
+            .map(id => {
+                const user = USERS[id];
+                return {
+                    id: id,
+                    username: `${user.prenom} ${user.nom}`, // Concatène prénom et nom pour l'affichage
+                    qualifications: user.qualifications || [],
+                    availabilities: agentAvailabilitiesMap[id] || []
+                };
+            });
+
+        // Filtrer les "disponibles" : ceux qui ont des disponibilités ET qui NE SONT PAS d'astreinte
+        const finalAvailable = allAvailableAgentsWithDetails.filter(agent => {
+            return agent.availabilities.length > 0 && !onCallAgentIdsFromBackend.includes(agent.id);
         });
 
+        // Filtrer les "d'astreinte" : ceux dont l'ID est dans onCallAgentIdsFromBackend
+        const finalOnCall = allAvailableAgentsWithDetails.filter(agent => 
+            onCallAgentIdsFromBackend.includes(agent.id)
+        );
 
-        res.json({
-            available: availablePersonnel, // Déjà mappé avec nom complet
-            onCall: onCallAgents.map(agent => ({
-                id: agent.id,
-                username: `${agent.prenom} ${agent.nom}`, // Concatène prénom et nom
-                qualifications: agent.qualifications || [],
-                // Ajoute aussi les disponibilités détaillées pour les agents d'astreinte
-                availabilities: agentAvailabilitiesMap[agent.id] || []
-            }))
-        });
+        res.json({ available: finalAvailable, onCall: finalOnCall });
 
     } catch (err) {
         console.error(`[ERREUR Serveur] Erreur lors de la récupération des disponibilités et astreintes pour ${dateKey}:`, err);
@@ -924,7 +958,7 @@ async function loadAgentPlanningFromFiles(agentId) {
                         availabilitiesForDate.forEach(slot => {
                             // S'assurer que chaque slot est un objet {start, end} et n'est pas déjà présent pour éviter les doublons si appel multiple
                             if (typeof slot === 'object' && slot !== null &&
-                                typeof slot.start === 'number' && typeof slot.end === 'number' &&
+                                typeof slot.start === 'number' && typeof slot.start === 'number' && // Correction: doit être start et end pour les checks
                                 !existingSlots.some(existingSlot => existingSlot.start === slot.start && existingSlot.end === slot.end)) {
                                 existingSlots.push({ start: slot.start, end: slot.end });
                             }

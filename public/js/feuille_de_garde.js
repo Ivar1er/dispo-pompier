@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Formate une date engetFullYear-MM-DD
+    // Formate une date en YYYY-MM-DD
     const formatDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -112,16 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Sauvegarde la liste des agents d'astreinte sur le backend
-    const saveOnCallAgentsToBackend = async () => {
+    // Accepte un paramètre explicite pour la liste des IDs à sauvegarder
+    const saveOnCallAgentsToBackend = async (onDutyAgentIdsToSave) => {
         try {
             const dateKey = formatDate(currentDate);
-            // Nous envoyons seulement les IDs des agents à la liste d'astreinte
-            const onDutyAgentIds = onCallAgents.map(agent => agent.id);
+            // Utilise la liste fournie, ou la liste globale si non fournie (pour compatibilité)
+            const idsToSave = onDutyAgentIdsToSave || onCallAgents.map(agent => agent.id);
 
             const response = await fetch(`${API_BASE_URL}/api/daily-roster/${dateKey}`, {
                 method: 'POST', // Assurez-vous que le backend gère bien le POST pour la mise à jour
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ onDutyAgents: onDutyAgentIds })
+                body: JSON.stringify({ onDutyAgents: idsToSave }) // Utilise l'argument passé
             });
 
             if (response.status === 403 || response.status === 401) {
@@ -178,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Met à jour l'input de date et charge les données depuis l'API
     const updateDateAndLoadData = async () => {
         rosterDateInput.value = formatDate(currentDate);
-        toggleLoader(true);
+        toggleLoader(true); // Affiche le loader au début du chargement
 
         try {
             const dateKey = formatDate(currentDate);
@@ -217,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderOnCallAgents();
             renderDailyRosterSlots(); // Assurez-vous que cette fonction est appelée
             updateEnginsSynthesis();
-            toggleLoader(false);
+            toggleLoader(false); // Cache le loader à la fin du chargement
         }
     };
 
@@ -519,34 +520,36 @@ document.addEventListener('DOMContentLoaded', () => {
             // Crée l'objet agent avec la propriété 'username' pour la cohérence
             const agentToAdd = { id: agentData.id, username: agentData.username }; 
 
-            // Vérifie si l'agent n'est PAS déjà dans la liste onCallAgents LOCALE
-            if (!onCallAgents.some(a => a.id === agentToAdd.id)) {
-                // Étape 1: Mettre à jour l'état local immédiatement
-                onCallAgents.push(agentToAdd);
-                // Retirer l'agent de la liste des disponibles LOCALE
-                availablePersonnel = availablePersonnel.filter(agent => agent.id !== agentToAdd.id);
+            // Construire la liste des IDs à envoyer au backend si cet agent est ajouté
+            // Cela inclut tous les agents d'astreinte actuels plus le nouvel agent
+            const currentOnCallAgentIds = onCallAgents.map(a => a.id);
+            let newOnDutyAgentIds = [...currentOnCallAgentIds];
 
-                // Étape 2: Rafraîchir l'UI immédiatement
-                renderOnCallAgents(); 
-                renderAvailablePersonnel();
-
-                // Étape 3: Tenter de sauvegarder la nouvelle liste sur le backend
-                const success = await saveOnCallAgentsToBackend(); 
-
-                if (!success) {
-                    // Étape 4: Si la sauvegarde échoue, informer l'utilisateur et recharger l'état du backend
-                    await showModal('Erreur de sauvegarde', 'La sélection de l\'agent d\'astreinte n\'a pas pu être sauvegardée. L\'interface va se resynchroniser. Veuillez réessayer.');
-                    await updateDateAndLoadData(); // Force un re-sync complet depuis le serveur
-                    console.error(`Échec de l'ajout de l'agent ${agentToAdd.username} aux agents d'astreinte.`);
-                } else {
-                    console.log(`Agent ${agentToAdd.username} ajouté aux agents d'astreinte et sauvegardé.`);
-                    // Pas besoin de recharger ici, l'état local est déjà à jour et a été sauvegardé
-                }
+            if (!currentOnCallAgentIds.includes(agentToAdd.id)) {
+                newOnDutyAgentIds.push(agentToAdd.id);
             } else {
-                // Si l'agent est déjà dans la liste locale (peut arriver si backend n'a pas mis à jour avant un nouveau drop)
-                showModal('Agent déjà sélectionné', `L'agent ${agentToAdd.username} est déjà dans la liste des agents d'astreinte.`, false);
+                // Si l'agent est déjà dans la liste (selon l'état du backend, car onCallAgents est rechargé)
+                // alors on affiche un message et on resynchronise au cas où l'UI serait en décalage.
+                await showModal('Agent déjà d\'astreinte', `L'agent ${agentToAdd.username} est déjà dans la liste des agents d'astreinte selon le serveur. L'interface va se rafraîchir pour assurer la cohérence.`, false);
                 await updateDateAndLoadData(); // Force un re-sync pour s'assurer de la cohérence visuelle
+                return; // Arrête le traitement car l'agent est déjà là
             }
+            
+            // Tenter de sauvegarder la nouvelle liste sur le backend
+            toggleLoader(true); // Afficher le loader pendant la sauvegarde
+            const success = await saveOnCallAgentsToBackend(newOnDutyAgentIds); // Passer la nouvelle liste explicite
+
+            if (!success) {
+                // Si la sauvegarde échoue, informer l'utilisateur. updateDateAndLoadData sera appelé ensuite.
+                await showModal('Erreur de sauvegarde', 'La sélection de l\'agent d\'astreinte n\'a pas pu être sauvegardée par le serveur. L\'interface va se resynchroniser pour refléter l\'état actuel du serveur. Veuillez réessayer.', false);
+            } else {
+                console.log(`Agent ${agentToAdd.username} ajouté aux agents d'astreinte et sauvegardé.`);
+            }
+            
+            // Toujours recharger depuis le backend après une tentative de modification/ajout
+            // Cela garantit que l'UI est synchronisée avec la source de vérité (le backend).
+            await updateDateAndLoadData(); 
+            toggleLoader(false); // Cacher le loader
         });
     };
 
@@ -557,34 +560,29 @@ document.addEventListener('DOMContentLoaded', () => {
             true
         );
         if (confirm) {
-            // Étape 1: Identifier l'agent à retirer (pour info dans les logs)
-            const agentToRemove = onCallAgents.find(agent => agent.id === agentId);
-            if (!agentToRemove) return;
-
-            // Étape 2: Mettre à jour l'état local immédiatement
-            onCallAgents = onCallAgents.filter(agent => agent.id !== agentId);
+            // Construire la nouvelle liste d'IDs à envoyer au backend
+            const newOnDutyAgentIds = onCallAgents.filter(agent => agent.id !== agentId).map(a => a.id);
             
             // Retirer l'agent de tous les créneaux où il est affecté dans le roster journalier localement
+            // (Ces changements seront sauvegardés par saveDailyRosterSlotsToBackend)
             dailyRosterSlots.forEach(slot => {
                 slot.assignedAgents = slot.assignedAgents.filter(agent => agent.id !== agentId);
             });
 
-            // Étape 3: Rafraîchir l'UI immédiatement (pour que l'agent disparaisse de droite)
-            renderOnCallAgents(); 
-            renderDailyRosterSlots(); 
-            updateEnginsSynthesis();
+            // Tenter de sauvegarder les nouvelles listes sur le backend
+            toggleLoader(true); // Afficher le loader pendant la sauvegarde
+            const saveOnCallSuccess = await saveOnCallAgentsToBackend(newOnDutyAgentIds); // Passer la nouvelle liste explicite
+            const saveRosterSuccess = await saveDailyRosterSlotsToBackend(); // Sauvegarde aussi les créneaux mis à jour
 
-            // Étape 4: Tenter de sauvegarder les nouvelles listes sur le backend
-            const saveOnCallSuccess = await saveOnCallAgentsToBackend();
-            const saveRosterSuccess = await saveDailyRosterSlotsToBackend(); // Sauvegarde aussi les créneaux car l'agent en a été retiré
-
-            // Étape 5: Toujours recharger depuis le backend après une tentative de modification/suppression
-            // Cela garantit que l'UI est synchronisée avec la source de vérité (le backend).
             if (!saveOnCallSuccess || !saveRosterSuccess) {
-                 await showModal('Erreur de sauvegarde', 'La suppression de l\'agent d\'astreinte n\'a pas pu être sauvegardée. L\'interface va se resynchroniser.');
+                 await showModal('Erreur de sauvegarde', 'La suppression de l\'agent d\'astreinte n\'a pas pu être sauvegardée par le serveur. L\'interface va se resynchroniser.');
+            } else {
+                console.log(`Agent ${agentId} retiré de la liste d'astreinte localement. Synchronisation avec le backend effectuée.`);
             }
-            await updateDateAndLoadData(); // Ceci est la clé de la resynchronisation
-            console.log(`Agent ${agentId} retiré de la liste d'astreinte localement. Synchronisation avec le backend effectuée.`);
+            // Toujours recharger depuis le backend après une tentative de modification/suppression
+            // Cela garantit que l'UI est synchronisée avec la source de vérité (le backend).
+            await updateDateAndLoadData(); 
+            toggleLoader(false); // Cacher le loader
         }
     };
 
@@ -612,13 +610,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const success = assignAgentToDailyRosterSlot(slotId, agentToAssign); 
                 
                 if (success) {
+                    toggleLoader(true); // Afficher le loader
                     const saveSuccess = await saveDailyRosterSlotsToBackend(); // Sauvegarde après affectation
                     if (!saveSuccess) {
                         await showModal('Erreur d\'affectation', 'L\'affectation de l\'agent au créneau n\'a pas pu être sauvegardée. L\'affectation a été annulée. Veuillez réessayer.');
-                        await updateDateAndLoadData(); // Recharger pour annuler la modification si la sauvegarde échoue
                     } else {
                         console.log(`Agent ${agentData.username} assigné au créneau ${slotId} et sauvegardé.`);
                     }
+                    await updateDateAndLoadData(); // Toujours resynchroniser
+                    toggleLoader(false); // Cacher le loader
                 } else {
                     // assignAgentToDailyRosterSlot a déjà affiché une modale si l'agent est déjà assigné
                     console.log("Agent non affecté au créneau (déjà assigné ou autre condition).");
@@ -657,11 +657,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderDailyRosterSlots();
                 updateEnginsSynthesis();
                 console.log(`Agent ${agentId} retiré du créneau ${slotId} du roster journalier.`);
+                toggleLoader(true); // Afficher le loader
                 const saveSuccess = await saveDailyRosterSlotsToBackend(); // Sauvegarde après la suppression
                 if (!saveSuccess) {
                     await showModal('Erreur de suppression', 'La suppression de l\'affectation n\'a pas pu être sauvegardée. L\'affectation a été restaurée. Veuillez réessayer.');
-                    await updateDateAndLoadData(); // Recharger pour annuler le changement si la sauvegarde échoue
                 }
+                await updateDateAndLoadData(); // Toujours resynchroniser
+                toggleLoader(false); // Cacher le loader
                 return saveSuccess; // Indique le succès de la persistance
             }
             return false;
@@ -692,6 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Tenter de sauvegarder les nouvelles listes sur le backend
         const success = await saveDailyRosterSlotsToBackend();
 
         setTimeout(async () => {
