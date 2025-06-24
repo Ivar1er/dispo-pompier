@@ -124,9 +124,11 @@ body {
     /* min-width will be handled by children */
 }
 
-/* En-tête des heures - maintenant un flex container */
+/* En-tête des heures - maintenant un container en grille pour un meilleur alignement */
 .header-hours {
-    display: flex; /* Changed to flex */
+    display: grid; /* CHANGED to grid */
+    /* Alignement des colonnes: 120px pour le placeholder du jour, puis 48 colonnes flexibles pour les 30 min */
+    grid-template-columns: 120px repeat(48, minmax(20px, 1fr)); /* Matches availability-slots-wrapper */
     background-color: var(--primary-color);
     color: white;
     font-weight: 600;
@@ -137,11 +139,10 @@ body {
     top: 0;
     z-index: 10;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    /* min-width will be handled by children */
 }
 
 .day-label-header-placeholder { /* NEW CLASS: Empty cell for alignment with day labels */
-    width: 120px; /* Fixed width to align with day labels */
+    width: 100%; /* Take full width of its grid column */
     flex-shrink: 0; /* Don't let it shrink */
     background-color: var(--primary-color); /* Match header background */
     border-right: 1px solid rgba(255, 255, 255, 0.2);
@@ -154,8 +155,8 @@ body {
     border-right: 1px solid rgba(255, 255, 255, 0.2);
     font-size: 0.9em;
     white-space: nowrap;
-    flex: 1; /* Each hour takes equal flex space */
-    min-width: 40px; /* Each 2-hour label spans 4 slots, so this is for one slot min width */
+    grid-column: span 4; /* Each hour cell spans 4 columns (2 hours * 2 slots/hour) */
+    /* min-width will be implicitly handled by the grid-template-columns of header-hours */
 }
 .hour-cell:last-child {
     border-right: none;
