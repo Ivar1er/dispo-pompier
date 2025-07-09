@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalTitle = document.getElementById('modal-title');
     const modalMessage = document.getElementById('modal-message');
     const modalOkBtn = document.getElementById('modal-ok-btn');
-    const modalCancelBtn = document.getElementById('modal-cancel-btn'); // Corrigé ici
+    const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
     // --- Variables d'état globales (maintenant remplies par l'API) ---
     let currentDate = new Date(); // Date de la feuille de garde affichée
@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAvailablePersonnel(); // Va filtrer selon activeQualificationFilter
             renderOnCallAgents();
             renderDailyRosterSlots();
-            // Appel initial de la fonction de mise à jour visuelle des engins
+            // Appel initial de la fonction de mise à jour visuelle des engins pour tous les slots
             dailyRosterSlots.forEach(slot => updateEngineAvailabilityVisuals(slot.id));
             toggleLoader(false);
         }
@@ -444,6 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
             noDailyTimeslotMessage.style.display = 'block';
         } else {
             noDailyTimeslotMessage.style.display = 'none';
+            // Important: trier les créneaux pour garantir l'ordre chronologique
             dailyRosterSlots.sort((a, b) => a.startTime.localeCompare(b.startTime));
             dailyRosterSlots.forEach(slot => {
                 const slotElement = createTimeSlotElement(slot);
@@ -534,28 +535,54 @@ document.addEventListener('DOMContentLoaded', () => {
         const startTimeSelect = div.querySelector('.start-time');
         const endTimeSelect = div.querySelector('.end-time');
 
-        let initialEndTime = slot.endTime; // Garder pour la logique de créneau consécutif
-
         startTimeSelect.addEventListener('change', async (e) => {
             slot.startTime = e.target.value; // Update local state
             await saveDailyRosterSlotsToBackend(); // Save after local update
             updateEngineAvailabilityVisuals(slot.id); // Update visuals after change
         });
+        
         endTimeSelect.addEventListener('change', async (e) => {
             const newEndTime = e.target.value;
+            const oldEndTime = slot.endTime; // Garder l'ancienne valeur pour la comparaison
             slot.endTime = newEndTime; // Update local state
-            if (initialEndTime === '07:00' && newEndTime === '15:00') {
-                createConsecutiveSlot(newEndTime);
+
+            // Trouver l'index du créneau actuel
+            const currentSlotIndex = dailyRosterSlots.findIndex(s => s.id === slot.id);
+
+            // Si le créneau suivant existe et qu'il démarrait à l'ancienne heure de fin, mettez à jour son heure de début
+            if (currentSlotIndex !== -1 && currentSlotIndex + 1 < dailyRosterSlots.length) {
+                const nextSlot = dailyRosterSlots[currentSlotIndex + 1];
+                // Vérifier si le créneau suivant démarre exactement là où ce créneau finissait avant la modification
+                if (nextSlot.startTime === oldEndTime) {
+                    nextSlot.startTime = newEndTime; // Mettre à jour l'heure de début du créneau suivant
+                    console.log(`Mise à jour du créneau suivant : ${nextSlot.id} démarre maintenant à ${newEndTime}`);
+                }
             }
-            await saveDailyRosterSlotsToBackend(); // Save after local update
-            updateEngineAvailabilityVisuals(slot.id); // Update visuals after change
-            initialEndTime = newEndTime;
+            
+            // Logique pour ajouter un nouveau créneau si c'est le dernier ou si les créneaux ne sont pas consécutifs
+            // Vérifier s'il y a un créneau suivant, et si son début n'est PAS égal à la nouvelle fin du créneau actuel
+            if (currentSlotIndex === dailyRosterSlots.length - 1 || // Si c'est le dernier créneau
+                (currentSlotIndex !== -1 && dailyRosterSlots[currentSlotIndex + 1]?.startTime !== newEndTime)) 
+            {
+                // Vérifier si le nouveau créneau irait au-delà de 23:30 ou si la fin est la même que le début (éviter boucle)
+                // ou si l'heure de fin est 07:00 (heure de fin de cycle journalier)
+                if (newEndTime !== '07:00' && newEndTime !== '00:00') { // Éviter de créer un créneau si on finit le cycle
+                    await createConsecutiveSlot(newEndTime);
+                } else {
+                     console.log("Fin de cycle ou heure non propice pour un créneau consécutif automatique.");
+                }
+            }
+
+            await saveDailyRosterSlotsToBackend(); // Save after local update and potential new slot creation
+            renderDailyRosterSlots(); // Re-render pour refléter les changements (heures, nouveaux slots)
+            dailyRosterSlots.forEach(s => updateEngineAvailabilityVisuals(s.id)); // Mettre à jour tous les visuels
         });
+
 
         // Add event listener for removing the entire slot
         div.querySelector('.remove-slot-button').addEventListener('click', async () => {
             await removeDailyRosterSlot(slot.id);
-            await saveDailyRosterSlotsToBackend(); // Save after removal
+            // La sauvegarde est déjà faite dans removeDailyRosterSlot
             // Pas besoin d'appeler updateEngineAvailabilityVisuals ici car le slot est supprimé
         });
 
@@ -586,8 +613,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const roleId = e.target.dataset.roleId;
                 const slotId = e.target.dataset.slotId;
                 await removeAgentFromSlotRole(slotId, engineId, roleId, agentIdToRemove);
-                await saveDailyRosterSlotsToBackend(); // Save after de-assignment
-                updateEngineAvailabilityVisuals(slotId); // Update visuals after change
+                // La sauvegarde est déjà faite dans removeAgentFromSlotRole
+                // updateEngineAvailabilityVisuals(slotId) sera appelée par le re-render ou la synchronisation
             });
         });
 
@@ -709,12 +736,19 @@ document.addEventListener('DOMContentLoaded', () => {
         updateEngineAvailabilityVisuals(newSlot.id); // Update visuals for the new slot
     });
 
+    // Fonction améliorée pour créer un créneau consécutif
     const createConsecutiveSlot = async (previousEndTime) => {
+        // Vérifier si un créneau existe déjà avec cette heure de début
+        if (dailyRosterSlots.some(slot => slot.startTime === previousEndTime)) {
+            console.log(`Un créneau démarrant à ${previousEndTime} existe déjà. Pas de création de créneau consécutif.`);
+            return; // Ne rien faire si un créneau existe déjà avec cette heure de début
+        }
+
         const newSlotId = `slot-${Date.now()}-auto`;
         const newSlot = {
             id: newSlotId,
             startTime: previousEndTime,
-            endTime: '07:00', // Valeur par défaut
+            endTime: '07:00', // Par défaut à 07:00 pour compléter le cycle de 24h
             assignedAgents: [],
             assignedEngines: {}
         };
@@ -724,12 +758,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 newSlot.assignedEngines[engine.id][role.id] = null;
             });
         });
+
         dailyRosterSlots.push(newSlot);
-        renderDailyRosterSlots();
-        timeSlotsContainer.scrollTop = timeSlotsContainer.scrollHeight;
         console.log(`Nouveau créneau consécutif (${newSlot.startTime}-${newSlot.endTime}) créé automatiquement.`);
-        await saveDailyRosterSlotsToBackend();
-        updateEngineAvailabilityVisuals(newSlot.id); // Update visuals for the new slot
+        // Note: Le re-render et la sauvegarde sont appelés par le gestionnaire d'événement de endTimeSelect.
+        // updateEngineAvailabilityVisuals sera appelée par le renderDailyRosterSlots ou updateDateAndLoadData.
     };
 
     // --- Logique Drag & Drop ---
@@ -941,7 +974,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!saveSuccess) {
                     await showModal('Erreur d\'affectation', 'L\'affectation de l\'agent à ce rôle n\'a pas pu être sauvegardée. Veuillez réessayer.');
                 }
-                await updateDateAndLoadData(); // Toujours resynchroniser
+                await updateDateAndLoadData(); // Toujours resynchroniser pour mettre à jour les visuels INDISPO partout
                 toggleLoader(false);
             }
         });
@@ -966,7 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!saveSuccess) {
                     await showModal('Erreur de suppression', 'La suppression de l\'affectation de l\'agent n\'a pas pu être sauvegardée. Veuillez réessayer.');
                 }
-                await updateDateAndLoadData(); // Toujours resynchroniser
+                await updateDateAndLoadData(); // Toujours resynchroniser pour mettre à jour les visuels INDISPO partout
                 toggleLoader(false);
             }
             return false;
@@ -990,7 +1023,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!saveSuccess) {
                 await showModal('Erreur de suppression', 'La suppression du créneau n\'a pas pu être sauvegardée. Veuillez réessayer.');
             }
-            await updateDateAndLoadData(); 
+            await updateDateAndLoadData(); // Ré-initialiser et recharger pour assurer la cohérence et la mise à jour des visuels
             toggleLoader(false); 
             return saveSuccess; 
         }
@@ -1035,9 +1068,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         return; // Passer à la prochaine itération si déjà assigné
                     }
 
+                    // Trouver un agent d'astreinte disponible et qualifié qui n'est pas déjà assigné dans ce même slot
                     const foundAgent = onCallAgents.find(agent => 
-                        !assignedAgentIdsInSlot.has(agent.id) && // L'agent n'est pas déjà assigné dans ce même slot
-                        (agent.qualifications && agent.qualifications.includes(role.qualificationId)) // Vérifier la qualification
+                        !assignedAgentIdsInSlot.has(agent.id) && 
+                        (agent.qualifications && agent.qualifications.includes(role.qualificationId))
                     );
 
                     if (foundAgent) {
