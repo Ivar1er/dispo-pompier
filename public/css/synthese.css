@@ -155,7 +155,7 @@ body {
     border-right: 1px solid rgba(255, 255, 255, 0.2);
     font-size: 0.9em;
     white-space: nowrap;
-    grid-column: span 4; /* Each hour cell spans 4 columns (2 hours * 2 slots/hour) */
+    grid-column: span 2; /* CHANGED: Each hour cell now spans 2 columns (1 hour = 2 x 30-min slots) */
     /* min-width will be implicitly handled by the grid-template-columns of header-hours */
 }
 .hour-cell:last-child {
@@ -173,6 +173,18 @@ body {
 .day-row-container:last-child {
     border-bottom: none;
 }
+
+/* Day Label - Styles pour un alignement propre */
+.day-label {
+    width: 120px; /* Doit correspondre à la largeur du .day-label-header-placeholder */
+    flex-shrink: 0; /* Empêche de rétrécir */
+    padding: 10px 0; /* Aligné avec les cellules d'heure */
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-color);
+    border-right: 1px solid var(--light-gray); /* Séparateur visuel */
+}
+
 
 /* Wrapper for the 48 availability slots */
 .availability-slots-wrapper { /* NEW CLASS */

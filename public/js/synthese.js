@@ -233,11 +233,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     weekSelect.value = selectedWeekKey; // Sélectionne l'option dans le sélecteur
 
-    // Génère la barre d'heures alignée (de 07h à 07h)
-       generateHourHeader();
+    // Génère la barre d'heures alignée (de 07h à 07h) UNE SEULE FOIS AU DÉPART
+    generateHourHeader();
 
     // Affiche le planning pour la semaine sélectionnée
-       updateDisplay(selectedWeekKey, planningDataAgent);
+    updateDisplay(selectedWeekKey, planningDataAgent);
 
 
     // Ajoute un écouteur d'événements pour le changement de semaine dans le sélecteur
@@ -272,28 +272,28 @@ function updateDisplay(weekKey, planningData) {
  */
 function showWeek(weekKey, planningData) {
   const container = planningContainer; // This is #planning-container (class: planning-grid-content)
-  const header = headerHours; // This is #header-hours
+  // const header = headerHours; // This is #header-hours - PLUS BESOIN ICI, generateHourHeader s'en occupe
 
-  // Clear previous content
+  // Clear previous content of the planning container (but NOT the header)
   container.innerHTML = "";
-  header.innerHTML = ""; // Clear header too
 
   const SLOT_COUNT = 48; // Total 30-min slots over 24h
   const START_HOUR_GRID = 7; // Visual grid starts at 7 AM
   const MINUTES_PER_SLOT = 30; // Each slot is 30 minutes
 
-  // 1. Render Header Hours
-  const headerDayLabelPlaceholder = document.createElement("div");
-  headerDayLabelPlaceholder.className = "day-label-header-placeholder"; // New class for placeholder
-  header.appendChild(headerDayLabelPlaceholder);
-
-  for (let i = START_HOUR_GRID; i < START_HOUR_GRID + 24; i += 2) { // Display hours every 2 hours
-      const hour = i % 24;
-      const div = document.createElement("div");
-      div.className = "hour-cell";
-      div.textContent = `${String(hour).padStart(2, '0')}:00`;
-      header.appendChild(div);
-  }
+  // 1. Render Header Hours - Ceci est maintenant géré par generateHourHeader() appelé une seule fois au chargement
+  // Suppression du code de génération de l'en-tête ici
+  // header.innerHTML = "";
+  // const headerDayLabelPlaceholder = document.createElement("div");
+  // headerDayLabelPlaceholder.className = "day-label-header-placeholder";
+  // header.appendChild(headerDayLabelPlaceholder);
+  // for (let i = START_HOUR_GRID; i < START_HOUR_GRID + 24; i += 2) {
+  //     const hour = i % 24;
+  //     const div = document.createElement("div");
+  //     div.className = "hour-cell";
+  //     div.textContent = `${String(hour).padStart(2, '0')}:00`;
+  //     header.appendChild(div);
+  // }
 
   // 2. Render Daily Rows
   days.forEach(day => {
@@ -368,9 +368,12 @@ function showLoading(isLoading) {
   }
 }
 
+/**
+ * Génère et affiche l'en-tête des heures (de 7h à 6h le lendemain).
+ */
 function generateHourHeader() {
   const header = document.getElementById("header-hours");
-  header.innerHTML = '';
+  header.innerHTML = ''; // Efface le contenu précédent de l'en-tête
 
   // Placeholder pour aligner avec les labels des jours
   const placeholder = document.createElement('div');
@@ -378,11 +381,13 @@ function generateHourHeader() {
   header.appendChild(placeholder);
 
   // Générer les 24 heures de 07h à 06h (le lendemain)
+  const START_HOUR_DISPLAY = 7;
   for (let i = 0; i < 24; i++) {
-    const hour = (7 + i) % 24;
+    const hour = (START_HOUR_DISPLAY + i) % 24;
     const hourCell = document.createElement('div');
     hourCell.classList.add('hour-cell');
-    hourCell.textContent = `${hour.toString().padStart(2, '0')}:00`;
+    hourCell.textContent = `${String(hour).padStart(2, '0')}h`; // Format "07h", "08h", etc.
+    // L'étendue de colonne est définie en CSS pour chaque 'hour-cell' à 'span 2'
     header.appendChild(hourCell);
   }
 }
