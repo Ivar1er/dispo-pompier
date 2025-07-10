@@ -288,6 +288,12 @@ function showWeek(weekKey, planningData) {
       const div = document.createElement("div");
       div.className = "hour-cell";
       div.textContent = `${String(hour).padStart(2, '0')}:00`;
+
+      // Calculate the starting column for this hour label in the 48-column grid
+      // The header grid has an initial 120px column, so content columns start from grid line 2.
+      const startColumnIn48Grid = ((i - START_HOUR_GRID) / 2 * 4) + 1;
+      div.style.gridColumn = `${startColumnIn48Grid + 1} / span 4`; // +1 for the placeholder column
+
       header.appendChild(div);
   }
 
@@ -319,30 +325,35 @@ function showWeek(weekKey, planningData) {
 
       // Add availability bars to the wrapper
       dayRanges.forEach(range => {
-          // Calculate actual start/end minutes for tooltip
-          let startMinutesActual = (range.start * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
-          let endMinutesActual = ((range.end + 1) * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
+          // Calculate actual start/end minutes from 00:00 for the current day
+          let actualStartMinutes = range.start * MINUTES_PER_SLOT;
+          let actualEndMinutes = (range.end + 1) * MINUTES_PER_SLOT;
 
-          // Handle overnight ranges
-          if (endMinutesActual <= startMinutesActual) {
-              endMinutesActual += 24 * 60;
+          // Define the visual grid boundaries (7 AM to 7 AM next day)
+          const GRID_CYCLE_START_MINUTES = START_HOUR_GRID * 60; // 7:00 AM
+          const GRID_CYCLE_END_MINUTES = GRID_CYCLE_START_MINUTES + (24 * 60); // 7:00 AM next day
+
+          // Adjust range for visual display if it falls into the "next day" part of the cycle (e.g., 00:00-06:00)
+          if (actualStartMinutes < GRID_CYCLE_START_MINUTES && actualEndMinutes <= GRID_CYCLE_START_MINUTES) {
+              actualStartMinutes += (24 * 60);
+              actualEndMinutes += (24 * 60);
           }
 
-          // Calculate effective start/end minutes within the 24-hour display grid (from 7 AM)
-          const gridStartMinutes = START_HOUR_GRID * 60;
-          let effectiveStartMinutes = Math.max(startMinutesActual, gridStartMinutes);
-          let effectiveEndMinutes = Math.min(endMinutesActual, gridStartMinutes + (24 * 60));
+          // Clip the availability range to the visual grid boundaries
+          let effectiveGridStartMinutes = Math.max(actualStartMinutes, GRID_CYCLE_START_MINUTES);
+          let effectiveGridEndMinutes = Math.min(actualEndMinutes, GRID_CYCLE_END_MINUTES);
 
           // Calculate position and span in the `availability-slots-wrapper`'s grid
-          // Columns are 1-indexed in CSS grid, and we have 48 slots.
-          const startColumnInWrapper = ((effectiveStartMinutes - gridStartMinutes) / MINUTES_PER_SLOT) + 1;
-          const spanColumns = (effectiveEndMinutes - effectiveStartMinutes) / MINUTES_PER_SLOT;
+          // Columns are 1-indexed in CSS grid.
+          const startColumnInWrapper = ((effectiveGridStartMinutes - GRID_CYCLE_START_MINUTES) / MINUTES_PER_SLOT) + 1;
+          const spanColumns = (effectiveGridEndMinutes - effectiveGridStartMinutes) / MINUTES_PER_SLOT;
 
           if (spanColumns > 0) {
               const bar = document.createElement("div");
               bar.className = "availability-bar";
               bar.style.gridColumn = `${startColumnInWrapper} / span ${spanColumns}`;
-              bar.title = `Disponible: ${minutesToTime(startMinutesActual)} - ${minutesToTime(endMinutesActual)}`;
+              // The tooltip should still show the original, actual time range without the 24-hour shift
+              bar.title = `Disponible: ${minutesToTime(range.start * MINUTES_PER_SLOT)} - ${minutesToTime((range.end + 1) * MINUTES_PER_SLOT)}`;
               availabilityWrapper.appendChild(bar); // Append bar to the new wrapper
           }
       });
