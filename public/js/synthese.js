@@ -271,8 +271,7 @@ function showWeek(weekKey, planningData) {
 
   // The API slots are 0-47, representing 00:00 to 23:30.
   // The visual grid is 0-47, representing 07:00 to 06:30 (next day).
-  // The offset to convert an API slot index to a visual grid slot index:
-  // For example, API slot 0 (00:00) should appear after API slot 47 (23:30) in the visual 7-7 cycle.
+  // The offset to convert an API slot index (0-23:30) to a visual grid slot index (7:00-6:30):
   // API slot for 7 AM is 7 * 2 = 14.
   const API_SLOT_OFFSET_FOR_7AM_START = START_HOUR_GRID * SLOTS_PER_HOUR; // 14
 
@@ -292,7 +291,7 @@ function showWeek(weekKey, planningData) {
       // Calculate the starting column for this hour label in the 48-column grid
       // Each hour cell spans 4 columns (2 hours * 2 slots/hour)
       // The `+ 1` is for CSS grid's 1-indexing.
-      // The `+ 1` after `startColumnForHour` is for the `day-label-header-placeholder` column.
+      // The `+ 1` after `startColumnForHourInGrid` is for the `day-label-header-placeholder` column.
       const startColumnForHourInGrid = (i * SLOTS_PER_HOUR) + 1;
       div.style.gridColumn = `${startColumnForHourInGrid + 1} / span ${2 * SLOTS_PER_HOUR}`;
 
@@ -327,14 +326,17 @@ function showWeek(weekKey, planningData) {
 
       // Add availability bars to the wrapper
       dayRanges.forEach(range => {
-          // API range.start and range.end are 0-indexed 30-min slots from 00:00
+          // API range.start and range.end are 0-indexed 30-min slots from 00:00 to 23:30
           const apiStartSlotIndex = range.start;
           const apiEndSlotIndex = range.end; // Inclusive end slot
 
-          // Calculate the actual duration in slots based on API data
-          let durationSlots = apiEndSlotIndex - apiStartSlotIndex + 1;
-          if (durationSlots <= 0) { // This means the range crosses midnight (e.g., 23:00 to 01:00)
-              durationSlots += SLOT_COUNT; // Add 24 hours (48 slots) to get the correct positive duration
+          // Calculate the duration in slots based on API data
+          let durationSlots;
+          if (apiEndSlotIndex < apiStartSlotIndex) {
+              // Range wraps around midnight (e.g., 23:00 to 01:00, or 7:00 to 7:00 next day)
+              durationSlots = (SLOT_COUNT - apiStartSlotIndex) + (apiEndSlotIndex + 1);
+          } else {
+              durationSlots = apiEndSlotIndex - apiStartSlotIndex + 1;
           }
 
           // Calculate the visual start slot index in the 7 AM-based grid (0 to 47)
