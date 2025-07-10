@@ -235,20 +235,22 @@ body {
 .availability-bar::before {
     content: '';
     position: absolute;
-    bottom: -8px;
+    top: -8px; /* MODIFIÉ : Positionne la flèche au-dessus de l'infobulle */
     left: 50%;
     transform: translateX(-50%);
     border-width: 5px;
     border-style: solid;
+    /* MODIFIÉ : La flèche pointe maintenant vers le bas, depuis l'infobulle */
     border-color: var(--dark-gray) transparent transparent transparent;
     opacity: 0;
     transition: opacity 0.2s ease-in-out;
+    z-index: 8; /* Augmenter le z-index pour s'assurer qu'il est au-dessus */
 }
 
 .availability-bar::after {
     content: attr(title);
     position: absolute;
-    bottom: -35px;
+    top: -45px; /* MODIFIÉ : Positionne le texte de l'infobulle au-dessus de la barre (ajuster si besoin) */
     left: 50%;
     transform: translateX(-50%);
     background: var(--dark-gray);
@@ -260,12 +262,7 @@ body {
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.2s ease-in-out;
-    z-index: 7;
-}
-
-.availability-bar:hover::before,
-.availability-bar:hover::after {
-    opacity: 1;
+    z-index: 8; /* MODIFIÉ : Assurez-vous que le texte est également au-dessus */
 }
 
 
