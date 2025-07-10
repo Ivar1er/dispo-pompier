@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
-     * RÃ©cupÃ©re la plage de dates (dÃ©but-fin) pour un numÃ©ro de semaine ISO donnÃ©.
+     * RÃ©cupÃ¨re la plage de dates (dÃ©but-fin) pour un numÃ©ro de semaine ISO donnÃ©.
      * @param {number} weekNumber - Le numÃ©ro de semaine ISO.
      * @param {number} year - L'annÃ©e.
      * @returns {string} La plage de dates formatÃ©e (ex: "du 16/06 au 22/06").
@@ -249,11 +249,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!agent || (agent.role !== 'agent' && agent.role !== 'admin')) {
                     return null; // Ignorer les utilisateurs non-agents ou sans rÃ´le dÃ©fini
                 }
-                // --- DÉBUT MODIFICATION: Masquer l'agent "Admin Admin" ---
-                if (agent.prenom === 'Admin' && agent.nom === 'Admin') {
-                    return null; // Ignore l'agent 'Admin Admin'
-                }
-                // --- FIN MODIFICATION ---
 
                 // VÃ©rifier si l'agent a au moins un crÃ©neau disponible pour le jour et la semaine actuels
                 const agentSpecificDayPlanning = GLOBAL_PLANNING_DATA[agent.id]?.[weekKey]?.[day] || [];
@@ -901,7 +896,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const selectedGrades = newAgentGradesCheckboxes ? Array.from(newAgentGradesCheckboxes.querySelectorAll('input[type="checkbox"]:checked'))
             .map(checkbox => checkbox.value) : [];
 
-
         if (!addAgentMessage) {
             console.warn("L'Ã©lÃ©ment 'addAgentMessage' est introuvable. Impossible d'afficher le statut d'ajout de l'agent.");
         } else {
@@ -1025,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadAgents();
             } else {
                 editAgentMessage.textContent = `Erreur : ${data.message}`;
-                if (editAgentMessage) editAgentMessage.style.color = 'red';
+                editAgentMessage.style.color = 'red';
             }
         } catch (error) {
             console.error('Erreur lors de la mise Ã  jour de l\'agent:', error);
@@ -1408,6 +1402,171 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     }
+
+    // --- Fonctions CRUD pour la gestion des fonctions (Frontend) ---
+    // Ces fonctions sont commentÃ©es car la section "Gestion des Fonctions" n'est pas prÃ©sente dans admin.html.
+    // DÃ©commentez et assurez-vous d'avoir les Ã©lÃ©ments DOM correspondants si vous l'ajoutez.
+
+    /*
+    async function loadFunctionsList() {
+        if (!listFunctionsMessage) {
+            console.warn("L'Ã©lÃ©ment 'listFunctionsMessage' est introuvable.");
+        } else {
+            listFunctionsMessage.textContent = 'Chargement des fonctions...';
+            listFunctionsMessage.style.color = 'blue';
+        }
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/functions`, {
+                headers: getAuthHeaders()
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Erreur lors du chargement des fonctions.');
+            }
+            FUNCTIONS_DATA = data;
+            renderFunctionsTable(); // Appelez la fonction pour rendre la table des fonctions
+            if (listFunctionsMessage) listFunctionsMessage.textContent = '';
+        } catch (error) {
+            console.error('Erreur de chargement des fonctions:', error);
+            if (listFunctionsMessage) {
+                listFunctionsMessage.textContent = `Erreur : ${error.message}`;
+                listFunctionsMessage.style.color = 'red';
+            }
+            if (functionsTableBody) functionsTableBody.innerHTML = '<tr><td colspan="3">Impossible de charger la liste des fonctions.</td></tr>';
+        }
+    }
+
+    async function handleAddFunction(event) {
+        event.preventDefault();
+        const newFunctionIdInput = document.getElementById('newFunctionId');
+        const newFunctionNameInput = document.getElementById('newFunctionName');
+        if (!newFunctionIdInput || !newFunctionNameInput) {
+            console.error("Erreur DOM: Les champs d'ajout de fonction sont introuvables.");
+            displayMessageModal("Erreur de formulaire", "Impossible d'ajouter une fonction. Des Ã©lÃ©ments du formulaire sont manquants.", "error");
+            return;
+        }
+        const id = newFunctionIdInput.value.trim();
+        const name = newFunctionNameInput.value.trim();
+
+        if (!addFunctionMessage) {
+            console.warn("L'Ã©lÃ©ment 'addFunctionMessage' est introuvable.");
+        } else {
+            addFunctionMessage.textContent = 'Ajout en cours...';
+            addFunctionMessage.style.color = 'blue';
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/functions`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ id, name })
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                if (addFunctionMessage) addFunctionMessage.textContent = data.message;
+                if (addFunctionMessage) addFunctionMessage.style.color = 'green';
+                if (addFunctionFormElement) addFunctionFormElement.reset();
+                await loadFunctionsList();
+            } else {
+                if (addFunctionMessage) addFunctionMessage.textContent = `Erreur : ${data.message}`;
+                if (addFunctionMessage) addFunctionMessage.style.color = 'red';
+            }
+        } catch (error) {
+            console.error('Erreur lors de l\'ajout de la fonction:', error);
+            if (addFunctionMessage) {
+                addFunctionMessage.textContent = 'Erreur rÃ©seau lors de l\'ajout de la fonction.';
+                addFunctionMessage.style.color = 'red';
+            }
+        }
+    }
+
+    async function handleFunctionActions(event) {
+        const target = event.target;
+        const funcId = target.dataset.id;
+        if (!funcId) return;
+
+        if (target.classList.contains('edit-btn')) {
+            const editFunctionId = document.getElementById('editFunctionId');
+            const editFunctionName = document.getElementById('editFunctionName');
+            const editFunctionMessage = document.getElementById('editFunctionMessage');
+            const editFunctionModalElement = document.getElementById('editFunctionModal');
+            if (!editFunctionId || !editFunctionName || !editFunctionMessage || !editFunctionModalElement) {
+                console.error("Erreur DOM: Un ou plusieurs Ã©lÃ©ments de la modale d'Ã©dition de fonction sont introuvables.");
+                displayMessageModal("Erreur d'affichage", "Impossible d'ouvrir la modale d'Ã©dition. Des Ã©lÃ©ments sont manquants.", "error");
+                return;
+            }
+            editFunctionId.value = funcId;
+            editFunctionName.value = target.dataset.name;
+            editFunctionMessage.textContent = '';
+            editFunctionModalElement.style.display = 'block';
+
+        } else if (target.classList.contains('delete-btn')) {
+            const confirmed = await confirmModal(`ÃŠtes-vous sÃ»r de vouloir supprimer la fonction "${funcId}" ?`);
+            if (confirmed) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/functions/${funcId}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeaders()
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        displayMessageModal("SuccÃ¨s", data.message, "success");
+                        await loadFunctionsList();
+                        await loadAgents();
+                    } else {
+                        displayMessageModal("Erreur", `Erreur lors de la suppression : ${data.message}`, "error");
+                    }
+                } catch (error) {
+                    console.error('Erreur lors de la suppression de la fonction:', error);
+                    displayMessageModal("Erreur", 'Erreur rÃ©seau lors de la suppression de la fonction.', "error");
+                }
+            }
+        }
+    }
+
+    async function handleEditFunction(event) {
+        event.preventDefault();
+        const editFunctionId = document.getElementById('editFunctionId');
+        const editFunctionName = document.getElementById('editFunctionName');
+        const editFunctionMessage = document.getElementById('editFunctionMessage');
+        if (!editFunctionId || !editFunctionName || !editFunctionMessage) {
+            console.error("Erreur DOM: Un ou plusieurs Ã©lÃ©ments du formulaire d'Ã©dition de fonction sont introuvables.");
+            displayMessageModal("Erreur de modification", "Impossible de modifier la fonction. Des Ã©lÃ©ments du formulaire sont manquants.", "error");
+            return;
+        }
+        const id = editFunctionId.value.trim();
+        const name = editFunctionName.value.trim();
+
+        editFunctionMessage.textContent = 'Mise Ã  jour en cours...';
+        editFunctionMessage.style.color = 'blue';
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/functions/${id}`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ name })
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                editFunctionMessage.textContent = data.message;
+                editFunctionMessage.style.color = 'green';
+                await loadFunctionsList();
+                await loadAgents();
+            } else {
+                editFunctionMessage.textContent = `Erreur : ${data.message}`;
+                if (editFunctionMessage) editFunctionMessage.style.color = 'red';
+            }
+        } catch (error) {
+            console.error('Erreur lors de la mise Ã  jour de la fonction:', error);
+            if (editFunctionMessage) {
+                editFunctionMessage.textContent = 'Erreur rÃ©seau lors de la mise Ã  jour de la fonction.';
+                editFunctionMessage.style.color = 'red';
+            }
+        }
+    }
+    */
 
     /**
      * GÃ¨re l'affichage des onglets principaux de la page d'administration.
