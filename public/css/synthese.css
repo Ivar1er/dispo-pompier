@@ -174,23 +174,6 @@ body {
     border-bottom: none;
 }
 
-/* Day label on the left of each row */
-.day-label { /* Original class, but now child of .day-row-container */
-    width: 120px; /* Fixed width */
-    flex-shrink: 0;
-    padding: 15px 10px;
-    font-weight: 600;
-    text-align: left;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    position: sticky;
-    left: 0;
-    z-index: 5;
-    background-color: var(--card-background); /* Ensure it stays white on scroll */
-    border-right: 1px solid var(--light-gray); /* Separator from slots */
-}
-
 /* Wrapper for the 48 availability slots */
 .availability-slots-wrapper { /* NEW CLASS */
     display: grid; /* This is where the 48 slots grid lives */
@@ -200,14 +183,18 @@ body {
     height: 100%; /* Ensure it fills parent height */
     position: relative; /* For positioning availability-bar */
     padding: 0; /* No padding inside the grid itself */
+    /* Ajouté pour créer les lignes verticales du tableau sans affecter la taille des cellules */
+    background-image: linear-gradient(to right, var(--light-gray) 1px, transparent 1px);
+    background-size: calc(100% / 48) 100%; /* Distribuer les lignes uniformément */
 }
 
 /* Background for each slot (now direct grid item of availability-slots-wrapper) */
 .slot-background {
-    border-right: 1px dotted rgba(0,0,0,0.05); /* Vertical lines between slots */
+    /* Supprimé la bordure droite d'ici pour éviter le problème des div de 1px */
+    /* border-right: 1px dotted rgba(0,0,0,0.05); */
     min-height: 40px; /* Match min-height of wrapper */
     box-sizing: border-box;
-    background-color: var(--free-slot-color); /* To visualize grid cells */
+    background-color: transparent; /* Mis à transparent pour que l'image de fond du wrapper gère les lignes */
     grid-row: 1; /* Ensures it stays on the first (and only) grid row */
 }
 .slot-background:last-child {
@@ -233,10 +220,10 @@ body {
 }
 
 /* Tooltip pour les barres de disponibilité */
-.availability-bar::before { 
+.availability-bar::before {
     content: '';
     position: absolute;
-    bottom: -8px; 
+    bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
     border-width: 5px;
@@ -247,26 +234,26 @@ body {
 }
 
 .availability-bar::after {
-    content: attr(title); 
+    content: attr(title);
     position: absolute;
-    bottom: -35px; 
+    bottom: -35px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--dark-gray); 
+    background: var(--dark-gray);
     color: white;
     font-size: 0.8em;
     padding: 5px 8px;
     border-radius: 4px;
-    white-space: nowrap; 
-    pointer-events: none; 
-    opacity: 0; 
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
     transition: opacity 0.2s ease-in-out;
-    z-index: 7; 
+    z-index: 7;
 }
 
 .availability-bar:hover::before,
 .availability-bar:hover::after {
-    opacity: 1; 
+    opacity: 1;
 }
 
 
