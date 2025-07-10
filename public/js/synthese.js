@@ -233,8 +233,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     weekSelect.value = selectedWeekKey; // Sélectionne l'option dans le sélecteur
 
+    // Génère la barre d'heures alignée (de 07h à 07h)
+       generateHourHeader();
+
     // Affiche le planning pour la semaine sélectionnée
-    updateDisplay(selectedWeekKey, planningDataAgent);
+       updateDisplay(selectedWeekKey, planningDataAgent);
+
 
     // Ajoute un écouteur d'événements pour le changement de semaine dans le sélecteur
     weekSelect.addEventListener("change", () => {
@@ -361,5 +365,24 @@ function showLoading(isLoading) {
   } else {
     loadingSpinner.classList.add("hidden");
     if (weekSelect) weekSelect.disabled = false; // Active le sélecteur après le chargement
+  }
+}
+
+function generateHourHeader() {
+  const header = document.getElementById("header-hours");
+  header.innerHTML = '';
+
+  // Placeholder pour aligner avec les labels des jours
+  const placeholder = document.createElement('div');
+  placeholder.classList.add('day-label-header-placeholder');
+  header.appendChild(placeholder);
+
+  // Générer les 24 heures de 07h à 06h (le lendemain)
+  for (let i = 0; i < 24; i++) {
+    const hour = (7 + i) % 24;
+    const hourCell = document.createElement('div');
+    hourCell.classList.add('hour-cell');
+    hourCell.textContent = `${hour.toString().padStart(2, '0')}:00`;
+    header.appendChild(hourCell);
   }
 }
