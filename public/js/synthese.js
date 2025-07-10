@@ -283,16 +283,17 @@ function showWeek(weekKey, planningData) {
   headerDayLabelPlaceholder.className = "day-label-header-placeholder"; // New class for placeholder
   header.appendChild(headerDayLabelPlaceholder);
 
-  for (let i = START_HOUR_GRID; i < START_HOUR_GRID + 24; i += 2) { // Display hours every 2 hours
-      const hour = i % 24;
+  // Generate hour labels for the 24-hour cycle (7 AM to 7 AM)
+  for (let i = 0; i < 24; i += 2) { // Display hours every 2 hours
+      const currentHour = (START_HOUR_GRID + i) % 24;
       const div = document.createElement("div");
       div.className = "hour-cell";
-      div.textContent = `${String(hour).padStart(2, '0')}:00`;
+      div.textContent = `${String(currentHour).padStart(2, '0')}:00`;
 
       // Calculate the starting column for this hour label in the 48-column grid
-      // The header grid has an initial 120px column, so content columns start from grid line 2.
-      const startColumnIn48Grid = ((i - START_HOUR_GRID) / 2 * 4) + 1;
-      div.style.gridColumn = `${startColumnIn48Grid + 1} / span 4`; // +1 for the placeholder column
+      // Each hour cell spans 4 columns (2 hours * 2 slots/hour)
+      const startColumnForHour = (i * 2) + 1; // Slot index (0-47) for the hour
+      div.style.gridColumn = `${startColumnForHour + 1} / span 4`; // +1 for the placeholder column, span 4 for 2 hours
 
       header.appendChild(div);
   }
@@ -326,34 +327,64 @@ function showWeek(weekKey, planningData) {
       // Add availability bars to the wrapper
       dayRanges.forEach(range => {
           // Calculate actual start/end minutes from 00:00 for the current day
-          let actualStartMinutes = range.start * MINUTES_PER_SLOT;
-          let actualEndMinutes = (range.end + 1) * MINUTES_PER_SLOT;
+          let startMinutesActual = range.start * MINUTES_PER_SLOT;
+          let endMinutesActual = (range.end + 1) * MINUTES_PER_SLOT; // +1 because range.end is inclusive slot index
 
-          // Define the visual grid boundaries (7 AM to 7 AM next day)
-          const GRID_CYCLE_START_MINUTES = START_HOUR_GRID * 60; // 7:00 AM
-          const GRID_CYCLE_END_MINUTES = GRID_CYCLE_START_MINUTES + (24 * 60); // 7:00 AM next day
+          // Convert actual minutes to minutes relative to the 7 AM grid start
+          let relativeStartMinutes = startMinutesActual - (START_HOUR_GRID * 60);
+          let relativeEndMinutes = endMinutesActual - (START_HOUR_GRID * 60);
 
-          // Adjust range for visual display if it falls into the "next day" part of the cycle (e.g., 00:00-06:00)
-          if (actualStartMinutes < GRID_CYCLE_START_MINUTES && actualEndMinutes <= GRID_CYCLE_START_MINUTES) {
-              actualStartMinutes += (24 * 60);
-              actualEndMinutes += (24 * 60);
+          // Handle wrapping around midnight for the 7 AM to 7 AM display cycle
+          if (relativeStartMinutes < 0) {
+              relativeStartMinutes += (24 * 60);
+          }
+          if (relativeEndMinutes < 0) {
+              relativeEndMinutes += (24 * 60);
           }
 
-          // Clip the availability range to the visual grid boundaries
-          let effectiveGridStartMinutes = Math.max(actualStartMinutes, GRID_CYCLE_START_MINUTES);
-          let effectiveGridEndMinutes = Math.min(actualEndMinutes, GRID_CYCLE_END_MINUTES);
+          // If the range crosses the 7 AM boundary (e.g., 5 AM to 9 AM),
+          // relativeEndMinutes might be less than relativeStartMinutes.
+          // In this case, the bar spans from relativeStartMinutes to the end of the 24-hour cycle,
+          // and then from the beginning of the cycle to relativeEndMinutes.
+          let startColumnInWrapper;
+          let spanColumns;
 
-          // Calculate position and span in the `availability-slots-wrapper`'s grid
-          // Columns are 1-indexed in CSS grid.
-          const startColumnInWrapper = ((effectiveGridStartMinutes - GRID_CYCLE_START_MINUTES) / MINUTES_PER_SLOT) + 1;
-          const spanColumns = (effectiveGridEndMinutes - effectiveGridStartMinutes) / MINUTES_PER_SLOT;
+          if (relativeEndMinutes <= relativeStartMinutes) {
+              // This means the availability spans across the visual 7 AM boundary (e.g., 05:00-08:00 original,
+              // which in a 7-7 cycle means 05:00-07:00 (end of day) and 07:00-08:00 (start of day)).
+              // We need to split this into two parts or handle the span carefully.
+              // For a continuous bar, we calculate the total minutes and span across the 48 slots.
+              const totalMinutesInBar = (endMinutesActual - startMinutesActual + (24 * 60)) % (24 * 60);
+              spanColumns = totalMinutesInBar / MINUTES_PER_SLOT;
+
+              startColumnInWrapper = (relativeStartMinutes / MINUTES_PER_SLOT) + 1;
+
+              // If the bar wraps around, the span might be correctly calculated,
+              // but the startColumn needs to be the first part.
+              // The CSS grid 'span' property handles wrapping implicitly if the start/end columns are correct.
+              // We need to ensure the startColumn is always within 1-48.
+              if (startColumnInWrapper > SLOT_COUNT) {
+                  startColumnInWrapper -= SLOT_COUNT;
+              }
+
+          } else {
+              // Normal case: the availability does not cross the 7 AM boundary in the visual grid.
+              spanColumns = (relativeEndMinutes - relativeStartMinutes) / MINUTES_PER_SLOT;
+              startColumnInWrapper = (relativeStartMinutes / MINUTES_PER_SLOT) + 1;
+          }
+
+          // Ensure spanColumns is at least 1 for very short durations
+          if (spanColumns < 1 && (endMinutesActual > startMinutesActual)) {
+              spanColumns = 1;
+          }
+
 
           if (spanColumns > 0) {
               const bar = document.createElement("div");
               bar.className = "availability-bar";
               bar.style.gridColumn = `${startColumnInWrapper} / span ${spanColumns}`;
-              // The tooltip should still show the original, actual time range without the 24-hour shift
-              bar.title = `Disponible: ${minutesToTime(range.start * MINUTES_PER_SLOT)} - ${minutesToTime((range.end + 1) * MINUTES_PER_SLOT)}`;
+              // The tooltip should still show the original, actual time range (00:00-23:59 cycle)
+              bar.title = `Disponible: ${minutesToTime(startMinutesActual)} - ${minutesToTime(endMinutesActual)}`;
               availabilityWrapper.appendChild(bar); // Append bar to the new wrapper
           }
       });
