@@ -264,10 +264,17 @@ function showWeek(weekKey, planningData) {
   container.innerHTML = "";
   header.innerHTML = ""; // Clear header too
 
-  const SLOT_COUNT = 48; // Total 30-min slots over 24h
+  const SLOT_COUNT = 48; // Total 30-min slots over 24h (0 to 47)
   const START_HOUR_GRID = 7; // Visual grid starts at 7 AM
   const MINUTES_PER_SLOT = 30; // Each slot is 30 minutes
   const SLOTS_PER_HOUR = 60 / MINUTES_PER_SLOT; // 2 slots per hour
+
+  // The API slots are 0-47, representing 00:00 to 23:30.
+  // The visual grid is 0-47, representing 07:00 to 06:30 (next day).
+  // The offset to convert an API slot index to a visual grid slot index:
+  // For example, API slot 0 (00:00) should appear after API slot 47 (23:30) in the visual 7-7 cycle.
+  // API slot for 7 AM is 7 * 2 = 14.
+  const API_SLOT_OFFSET_FOR_7AM_START = START_HOUR_GRID * SLOTS_PER_HOUR; // 14
 
   // 1. Render Header Hours
   const headerDayLabelPlaceholder = document.createElement("div");
@@ -284,8 +291,10 @@ function showWeek(weekKey, planningData) {
 
       // Calculate the starting column for this hour label in the 48-column grid
       // Each hour cell spans 4 columns (2 hours * 2 slots/hour)
-      const startColumnForHour = (i * SLOTS_PER_HOUR) + 1; // Slot index (0-47) for the hour, +1 for 1-indexing
-      div.style.gridColumn = `${startColumnForHour + 1} / span ${2 * SLOTS_PER_HOUR}`; // +1 for the placeholder column, span for 2 hours
+      // The `+ 1` is for CSS grid's 1-indexing.
+      // The `+ 1` after `startColumnForHour` is for the `day-label-header-placeholder` column.
+      const startColumnForHourInGrid = (i * SLOTS_PER_HOUR) + 1;
+      div.style.gridColumn = `${startColumnForHourInGrid + 1} / span ${2 * SLOTS_PER_HOUR}`;
 
       header.appendChild(div);
   }
@@ -322,76 +331,37 @@ function showWeek(weekKey, planningData) {
           const apiStartSlotIndex = range.start;
           const apiEndSlotIndex = range.end; // Inclusive end slot
 
-          // Convert API slot indices to minutes from 00:00
-          const startMinutes = apiStartSlotIndex * MINUTES_PER_SLOT;
-          const endMinutes = (apiEndSlotIndex + 1) * MINUTES_PER_SLOT; // End time is end of the slot
-
-          // Define the visual grid's start hour in minutes (7 AM)
-          const gridStartMinutes = START_HOUR_GRID * 60;
-
-          // Calculate the start and end minutes relative to the grid's start (7 AM)
-          let relativeStartMinutes = startMinutes - gridStartMinutes;
-          let relativeEndMinutes = endMinutes - gridStartMinutes;
-
-          // Normalize relative minutes to be within a 24-hour cycle (0 to 1440)
-          // This handles cases where original times are before 7 AM, making them appear "later" in the 7-7 cycle.
-          if (relativeStartMinutes < 0) {
-              relativeStartMinutes += (24 * 60);
-          }
-          if (relativeEndMinutes < 0) {
-              relativeEndMinutes += (24 * 60);
+          // Calculate the actual duration in slots based on API data
+          let durationSlots = apiEndSlotIndex - apiStartSlotIndex + 1;
+          if (durationSlots <= 0) { // This means the range crosses midnight (e.g., 23:00 to 01:00)
+              durationSlots += SLOT_COUNT; // Add 24 hours (48 slots) to get the correct positive duration
           }
 
-          // If the range crosses the visual 7 AM boundary (e.g., original 05:00-09:00,
-          // which becomes 05:00-07:00 and 07:00-09:00 in the 7-7 cycle),
-          // relativeEndMinutes will be less than relativeStartMinutes.
-          // In this case, we need to draw two bars.
+          // Calculate the visual start slot index in the 7 AM-based grid (0 to 47)
+          // This uses modulo to wrap around if the original start is before 7 AM.
+          const visualStartSlotIndex = (apiStartSlotIndex - API_SLOT_OFFSET_FOR_7AM_START + SLOT_COUNT) % SLOT_COUNT;
 
-          const barsToDraw = [];
-          if (relativeEndMinutes <= relativeStartMinutes) {
-              // Case: The availability wraps around the visual 7 AM boundary
-              // Part 1: From relativeStartMinutes to the end of the visual 24h cycle (1440 minutes)
-              barsToDraw.push({
-                  start: relativeStartMinutes,
-                  end: (24 * 60) // End of the 7-7 cycle
-              });
-              // Part 2: From the beginning of the visual 24h cycle (0 minutes) to relativeEndMinutes
-              barsToDraw.push({
-                  start: 0,
-                  end: relativeEndMinutes
-              });
-          } else {
-              // Case: The availability is within a single segment of the visual 24h cycle
-              barsToDraw.push({
-                  start: relativeStartMinutes,
-                  end: relativeEndMinutes
-              });
-          }
+          // CSS grid columns are 1-indexed, so add 1 to the 0-indexed slot index
+          const startColumnInWrapper = visualStartSlotIndex + 1;
+          const spanColumns = durationSlots;
 
-          barsToDraw.forEach(barSegment => {
-              const segmentStartSlot = Math.floor(barSegment.start / MINUTES_PER_SLOT);
-              const segmentEndSlot = Math.ceil(barSegment.end / MINUTES_PER_SLOT) -1; // Inclusive end slot
+          if (spanColumns > 0) {
+              const bar = document.createElement("div");
+              bar.className = "availability-bar";
+              bar.style.gridColumn = `${startColumnInWrapper} / span ${spanColumns}`;
 
-              const spanColumns = (segmentEndSlot - segmentStartSlot) + 1;
-              const startColumnInWrapper = segmentStartSlot + 1; // CSS grid is 1-indexed
+              // Tooltip logic: show original API times
+              let tooltipStart = minutesToTime(apiStartSlotIndex * MINUTES_PER_SLOT);
+              let tooltipEnd = minutesToTime((apiEndSlotIndex + 1) * MINUTES_PER_SLOT);
 
-              if (spanColumns > 0) {
-                  const bar = document.createElement("div");
-                  bar.className = "availability-bar";
-                  bar.style.gridColumn = `${startColumnInWrapper} / span ${spanColumns}`;
-
-                  // Tooltip logic: show original API times
-                  let tooltipStart = minutesToTime(apiStartSlotIndex * MINUTES_PER_SLOT);
-                  let tooltipEnd = minutesToTime((apiEndSlotIndex + 1) * MINUTES_PER_SLOT);
-
-                  // Special case for 24-hour availability: if it spans 48 slots, show 7:00 - 7:00
-                  if (durationSlots === SLOT_COUNT) {
-                      tooltipEnd = tooltipStart; // Display the same start hour for a full 24h cycle
-                  }
-                  bar.title = `Disponible: ${tooltipStart} - ${tooltipEnd}`;
-                  availabilityWrapper.appendChild(bar);
+              // Special case for 24-hour availability: if it spans 48 slots, show 7:00 - 7:00
+              // This handles cases where API gives e.g., start: 14, end: 13 (next day)
+              if (spanColumns === SLOT_COUNT) {
+                  tooltipEnd = tooltipStart; // Display the same start hour for a full 24h cycle
               }
-          });
+              bar.title = `Disponible: ${tooltipStart} - ${tooltipEnd}`;
+              availabilityWrapper.appendChild(bar);
+          }
       });
       container.appendChild(rowContainer); // Append the whole day row to the main planning container
   });
