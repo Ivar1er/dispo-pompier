@@ -151,12 +151,12 @@ body {
 
 .hour-cell {
     padding: 10px 0;
-    text-align: left; /* CHANGED: Align text to the left */
-    padding-left: 5px; /* NEW: Add some padding for visual spacing */
+    text-align: center;
     border-right: 1px solid rgba(255, 255, 255, 0.2);
     font-size: 0.9em;
     white-space: nowrap;
-    /* grid-column will be set dynamically in JS */
+    grid-column: span 4; /* Each hour cell spans 4 columns (2 hours * 2 slots/hour) */
+    /* min-width will be implicitly handled by the grid-template-columns of header-hours */
 }
 .hour-cell:last-child {
     border-right: none;

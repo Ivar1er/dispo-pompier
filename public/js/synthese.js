@@ -132,6 +132,16 @@ function getWeekDateRange(weekNumber, year = new Date().getFullYear()) {
 
 
 /**
+ * Convertit une chaîne de temps "HH:MM" en nombre de minutes depuis minuit.
+ * @param {string} timeStr - La chaîne de temps (ex: "08:30").
+ * @returns {number} Le nombre total de minutes.
+ */
+function timeToMinutes(timeStr) {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+}
+
+/**
  * Convertit un nombre de minutes depuis minuit en chaîne de temps "HH:MM".
  * @param {number} totalMinutes - Le nombre total de minutes.
  * @returns {string} La chaîne de temps formatée (ex: "08:30").
@@ -264,37 +274,20 @@ function showWeek(weekKey, planningData) {
   container.innerHTML = "";
   header.innerHTML = ""; // Clear header too
 
-  const SLOT_COUNT = 48; // Total 30-min slots over 24h (0 to 47)
+  const SLOT_COUNT = 48; // Total 30-min slots over 24h
   const START_HOUR_GRID = 7; // Visual grid starts at 7 AM
   const MINUTES_PER_SLOT = 30; // Each slot is 30 minutes
-  const SLOTS_PER_HOUR = 60 / MINUTES_PER_SLOT; // 2 slots per hour
-
-  // The API slots are 0-47, representing 00:00 to 23:30.
-  // The visual grid is 0-47, representing 07:00 to 06:30 (next day).
-  // The offset to convert an API slot index (0-23:30) to a visual grid slot index (7:00-6:30):
-  // API slot for 7 AM is 7 * 2 = 14.
-  const API_SLOT_OFFSET_FOR_7AM_START = START_HOUR_GRID * SLOTS_PER_HOUR; // 14
 
   // 1. Render Header Hours
   const headerDayLabelPlaceholder = document.createElement("div");
   headerDayLabelPlaceholder.className = "day-label-header-placeholder"; // New class for placeholder
   header.appendChild(headerDayLabelPlaceholder);
 
-  // Generate hour labels for the 24-hour cycle (7 AM to 7 AM)
-  // We display hours every 2 hours, so 12 labels in total.
-  for (let i = 0; i < 24; i += 2) {
-      const currentHour = (START_HOUR_GRID + i) % 24;
+  for (let i = START_HOUR_GRID; i < START_HOUR_GRID + 24; i += 2) { // Display hours every 2 hours
+      const hour = i % 24;
       const div = document.createElement("div");
       div.className = "hour-cell";
-      div.textContent = `${String(currentHour).padStart(2, '0')}:00`;
-
-      // Calculate the starting column for this hour label in the 48-column grid
-      // Each hour cell spans 4 columns (2 hours * 2 slots/hour)
-      // The `+ 1` is for CSS grid's 1-indexing.
-      // The `+ 1` after `startColumnForHourInGrid` is for the `day-label-header-placeholder` column.
-      const startColumnForHourInGrid = (i * SLOTS_PER_HOUR) + 1;
-      div.style.gridColumn = `${startColumnForHourInGrid + 1} / span ${2 * SLOTS_PER_HOUR}`;
-
+      div.textContent = `${String(hour).padStart(2, '0')}:00`;
       header.appendChild(div);
   }
 
@@ -326,43 +319,31 @@ function showWeek(weekKey, planningData) {
 
       // Add availability bars to the wrapper
       dayRanges.forEach(range => {
-          // API range.start and range.end are 0-indexed 30-min slots from 00:00 to 23:30
-          const apiStartSlotIndex = range.start;
-          const apiEndSlotIndex = range.end; // Inclusive end slot
+          // Calculate actual start/end minutes for tooltip
+          let startMinutesActual = (range.start * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
+          let endMinutesActual = ((range.end + 1) * MINUTES_PER_SLOT) + (START_HOUR_GRID * 60);
 
-          // Calculate the duration in slots based on API data
-          let durationSlots;
-          if (apiEndSlotIndex < apiStartSlotIndex) {
-              // Range wraps around midnight (e.g., 23:00 to 01:00, or 7:00 to 7:00 next day)
-              durationSlots = (SLOT_COUNT - apiStartSlotIndex) + (apiEndSlotIndex + 1);
-          } else {
-              durationSlots = apiEndSlotIndex - apiStartSlotIndex + 1;
+          // Handle overnight ranges
+          if (endMinutesActual <= startMinutesActual) {
+              endMinutesActual += 24 * 60;
           }
 
-          // Calculate the visual start slot index in the 7 AM-based grid (0 to 47)
-          // This uses modulo to wrap around if the original start is before 7 AM.
-          const visualStartSlotIndex = (apiStartSlotIndex - API_SLOT_OFFSET_FOR_7AM_START + SLOT_COUNT) % SLOT_COUNT;
+          // Calculate effective start/end minutes within the 24-hour display grid (from 7 AM)
+          const gridStartMinutes = START_HOUR_GRID * 60;
+          let effectiveStartMinutes = Math.max(startMinutesActual, gridStartMinutes);
+          let effectiveEndMinutes = Math.min(endMinutesActual, gridStartMinutes + (24 * 60));
 
-          // CSS grid columns are 1-indexed, so add 1 to the 0-indexed slot index
-          const startColumnInWrapper = visualStartSlotIndex + 1;
-          const spanColumns = durationSlots;
+          // Calculate position and span in the `availability-slots-wrapper`'s grid
+          // Columns are 1-indexed in CSS grid, and we have 48 slots.
+          const startColumnInWrapper = ((effectiveStartMinutes - gridStartMinutes) / MINUTES_PER_SLOT) + 1;
+          const spanColumns = (effectiveEndMinutes - effectiveStartMinutes) / MINUTES_PER_SLOT;
 
           if (spanColumns > 0) {
               const bar = document.createElement("div");
               bar.className = "availability-bar";
               bar.style.gridColumn = `${startColumnInWrapper} / span ${spanColumns}`;
-
-              // Tooltip logic: show original API times
-              let tooltipStart = minutesToTime(apiStartSlotIndex * MINUTES_PER_SLOT);
-              let tooltipEnd = minutesToTime((apiEndSlotIndex + 1) * MINUTES_PER_SLOT);
-
-              // Special case for 24-hour availability: if it spans 48 slots, show 7:00 - 7:00
-              // This handles cases where API gives e.g., start: 14, end: 13 (next day)
-              if (spanColumns === SLOT_COUNT) {
-                  tooltipEnd = tooltipStart; // Display the same start hour for a full 24h cycle
-              }
-              bar.title = `Disponible: ${tooltipStart} - ${tooltipEnd}`;
-              availabilityWrapper.appendChild(bar);
+              bar.title = `Disponible: ${minutesToTime(startMinutesActual)} - ${minutesToTime(endMinutesActual)}`;
+              availabilityWrapper.appendChild(bar); // Append bar to the new wrapper
           }
       });
       container.appendChild(rowContainer); // Append the whole day row to the main planning container
