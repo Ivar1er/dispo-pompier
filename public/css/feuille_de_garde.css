@@ -592,8 +592,8 @@ body {
 .indispo-overlay {
     position: absolute;
     inset: 0; /* Prend toute la surface du parent positionné */
-    background-color: rgba(0, 0, 0, 0.7); /* Noir transparent */
-    color: yellow;
+    background-color: rgba(0, 0, 0, 0.336); /* Noir transparent */
+    color: rgba(255, 255, 0, 0.687);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -618,7 +618,7 @@ body {
 .custom-modal {
     position: fixed;
     inset: 0; /* Prend toute la surface */
-    background-color: rgba(0, 0, 0, 0.5); /* Overlay semi-transparent */
+    background-color: rgba(0, 0, 0, 0.373); /* Overlay semi-transparent */
     display: flex; /* Centrer le contenu */
     align-items: center;
     justify-content: center;
@@ -629,7 +629,7 @@ body {
     background-color: #fff;
     padding: 30px;
     border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.205);
     text-align: center;
     max-width: 500px;
     width: 90%;
