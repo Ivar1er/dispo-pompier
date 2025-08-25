@@ -1,0 +1,92 @@
+[
+  {
+    "id": "vsav1",
+    "name": "VSAV 1",
+    "roles": [
+      {
+        "id": "ch_vsav",
+        "name": "Chef d'agrès VSAV",
+        "qualificationIds": [
+          "ca_vsav"
+        ],
+        "gradeIds": []
+      },
+      {
+        "id": "cod_vsav",
+        "name": "Conducteur VSAV",
+        "qualificationIds": [
+          "cod_0"
+        ],
+        "gradeIds": []
+      },
+      {
+        "id": "eq1_vsav",
+        "name": "Équipier 1 VSAV",
+        "qualificationIds": [
+          "eq_vsav"
+        ],
+        "gradeIds": []
+      }
+    ]
+  },
+  {
+    "id": "fpt1",
+    "name": "FPT 1",
+    "roles": [
+      {
+        "id": "ch_fpt",
+        "name": "Chef d'agrès FPT",
+        "qualificationIds": [
+          "ca_fpt"
+        ],
+        "gradeIds": []
+      },
+      {
+        "id": "cod_fpt",
+        "name": "Conducteur FPT",
+        "qualificationIds": [
+          "cod_1"
+        ],
+        "gradeIds": []
+      },
+      {
+        "id": "eq1_fpt",
+        "name": "Équipier 1 FPT",
+        "qualificationIds": [
+          "eq1_fpt"
+        ],
+        "gradeIds": []
+      },
+      {
+        "id": "eq2_fpt",
+        "name": "Équipier 2 FPT",
+        "qualificationIds": [
+          "eq2_fpt"
+        ],
+        "gradeIds": []
+      }
+    ]
+  },
+  {
+    "id": "vtu1",
+    "name": "VTU 1",
+    "roles": [
+      {
+        "id": "ch_vtu",
+        "name": "Chef d'agrès VTU",
+        "qualificationIds": [
+          "ca_vtu"
+        ],
+        "gradeIds": []
+      },
+      {
+        "id": "cod_vtu",
+        "name": "Conducteur VTU",
+        "qualificationIds": [
+          "cod_0"
+        ],
+        "gradeIds": []
+      }
+    ]
+  }
+]

@@ -319,7 +319,7 @@ function showWeek(weekKey, planningData) {
       }
 
       // Get availability ranges for the current day
-      const dayRanges = (((planningData[weekKey] || {})[day]) || []);
+      const dayRanges = planningData[weekKey]?.[day] || [];
 
       // Add availability bars to the wrapper
       dayRanges.forEach(range => {

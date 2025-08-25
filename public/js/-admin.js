@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 // VÃ©rifier si l'agent a au moins un crÃ©neau disponible pour le jour et la semaine actuels
-                const agentSpecificDayPlanning = (((GLOBAL_PLANNING_DATA[agent.id] || {})[weekKey] || {})[day]) || [];
+                const agentSpecificDayPlanning = GLOBAL_PLANNING_DATA[agent.id]?.[weekKey]?.[day] || [];
                 const hasAvailability = agentSpecificDayPlanning.length > 0;
 
                 return { ...agent, hasAvailability };
@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 agentNameCell.textContent = `${agent.prenom} ${agent.nom}`; // Nom complet de l'agent
                 agentRow.appendChild(agentNameCell);
 
-                const agentSpecificDayPlanning = (((GLOBAL_PLANNING_DATA[agent.id] || {})[weekKey] || {})[day]) || [];
+                const agentSpecificDayPlanning = GLOBAL_PLANNING_DATA[agent.id]?.[weekKey]?.[day] || [];
 
                 horaires.forEach((_, index) => {
                     const slotCell = document.createElement('td');

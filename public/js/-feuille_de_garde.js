@@ -562,7 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Logique pour ajouter un nouveau créneau si c'est le dernier ou si les créneaux ne sont pas consécutifs
             // Vérifier s'il y a un créneau suivant, et si son début n'est PAS égal à la nouvelle fin du créneau actuel
             if (currentSlotIndex === dailyRosterSlots.length - 1 || // Si c'est le dernier créneau
-                (currentSlotIndex !== -1 && (dailyRosterSlots[currentSlotIndex + 1] && dailyRosterSlots[currentSlotIndex + 1].startTime) !== newEndTime)) 
+                (currentSlotIndex !== -1 && dailyRosterSlots[currentSlotIndex + 1]?.startTime !== newEndTime)) 
             {
                 // Vérifier si le nouveau créneau irait au-delà de 23:30 ou si la fin est la même que le début (éviter boucle)
                 // ou si l'heure de fin est 07:00 (heure de fin de cycle journalier)

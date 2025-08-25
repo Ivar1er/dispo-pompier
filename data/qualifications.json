@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ca_vsav",
+    "name": "CA VSAV"
+  },
+  {
+    "id": "ca_fpt",
+    "name": "CA FPT"
+  },
+  {
+    "id": "ca_vtu",
+    "name": "CA VTU"
+  },
+  {
+    "id": "ca_vpma",
+    "name": "CA VPMA"
+  },
+  {
+    "id": "ca_ccf",
+    "name": "CA CCF"
+  },
+  {
+    "id": "cod_0",
+    "name": "CD VSAV / VTU / VPMA"
+  },
+  {
+    "id": "cod_1",
+    "name": "CD FPT"
+  },
+  {
+    "id": "cod_2",
+    "name": "CD CCF"
+  },
+  {
+    "id": "eq_vsav",
+    "name": "EQ VSAV"
+  },
+  {
+    "id": "eq_vtu",
+    "name": "EQ VTU"
+  },
+  {
+    "id": "eq_vpma",
+    "name": "EQ VPMA"
+  },
+  {
+    "id": "eq1_fpt",
+    "name": "EQ1 FPT"
+  },
+  {
+    "id": "eq2_fpt",
+    "name": "EQ2 FPT"
+  },
+  {
+    "id": "eq1_ccf",
+    "name": "EQ1 CCF"
+  },
+  {
+    "id": "eq2_ccf",
+    "name": "EQ2 CCF"
+  }
+]

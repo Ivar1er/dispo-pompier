@@ -12,25 +12,24 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Listez toutes les origines depuis lesquelles votre frontend peut se connecter.
-// CORS: autorise localhost, 127.0.0.1, IPs LAN, et le domaine Render (HTTPS)
-const cors = require('cors');
-const corsOptions = {
-  origin: function(origin, callback) {
+const allowedOrigins = [
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'https://dispo-pompier.onrender.com'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    const patterns = [
-      /^http:\/\/localhost(?::\d+)?$/,
-      /^http:\/\/127\.0\.0\.1(?::\d+)?$/,
-      /^http:\/\/(10|192\.168|172\.(1[6-9]|2\d|3[0-1]))\.\d+\.\d+(?::\d+)?$/,
-      /^https:\/\/dispo-pompier\.onrender\.com$/
-    ];
-    const ok = patterns.some(re => re.test(origin));
-    return ok ? callback(null, true) : callback(new Error('CORS: origin not allowed: ' + origin));
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
   },
   credentials: true
-};
-app.use(cors(corsOptions));
+}));
 
-app.use(express.json()); // Middleware pour parser les requêtes JSON
 app.use(express.json()); // Middleware pour parser les requêtes JSON
 
 // Répertoire public pour les fichiers statiques (HTML, CSS, JS du frontend)
@@ -1023,6 +1022,6 @@ app.get('/api/planning', authenticateToken, authorizeAdmin, async (req, res) => 
 });
 
 // Le serveur écoute sur le port défini
-app.listen(port, '0.0.0.0', () => {
+app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });

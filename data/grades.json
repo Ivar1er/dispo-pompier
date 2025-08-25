@@ -1,0 +1,30 @@
+[
+  {
+    "id": "sap",
+    "name": "Sapeur"
+  },
+  {
+    "id": "cpl",
+    "name": "Caporal"
+  },
+  {
+    "id": "cch",
+    "name": "Caporal-chef"
+  },
+  {
+    "id": "sgt",
+    "name": "Sergent"
+  },
+  {
+    "id": "sch",
+    "name": "Sergent-chef"
+  },
+  {
+    "id": "adj",
+    "name": "Adjudant"
+  },
+  {
+    "id": "adc",
+    "name": "Adjudant-chef"
+  }
+]
