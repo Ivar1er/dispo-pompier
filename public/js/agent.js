@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else {
         const errorData = await response.json();
-        console.error('Erreur lors de la récupération des infos de l\'agent :', errorData.message);
+        console.error('Erreur lors de la récupération des infos de l\\'agent :', errorData.message);
         agentNameDisplay.textContent = 'Erreur de chargement des infos';
         if (response.status === 403) {
           sessionStorage.removeItem('token'); 
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (error) {
-      console.error('Erreur réseau lors de la récupération des infos de l\'agent :', error);
+      console.error('Erreur réseau lors de la récupération des infos de l\\'agent :', error);
       agentNameDisplay.textContent = 'Erreur réseau';
     }
   }
@@ -280,28 +280,35 @@ document.addEventListener('DOMContentLoaded', () => {
         finalizeSelection(dragStartIndex, dragEndIndex);
       });
       // --- Touch support for mobile ---
-      slot.addEventListener('touchstart', () => {
+      slot.addEventListener('touchstart', (e) => {
         isDragging = true;
         dragStartIndex = i;
         dragEndIndex = i;
         updateSelectionVisual(dragStartIndex, dragEndIndex);
-      }, { passive: true });
+        // Empêcher le défilement de la page lors du glisser-déposer
+        e.preventDefault(); 
+      }, { passive: false });
 
-      slot.addEventListener('touchmove', () => {
+      slot.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
-        dragEndIndex = i;
-        updateSelectionVisual(dragStartIndex, dragEndIndex);
-      }, { passive: true });
+        const touch = e.touches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target && target.classList.contains('time-slot-block')) {
+            dragEndIndex = parseInt(target.getAttribute('data-index'), 10);
+            updateSelectionVisual(dragStartIndex, dragEndIndex);
+        }
+        e.preventDefault(); // Empêcher le défilement
+      }, { passive: false });
 
       slot.addEventListener('touchend', () => {
         if (!isDragging) return;
         isDragging = false;
         finalizeSelection(dragStartIndex, dragEndIndex);
-      }, { passive: true });
-
+      });
 
       slot.addEventListener('click', () => {
-        if (isDragging) return;
+        // La gestion du glisser-déposer est prioritaire, on n'utilise le click que si ce n'est pas un drag
+        if (isDragging) return; 
         if (slot.classList.contains('selected')) {
           removeSlotFromSelection(i);
         } else {
@@ -310,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hasUnsavedChanges = true;
         renderSlots(currentDay);
       });
-
+      
       slotsContainer.appendChild(slot);
     }
 
@@ -319,6 +326,13 @@ document.addEventListener('DOMContentLoaded', () => {
         isDragging = false;
         finalizeSelection(dragStartIndex, dragEndIndex);
       }
+    }, { once: true });
+
+    document.addEventListener('touchend', () => {
+        if (isDragging) {
+            isDragging = false;
+            finalizeSelection(dragStartIndex, dragEndIndex);
+        }
     }, { once: true });
   }
 
@@ -475,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
       hasUnsavedChanges = false;
     }
   });
-);
+
 
   const logoutButton = document.getElementById('logout-btn');
   if (logoutButton) {
