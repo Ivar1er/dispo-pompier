@@ -90,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const START_HOUR = 7;
 
   let selections = Array(7).fill(null).map(() => []);
-  let hasUnsavedChanges = false;
 
   let currentDay = 0;
   let isDragging = false;
@@ -123,7 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
               const planning = await response.json();
               const currentWeekPlanning = planning[isoWeekString];
 
-              hasUnsavedChanges = false;
               if (currentWeekPlanning) {
                   const dayMap = {
                       'lundi': 0, 'mardi': 1, 'mercredi': 2, 'jeudi': 3,
@@ -145,21 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
   }
 
-
-  
-  async function maybeSaveBeforeWeekChange() {
-    if (!hasUnsavedChanges) return true;
-    const wantSave = confirm('Vous avez des modifications non enregistrées pour cette semaine. Voulez-vous les enregistrer avant de changer de semaine ?');
-    if (!wantSave) return true;
-    try {
-      const ok = await saveCurrentWeek();
-      if (ok) { hasUnsavedChanges = false; }
-      return true;
-    } catch (e) {
-      console.error('Erreur lors de l\'enregistrement avant changement de semaine:', e);
-      return false;
-    }
-  }
 
   function initWeekSelector() {
     const weekSelect = document.getElementById('week-select');
@@ -186,8 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
     weekSelect.selectedIndex = 1;
 
     weekSelect.addEventListener('change', async (event) => {
-    const canProceed = await maybeSaveBeforeWeekChange();
-    if (!canProceed) { event.preventDefault(); return; }
       const selectedIndex = parseInt(event.target.value, 10);
       const newMonday = new Date(currentMonday);
       newMonday.setDate(newMonday.getDate() + (selectedIndex - 1) * 7);
@@ -208,8 +189,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const nextWeekBtn = document.getElementById('next-week-btn');
 
   prevWeekBtn.addEventListener('click', async () => {
-    const canProceed = await maybeSaveBeforeWeekChange();
-    if (!canProceed) return;
     currentMonday.setDate(currentMonday.getDate() - 7);
     initWeekSelector();
     if (loggedInAgentId) {
@@ -222,8 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   nextWeekBtn.addEventListener('click', async () => {
-    const canProceed = await maybeSaveBeforeWeekChange();
-    if (!canProceed) return;
     currentMonday.setDate(currentMonday.getDate() + 7);
     initWeekSelector();
     if (loggedInAgentId) {
@@ -279,36 +256,13 @@ document.addEventListener('DOMContentLoaded', () => {
         isDragging = false;
         finalizeSelection(dragStartIndex, dragEndIndex);
       });
-      // --- Touch support for mobile ---
-      slot.addEventListener('touchstart', () => {
-        isDragging = true;
-        dragStartIndex = i;
-        dragEndIndex = i;
-        updateSelectionVisual(dragStartIndex, dragEndIndex);
-      }, { passive: true });
-
-      slot.addEventListener('touchmove', () => {
-        if (!isDragging) return;
-        dragEndIndex = i;
-        updateSelectionVisual(dragStartIndex, dragEndIndex);
-      }, { passive: true });
-
-      slot.addEventListener('touchend', () => {
-        if (!isDragging) return;
-        isDragging = false;
-        finalizeSelection(dragStartIndex, dragEndIndex);
-      }, { passive: true });
-
 
       slot.addEventListener('click', () => {
         if (isDragging) return;
         if (slot.classList.contains('selected')) {
           removeSlotFromSelection(i);
-        } else {
-          addSelectionRange(currentDay, i, i);
+          renderSlots(currentDay);
         }
-        hasUnsavedChanges = true;
-        renderSlots(currentDay);
       });
 
       slotsContainer.appendChild(slot);
@@ -370,7 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     newRanges.sort((a,b) => a.start - b.start);
     selections[dayIndex] = newRanges;
-    hasUnsavedChanges = true;
   }
 
   function removeSlotFromSelection(index) {
@@ -390,7 +343,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     selections[currentDay] = newRanges;
-    hasUnsavedChanges = true;
   }
 
   dayButtons.forEach(btn => {
@@ -409,12 +361,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   clearButton.addEventListener('click', () => {
     selections[currentDay] = [];
-    hasUnsavedChanges = true;
     renderSlots(currentDay);
   });
 
-  
-  async function saveCurrentWeek() {
+  saveButton.addEventListener('click', async () => {
     if (!loggedInAgentId) {
         alert('Impossible d\'enregistrer : ID de l\'agent non disponible. Veuillez vous reconnecter.');
         return;
@@ -465,17 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         alert(`Enregistrement terminé avec ${successCount} succès et ${errorCount} échecs. Vérifiez la console pour les détails.`);
     }
- 
-    return true;
-  }
-
-  saveButton.addEventListener('click', async () => {
-    const ok = await saveCurrentWeek();
-    if (ok) {
-      hasUnsavedChanges = false;
-    }
   });
-);
 
   const logoutButton = document.getElementById('logout-btn');
   if (logoutButton) {
