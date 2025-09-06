@@ -13,7 +13,6 @@ const port = process.env.PORT || 3000;
 
 // Listez toutes les origines depuis lesquelles votre frontend peut se connecter.
 // CORS: autorise localhost, 127.0.0.1, IPs LAN, et le domaine Render (HTTPS)
-const cors = require('cors');
 const corsOptions = {
   origin: function(origin, callback) {
     if (!origin) return callback(null, true);
