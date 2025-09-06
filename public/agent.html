@@ -16,15 +16,19 @@
         <button id="prev-week-btn" class="btn btn-secondary" aria-label="Semaine Précédente">← Semaine Précédente</button>
         <div class="week-info">
           <select id="week-select" aria-label="Choisir une semaine"></select>
-          <p id="week-date-range" class="date-range"></p>
+          <!-- Suppression du paragraphe affichant la plage de dates -->
         </div>
         <button id="next-week-btn" class="btn btn-secondary" aria-label="Semaine Suivante">Semaine Suivante →</button>
+        <!-- Bouton synthèse supprimé ici -->
       </div>
     </header>
 
     <main class="planning-section">
-      <p id="selection-info" class="info-message"></p>
-      <div class="planning-content">
+      <p id="selection-info" class="info-message">
+        Cliquez sur un jour puis cliquez-glissez sur les créneaux pour sélectionner plusieurs plages. Cliquez sur un créneau vert pour le supprimer.
+      </p>
+
+      <div id="planning-container" class="planning-columns-container">
         <div class="day-buttons-container" role="tablist" aria-label="Sélection du jour">
           <button class="day-btn active" data-day="0" role="tab" aria-selected="true">Lundi</button>
           <button class="day-btn" data-day="1" role="tab" aria-selected="false">Mardi</button>
@@ -43,14 +47,14 @@
       <div class="btn-group-centered">
         <button id="save-slots-btn" class="btn btn-primary">Enregistrer mes créneaux</button>
         <button id="clear-selection-btn" class="btn btn-secondary">Effacer la sélection</button>
-        <a href="synthese.html" id="synthese-btn-bottom" class="btn btn-secondary">Voir ma synthèse</a>
+        <a href="synthese.html" id="synthese-btn-bottom" class="btn btn-secondary">Voir la Synthèse</a>
       </div>
-      <!-- Ajout du bouton de déconnexion ici -->
       <div class="btn-logout-container">
         <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
       </div>
     </footer>
   </div>
+
   <script src="js/agent.js"></script>
 </body>
 </html>
