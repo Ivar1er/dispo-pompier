@@ -35,117 +35,225 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else {
         const errorData = await response.json();
-        console.error('Erreur lors de la récupération des infos de l\\'agent :', errorData.message);
-        agentNameDisplay.textContent = 'Erreur de chargement des infos';
-        if (response.status === 403) {
-          sessionStorage.removeItem('token'); 
-          window.location.href = '/index.html'; // CHANGEMENT: Utiliser un chemin absolu
-        }
+        console.error('Erreur lors de la récupération des infos de l\'agent :', errorData.message);
+        // En cas d'erreur (token invalide, par exemple), rediriger vers la page de connexion
+        window.location.href = '/index.html';
       }
     } catch (error) {
-      console.error('Erreur réseau lors de la récupération des infos de l\\'agent :', error);
-      agentNameDisplay.textContent = 'Erreur réseau';
+      console.error('Erreur réseau lors de la récupération des infos de l\'agent :', error);
+      // Rediriger vers la page de connexion en cas d'erreur réseau
+      window.location.href = '/index.html';
     }
   }
 
-  // --- Fonction ISO semaine ---
+  // --- Gestion du temps (jours, semaines, etc.) ---
+  const dayDisplay = document.getElementById('day-display');
+  const prevDayBtn = document.getElementById('prev-day-btn');
+  const nextDayBtn = document.getElementById('next-day-btn');
+  const slotContainer = document.getElementById('slot-container');
+  const weekSelect = document.getElementById('week-select');
+  const prevWeekBtn = document.getElementById('prev-week-btn');
+  const nextWeekBtn = document.getElementById('next-week-btn');
+
+  let currentDay = new Date();
+  let currentMonday = new Date();
+  let selectedSlots = {};
+  const daysOfWeekNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  
+  // Utiliser une Map pour un accès rapide aux sélections par date
+  let weeklySelections = new Map();
+  let hasUnsavedChanges = false;
+  
+  // Fonction pour initialiser la date de début de semaine
+  function getStartOfWeek(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Ajuste pour Lundi = 1, Dimanche = 0
+    return new Date(d.getFullYear(), d.getMonth(), diff);
+  }
+
+  // Fonction pour formater la date pour l'affichage
+  function formatDate(date) {
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return date.toLocaleDateString('fr-FR', options);
+  }
+  
   function getWeekNumber(d) {
+    // Copy date so don't modify original
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    // Set to nearest Thursday: current date + 4 - current day number
+    // Make Sunday's day number 7
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    // Get first day of year
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    // Calculate full weeks to go
+    var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
     return weekNo;
   }
 
-  // --- Gestion sélecteur semaine ---
-  let currentMonday = getMonday(new Date());
+  // Fonction pour charger les plannings depuis l'API
+  async function loadWeeklySelections(agentId, monday) {
+    const token = sessionStorage.getItem('token');
+    const weekKey = `W${getWeekNumber(monday)}-${monday.getFullYear()}`;
+    const dateKey = monday.toISOString().split('T')[0];
 
-  function getMonday(d) {
-    d = new Date(d);
-    const day = d.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0,0,0,0);
-    return d;
+    try {
+        const response = await fetch(`/api/planning/${agentId}?week=${weekKey}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Initialisation avec le planning récupéré
+            selectedSlots = {};
+            for (const day in data) {
+                selectedSlots[day] = data[day].sort((a, b) => a.start - b.start);
+            }
+        } else {
+            console.error(`Erreur de chargement du planning pour la semaine ${weekKey}. Code: ${response.status}`);
+            // Si le planning n'existe pas, on initialise un objet vide
+            selectedSlots = {};
+        }
+    } catch (error) {
+        console.error(`Erreur réseau lors du chargement du planning pour la semaine ${weekKey}:`, error);
+        selectedSlots = {}; // En cas d'erreur, on part sur un planning vide pour la semaine
+    }
   }
 
-  function formatDate(d) {
-    return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}`;
+  // Fonction pour vérifier si une heure est déjà dans un créneau existant
+  function isTimeInAnySlot(day, time) {
+    if (!selectedSlots[day]) return false;
+    return selectedSlots[day].some(slot => time >= slot.start && time < slot.end);
   }
+  
+  function addSelectionRange(day, start, end) {
+    if (!selectedSlots[day]) {
+      selectedSlots[day] = [];
+    }
 
-  function formatSlotTime(startIndex) {
-    const START_HOUR = 7;
-    const totalMinutesStart = (START_HOUR * 60) + (startIndex * 30);
-    const totalMinutesEnd = totalMinutesStart + 30;
+    // Fusionner ou ajouter le nouveau créneau
+    let newSlots = [];
+    let added = false;
 
-    const hStart = Math.floor(totalMinutesStart / 60) % 24;
-    const mStart = totalMinutesStart % 60;
-    const hEnd = Math.floor(totalMinutesEnd / 60) % 24;
-    const mEnd = totalMinutesEnd % 60;
+    // Trier pour faciliter la fusion
+    const sortedSlots = [...selectedSlots[day], { start, end }].sort((a, b) => a.start - b.start);
 
-    return `${hStart.toString().padStart(2,'0')}:${mStart.toString().padStart(2,'0')}-${hEnd.toString().padStart(2,'0')}:${mEnd.toString().padStart(2,'0')}`;
+    for (let i = 0; i < sortedSlots.length; i++) {
+      if (newSlots.length === 0 || sortedSlots[i].start > newSlots[newSlots.length - 1].end) {
+        // Créneau non fusionnable, on l'ajoute
+        newSlots.push({ ...sortedSlots[i] });
+      } else {
+        // Fusion du créneau
+        newSlots[newSlots.length - 1].end = Math.max(newSlots[newSlots.length - 1].end, sortedSlots[i].end);
+      }
+    }
+    selectedSlots[day] = newSlots;
+    hasUnsavedChanges = true;
   }
+  
+  function removeSlotFromSelection(time) {
+      const currentSelections = weeklySelections.get(currentDay.toISOString().split('T')[0]);
+      if (!currentSelections) return;
 
-  const SLOT_COUNT = 48;
-  const START_HOUR = 7;
-
-  let selections = Array(7).fill(null).map(() => []);
-  let hasUnsavedChanges = false;
-
-  let currentDay = 0;
-  let isDragging = false;
-  let dragStartIndex = null;
-  let dragEndIndex = null;
-
-  async function loadWeeklySelections(agentId, mondayDate) {
-      selections = Array(7).fill(null).map(() => []);
-
-      const year = mondayDate.getFullYear();
-      const weekNum = getWeekNumber(mondayDate);
-      const isoWeekString = `S ${weekNum}`;
-
-      try {
-          const token = sessionStorage.getItem('token');
-          if (!token) {
-              console.warn('Aucun token trouvé pour charger les sélections hebdomadaires.');
-              return;
-          }
-
-          const response = await fetch(`/api/planning/${agentId}`, {
-              method: 'GET',
-              headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
+      const newSelections = [];
+      let found = false;
+      for (const slot of currentSelections) {
+          if (time >= slot.start && time < slot.end) {
+              // Séparation du créneau
+              if (time > slot.start) {
+                  newSelections.push({ start: slot.start, end: time });
               }
-          });
-
-          if (response.ok) {
-              const planning = await response.json();
-              const currentWeekPlanning = planning[isoWeekString];
-
-              hasUnsavedChanges = false;
-              if (currentWeekPlanning) {
-                  const dayMap = {
-                      'lundi': 0, 'mardi': 1, 'mercredi': 2, 'jeudi': 3,
-                      'vendredi': 4, 'samedi': 5, 'dimanche': 6
-                  };
-
-                  for (const dayName in currentWeekPlanning) {
-                      const dayIndex = dayMap[dayName];
-                      if (dayIndex !== undefined) {
-                          selections[dayIndex] = currentWeekPlanning[dayName];
-                      }
-                  }
+              if (time + 1 < slot.end) {
+                  newSelections.push({ start: time + 1, end: slot.end });
               }
+              found = true;
           } else {
-              console.error(`Erreur lors du chargement du planning hebdomadaire: ${response.status} ${response.statusText}`);
+              newSelections.push(slot);
           }
-      } catch (error) {
-          console.error('Erreur réseau lors du chargement du planning hebdomadaire:', error);
+      }
+      if (found) {
+          weeklySelections.set(currentDay.toISOString().split('T')[0], newSelections);
+          hasUnsavedChanges = true;
       }
   }
 
 
+  // --- Fonction pour l'affichage des créneaux ---
+  function renderSlots(date) {
+    slotContainer.innerHTML = '';
+    const dayKey = date.toISOString().split('T')[0];
+    dayDisplay.textContent = `${daysOfWeekNames[date.getDay()]} - ${formatDate(date)}`;
+
+    for (let i = 0; i < 24; i++) {
+      const slot = document.createElement('div');
+      slot.classList.add('slot');
+      slot.textContent = `${String(i).padStart(2, '0')}:00`;
+      slot.dataset.hour = i;
+
+      // Vérifier si le créneau est sélectionné
+      if (isTimeInAnySlot(dayKey, i)) {
+          slot.classList.add('selected');
+      }
+
+      // --- Gestion du glisser-déposer ---
+      let isDragging = false;
+      let startHour = null;
+      let endHour = null;
+
+      // Correction: on ajoute les listeners une seule fois pour tous les slots
+      slot.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          startHour = parseInt(e.target.dataset.hour);
+          endHour = startHour;
+          addSelectionRange(dayKey, startHour, endHour + 1);
+          renderSlots(date);
+      });
+      
+      slot.addEventListener('mouseenter', (e) => {
+          if (isDragging) {
+              const currentHour = parseInt(e.target.dataset.hour);
+              const newStart = Math.min(startHour, currentHour);
+              const newEnd = Math.max(startHour, currentHour);
+
+              selectedSlots[dayKey] = selectedSlots[dayKey].filter(slot => slot.start < newStart || slot.end > newEnd + 1);
+              addSelectionRange(dayKey, newStart, newEnd + 1);
+              renderSlots(date);
+          }
+      });
+      
+      // *** CORRECTION CLÉ : on réinitialise isDragging ***
+      // On écoute le "mouseup" sur l'ensemble de la page pour ne rien manquer
+      document.body.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+
+      // La gestion du glisser-déposer est prioritaire, on n'utilise le click que si ce n'est pas un drag
+      slot.addEventListener('click', () => {
+        if (isDragging) return;
+        if (slot.classList.contains('selected')) {
+          removeSlotFromSelection(dayKey, i); // Assurez-vous que cette fonction est correctement implémentée
+        } else {
+          addSelectionRange(dayKey, i, i + 1);
+        }
+        hasUnsavedChanges = true;
+        renderSlots(date);
+      });
+
+      slotContainer.appendChild(slot);
+    }
+  }
+
+  // --- Fonctions de navigation ---
+  prevDayBtn.addEventListener('click', () => {
+    currentDay.setDate(currentDay.getDate() - 1);
+    renderSlots(currentDay);
+  });
+  
+  nextDayBtn.addEventListener('click', () => {
+    currentDay.setDate(currentDay.getDate() + 1);
+    renderSlots(currentDay);
+  });
   
   async function maybeSaveBeforeWeekChange() {
     if (!hasUnsavedChanges) return true;
@@ -161,304 +269,122 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function initWeekSelector() {
-    const weekSelect = document.getElementById('week-select');
+  // Correction: Gérer le changement de semaine
+  weekSelect.addEventListener('change', async () => {
+    const newWeekStr = weekSelect.value;
+    const [year, weekNum] = newWeekStr.split('-');
 
-    weekSelect.innerHTML = '';
+    // Calculer la date du lundi pour la nouvelle semaine
+    const monday = new Date(year, 0, 1 + (weekNum - 1) * 7);
+    const day = monday.getDay();
+    const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
+    monday.setDate(diff);
 
-    const weeks = [];
-    for (let i = -1; i <= 3; i++) {
-      const monday = new Date(currentMonday);
-      monday.setDate(monday.getDate() + i * 7);
-      weeks.push(monday);
-    }
-
-    weeks.forEach((mondayDate, idx) => {
-      const weekNum = getWeekNumber(mondayDate);
-      const sundayDate = new Date(mondayDate);
-      sundayDate.setDate(sundayDate.getDate() + 6);
-      const option = document.createElement('option');
-      option.value = idx;
-      option.textContent = `S ${weekNum} (${formatDate(mondayDate)} au ${formatDate(sundayDate)})`;
-      weekSelect.appendChild(option);
-    });
-
-    weekSelect.selectedIndex = 1;
-
-    weekSelect.addEventListener('change', async (event) => {
-    const canProceed = await maybeSaveBeforeWeekChange();
-    if (!canProceed) { event.preventDefault(); return; }
-      const selectedIndex = parseInt(event.target.value, 10);
-      const newMonday = new Date(currentMonday);
-      newMonday.setDate(newMonday.getDate() + (selectedIndex - 1) * 7);
-      currentMonday = getMonday(newMonday);
-      initWeekSelector();
-
-      if (loggedInAgentId) {
-          await loadWeeklySelections(loggedInAgentId, currentMonday);
-          renderSlots(currentDay);
-      } else {
-          selections = Array(7).fill(null).map(() => []);
-          renderSlots(currentDay);
-      }
-    });
-  }
-
-  const prevWeekBtn = document.getElementById('prev-week-btn');
-  const nextWeekBtn = document.getElementById('next-week-btn');
+    currentMonday = monday;
+    currentDay = monday;
+    await loadWeeklySelections(loggedInAgentId, currentMonday);
+    renderSlots(currentDay);
+  });
 
   prevWeekBtn.addEventListener('click', async () => {
-    const canProceed = await maybeSaveBeforeWeekChange();
-    if (!canProceed) return;
-    currentMonday.setDate(currentMonday.getDate() - 7);
-    initWeekSelector();
-    if (loggedInAgentId) {
-        await loadWeeklySelections(loggedInAgentId, currentMonday);
-        renderSlots(currentDay);
-    } else {
-        selections = Array(7).fill(null).map(() => []);
-        renderSlots(currentDay);
+    if (await maybeSaveBeforeWeekChange()) {
+      currentMonday.setDate(currentMonday.getDate() - 7);
+      currentDay = currentMonday;
+      await loadWeeklySelections(loggedInAgentId, currentMonday);
+      renderSlots(currentDay);
     }
   });
 
   nextWeekBtn.addEventListener('click', async () => {
-    const canProceed = await maybeSaveBeforeWeekChange();
-    if (!canProceed) return;
-    currentMonday.setDate(currentMonday.getDate() + 7);
-    initWeekSelector();
-    if (loggedInAgentId) {
-        await loadWeeklySelections(loggedInAgentId, currentMonday);
-        renderSlots(currentDay);
-    } else {
-        selections = Array(7).fill(null).map(() => []);
-        renderSlots(currentDay);
-    }
-  });
-
-  initWeekSelector();
-
-  const dayButtons = document.querySelectorAll('.day-btn');
-  const slotsContainer = document.getElementById('slots-slider-container');
-  const saveButton = document.getElementById('save-slots-btn');
-  const clearButton = document.getElementById('clear-selection-btn');
-
-  function renderSlots(dayIndex) {
-    slotsContainer.innerHTML = '';
-    const daySelections = selections[dayIndex];
-
-    for (let i = 0; i < SLOT_COUNT; i++) {
-      const slot = document.createElement('div');
-      slot.classList.add('time-slot-block');
-      slot.setAttribute('data-index', i);
-
-      const slotTime = formatSlotTime(i);
-      slot.textContent = slotTime;
-      slot.setAttribute('data-time', slotTime);
-
-      if (isSlotSelected(i, daySelections)) {
-        slot.classList.add('selected');
-      }
-
-      slot.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;
-        isDragging = true;
-        dragStartIndex = i;
-        dragEndIndex = i;
-        updateSelectionVisual(dragStartIndex, dragEndIndex);
-        e.preventDefault();
-      });
-
-      slot.addEventListener('mouseenter', () => {
-        if (!isDragging) return;
-        dragEndIndex = i;
-        updateSelectionVisual(dragStartIndex, dragEndIndex);
-      });
-
-      slot.addEventListener('mouseup', () => {
-        if (!isDragging) return;
-        isDragging = false;
-        finalizeSelection(dragStartIndex, dragEndIndex);
-      });
-      // --- Touch support for mobile ---
-      slot.addEventListener('touchstart', (e) => {
-        isDragging = true;
-        dragStartIndex = i;
-        dragEndIndex = i;
-        updateSelectionVisual(dragStartIndex, dragEndIndex);
-        // Empêcher le défilement de la page lors du glisser-déposer
-        e.preventDefault(); 
-      }, { passive: false });
-
-      slot.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        const touch = e.touches[0];
-        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (target && target.classList.contains('time-slot-block')) {
-            dragEndIndex = parseInt(target.getAttribute('data-index'), 10);
-            updateSelectionVisual(dragStartIndex, dragEndIndex);
-        }
-        e.preventDefault(); // Empêcher le défilement
-      }, { passive: false });
-
-      slot.addEventListener('touchend', () => {
-        if (!isDragging) return;
-        isDragging = false;
-        finalizeSelection(dragStartIndex, dragEndIndex);
-      });
-
-      slot.addEventListener('click', () => {
-        // La gestion du glisser-déposer est prioritaire, on n'utilise le click que si ce n'est pas un drag
-        if (isDragging) return; 
-        if (slot.classList.contains('selected')) {
-          removeSlotFromSelection(i);
-        } else {
-          addSelectionRange(currentDay, i, i);
-        }
-        hasUnsavedChanges = true;
-        renderSlots(currentDay);
-      });
-      
-      slotsContainer.appendChild(slot);
-    }
-
-    document.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        finalizeSelection(dragStartIndex, dragEndIndex);
-      }
-    }, { once: true });
-
-    document.addEventListener('touchend', () => {
-        if (isDragging) {
-            isDragging = false;
-            finalizeSelection(dragStartIndex, dragEndIndex);
-        }
-    }, { once: true });
-  }
-
-  function isSlotSelected(index, daySelections) {
-    for (const range of daySelections) {
-      if (index >= range.start && index <= range.end) return true;
-    }
-    return false;
-  }
-
-  function updateSelectionVisual(start, end) {
-    const minI = Math.min(start, end);
-    const maxI = Math.max(start, end);
-
-    const slots = slotsContainer.querySelectorAll('.time-slot-block');
-    slots.forEach((slot, idx) => {
-      if (idx >= minI && idx <= maxI) {
-        slot.classList.add('selected');
-      } else {
-        if (!isSlotSelected(idx, selections[currentDay])) {
-          slot.classList.remove('selected');
-        }
-      }
-    });
-  }
-
-  function finalizeSelection(start, end) {
-    const minI = Math.min(start, end);
-    const maxI = Math.max(start, end);
-    addSelectionRange(currentDay, minI, maxI);
-    renderSlots(currentDay);
-  }
-
-  function addSelectionRange(dayIndex, start, end) {
-    let ranges = selections[dayIndex];
-
-    const newRange = { start, end };
-    const newRanges = [];
-
-    for (const range of ranges) {
-      if (range.end < newRange.start - 1 || range.start > newRange.end + 1) {
-        newRanges.push(range);
-      } else {
-        newRange.start = Math.min(newRange.start, range.start);
-        newRange.end = Math.max(newRange.end, range.end);
-      }
-    }
-    newRanges.push(newRange);
-
-    newRanges.sort((a,b) => a.start - b.start);
-    selections[dayIndex] = newRanges;
-    hasUnsavedChanges = true;
-  }
-
-  function removeSlotFromSelection(index) {
-    let ranges = selections[currentDay];
-    const newRanges = [];
-
-    for (const range of ranges) {
-      if (index < range.start || index > range.end) {
-        newRanges.push(range);
-      } else {
-        if (index > range.start) {
-          newRanges.push({ start: range.start, end: index -1 });
-        }
-        if (index < range.end) {
-          newRanges.push({ start: index + 1, end: range.end });
-        }
-      }
-    }
-    selections[currentDay] = newRanges;
-    hasUnsavedChanges = true;
-  }
-
-  dayButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.classList.contains('active')) return;
-      dayButtons.forEach(b => {
-        b.classList.remove('active');
-        b.setAttribute('aria-selected', 'false');
-      });
-      btn.classList.add('active');
-      btn.setAttribute('aria-selected', 'true');
-      currentDay = parseInt(btn.dataset.day, 10);
+    if (await maybeSaveBeforeWeekChange()) {
+      currentMonday.setDate(currentMonday.getDate() + 7);
+      currentDay = currentMonday;
+      await loadWeeklySelections(loggedInAgentId, currentMonday);
       renderSlots(currentDay);
-    });
+    }
   });
 
-  clearButton.addEventListener('click', () => {
-    selections[currentDay] = [];
-    hasUnsavedChanges = true;
-    renderSlots(currentDay);
-  });
 
+  // --- API / Fonctions de sauvegarde ---
+  const saveButton = document.getElementById('save-btn');
+  const agentId = sessionStorage.getItem('agentId'); // Assurez-vous que l'agentId est bien stocké
   
   async function saveCurrentWeek() {
-    if (!loggedInAgentId) {
-        alert('Impossible d\'enregistrer : ID de l\'agent non disponible. Veuillez vous reconnecter.');
-        return;
+    if (!agentId) {
+      alert('Erreur: Agent ID non trouvé.');
+      return false;
     }
 
+    // Créer un objet avec les données à sauvegarder
+    const payload = {};
+    for (const day in selectedSlots) {
+        payload[day] = selectedSlots[day];
+    }
+    
+    // Convertir les données en JSON
+    const dataToSend = JSON.stringify(payload);
+    
+    // Envoyer les données à l'API
+    try {
+        const response = await fetch(`/api/agent-availability/${agentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+            },
+            body: dataToSend
+        });
+        
+        if (response.ok) {
+            alert('Créneaux sauvegardés avec succès !');
+            hasUnsavedChanges = false;
+            return true;
+        } else {
+            const errorData = await response.json();
+            alert(`Erreur d'enregistrement : ${errorData.message}`);
+            return false;
+        }
+    } catch (error) {
+        console.error('Erreur réseau lors de l\'enregistrement:', error);
+        alert('Erreur réseau. Veuillez vérifier votre connexion.');
+        return false;
+    }
+  }
+  
+  // Fonction pour sauvegarder la semaine actuelle
+  async function saveCurrentWeek() {
+    const monday = getStartOfWeek(currentDay);
+    const weekKey = `W${getWeekNumber(monday)}-${monday.getFullYear()}`;
     const token = sessionStorage.getItem('token');
+    
     if (!token) {
-        alert('Impossible d\'enregistrer : non authentifié. Veuillez vous reconnecter.');
-        return;
+        alert('Non authentifié. Veuillez vous reconnecter.');
+        return false;
     }
 
-    const daysOfWeekNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+    const unsavedDays = {};
+    for (const key of weeklySelections.keys()) {
+      unsavedDays[key] = weeklySelections.get(key);
+    }
+
     let successCount = 0;
     let errorCount = 0;
-
+    
     for (let i = 0; i < 7; i++) {
-        const daySelections = selections[i];
+        const date = new Date(currentMonday);
+        date.setDate(currentMonday.getDate() + i);
+        const dateKey = date.toISOString().split('T')[0];
 
-        const dateForDay = new Date(currentMonday);
-        dateForDay.setDate(currentMonday.getDate() + i);
-        const dateKey = `${dateForDay.getFullYear()}-${String(dateForDay.getMonth() + 1).padStart(2, '0')}-${String(dateForDay.getDate()).padStart(2, '0')}`;
+        const dayData = selectedSlots[dateKey] || [];
 
         try {
-            const response = await fetch(`/api/agent-availability/${dateKey}/${loggedInAgentId}`, {
+            const response = await fetch(`/api/agent-availability/${loggedInAgentId}/${dateKey}`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(daySelections)
+                body: JSON.stringify({ slots: dayData })
             });
 
             if (response.ok) {
