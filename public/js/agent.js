@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Affichage prénom + nom agent ---
   const agentNameDisplay = document.getElementById('agent-name-display');
   let loggedInAgentId = null; // Variable globale pour stocker l'ID de l'agent connecté
+  let hasUnsavedChanges = false; // Drapeau pour suivre les modifications non enregistrées
 
   // Fonction pour charger et afficher les informations de l'agent
   async function loadAgentInfo() {
@@ -36,451 +37,283 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         const errorData = await response.json();
         console.error('Erreur lors de la récupération des infos de l\'agent :', errorData.message);
-        agentNameDisplay.textContent = 'Erreur de chargement des infos';
-        if (response.status === 403) {
-          sessionStorage.removeItem('token'); 
-          window.location.href = '/index.html'; // CHANGEMENT: Utiliser un chemin absolu
-        }
+        window.location.href = '/index.html';
       }
     } catch (error) {
       console.error('Erreur réseau lors de la récupération des infos de l\'agent :', error);
-      agentNameDisplay.textContent = 'Erreur réseau';
+      window.location.href = '/index.html';
     }
   }
 
-  // --- Fonction ISO semaine ---
-  function getWeekNumber(d) {
-    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
-    return weekNo;
+  // --- Gestion du planning ---
+  const slotsContainer = document.getElementById('slots-container');
+  const dayButtonsContainer = document.querySelector('.day-buttons-container');
+  const daysOfWeekNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+  let weeklySelections = {};
+  let currentMonday = new Date();
+  let currentDay = 0; // 0 pour Lundi, 6 pour Dimanche
+
+  // Initialisation de la semaine courante au lundi
+  function setMonday() {
+    const today = new Date();
+    currentMonday = new Date(today);
+    currentMonday.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1)); // Ajuste pour que le lundi soit le jour 1 et le dimanche le jour 0
+  }
+  setMonday();
+
+  // Fonction pour formater une date en YYYY-MM-DD
+  function formatDate(date) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const day = d.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
-  // --- Gestion sélecteur semaine ---
-  let currentMonday = getMonday(new Date());
-
-  function getMonday(d) {
-    d = new Date(d);
-    const day = d.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0,0,0,0);
-    return d;
+  // Fonction pour obtenir la date pour un jour donné de la semaine en cours
+  function getDateForDay(dayIndex) {
+    const date = new Date(currentMonday);
+    date.setDate(currentMonday.getDate() + dayIndex);
+    return date;
   }
 
-  function formatDate(d) {
-    return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}`;
-  }
-
-  function formatSlotTime(startIndex) {
-    const START_HOUR = 7;
-    const totalMinutesStart = (START_HOUR * 60) + (startIndex * 30);
-    const totalMinutesEnd = totalMinutesStart + 30;
-
-    const hStart = Math.floor(totalMinutesStart / 60) % 24;
-    const mStart = totalMinutesStart % 60;
-    const hEnd = Math.floor(totalMinutesEnd / 60) % 24;
-    const mEnd = totalMinutesEnd % 60;
-
-    return `${hStart.toString().padStart(2,'0')}:${mStart.toString().padStart(2,'0')}-${hEnd.toString().padStart(2,'0')}:${mEnd.toString().padStart(2,'0')}`;
-  }
-
-  const SLOT_COUNT = 48;
-  const START_HOUR = 7;
-
-  let selections = Array(7).fill(null).map(() => []);
-  let hasUnsavedChanges = false;
-
-  let currentDay = 0;
-  let isDragging = false;
-  let dragStartIndex = null;
-  let dragEndIndex = null;
-
-  async function loadWeeklySelections(agentId, mondayDate) {
-      selections = Array(7).fill(null).map(() => []);
-
-      const year = mondayDate.getFullYear();
-      const weekNum = getWeekNumber(mondayDate);
-      const isoWeekString = `S ${weekNum}`;
-
-      try {
-          const token = sessionStorage.getItem('token');
-          if (!token) {
-              console.warn('Aucun token trouvé pour charger les sélections hebdomadaires.');
-              return;
-          }
-
-          const response = await fetch(`/api/planning/${agentId}`, {
-              method: 'GET',
-              headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-              }
-          });
-
-          if (response.ok) {
-              const planning = await response.json();
-              const currentWeekPlanning = planning[isoWeekString];
-
-              hasUnsavedChanges = false;
-              if (currentWeekPlanning) {
-                  const dayMap = {
-                      'lundi': 0, 'mardi': 1, 'mercredi': 2, 'jeudi': 3,
-                      'vendredi': 4, 'samedi': 5, 'dimanche': 6
-                  };
-
-                  for (const dayName in currentWeekPlanning) {
-                      const dayIndex = dayMap[dayName];
-                      if (dayIndex !== undefined) {
-                          selections[dayIndex] = currentWeekPlanning[dayName];
-                      }
-                  }
-              }
-          } else {
-              console.error(`Erreur lors du chargement du planning hebdomadaire: ${response.status} ${response.statusText}`);
-          }
-      } catch (error) {
-          console.error('Erreur réseau lors du chargement du planning hebdomadaire:', error);
-      }
-  }
-
-
-  
-  async function maybeSaveBeforeWeekChange() {
-    if (!hasUnsavedChanges) return true;
-    const wantSave = confirm('Vous avez des modifications non enregistrées pour cette semaine. Voulez-vous les enregistrer avant de changer de semaine ?');
-    if (!wantSave) return true;
-    try {
-      const ok = await saveCurrentWeek();
-      if (ok) { hasUnsavedChanges = false; }
-      return true;
-    } catch (e) {
-      console.error('Erreur lors de l\'enregistrement avant changement de semaine:', e);
-      return false;
-    }
-  }
-
-  function initWeekSelector() {
-    const weekSelect = document.getElementById('week-select');
-
-    weekSelect.innerHTML = '';
-
-    const weeks = [];
-    for (let i = -1; i <= 3; i++) {
-      const monday = new Date(currentMonday);
-      monday.setDate(monday.getDate() + i * 7);
-      weeks.push(monday);
-    }
-
-    weeks.forEach((mondayDate, idx) => {
-      const weekNum = getWeekNumber(mondayDate);
-      const sundayDate = new Date(mondayDate);
-      sundayDate.setDate(sundayDate.getDate() + 6);
-      const option = document.createElement('option');
-      option.value = idx;
-      option.textContent = `S ${weekNum} (${formatDate(mondayDate)} au ${formatDate(sundayDate)})`;
-      weekSelect.appendChild(option);
-    });
-
-    weekSelect.selectedIndex = 1;
-
-    weekSelect.addEventListener('change', async (event) => {
-    const canProceed = await maybeSaveBeforeWeekChange();
-    if (!canProceed) { event.preventDefault(); return; }
-      const selectedIndex = parseInt(event.target.value, 10);
-      const newMonday = new Date(currentMonday);
-      newMonday.setDate(newMonday.getDate() + (selectedIndex - 1) * 7);
-      currentMonday = getMonday(newMonday);
-      initWeekSelector();
-
-      if (loggedInAgentId) {
-          await loadWeeklySelections(loggedInAgentId, currentMonday);
-          renderSlots(currentDay);
-      } else {
-          selections = Array(7).fill(null).map(() => []);
-          renderSlots(currentDay);
-      }
-    });
-  }
-
-  const prevWeekBtn = document.getElementById('prev-week-btn');
-  const nextWeekBtn = document.getElementById('next-week-btn');
-
-  prevWeekBtn.addEventListener('click', async () => {
-    const canProceed = await maybeSaveBeforeWeekChange();
-    if (!canProceed) return;
-    currentMonday.setDate(currentMonday.getDate() - 7);
-    initWeekSelector();
-    if (loggedInAgentId) {
-        await loadWeeklySelections(loggedInAgentId, currentMonday);
-        renderSlots(currentDay);
-    } else {
-        selections = Array(7).fill(null).map(() => []);
-        renderSlots(currentDay);
-    }
-  });
-
-  nextWeekBtn.addEventListener('click', async () => {
-    const canProceed = await maybeSaveBeforeWeekChange();
-    if (!canProceed) return;
-    currentMonday.setDate(currentMonday.getDate() + 7);
-    initWeekSelector();
-    if (loggedInAgentId) {
-        await loadWeeklySelections(loggedInAgentId, currentMonday);
-        renderSlots(currentDay);
-    } else {
-        selections = Array(7).fill(null).map(() => []);
-        renderSlots(currentDay);
-    }
-  });
-
-  initWeekSelector();
-
-  const dayButtons = document.querySelectorAll('.day-btn');
-  const slotsContainer = document.getElementById('slots-slider-container');
-  const saveButton = document.getElementById('save-slots-btn');
-  const clearButton = document.getElementById('clear-selection-btn');
-
+  // Fonction pour rendre les créneaux
   function renderSlots(dayIndex) {
-    slotsContainer.innerHTML = '';
-    const daySelections = selections[dayIndex];
+    const slotsSliderContainer = document.getElementById('slots-slider-container');
+    slotsSliderContainer.innerHTML = ''; // Nettoyer l'affichage précédent
+    const todayDate = getDateForDay(dayIndex);
+    const dateKey = formatDate(todayDate);
+    const selectedSlots = weeklySelections[dateKey] || [];
 
-    for (let i = 0; i < SLOT_COUNT; i++) {
+    for (let i = 0; i < 48; i++) {
       const slot = document.createElement('div');
-      slot.classList.add('time-slot-block');
-      slot.setAttribute('data-index', i);
-
-      const slotTime = formatSlotTime(i);
-      slot.textContent = slotTime;
+      slot.classList.add('slot');
+      const slotHour = Math.floor(i / 2);
+      const slotMinute = (i % 2) * 30;
+      const slotTime = `${String(slotHour).padStart(2, '0')}:${String(slotMinute).padStart(2, '0')}`;
+      slot.setAttribute('data-slot-id', i);
       slot.setAttribute('data-time', slotTime);
 
-      if (isSlotSelected(i, daySelections)) {
+      const isSelected = selectedSlots.includes(i);
+      if (isSelected) {
         slot.classList.add('selected');
       }
 
-      slot.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;
-        isDragging = true;
-        dragStartIndex = i;
-        dragEndIndex = i;
-        updateSelectionVisual(dragStartIndex, dragEndIndex);
-        e.preventDefault();
-      });
+      const slotLabel = document.createElement('span');
+      slotLabel.classList.add('slot-label');
+      slotLabel.textContent = slotTime;
+      slot.appendChild(slotLabel);
 
-      slot.addEventListener('mouseenter', () => {
-        if (!isDragging) return;
-        dragEndIndex = i;
-        updateSelectionVisual(dragStartIndex, dragEndIndex);
-      });
+      slotsSliderContainer.appendChild(slot);
+    }
+  }
 
-      slot.addEventListener('mouseup', () => {
-        if (!isDragging) return;
-        isDragging = false;
-        finalizeSelection(dragStartIndex, dragEndIndex);
-      });
-      // --- Touch support for mobile ---
-      slot.addEventListener('touchstart', (e) => {
-        isDragging = true;
-        dragStartIndex = i;
-        dragEndIndex = i;
-        updateSelectionVisual(dragStartIndex, dragEndIndex);
-        // Empêcher le défilement de la page lors du glisser-déposer
-        e.preventDefault(); 
-      }, { passive: false });
-
-      slot.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        const touch = e.touches[0];
-        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (target && target.classList.contains('time-slot-block')) {
-            dragEndIndex = parseInt(target.getAttribute('data-index'), 10);
-            updateSelectionVisual(dragStartIndex, dragEndIndex);
-        }
-        e.preventDefault(); // Empêcher le défilement
-      }, { passive: false });
-
-      slot.addEventListener('touchend', () => {
-        if (!isDragging) return;
-        isDragging = false;
-        finalizeSelection(dragStartIndex, dragEndIndex);
-      });
-
-      slot.addEventListener('click', () => {
-        // La gestion du glisser-déposer est prioritaire, on n'utilise le click que si ce n'est pas un drag
-        if (isDragging) return; 
-        if (slot.classList.contains('selected')) {
-          removeSlotFromSelection(i);
-        } else {
-          addSelectionRange(currentDay, i, i);
-        }
-        hasUnsavedChanges = true;
-        renderSlots(currentDay);
-      });
+  // Gestion des clics sur les créneaux pour sélectionner/désélectionner
+  slotsContainer.addEventListener('click', (event) => {
+    const slot = event.target.closest('.slot');
+    if (slot) {
+      const slotId = parseInt(slot.getAttribute('data-slot-id'));
+      const dateKey = formatDate(getDateForDay(currentDay));
       
-      slotsContainer.appendChild(slot);
-    }
-
-    document.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        finalizeSelection(dragStartIndex, dragEndIndex);
+      // S'assurer que le tableau pour cette journée existe
+      if (!weeklySelections[dateKey]) {
+        weeklySelections[dateKey] = [];
       }
-    }, { once: true });
 
-    document.addEventListener('touchend', () => {
-        if (isDragging) {
-            isDragging = false;
-            finalizeSelection(dragStartIndex, dragEndIndex);
-        }
-    }, { once: true });
-  }
-
-  function isSlotSelected(index, daySelections) {
-    for (const range of daySelections) {
-      if (index >= range.start && index <= range.end) return true;
-    }
-    return false;
-  }
-
-  function updateSelectionVisual(start, end) {
-    const minI = Math.min(start, end);
-    const maxI = Math.max(start, end);
-
-    const slots = slotsContainer.querySelectorAll('.time-slot-block');
-    slots.forEach((slot, idx) => {
-      if (idx >= minI && idx <= maxI) {
+      const index = weeklySelections[dateKey].indexOf(slotId);
+      if (index > -1) {
+        // Le créneau est déjà sélectionné, on le désélectionne
+        weeklySelections[dateKey].splice(index, 1);
+        slot.classList.remove('selected');
+      } else {
+        // Le créneau n'est pas sélectionné, on l'ajoute
+        weeklySelections[dateKey].push(slotId);
         slot.classList.add('selected');
-      } else {
-        if (!isSlotSelected(idx, selections[currentDay])) {
-          slot.classList.remove('selected');
-        }
       }
-    });
-  }
 
-  function finalizeSelection(start, end) {
-    const minI = Math.min(start, end);
-    const maxI = Math.max(start, end);
-    addSelectionRange(currentDay, minI, maxI);
-    renderSlots(currentDay);
-  }
-
-  function addSelectionRange(dayIndex, start, end) {
-    let ranges = selections[dayIndex];
-
-    const newRange = { start, end };
-    const newRanges = [];
-
-    for (const range of ranges) {
-      if (range.end < newRange.start - 1 || range.start > newRange.end + 1) {
-        newRanges.push(range);
-      } else {
-        newRange.start = Math.min(newRange.start, range.start);
-        newRange.end = Math.max(newRange.end, range.end);
-      }
+      // Indiquer qu'il y a des modifications non enregistrées
+      hasUnsavedChanges = true;
+      console.log('Modifications non enregistrées.');
     }
-    newRanges.push(newRange);
+  });
 
-    newRanges.sort((a,b) => a.start - b.start);
-    selections[dayIndex] = newRanges;
-    hasUnsavedChanges = true;
-  }
-
-  function removeSlotFromSelection(index) {
-    let ranges = selections[currentDay];
-    const newRanges = [];
-
-    for (const range of ranges) {
-      if (index < range.start || index > range.end) {
-        newRanges.push(range);
-      } else {
-        if (index > range.start) {
-          newRanges.push({ start: range.start, end: index -1 });
+  // Gestion du clic sur les boutons de jour
+  dayButtonsContainer.addEventListener('click', async (event) => {
+    const dayBtn = event.target.closest('.day-btn');
+    if (dayBtn && hasUnsavedChanges) {
+        const userAction = await showUnsavedChangesModal();
+        if (userAction === 'cancel') {
+          return; // Empêche le changement de page
         }
-        if (index < range.end) {
-          newRanges.push({ start: index + 1, end: range.end });
+        if (userAction === 'save') {
+          await saveCurrentWeek();
         }
-      }
     }
-    selections[currentDay] = newRanges;
-    hasUnsavedChanges = true;
-  }
-
-  dayButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.classList.contains('active')) return;
-      dayButtons.forEach(b => {
-        b.classList.remove('active');
-        b.setAttribute('aria-selected', 'false');
-      });
-      btn.classList.add('active');
-      btn.setAttribute('aria-selected', 'true');
-      currentDay = parseInt(btn.dataset.day, 10);
+    if (dayBtn) {
+      document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('active', 'btn-primary'));
+      dayBtn.classList.add('active', 'btn-primary');
+      currentDay = parseInt(dayBtn.dataset.day);
       renderSlots(currentDay);
-    });
+    }
   });
 
-  clearButton.addEventListener('click', () => {
-    selections[currentDay] = [];
-    hasUnsavedChanges = true;
+
+  // --- Fonctionnalités de navigation ---
+  const prevWeekBtn = document.getElementById('prev-week-btn');
+  const nextWeekBtn = document.getElementById('next-week-btn');
+  const weekSelect = document.getElementById('week-select');
+
+  prevWeekBtn.addEventListener('click', async () => {
+    if (hasUnsavedChanges) {
+        const userAction = await showUnsavedChangesModal();
+        if (userAction === 'cancel') return;
+        if (userAction === 'save') await saveCurrentWeek();
+    }
+    changeWeek(-1);
+  });
+  nextWeekBtn.addEventListener('click', async () => {
+    if (hasUnsavedChanges) {
+        const userAction = await showUnsavedChangesModal();
+        if (userAction === 'cancel') return;
+        if (userAction === 'save') await saveCurrentWeek();
+    }
+    changeWeek(1);
+  });
+  weekSelect.addEventListener('change', async () => {
+    if (hasUnsavedChanges) {
+        const userAction = await showUnsavedChangesModal();
+        if (userAction === 'cancel') {
+          // Annuler le changement de sélection si l'utilisateur annule
+          weekSelect.value = formatDate(currentMonday);
+          return;
+        }
+        if (userAction === 'save') await saveCurrentWeek();
+    }
+    const selectedDate = new Date(weekSelect.value + 'T00:00:00Z');
+    currentMonday = selectedDate;
+    await loadWeeklySelections(loggedInAgentId, currentMonday);
     renderSlots(currentDay);
   });
 
-  
-  async function saveCurrentWeek() {
-    if (!loggedInAgentId) {
-        alert('Impossible d\'enregistrer : ID de l\'agent non disponible. Veuillez vous reconnecter.');
-        return;
-    }
+  // Gère le changement de semaine
+  async function changeWeek(direction) {
+    currentMonday.setDate(currentMonday.getDate() + direction * 7);
+    const newMondayFormatted = formatDate(currentMonday);
+    
+    // Mettre à jour la sélection dans le <select>
+    weekSelect.value = newMondayFormatted;
+    
+    await loadWeeklySelections(loggedInAgentId, currentMonday);
+    renderSlots(currentDay);
+  }
 
+  // Génère les options pour la sélection de la semaine
+  function generateWeekOptions() {
+    weekSelect.innerHTML = '';
+    const today = new Date();
+    const currentMonday = new Date(today);
+    currentMonday.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
+
+    // Générer les 4 semaines passées, la semaine actuelle, et 4 semaines à venir
+    for (let i = -4; i <= 4; i++) {
+      const optionDate = new Date(currentMonday);
+      optionDate.setDate(currentMonday.getDate() + i * 7);
+      const optionText = `${formatDate(optionDate)} au ${formatDate(new Date(optionDate.getTime() + 6 * 24 * 60 * 60 * 1000))}`;
+      const optionValue = formatDate(optionDate);
+      const option = new Option(optionText, optionValue);
+      weekSelect.add(option);
+    }
+    weekSelect.value = formatDate(currentMonday);
+  }
+
+  // --- Sauvegarde et chargement des données ---
+  const saveButton = document.getElementById('save-slots-btn');
+  const clearButton = document.getElementById('clear-selection-btn');
+  const infoMessage = document.getElementById('selection-info');
+
+  // Charge les sélections de l'agent depuis le serveur pour toute la semaine
+  async function loadWeeklySelections(agentId, mondayDate) {
+    weeklySelections = {};
+    const mondayKey = formatDate(mondayDate);
+    const endOfWeek = new Date(mondayDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+    const endOfWeekKey = formatDate(endOfWeek);
     const token = sessionStorage.getItem('token');
-    if (!token) {
-        alert('Impossible d\'enregistrer : non authentifié. Veuillez vous reconnecter.');
-        return;
+
+    try {
+      const response = await fetch(`/api/planning/${agentId}?start=${mondayKey}&end=${endOfWeekKey}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+      });
+      if (!response.ok) {
+        throw new Error('Erreur de chargement du planning.');
+      }
+      const data = await response.json();
+      weeklySelections = data.planning;
+      console.log('Planning chargé avec succès:', weeklySelections);
+    } catch (error) {
+      console.error('Erreur lors du chargement du planning:', error);
+      infoMessage.textContent = 'Erreur lors du chargement des données.';
+    }
+  }
+
+  async function saveCurrentWeek() {
+    const token = sessionStorage.getItem('token');
+    if (!loggedInAgentId) {
+      alert('Erreur: ID agent non trouvé.');
+      return false;
     }
 
-    const daysOfWeekNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
     let successCount = 0;
     let errorCount = 0;
+    const savePromises = [];
 
     for (let i = 0; i < 7; i++) {
-        const daySelections = selections[i];
-
-        const dateForDay = new Date(currentMonday);
-        dateForDay.setDate(currentMonday.getDate() + i);
-        const dateKey = `${dateForDay.getFullYear()}-${String(dateForDay.getMonth() + 1).padStart(2, '0')}-${String(dateForDay.getDate()).padStart(2, '0')}`;
-
-        try {
-            const response = await fetch(`/api/agent-availability/${dateKey}/${loggedInAgentId}`, {
+        const dateKey = formatDate(getDateForDay(i));
+        const selections = weeklySelections[dateKey] || [];
+        
+        savePromises.push(
+            fetch(`/api/planning/${loggedInAgentId}/day/${dateKey}`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(daySelections)
-            });
-
-            if (response.ok) {
-                successCount++;
-            } else {
-                const errorData = await response.json();
-                console.error(`Erreur d'enregistrement pour le ${daysOfWeekNames[i]} (${dateKey}) :`, errorData.message);
+                body: JSON.stringify({ slots: selections })
+            })
+            .then(response => {
+                if (response.ok) {
+                    successCount++;
+                } else {
+                    return response.json().then(errorData => {
+                        console.error(`Erreur d'enregistrement pour le ${daysOfWeekNames[i]} (${dateKey}) :`, errorData.message);
+                        errorCount++;
+                    }).catch(() => {
+                        console.error(`Erreur d'enregistrement pour le ${daysOfWeekNames[i]} (${dateKey}) : Réponse non-JSON`);
+                        errorCount++;
+                    });
+                }
+            })
+            .catch(error => {
+                console.error(`Erreur réseau lors de l'enregistrement pour le ${daysOfWeekNames[i]} (${dateKey}) :`, error);
                 errorCount++;
-            }
-        } catch (error) {
-            console.error(`Erreur réseau lors de l'enregistrement pour le ${daysOfWeekNames[i]} (${dateKey}) :`, error);
-            errorCount++;
-        }
+            })
+        );
     }
+
+    await Promise.allSettled(savePromises);
 
     if (errorCount === 0) {
-        alert('Créneaux sauvegardés avec succès pour toute la semaine !');
+        // J'ai remplacé les alertes par une info dans l'UI pour éviter les problèmes
+        infoMessage.textContent = 'Créneaux sauvegardés avec succès !';
+        setTimeout(() => infoMessage.textContent = '', 3000);
     } else {
-        alert(`Enregistrement terminé avec ${successCount} succès et ${errorCount} échecs. Vérifiez la console pour les détails.`);
+        infoMessage.textContent = `Enregistrement terminé avec ${successCount} succès et ${errorCount} échecs.`;
     }
  
-    return true;
+    return errorCount === 0;
   }
 
   saveButton.addEventListener('click', async () => {
@@ -490,20 +323,87 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-
+  clearButton.addEventListener('click', () => {
+    const dateKey = formatDate(getDateForDay(currentDay));
+    weeklySelections[dateKey] = [];
+    hasUnsavedChanges = true; // Une modification a été faite
+    renderSlots(currentDay);
+  });
+  
+  // --- Gestion des popups et de la déconnexion ---
   const logoutButton = document.getElementById('logout-btn');
-  if (logoutButton) {
-    logoutButton.addEventListener('click', () => {
-      sessionStorage.removeItem('token'); 
-      sessionStorage.removeItem('agentId'); 
-      sessionStorage.removeItem('agentPrenom');
-      sessionStorage.removeItem('agentNom');
-      sessionStorage.removeItem('userRole');
+  const modal = document.getElementById('unsaved-changes-modal');
+  const modalSaveBtn = document.getElementById('modal-save-btn');
+  const modalLeaveBtn = document.getElementById('modal-leave-btn');
+  const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
-      // CHANGEMENT CRUCIAL ICI: Utiliser un chemin absolu pour la redirection
-      window.location.href = '/index.html'; // Assurez-vous que index.html est votre page de connexion
+  // Fonction pour afficher la modale
+  function showUnsavedChangesModal() {
+    return new Promise(resolve => {
+      modal.classList.add('visible');
+
+      const onSave = async () => {
+        modal.classList.remove('visible');
+        const saved = await saveCurrentWeek();
+        resolve(saved ? 'save' : 'cancel'); // Si la sauvegarde échoue, on annule
+        removeListeners();
+      };
+      
+      const onLeave = () => {
+        modal.classList.remove('visible');
+        resolve('leave');
+        removeListeners();
+      };
+      
+      const onCancel = () => {
+        modal.classList.remove('visible');
+        resolve('cancel');
+        removeListeners();
+      };
+
+      const removeListeners = () => {
+        modalSaveBtn.removeEventListener('click', onSave);
+        modalLeaveBtn.removeEventListener('click', onLeave);
+        modalCancelBtn.removeEventListener('click', onCancel);
+      };
+
+      modalSaveBtn.addEventListener('click', onSave);
+      modalLeaveBtn.addEventListener('click', onLeave);
+      modalCancelBtn.addEventListener('click', onCancel);
     });
   }
 
+  // Gestion du clic de déconnexion
+  logoutButton.addEventListener('click', async (event) => {
+    event.preventDefault(); // Empêche la redirection immédiate
+    if (hasUnsavedChanges) {
+      const userAction = await showUnsavedChangesModal();
+      if (userAction === 'cancel') {
+        return; // L'utilisateur a annulé, on ne fait rien
+      }
+    }
+    // Si pas de changements ou l'utilisateur a choisi de quitter/sauvegarder
+    sessionStorage.removeItem('token'); 
+    sessionStorage.removeItem('agentId'); 
+    sessionStorage.removeItem('agentPrenom');
+    sessionStorage.removeItem('agentNom');
+    sessionStorage.removeItem('userRole');
+    window.location.href = '/index.html'; 
+  });
+  
+  // --- Gestion du rafraichissement de page / de la fermeture d'onglet ---
+  // L'événement 'beforeunload' est moins fiable et ne peut afficher un message personnalisé
+  // mais on le garde pour une confirmation de base
+  window.addEventListener('beforeunload', (event) => {
+    if (hasUnsavedChanges) {
+      // Le message personnalisé ne s'affiche plus pour des raisons de sécurité,
+      // mais la simple existence de returnValue suffit à afficher un message du navigateur.
+      event.returnValue = 'Vous avez des modifications non enregistrées. Voulez-vous vraiment quitter ?';
+    }
+  });
+
+
+  // --- Exécution initiale ---
+  generateWeekOptions();
   loadAgentInfo();
 });
