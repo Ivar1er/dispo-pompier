@@ -161,7 +161,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function initWeekSelector() {
+  
+  // --- Demander l'enregistrement avant DECONNEXION (même logique que changement de semaine) ---
+  async function maybeSaveBeforeLogout() {
+    if (!hasUnsavedChanges) return true;
+    const wantSave = confirm('Vous avez des modifications non enregistrées pour cette semaine. Voulez-vous les enregistrer avant de vous déconnecter ?');
+    if (!wantSave) return true;
+    try {
+      const ok = await saveCurrentWeek();
+      if (ok) { hasUnsavedChanges = false; }
+      return true;
+    } catch (e) {
+      console.error('Erreur lors de l\'enregistrement avant déconnexion:', e);
+      // On laisse l'utilisateur décider de partir quand même
+      return confirm('L\'enregistrement a échoué. Voulez-vous quand même vous déconnecter ?');
+    }
+  }
+function initWeekSelector() {
     const weekSelect = document.getElementById('week-select');
 
     weekSelect.innerHTML = '';
@@ -493,7 +509,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const logoutButton = document.getElementById('logout-btn');
   if (logoutButton) {
-    logoutButton.addEventListener('click', () => {
+    logoutButton.addEventListener('click', async () => {
+      const canLogout = await maybeSaveBeforeLogout();
+      if (!canLogout) return;
       sessionStorage.removeItem('token'); 
       sessionStorage.removeItem('agentId'); 
       sessionStorage.removeItem('agentPrenom');

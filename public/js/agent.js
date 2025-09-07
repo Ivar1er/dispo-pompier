@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let isDragging = false;
   let dragStartIndex = null;
   let dragEndIndex = null;
+  let isSubtractMode = false; // Alt/Ctrl/Meta pour supprimer une plage au drag
 
   async function loadWeeklySelections(agentId, mondayDate) {
       selections = Array(7).fill(null).map(() => []);
@@ -293,7 +294,12 @@ function initWeekSelector() {
       slot.addEventListener('mouseup', () => {
         if (!isDragging) return;
         isDragging = false;
-        finalizeSelection(dragStartIndex, dragEndIndex);
+        if (isSubtractMode) {
+          removeSelectionRange(currentDay, dragStartIndex, dragEndIndex);
+        } else {
+          finalizeSelection(dragStartIndex, dragEndIndex);
+        }
+        isSubtractMode = false;
       });
       // --- Touch support for mobile ---
       slot.addEventListener('touchstart', (e) => {
@@ -319,13 +325,22 @@ function initWeekSelector() {
       slot.addEventListener('touchend', () => {
         if (!isDragging) return;
         isDragging = false;
-        finalizeSelection(dragStartIndex, dragEndIndex);
+        if (isSubtractMode) {
+          removeSelectionRange(currentDay, dragStartIndex, dragEndIndex);
+        } else {
+          finalizeSelection(dragStartIndex, dragEndIndex);
+        }
+        isSubtractMode = false;
       });
 
-      slot.addEventListener('click', () => {
-        // La gestion du glisser-dÃ©poser est prioritaire, on n'utilise le click que si ce n'est pas un drag
-        if (isDragging) return; 
-        if (slot.classList.contains('selected')) {
+      slot.addEventListener('click', (e) => {
+        // La gestion du glisser-déposer est prioritaire, on n'utilise le click que si ce n'est pas un drag
+        if (isDragging) return;
+        const wantSubtract = !!(e && (e.altKey || e.ctrlKey || e.metaKey));
+        if (wantSubtract) {
+          removeSlotFromSelection(i);
+        } else if (slot.classList.contains('selected')) {
+          // toggle classique
           removeSlotFromSelection(i);
         } else {
           addSelectionRange(currentDay, i, i);
@@ -340,14 +355,24 @@ function initWeekSelector() {
     document.addEventListener('mouseup', () => {
       if (isDragging) {
         isDragging = false;
-        finalizeSelection(dragStartIndex, dragEndIndex);
+        if (isSubtractMode) {
+          removeSelectionRange(currentDay, dragStartIndex, dragEndIndex);
+        } else {
+          finalizeSelection(dragStartIndex, dragEndIndex);
+        }
+        isSubtractMode = false;
       }
     }, { once: true });
 
     document.addEventListener('touchend', () => {
         if (isDragging) {
             isDragging = false;
-            finalizeSelection(dragStartIndex, dragEndIndex);
+            if (isSubtractMode) {
+          removeSelectionRange(currentDay, dragStartIndex, dragEndIndex);
+        } else {
+          finalizeSelection(dragStartIndex, dragEndIndex);
+        }
+        isSubtractMode = false;
         }
     }, { once: true });
   }
@@ -403,7 +428,33 @@ function initWeekSelector() {
     hasUnsavedChanges = true;
   }
 
-  function removeSlotFromSelection(index) {
+  
+  // Supprimer une plage de sélection [start, end] du jour courant
+  function removeSelectionRange(dayIndex, start, end) {
+    const minI = Math.min(start, end);
+    const maxI = Math.max(start, end);
+    const ranges = selections[dayIndex];
+    const newRanges = [];
+    for (const r of ranges) {
+      if (r.end < minI || r.start > maxI) {
+        // aucune intersection
+        newRanges.push(r);
+        continue;
+      }
+      // coupe à gauche
+      if (r.start < minI) {
+        newRanges.push({ start: r.start, end: minI - 1 });
+      }
+      // coupe à droite
+      if (r.end > maxI) {
+        newRanges.push({ start: maxI + 1, end: r.end });
+      }
+    }
+    newRanges.sort((a,b) => a.start - b.start);
+    selections[dayIndex] = newRanges;
+    hasUnsavedChanges = true;
+  }
+function removeSlotFromSelection(index) {
     let ranges = selections[currentDay];
     const newRanges = [];
 
