@@ -16,52 +16,48 @@
         <button id="prev-week-btn" class="btn btn-secondary" aria-label="Semaine Précédente">← Semaine Précédente</button>
         <div class="week-info">
           <select id="week-select" aria-label="Choisir une semaine"></select>
-          <!-- Suppression du paragraphe affichant la plage de dates -->
         </div>
         <button id="next-week-btn" class="btn btn-secondary" aria-label="Semaine Suivante">Semaine Suivante →</button>
-        <!-- Bouton synthèse supprimé ici -->
       </div>
     </header>
 
     <main class="planning-section">
       <p id="selection-info" class="info-message"></p>
-      <div id="slots-container" class="slots-container">
-        <div class="day-buttons-container" role="tablist" aria-label="Sélection du jour">
-          <button class="day-btn active" data-day="0" role="tab" aria-selected="true">Lundi</button>
-          <button class="day-btn" data-day="1" role="tab" aria-selected="false">Mardi</button>
-          <button class="day-btn" data-day="2" role="tab" aria-selected="false">Mercredi</button>
-          <button class="day-btn" data-day="3" role="tab" aria-selected="false">Jeudi</button>
-          <button class="day-btn" data-day="4" role="tab" aria-selected="false">Vendredi</button>
-          <button class="day-btn" data-day="5" role="tab" aria-selected="false">Samedi</button>
-          <button class="day-btn" data-day="6" role="tab" aria-selected="false">Dimanche</button>
-        </div>
-
-        <div id="slots-slider-container" aria-live="polite" aria-label="Sélection des créneaux horaires"></div>
+      <div class="day-buttons-container" role="tablist" aria-label="Sélection du jour">
+        <button class="day-btn active" data-day="0" role="tab" aria-selected="true">Lundi</button>
+        <button class="day-btn" data-day="1" role="tab" aria-selected="false">Mardi</button>
+        <button class="day-btn" data-day="2" role="tab" aria-selected="false">Mercredi</button>
+        <button class="day-btn" data-day="3" role="tab" aria-selected="false">Jeudi</button>
+        <button class="day-btn" data-day="4" role="tab" aria-selected="false">Vendredi</button>
+        <button class="day-btn" data-day="5" role="tab" aria-selected="false">Samedi</button>
+        <button class="day-btn" data-day="6" role="tab" aria-selected="false">Dimanche</button>
       </div>
+
+      <div id="slots-slider-container" aria-live="polite" aria-label="Sélection des créneaux horaires"></div>
     </main>
 
     <footer class="bottom-actions">
       <div class="btn-group-centered">
         <button id="save-slots-btn" class="btn btn-primary">Enregistrer mes créneaux</button>
         <button id="clear-selection-btn" class="btn btn-secondary">Effacer la sélection</button>
-        <a href="synthese.html" id="synthese-btn-bottom" class="btn btn-secondary">Synthèse</a>
-        <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
       </div>
+      <a href="synthese.html" id="synthese-btn-bottom" class="btn btn-primary">Synthèse</a>
+      <button id="logout-btn" class="btn btn-danger">Déconnexion</button>
     </footer>
   </div>
-  
-  <!-- Modale de confirmation personnalisée -->
+
+  <!-- Fenêtre modale de confirmation -->
   <div id="unsaved-changes-modal" class="modal-overlay">
     <div class="modal-content">
       <p>Vous avez des modifications non enregistrées. Voulez-vous les sauvegarder avant de continuer ?</p>
       <div class="modal-buttons">
         <button id="modal-save-btn" class="btn btn-primary">Oui, sauvegarder</button>
         <button id="modal-leave-btn" class="btn btn-secondary">Non, quitter</button>
-        <button id="modal-cancel-btn" class="btn btn-secondary">Annuler</button>
+        <button id="modal-cancel-btn" class="btn btn-danger">Annuler</button>
       </div>
     </div>
   </div>
 
-  <script type="module" src="js/agent.js"></script>
+  <script src="js/agent.js"></script>
 </body>
 </html>
