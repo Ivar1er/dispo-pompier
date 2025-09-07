@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else {
         const errorData = await response.json();
-        console.error('Erreur lors de la récupération des infos de l\\'agent :', errorData.message);
+        console.error('Erreur lors de la récupération des infos de l\'agent :', errorData.message);
         agentNameDisplay.textContent = 'Erreur de chargement des infos';
         if (response.status === 403) {
           sessionStorage.removeItem('token'); 
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (error) {
-      console.error('Erreur réseau lors de la récupération des infos de l\\'agent :', error);
+      console.error('Erreur réseau lors de la récupération des infos de l\'agent :', error);
       agentNameDisplay.textContent = 'Erreur réseau';
     }
   }
