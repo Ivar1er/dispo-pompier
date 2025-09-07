@@ -1,16 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // --- Affichage prénom + nom agent ---
+  // --- Affichage prÃ©nom + nom agent ---
   const agentNameDisplay = document.getElementById('agent-name-display');
-  let loggedInAgentId = null; // Variable globale pour stocker l'ID de l'agent connecté
+  let loggedInAgentId = null; // Variable globale pour stocker l'ID de l'agent connectÃ©
 
   // Fonction pour charger et afficher les informations de l'agent
   async function loadAgentInfo() {
     const token = sessionStorage.getItem('token'); 
 
     if (!token) {
-      console.warn('Aucun token trouvé. Affichage des informations par défaut.');
+      console.warn('Aucun token trouvÃ©. Affichage des informations par dÃ©faut.');
       agentNameDisplay.textContent = 'Agent Inconnu';
-      // Rediriger vers la page de connexion si aucun token n'est trouvé
+      // Rediriger vers la page de connexion si aucun token n'est trouvÃ©
       window.location.href = '/index.html'; // CHANGEMENT: Utiliser un chemin absolu vers votre page de connexion
       return;
     }
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else {
         const errorData = await response.json();
-        console.error('Erreur lors de la récupération des infos de l\'agent :', errorData.message);
+        console.error('Erreur lors de la rÃ©cupÃ©ration des infos de l\'agent :', errorData.message);
         agentNameDisplay.textContent = 'Erreur de chargement des infos';
         if (response.status === 403) {
           sessionStorage.removeItem('token'); 
@@ -43,8 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (error) {
-      console.error('Erreur réseau lors de la récupération des infos de l\'agent :', error);
-      agentNameDisplay.textContent = 'Erreur réseau';
+      console.error('Erreur rÃ©seau lors de la rÃ©cupÃ©ration des infos de l\'agent :', error);
+      agentNameDisplay.textContent = 'Erreur rÃ©seau';
     }
   }
 
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return weekNo;
   }
 
-  // --- Gestion sélecteur semaine ---
+  // --- Gestion sÃ©lecteur semaine ---
   let currentMonday = getMonday(new Date());
 
   function getMonday(d) {
@@ -90,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const START_HOUR = 7;
 
   let selections = Array(7).fill(null).map(() => []);
+  let hasUnsavedChanges = false;
 
   let currentDay = 0;
   let isDragging = false;
@@ -106,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
           const token = sessionStorage.getItem('token');
           if (!token) {
-              console.warn('Aucun token trouvé pour charger les sélections hebdomadaires.');
+              console.warn('Aucun token trouvÃ© pour charger les sÃ©lections hebdomadaires.');
               return;
           }
 
@@ -122,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
               const planning = await response.json();
               const currentWeekPlanning = planning[isoWeekString];
 
+              hasUnsavedChanges = false;
               if (currentWeekPlanning) {
                   const dayMap = {
                       'lundi': 0, 'mardi': 1, 'mercredi': 2, 'jeudi': 3,
@@ -139,10 +141,25 @@ document.addEventListener('DOMContentLoaded', () => {
               console.error(`Erreur lors du chargement du planning hebdomadaire: ${response.status} ${response.statusText}`);
           }
       } catch (error) {
-          console.error('Erreur réseau lors du chargement du planning hebdomadaire:', error);
+          console.error('Erreur rÃ©seau lors du chargement du planning hebdomadaire:', error);
       }
   }
 
+
+  
+  async function maybeSaveBeforeWeekChange() {
+    if (!hasUnsavedChanges) return true;
+    const wantSave = confirm('Vous avez des modifications non enregistrÃ©es pour cette semaine. Voulez-vous les enregistrer avant de changer de semaine ?');
+    if (!wantSave) return true;
+    try {
+      const ok = await saveCurrentWeek();
+      if (ok) { hasUnsavedChanges = false; }
+      return true;
+    } catch (e) {
+      console.error('Erreur lors de l\'enregistrement avant changement de semaine:', e);
+      return false;
+    }
+  }
 
   function initWeekSelector() {
     const weekSelect = document.getElementById('week-select');
@@ -169,6 +186,8 @@ document.addEventListener('DOMContentLoaded', () => {
     weekSelect.selectedIndex = 1;
 
     weekSelect.addEventListener('change', async (event) => {
+    const canProceed = await maybeSaveBeforeWeekChange();
+    if (!canProceed) { event.preventDefault(); return; }
       const selectedIndex = parseInt(event.target.value, 10);
       const newMonday = new Date(currentMonday);
       newMonday.setDate(newMonday.getDate() + (selectedIndex - 1) * 7);
@@ -189,6 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const nextWeekBtn = document.getElementById('next-week-btn');
 
   prevWeekBtn.addEventListener('click', async () => {
+    const canProceed = await maybeSaveBeforeWeekChange();
+    if (!canProceed) return;
     currentMonday.setDate(currentMonday.getDate() - 7);
     initWeekSelector();
     if (loggedInAgentId) {
@@ -201,6 +222,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   nextWeekBtn.addEventListener('click', async () => {
+    const canProceed = await maybeSaveBeforeWeekChange();
+    if (!canProceed) return;
     currentMonday.setDate(currentMonday.getDate() + 7);
     initWeekSelector();
     if (loggedInAgentId) {
@@ -256,15 +279,45 @@ document.addEventListener('DOMContentLoaded', () => {
         isDragging = false;
         finalizeSelection(dragStartIndex, dragEndIndex);
       });
+      // --- Touch support for mobile ---
+      slot.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        dragStartIndex = i;
+        dragEndIndex = i;
+        updateSelectionVisual(dragStartIndex, dragEndIndex);
+        // EmpÃªcher le dÃ©filement de la page lors du glisser-dÃ©poser
+        e.preventDefault(); 
+      }, { passive: false });
 
-      slot.addEventListener('click', () => {
-        if (isDragging) return;
-        if (slot.classList.contains('selected')) {
-          removeSlotFromSelection(i);
-          renderSlots(currentDay);
+      slot.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const touch = e.touches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target && target.classList.contains('time-slot-block')) {
+            dragEndIndex = parseInt(target.getAttribute('data-index'), 10);
+            updateSelectionVisual(dragStartIndex, dragEndIndex);
         }
+        e.preventDefault(); // EmpÃªcher le dÃ©filement
+      }, { passive: false });
+
+      slot.addEventListener('touchend', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        finalizeSelection(dragStartIndex, dragEndIndex);
       });
 
+      slot.addEventListener('click', () => {
+        // La gestion du glisser-dÃ©poser est prioritaire, on n'utilise le click que si ce n'est pas un drag
+        if (isDragging) return; 
+        if (slot.classList.contains('selected')) {
+          removeSlotFromSelection(i);
+        } else {
+          addSelectionRange(currentDay, i, i);
+        }
+        hasUnsavedChanges = true;
+        renderSlots(currentDay);
+      });
+      
       slotsContainer.appendChild(slot);
     }
 
@@ -273,6 +326,13 @@ document.addEventListener('DOMContentLoaded', () => {
         isDragging = false;
         finalizeSelection(dragStartIndex, dragEndIndex);
       }
+    }, { once: true });
+
+    document.addEventListener('touchend', () => {
+        if (isDragging) {
+            isDragging = false;
+            finalizeSelection(dragStartIndex, dragEndIndex);
+        }
     }, { once: true });
   }
 
@@ -324,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     newRanges.sort((a,b) => a.start - b.start);
     selections[dayIndex] = newRanges;
+    hasUnsavedChanges = true;
   }
 
   function removeSlotFromSelection(index) {
@@ -343,6 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     selections[currentDay] = newRanges;
+    hasUnsavedChanges = true;
   }
 
   dayButtons.forEach(btn => {
@@ -361,10 +423,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   clearButton.addEventListener('click', () => {
     selections[currentDay] = [];
+    hasUnsavedChanges = true;
     renderSlots(currentDay);
   });
 
-  saveButton.addEventListener('click', async () => {
+  
+  async function saveCurrentWeek() {
     if (!loggedInAgentId) {
         alert('Impossible d\'enregistrer : ID de l\'agent non disponible. Veuillez vous reconnecter.');
         return;
@@ -372,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const token = sessionStorage.getItem('token');
     if (!token) {
-        alert('Impossible d\'enregistrer : non authentifié. Veuillez vous reconnecter.');
+        alert('Impossible d\'enregistrer : non authentifiÃ©. Veuillez vous reconnecter.');
         return;
     }
 
@@ -405,17 +469,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 errorCount++;
             }
         } catch (error) {
-            console.error(`Erreur réseau lors de l'enregistrement pour le ${daysOfWeekNames[i]} (${dateKey}) :`, error);
+            console.error(`Erreur rÃ©seau lors de l'enregistrement pour le ${daysOfWeekNames[i]} (${dateKey}) :`, error);
             errorCount++;
         }
     }
 
     if (errorCount === 0) {
-        alert('Créneaux sauvegardés avec succès pour toute la semaine !');
+        alert('CrÃ©neaux sauvegardÃ©s avec succÃ¨s pour toute la semaine !');
     } else {
-        alert(`Enregistrement terminé avec ${successCount} succès et ${errorCount} échecs. Vérifiez la console pour les détails.`);
+        alert(`Enregistrement terminÃ© avec ${successCount} succÃ¨s et ${errorCount} Ã©checs. VÃ©rifiez la console pour les dÃ©tails.`);
+    }
+ 
+    return true;
+  }
+
+  saveButton.addEventListener('click', async () => {
+    const ok = await saveCurrentWeek();
+    if (ok) {
+      hasUnsavedChanges = false;
     }
   });
+
 
   const logoutButton = document.getElementById('logout-btn');
   if (logoutButton) {
