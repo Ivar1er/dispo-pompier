@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mes Dispos</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- (Optionnel) Styles locaux -->
+  <style>
+    .slot-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; }
+    @media (min-width: 768px) { .slot-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+    @media (min-width: 1200px) { .slot-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+
+    .slot {
+      user-select: none;
+      border: 1px solid rgba(0,0,0,.15);
+      border-radius: 10px;
+      padding: .5rem .6rem;
+      font-size: .85rem;
+      background: #fff;
+      cursor: pointer;
+    }
+    .slot.selected { background: rgba(25,135,84,.15); border-color: rgba(25,135,84,.6); }
+    .slot.existing { background: rgba(108,117,125,.12); }
+    .slot.existing { cursor: not-allowed; opacity: .75; }
+    .slot.existing.selected { opacity: 1; }
+    .slot.existing.selected { background: rgba(25,135,84,.18); }
+
+    .range-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .25rem .5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.12);
+      background: #fff;
+      font-size: .85rem;
+      margin: .15rem .25rem .15rem 0;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body class="bg-light">
+  <div class="container mt-4">
+
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">← Retour</a>
+
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <h2 class="mb-0">Mes disponibilités</h2>
+      <span class="badge text-bg-secondary">Journée opérationnelle : 07:00 → 07:00</span>
+    </div>
+
+    <!-- Sélection de la date -->
+    <div class="card p-3 shadow-sm mt-3">
+      <form method="GET" action="{{ url_for('ma_dispo') }}" class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Date (jour opérationnel)</label>
+          <input
+            type="date"
+            name="date"
+            class="form-control"
+            value="{{ selected_date.strftime('%Y-%m-%d') }}"
+            required
+          >
+        </div>
+        <div class="col-12 col-md-3">
+          <button type="submit" class="btn btn-primary w-100">Afficher</button>
+        </div>
+      </form>
+      <div class="small text-muted mt-2">
+        Les créneaux saisis entre <strong>{{ window_start.strftime('%d/%m/%Y %H:%M') }}</strong>
+        et <strong>{{ window_end.strftime('%d/%m/%Y %H:%M') }}</strong> comptent pour ce jour.
+      </div>
+    </div>
+
+    <!-- Actions rapides journée complète -->
+    <div class="card p-3 shadow-sm mt-3">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h5 class="mb-0">Journée complète</h5>
+        <span class="small text-muted">Enregistre un créneau 07:00 → 07:00</span>
+      </div>
+
+      <div class="row g-2 mt-2">
+        <div class="col-12 col-md-4">
+          <form method="POST" action="{{ url_for('ma_dispo') }}">
+            <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+            <input type="hidden" name="status" value="disponible">
+            <button type="submit" class="btn btn-success w-100">🟢 Dispo toute la journée</button>
+          </form>
+        </div>
+</div>
+    </div>
+
+    <!-- Ajout d'un créneau -->
+    <div class="card p-4 shadow-sm mt-3">
+      <h5 class="mb-3">Ajouter un créneau</h5>
+
+      <form method="POST" action="{{ url_for('ma_dispo') }}">
+        <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+
+        <div class="row g-3">
+          <div class="col-12 col-md-3">
+            <label class="form-label">Début</label>
+            <input type="time" name="start_time" class="form-control" value="07:00" required>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Fin</label>
+            <input type="time" name="end_time" class="form-control" value="12:00" required>
+            <div class="form-text">Si fin ≤ début, le créneau passe au lendemain.</div>
+          </div>
+
+          <input type="hidden" name="status" value="disponible">
+
+          <div class="col-12 col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Ajouter</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Sélection par glisser -->
+    <div class="card p-4 shadow-sm mt-3">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h5 class="mb-0">Sélection par créneaux (30 min)</h5>
+        <span class="small text-muted">Cliquer + glisser pour sélectionner</span>
+      </div>
+
+      <div class="small text-muted mt-2">
+        Fenêtre : <strong>07:00 → 07:00</strong> (48 créneaux de 30 min)
+      </div>
+
+      <div class="slot-grid mt-3" id="slotGrid"></div>
+
+      <div class="d-flex gap-2 flex-wrap mt-3">
+        <button class="btn btn-outline-secondary" type="button" id="clearSlots">Tout effacer</button>
+        <button class="btn btn-success" type="button" id="saveSlots">Enregistrer en 🟢 Disponible</button>
+        <span class="small text-muted align-self-center" id="saveInfo"></span>
+      </div>
+    </div>
+
+    <!-- Plages du jour (AFFICHAGE ALLÉGÉ) -->
+    <div class="card p-3 shadow-sm mt-3">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h5 class="mb-0">Plages du jour</h5>
+        <span class="small text-muted">{{ selected_date.strftime('%d/%m/%Y') }}</span>
+      </div>
+
+      <div class="table-responsive mt-2">
+        <table class="table table-sm align-middle mb-0 bg-white">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 30%;">Plage</th>
+              <th style="width: 20%;">Statut</th>
+              <th>Infos</th>
+              <th class="text-end" style="width: 15%;">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for r in day_ranges %}
+            <tr>
+              <td>
+                <div class="fw-semibold">
+                  {{ r.start_dt.strftime('%H:%M') }} → {{ r.end_dt.strftime('%H:%M') }}
+                  {% if r.end_dt.date() != r.start_dt.date() %}
+                    <span class="badge text-bg-secondary ms-1">+1 jour</span>
+                  {% endif %}
+                </div>
+                <div class="text-muted small">
+                  {{ r.start_dt.strftime('%d/%m') }} → {{ r.end_dt.strftime('%d/%m') }}
+                </div>
+              </td>
+
+              <td>
+                <span class="badge
+                  {{ 'bg-success' if r.status == 'disponible' else 'bg-secondary' }}">
+                  {{ 'Disponible' if r.status == 'disponible' else 'Indisponible' }}
+                </span>
+              </td>
+
+              <td>
+                <span class="range-chip">
+                  <span class="text-muted">Créneaux:</span>
+                  <span class="fw-semibold">{{ r.slot_ids|length }}</span>
+                </span>
+                <span class="range-chip">
+                  <span class="text-muted">Du</span>
+                  <span class="fw-semibold">{{ r.start_dt.strftime('%H:%M') }}</span>
+                  <span class="text-muted">au</span>
+                  <span class="fw-semibold">{{ r.end_dt.strftime('%H:%M') }}</span>
+                </span>
+              </td>
+
+              <td class="text-end">
+                <form method="POST" action="{{ url_for('delete_range') }}"
+                      onsubmit="return confirm('Supprimer cette plage (tous les créneaux fusionnés) ?');">
+                  <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+                  <input type="hidden" name="slot_ids" value="{{ r.slot_ids|join(',') }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+
+            {% if day_ranges|length == 0 %}
+            <tr>
+              <td colspan="4" class="text-muted">Aucune plage enregistrée pour ce jour.</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Historique ancien (transition) -->
+    <div class="mt-4">
+      <h3>Mon historique récent (ancien système)</h3>
+
+      <div class="table-responsive">
+        <table class="table bg-white shadow-sm">
+          <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in dispos %}
+            <tr>
+              <td>{{ d.date.strftime('%d/%m/%Y') }}</td>
+              <td>
+                <span class="badge
+                  {{ 'bg-success' if d.status == 'disponible' else 'bg-secondary' }}">
+                  {{ d.status }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+            {% if dispos|length == 0 %}
+            <tr>
+              <td colspan="2" class="text-muted">Aucune donnée (ancien système).</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bootstrap JS d'abord -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Script sélection -->
+  <script>
+  (function () {
+    const selectedDate = "{{ selected_date.strftime('%Y-%m-%d') }}";
+    const preselected = new Set({{ existing_indices|tojson }}); // (optionnel) à alimenter si tu veux cocher les slots déjà existants
+
+    const grid = document.getElementById("slotGrid");
+    const clearBtn = document.getElementById("clearSlots");
+    const saveBtn = document.getElementById("saveSlots");
+    const info = document.getElementById("saveInfo");
+
+    if (!grid) return;
+
+    const slots = [];
+    const selected = new Set([...preselected]);
+
+    function pad(n){ return String(n).padStart(2,"0"); }
+    function labelForIndex(i) {
+      const startMinutes = 7*60 + i*30;
+      const endMinutes = startMinutes + 30;
+
+      const sH = Math.floor((startMinutes % (24*60)) / 60);
+      const sM = startMinutes % 60;
+      const eH = Math.floor((endMinutes % (24*60)) / 60);
+      const eM = endMinutes % 60;
+
+      return `${pad(sH)}:${pad(sM)}–${pad(eH)}:${pad(eM)}`;
+    }
+
+    function render() {
+      grid.innerHTML = "";
+      slots.length = 0;
+      for (let i = 0; i < 48; i++) {
+        const div = document.createElement("div");
+        div.className = "slot";
+        div.dataset.idx = String(i);
+        div.textContent = labelForIndex(i);
+
+        if (preselected.has(i)) div.classList.add("existing");
+        if (selected.has(i)) div.classList.add("selected");
+
+        grid.appendChild(div);
+        slots.push(div);
+      }
+    }
+
+    let isDown = false;
+    let startIdx = null;
+
+    function applyRange(a, b) {
+      const min = Math.min(a, b);
+      const max = Math.max(a, b);
+      selected.clear();
+      for (let i = min; i <= max; i++) {
+        if (!preselected.has(i)) selected.add(i);
+      }
+      slots.forEach(el => el.classList.toggle("selected", selected.has(Number(el.dataset.idx))));
+    }
+
+    grid.addEventListener("mousedown", (e) => {
+      const cell = e.target.closest(".slot");
+      if (!cell) return;
+      isDown = true;
+      startIdx = Number(cell.dataset.idx);
+      if (preselected.has(startIdx)) { isDown = false; startIdx = null; return; }
+      applyRange(startIdx, startIdx);
+      e.preventDefault();
+    });
+
+    window.addEventListener("mouseup", () => { isDown = false; startIdx = null; });
+
+    grid.addEventListener("mouseover", (e) => {
+      if (!isDown || startIdx === null) return;
+      const cell = e.target.closest(".slot");
+      if (!cell) return;
+      applyRange(startIdx, Number(cell.dataset.idx));
+    });
+
+    clearBtn.addEventListener("click", () => {
+      selected.clear();
+      slots.forEach(el => el.classList.remove("selected"));
+      info.textContent = "";
+    });
+
+    saveBtn.addEventListener("click", async () => {
+      const indices = [...selected.values()].sort((a,b)=>a-b);
+      if (!indices.length) {
+        info.textContent = "Aucun créneau sélectionné.";
+        return;
+      }
+
+      saveBtn.disabled = true;
+      info.textContent = "Enregistrement…";
+
+      try {
+        const res = await fetch("{{ url_for('dispo_bulk') }}", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ date: selectedDate, indices })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Erreur");
+        info.textContent = `OK — ${data.created} créneau(x) ajouté(s).`;
+        window.location.reload();
+      } catch (err) {
+        info.textContent = "Erreur lors de l'enregistrement.";
+        console.error(err);
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+
+    render();
+  })();
+  </script>
+</body>
+</html>

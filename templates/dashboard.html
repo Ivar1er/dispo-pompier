@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Caserne - Accueil</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="bg-light">
+
+  <nav class="navbar navbar-dark bg-danger shadow">
+    <div class="container">
+      <span class="navbar-brand">Caserne BLR 2.0</span>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('profil') }}" class="btn btn-outline-light btn-sm">Mon profil</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Déconnexion</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+
+    {% if notif %}
+      <div class="alert alert-warning shadow-sm">
+        <strong>Nouveau :</strong> Manoeuvre mensuelle publiée — <strong>{{ notif.titre }}</strong>
+        ({{ notif.date.strftime('%d/%m/%Y') }}).
+        <a href="{{ url_for('manoeuvre_mensuel') }}" class="alert-link">Voir / s'inscrire</a>
+      </div>
+    {% endif %}
+
+    {% if profile_incomplete %}
+      <div class="alert alert-info shadow-sm">
+        Pour activer l’<strong>inscription automatique</strong> et les <strong>notifications</strong>, merci de compléter votre profil.
+        <a href="{{ url_for('profil') }}" class="alert-link">Compléter mon profil</a>
+      </div>
+    {% endif %}
+
+    <h1>
+      Bonjour,
+      {% if current_user.prenom %}{{ current_user.prenom }}{% else %}{{ current_user.username }}{% endif %}
+    </h1>
+
+    <div class="row mt-4">
+
+      <!-- Carte Disponibilités -->
+      <div class="col-md-6 mb-3">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body text-center">
+            <h3>Mes Disponibilités</h3>
+            <p>Indiquez vos jours de présence ou d'astreinte.</p>
+            <a href="{{ url_for('ma_dispo') }}" class="btn btn-primary">
+              Gérer mon planning
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Carte Manoeuvre mensuel -->
+      <div class="col-md-6 mb-3">
+        <div class="card h-100 shadow-sm border-danger">
+          <div class="card-body text-center">
+            <h3 class="text-danger">Manoeuvre Mensuel</h3>
+            <p>Consulter les thèmes du mois et s’inscrire.</p>
+            <a href="{{ url_for('manoeuvre_mensuel') }}" class="btn btn-outline-danger">
+              Voir la manoeuvre
+            </a>
+          </div>
+        </div>
+      </div>
+
+
+      {% if current_user.role == 'admin' %}
+      <!-- Carte Admin -->
+      <div class="col-md-6 mb-3">
+        <div class="card h-100 shadow-sm border-danger">
+          <div class="card-body text-center">
+            <h3 class="text-danger">Administration</h3>
+            <p>Gérer les agents et voir la synthèse globale.</p>
+
+            <div class="d-grid gap-2">
+              <a href="{{ url_for('admin_agents') }}" class="btn btn-danger">
+                Gérer les comptes
+              </a>
+
+              <a href="{{ url_for('admin_synthese') }}" class="btn btn-outline-danger">
+                Voir la synthèse
+              </a>
+
+              <a href="{{ url_for('admin_manoeuvre_mensuel') }}" class="btn btn-danger">
+                Manoeuvre mensuel
+              </a>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

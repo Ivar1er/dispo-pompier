@@ -1,0 +1,37 @@
+/* Style global léger, compatible Bootstrap */
+:root {
+  --blr-red: #dc3545;
+}
+
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.navbar-brand {
+  letter-spacing: 0.2px;
+}
+
+.card {
+  border-radius: 14px;
+}
+
+.shadow-soft {
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+
+.slot-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; }
+@media (min-width: 768px) { .slot-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 1200px) { .slot-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+
+.slot {
+  user-select: none;
+  border: 1px solid rgba(0,0,0,.15);
+  border-radius: 10px;
+  padding: .5rem .6rem;
+  font-size: .85rem;
+  background: #fff;
+  cursor: pointer;
+}
+.slot.selected { background: rgba(25,135,84,.15); border-color: rgba(25,135,84,.6); }
+.slot.existing { background: rgba(108,117,125,.12); }
+.slot.existing.selected { background: rgba(25,135,84,.18); } /* si déjà dispo + sélection */

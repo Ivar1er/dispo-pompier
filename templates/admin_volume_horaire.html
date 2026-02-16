@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Volume horaire (week-end) - Caserne BLR{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-dark bg-danger shadow">
+  <div class="container">
+    <span class="navbar-brand">Caserne BLR 2.0</span>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin_synthese') }}" class="btn btn-outline-light btn-sm">← Synthèse</a>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-light btn-sm">← Retour</a>
+      <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Déconnexion</a>
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <h2 class="mb-0">Volume horaire (week-end)</h2>
+  <span class="badge text-bg-secondary">Admin</span>
+</div>
+
+<div class="card p-3 shadow-soft">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <div class="fw-semibold">Fenêtre week-end</div>
+      <div class="small text-muted">
+        Du <strong>{{ window_start.strftime('%A %d/%m %H:%M') }}</strong>
+        au <strong>{{ window_end.strftime('%A %d/%m %H:%M') }}</strong>
+        <span class="text-muted">(lundi 07:00 exclus)</span>
+      </div>
+      <div class="small text-muted">
+        Week-end basé sur le samedi : <strong>{{ weekend_saturday.strftime('%d/%m/%Y') }}</strong>
+      </div>
+    </div>
+
+    <form method="GET" action="{{ url_for('admin_volume_horaire') }}" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label mb-1 small">Date (ancre)</label>
+        <input type="date" class="form-control" name="date" value="{{ anchor_date.strftime('%Y-%m-%d') }}">
+      </div>
+      <button class="btn btn-primary">Afficher</button>
+    </form>
+  </div>
+
+  <div class="table-responsive mt-3">
+    <table class="table table-sm align-middle mb-0 bg-white">
+      <thead class="table-light">
+        <tr>
+          <th>Agent</th>
+          <th class="text-end">🟢 Disponible (h)</th>
+          <th class="text-end">🟡 Astreinte (h)</th>
+          <th class="text-end">⚪ Indispo (h)</th>
+          <th class="text-end">Total (h)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="fw-semibold">
+            {{ r.username }}
+            {% if r.role == 'admin' %}
+              <span class="badge text-bg-danger ms-1">admin</span>
+            {% endif %}
+          </td>
+          <td class="text-end">{{ r.disponible_h }}</td>
+          <td class="text-end">{{ r.astreinte_h }}</td>
+          <td class="text-end">{{ r.indisponible_h }}</td>
+          <td class="text-end">{{ r.total_h }}</td>
+        </tr>
+        {% endfor %}
+
+        {% if rows|length == 0 %}
+        <tr>
+          <td colspan="5" class="text-muted">Aucune donnée.</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="small text-muted mt-2">
+    “Heures proposées” = colonne <strong>Disponible</strong> sur la fenêtre week-end.
+  </div>
+</div>
+{% endblock %}

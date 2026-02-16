@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mon profil</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="bg-light">
+
+  <nav class="navbar navbar-dark bg-danger shadow">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('dashboard') }}">Caserne BLR 2.0</a>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Déconnexion</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4" style="max-width: 720px;">
+    <a href="{{ url_for(\'dashboard\') }}" class="btn btn-secondary mb-3">← Retour</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">← Retour</a>
+ 27e2d3b (Fix liens profil/manoeuvre + participation admin + historique agent)
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-info shadow-soft" role="alert">
+          {{ messages[0] }}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="mb-3">Mon profil</h2>
+        <p class="text-muted mb-4">
+          Ces informations servent à l’<strong>inscription automatique</strong> à la manoeuvre mensuelle.
+          L’email est utilisé pour les <strong>notifications</strong> (si configurées sur Render).
+        </p>
+
+        <form method="POST">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Nom</label>
+              <input class="form-control" name="nom" value="{{ current_user.nom }}" placeholder="Ex: DUPONT" />
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Prénom</label>
+              <input class="form-control" name="prenom" value="{{ current_user.prenom }}" placeholder="Ex: Julien" />
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Email (notifications)</label>
+            <input type="email" class="form-control" name="email" value="{{ current_user.email }}" placeholder="ex: julien.dupont@exemple.fr" />
+          </div>
+
+          <div class="d-flex gap-2">
+            <button class="btn btn-danger" type="submit">Enregistrer</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">Retour</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Administration - Manoeuvre mensuel</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="bg-light">
+  <nav class="navbar navbar-dark bg-danger shadow">
+    <div class="container">
+      <a class="navbar-brand text-decoration-none" href="{{ url_for('dashboard') }}">Caserne BLR 2.0</a>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Déconnexion</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <a href="{{ url_for(\'dashboard\') }}" class="btn btn-secondary mb-3">← Retour</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">← Retour</a>
+ 27e2d3b (Fix liens profil/manoeuvre + participation admin + historique agent)
+
+    <h1 class="mb-3">Manoeuvre mensuel</h1>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-info shadow-soft" role="alert">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h4 class="mb-3">Créer une manoeuvre</h4>
+
+            <form method="POST">
+              <div class="mb-3">
+                <label class="form-label">Titre</label>
+                <input name="titre" class="form-control" placeholder="Ex : Manœuvre Mars 2026" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Date</label>
+                <input type="date" name="date_manoeuvre" class="form-control" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Descriptif SUAP</label>
+                <textarea name="desc_suap" class="form-control" rows="4" placeholder="Objectifs, déroulé, matériel..."></textarea>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Descriptif INC/DIV</label>
+                <textarea name="desc_incdv" class="form-control" rows="4" placeholder="Objectifs, déroulé, matériel..."></textarea>
+              </div>
+
+              <div class="mb-2">
+                <div class="d-flex justify-content-between align-items-center">
+                  <label class="form-label mb-0">Ressources pédagogiques</label>
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="addRessource()">+ Ajouter</button>
+                </div>
+              </div>
+
+              <div id="ressources" class="mb-3">
+                <div class="row g-2 align-items-end ressource-row">
+                  <div class="col-md-4">
+                    <label class="form-label small">Libellé (optionnel)</label>
+                    <input name="ressource_label[]" class="form-control" placeholder="Ex : Fiche SUAP">
+                  </div>
+                  <div class="col-md-7">
+                    <label class="form-label small">Lien</label>
+                    <input name="ressource_url[]" class="form-control" placeholder="https://..." type="url">
+                  </div>
+                  <div class="col-md-1 d-grid">
+                    <button type="button" class="btn btn-outline-secondary" onclick="removeRessource(this)">×</button>
+                  </div>
+                </div>
+              </div>
+
+              <button class="btn btn-danger w-100" type="submit">Enregistrer</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h4 class="mb-3">Historique</h4>
+
+            {% if manoeuvres %}
+              <div class="list-group">
+                {% for m in manoeuvres %}
+                  <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                     href="{{ url_for('admin_manoeuvre_detail', manoeuvre_id=m.id) }}">
+                    <div>
+                      <div class="fw-semibold">{{ m.titre }}</div>
+                      <div class="text-muted small">{{ m.date_manoeuvre.strftime('%d/%m/%Y') }}</div>
+                    </div>
+                    <div class="text-end">
+                      {% set pct = ((stats[m.id].total / total_agents) * 100) if total_agents else 0 %}
+                      <div class="badge text-bg-danger">
+                        {{ stats[m.id].total }} inscrit(s)
+                      </div>
+                      <div class="small text-muted">
+                        P: {{ stats[m.id].presents }} | A: {{ stats[m.id].absents }}
+                        {% if total_agents %}
+                          • {{ pct|round(0) }}%
+                        {% endif %}
+                      </div>
+                    </div>
+                  </a>
+                {% endfor %}
+              </div>
+              <div class="text-muted small mt-2">
+                Clique sur une manoeuvre pour voir le détail et la liste des inscrits.
+              </div>
+            {% else %}
+              <div class="text-muted">Aucune manoeuvre créée.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function addRessource(){
+      const container = document.getElementById('ressources');
+      const div = document.createElement('div');
+      div.className = 'row g-2 align-items-end ressource-row mt-2';
+      div.innerHTML = `
+        <div class="col-md-4">
+          <label class="form-label small">Libellé (optionnel)</label>
+          <input name="ressource_label[]" class="form-control" placeholder="Ex : Fiche INC/DIV">
+        </div>
+        <div class="col-md-7">
+          <label class="form-label small">Lien</label>
+          <input name="ressource_url[]" class="form-control" placeholder="https://..." type="url">
+        </div>
+        <div class="col-md-1 d-grid">
+          <button type="button" class="btn btn-outline-secondary" onclick="removeRessource(this)">×</button>
+        </div>
+      `;
+      container.appendChild(div);
+    }
+
+    function removeRessource(btn){
+      const row = btn.closest('.ressource-row');
+      if(row){ row.remove(); }
+    }
+  </script>
+</body>
+</html>
