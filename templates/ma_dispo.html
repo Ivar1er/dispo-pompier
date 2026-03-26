@@ -60,20 +60,18 @@
 
     <!-- Sélection de la date -->
     <div class="card p-3 shadow-sm mt-3">
-      <form method="GET" action="{{ url_for('ma_dispo') }}" class="row g-2 align-items-end">
+      <form method="GET" action="{{ url_for('ma_dispo') }}" class="row g-2 align-items-end" id="dateForm">
         <div class="col-12 col-md-4">
           <label class="form-label">Date (jour opérationnel)</label>
           <input
             type="date"
             name="date"
+            id="selectedDateInput"
             class="form-control"
             value="{{ selected_date.strftime('%Y-%m-%d') }}"
             {% if current_user.role != 'admin' %}min="{{ today.strftime('%Y-%m-%d') }}"{% endif %}
             required
           >
-        </div>
-        <div class="col-12 col-md-3">
-          <button type="submit" class="btn btn-primary w-100">Afficher</button>
         </div>
       </form>
       <div class="small text-muted mt-2">
@@ -265,29 +263,38 @@
   <script>
   (function () {
     const selectedDate = "{{ selected_date.strftime('%Y-%m-%d') }}";
-    const preselected = new Set({{ existing_indices|tojson }}); // (optionnel) à alimenter si tu veux cocher les slots déjà existants
+    const preselected = new Set({{ existing_indices|tojson }});
 
     const grid = document.getElementById("slotGrid");
     const clearBtn = document.getElementById("clearSlots");
     const saveBtn = document.getElementById("saveSlots");
     const info = document.getElementById("saveInfo");
+    const dateInput = document.getElementById("selectedDateInput");
 
     if (!grid) return;
 
     const slots = [];
-    const selected = new Set([...preselected]);
+    const selected = new Set();
+    let isSaving = false;
 
-    function pad(n){ return String(n).padStart(2,"0"); }
+    function pad(n) { return String(n).padStart(2, "0"); }
     function labelForIndex(i) {
-      const startMinutes = 7*60 + i*30;
+      const startMinutes = 7 * 60 + i * 30;
       const endMinutes = startMinutes + 30;
 
-      const sH = Math.floor((startMinutes % (24*60)) / 60);
+      const sH = Math.floor((startMinutes % (24 * 60)) / 60);
       const sM = startMinutes % 60;
-      const eH = Math.floor((endMinutes % (24*60)) / 60);
+      const eH = Math.floor((endMinutes % (24 * 60)) / 60);
       const eM = endMinutes % 60;
 
       return `${pad(sH)}:${pad(sM)}–${pad(eH)}:${pad(eM)}`;
+    }
+
+    function syncSelectionClasses() {
+      slots.forEach((el) => {
+        const idx = Number(el.dataset.idx);
+        el.classList.toggle("selected", preselected.has(idx) || selected.has(idx));
+      });
     }
 
     function render() {
@@ -300,7 +307,7 @@
         div.textContent = labelForIndex(i);
 
         if (preselected.has(i)) div.classList.add("existing");
-        if (selected.has(i)) div.classList.add("selected");
+        if (preselected.has(i) || selected.has(i)) div.classList.add("selected");
 
         grid.appendChild(div);
         slots.push(div);
@@ -310,15 +317,17 @@
     let isDown = false;
     let startIdx = null;
     let activePointerId = null;
+    let dragMode = "add";
 
-    function applyRange(a, b) {
+    function applyRange(a, b, mode) {
       const min = Math.min(a, b);
       const max = Math.max(a, b);
-      selected.clear();
       for (let i = min; i <= max; i++) {
-        if (!preselected.has(i)) selected.add(i);
+        if (preselected.has(i)) continue;
+        if (mode === "remove") selected.delete(i);
+        else selected.add(i);
       }
-      slots.forEach(el => el.classList.toggle("selected", selected.has(Number(el.dataset.idx))));
+      syncSelectionClasses();
     }
 
     function idxFromPoint(clientX, clientY) {
@@ -327,7 +336,6 @@
       return cell ? Number(cell.dataset.idx) : null;
     }
 
-    // Pointer Events = fonctionne souris + tactile
     grid.addEventListener("pointerdown", (e) => {
       const cell = e.target.closest(".slot");
       if (!cell) return;
@@ -338,9 +346,10 @@
       isDown = true;
       startIdx = idx;
       activePointerId = e.pointerId;
+      dragMode = selected.has(idx) ? "remove" : "add";
       try { grid.setPointerCapture(activePointerId); } catch (_) {}
 
-      applyRange(startIdx, startIdx);
+      applyRange(startIdx, startIdx, dragMode);
       e.preventDefault();
     });
 
@@ -350,7 +359,7 @@
 
       const idx = idxFromPoint(e.clientX, e.clientY);
       if (idx === null) return;
-      applyRange(startIdx, idx);
+      applyRange(startIdx, idx, dragMode);
       e.preventDefault();
     });
 
@@ -360,43 +369,75 @@
       activePointerId = null;
     }
 
+    async function saveCurrentSelection({ reload = true } = {}) {
+      const indices = [...selected.values()].sort((a, b) => a - b);
+      if (!indices.length) {
+        info.textContent = "";
+        return true;
+      }
+      if (isSaving) return false;
+
+      isSaving = true;
+      saveBtn.disabled = true;
+      if (dateInput) dateInput.disabled = true;
+      info.textContent = "Enregistrement…";
+
+      try {
+        const res = await fetch("{{ url_for('dispo_bulk') }}", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ date: selectedDate, indices })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Erreur");
+        info.textContent = `OK — ${data.created} créneau(x) ajouté(s).`;
+        if (reload) {
+          window.location.reload();
+          return false;
+        }
+        return true;
+      } catch (err) {
+        info.textContent = "Erreur lors de l'enregistrement.";
+        console.error(err);
+        return false;
+      } finally {
+        isSaving = false;
+        saveBtn.disabled = false;
+        if (dateInput) dateInput.disabled = false;
+      }
+    }
+
     grid.addEventListener("pointerup", endPointer);
     grid.addEventListener("pointercancel", endPointer);
     window.addEventListener("blur", endPointer);
 
     clearBtn.addEventListener("click", () => {
       selected.clear();
-      slots.forEach(el => el.classList.remove("selected"));
+      syncSelectionClasses();
       info.textContent = "";
     });
 
     saveBtn.addEventListener("click", async () => {
-      const indices = [...selected.values()].sort((a,b)=>a-b);
-      if (!indices.length) {
+      if (!selected.size) {
         info.textContent = "Aucun créneau sélectionné.";
         return;
       }
-
-      saveBtn.disabled = true;
-      info.textContent = "Enregistrement…";
-
-      try {
-        const res = await fetch("{{ url_for('dispo_bulk') }}", {
-          method: "POST",
-          headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({ date: selectedDate, indices })
-        });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || "Erreur");
-        info.textContent = `OK — ${data.created} créneau(x) ajouté(s).`;
-        window.location.reload();
-      } catch (err) {
-        info.textContent = "Erreur lors de l'enregistrement.";
-        console.error(err);
-      } finally {
-        saveBtn.disabled = false;
-      }
+      await saveCurrentSelection();
     });
+
+    if (dateInput) {
+      dateInput.addEventListener("change", async () => {
+        const newDate = dateInput.value;
+        if (!newDate || newDate === selectedDate) return;
+
+        const ok = await saveCurrentSelection({ reload: false });
+        if (!ok && selected.size) {
+          dateInput.value = selectedDate;
+          return;
+        }
+        window.location.href = `{{ url_for('ma_dispo') }}?date=${encodeURIComponent(newDate)}`;
+      });
+    }
 
     render();
   })();
