@@ -8,7 +8,6 @@
     <span class="navbar-brand">Caserne BLR 2.0</span>
     <div class="d-flex gap-2">
       <a href="{{ url_for('admin_synthese') }}" class="btn btn-outline-light btn-sm">← Synthèse</a>
-      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-light btn-sm">← Retour</a>
       <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Déconnexion</a>
     </div>
   </div>
@@ -16,10 +15,83 @@
 {% endblock %}
 
 {% block content %}
+<a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">← Retour</a>
+
 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-  <h2 class="mb-0">Volume horaire (week-end)</h2>
+  <h2 class="mb-0">Volume horaire</h2>
   <span class="badge text-bg-secondary">Admin</span>
 </div>
+
+{% set mode = mode or 'weekend' %}
+
+<div class="d-flex gap-2 flex-wrap mb-3">
+  <a
+    class="btn btn-sm {{ 'btn-danger' if mode == 'weekend' else 'btn-outline-danger' }}"
+    href="{{ url_for('admin_volume_horaire', mode='weekend', date=(anchor_date.strftime('%Y-%m-%d') if anchor_date else None)) }}"
+  >Week-end (détail)</a>
+
+  <a
+    class="btn btn-sm {{ 'btn-danger' if mode == 'month' else 'btn-outline-danger' }}"
+    href="{{ url_for('admin_volume_horaire', mode='month', month=(month_start.strftime('%Y-%m') if month_start else None)) }}"
+  >Comparaison au mois</a>
+</div>
+
+{% if mode == 'month' %}
+
+<div class="card p-3 shadow-soft">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <div class="fw-semibold">Comparaison des week-ends du mois</div>
+      <div class="small text-muted">Affiche les <strong>heures disponibles</strong> par agent, week-end par week-end.</div>
+    </div>
+
+    <form method="GET" action="{{ url_for('admin_volume_horaire') }}" class="d-flex gap-2 align-items-end">
+      <input type="hidden" name="mode" value="month">
+      <div>
+        <label class="form-label mb-1 small">Mois</label>
+        <input type="month" class="form-control" name="month" value="{{ month_start.strftime('%Y-%m') if month_start else '' }}">
+      </div>
+      <button class="btn btn-primary">Afficher</button>
+    </form>
+  </div>
+
+  <div class="table-responsive mt-3">
+    <table class="table table-sm align-middle mb-0 bg-white">
+      <thead class="table-light">
+        <tr>
+          <th>Agent</th>
+          {% for w in weekend_windows %}
+            <th class="text-end" title="Samedi {{ w.sat.strftime('%d/%m') }}">WE {{ w.idx }}</th>
+          {% endfor %}
+          <th class="text-end">Total mois (h)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in month_rows %}
+          <tr>
+            <td class="fw-semibold">{{ r.username }}</td>
+            {% for w in weekend_windows %}
+              <td class="text-end">{{ r.by_we.get(w.idx, 0) }}</td>
+            {% endfor %}
+            <td class="text-end fw-semibold">{{ r.total_h }}</td>
+          </tr>
+        {% endfor %}
+
+        {% if month_rows|length == 0 %}
+          <tr>
+            <td colspan="{{ (weekend_windows|length) + 2 }}" class="text-muted">Aucune donnée.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="small text-muted mt-2">
+    Les week-ends sont définis de <strong>samedi 07:00</strong> à <strong>lundi 07:00</strong> (lundi 07:00 exclus).
+  </div>
+</div>
+
+{% else %}
 
 <div class="card p-3 shadow-soft">
   <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -36,6 +108,7 @@
     </div>
 
     <form method="GET" action="{{ url_for('admin_volume_horaire') }}" class="d-flex gap-2 align-items-end">
+      <input type="hidden" name="mode" value="weekend">
       <div>
         <label class="form-label mb-1 small">Date (ancre)</label>
         <input type="date" class="form-control" name="date" value="{{ anchor_date.strftime('%Y-%m-%d') }}">
@@ -50,8 +123,7 @@
         <tr>
           <th>Agent</th>
           <th class="text-end">🟢 Disponible (h)</th>
-          <th class="text-end">🟡 Astreinte (h)</th>
-          <th class="text-end">⚪ Indispo (h)</th>
+                    <th class="text-end">⚪ Indispo (h)</th>
           <th class="text-end">Total (h)</th>
         </tr>
       </thead>
@@ -65,7 +137,6 @@
             {% endif %}
           </td>
           <td class="text-end">{{ r.disponible_h }}</td>
-          <td class="text-end">{{ r.astreinte_h }}</td>
           <td class="text-end">{{ r.indisponible_h }}</td>
           <td class="text-end">{{ r.total_h }}</td>
         </tr>
@@ -84,4 +155,6 @@
     “Heures proposées” = colonne <strong>Disponible</strong> sur la fenêtre week-end.
   </div>
 </div>
+
+{% endif %}
 {% endblock %}

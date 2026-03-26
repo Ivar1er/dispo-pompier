@@ -11,6 +11,10 @@
   <!-- (Optionnel) Styles locaux -->
   <style>
     .slot-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; }
+    /* Mobile: autorise le glisser-déposer (pointer events) sans que la page "capte" le scroll */
+    @media (max-width: 767.98px) {
+      #slotGrid { touch-action: none; -webkit-user-select: none; user-select: none; }
+    }
     @media (min-width: 768px) { .slot-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
     @media (min-width: 1200px) { .slot-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
 
@@ -64,6 +68,7 @@
             name="date"
             class="form-control"
             value="{{ selected_date.strftime('%Y-%m-%d') }}"
+            {% if current_user.role != 'admin' %}min="{{ today.strftime('%Y-%m-%d') }}"{% endif %}
             required
           >
         </div>
@@ -304,6 +309,7 @@
 
     let isDown = false;
     let startIdx = null;
+    let activePointerId = null;
 
     function applyRange(a, b) {
       const min = Math.min(a, b);
@@ -315,24 +321,48 @@
       slots.forEach(el => el.classList.toggle("selected", selected.has(Number(el.dataset.idx))));
     }
 
-    grid.addEventListener("mousedown", (e) => {
+    function idxFromPoint(clientX, clientY) {
+      const el = document.elementFromPoint(clientX, clientY);
+      const cell = el && el.closest && el.closest(".slot");
+      return cell ? Number(cell.dataset.idx) : null;
+    }
+
+    // Pointer Events = fonctionne souris + tactile
+    grid.addEventListener("pointerdown", (e) => {
       const cell = e.target.closest(".slot");
       if (!cell) return;
+
+      const idx = Number(cell.dataset.idx);
+      if (preselected.has(idx)) return;
+
       isDown = true;
-      startIdx = Number(cell.dataset.idx);
-      if (preselected.has(startIdx)) { isDown = false; startIdx = null; return; }
+      startIdx = idx;
+      activePointerId = e.pointerId;
+      try { grid.setPointerCapture(activePointerId); } catch (_) {}
+
       applyRange(startIdx, startIdx);
       e.preventDefault();
     });
 
-    window.addEventListener("mouseup", () => { isDown = false; startIdx = null; });
-
-    grid.addEventListener("mouseover", (e) => {
+    grid.addEventListener("pointermove", (e) => {
       if (!isDown || startIdx === null) return;
-      const cell = e.target.closest(".slot");
-      if (!cell) return;
-      applyRange(startIdx, Number(cell.dataset.idx));
+      if (activePointerId !== null && e.pointerId !== activePointerId) return;
+
+      const idx = idxFromPoint(e.clientX, e.clientY);
+      if (idx === null) return;
+      applyRange(startIdx, idx);
+      e.preventDefault();
     });
+
+    function endPointer() {
+      isDown = false;
+      startIdx = null;
+      activePointerId = null;
+    }
+
+    grid.addEventListener("pointerup", endPointer);
+    grid.addEventListener("pointercancel", endPointer);
+    window.addEventListener("blur", endPointer);
 
     clearBtn.addEventListener("click", () => {
       selected.clear();

@@ -53,8 +53,12 @@ def _ensure_columns(table_name: str, columns: dict):
         if not missing:
             return
 
+        # "user" est un mot réservé en PostgreSQL : on le quote.
+        dialect = db.engine.dialect.name
+        tbl = f'"{table_name}"' if (dialect in ("postgresql", "postgres") and table_name.lower() == "user") else table_name
+
         for name, coltype in missing:
-            db.session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {name} {coltype}"))
+            db.session.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {name} {coltype}"))
         db.session.commit()
     except Exception:
         # En cas d'échec, on évite de casser le démarrage (les logs Render aideront si besoin)
@@ -243,8 +247,15 @@ def notify_agents_manoeuvre_created(manoeuvre: "ManoeuvreMensuelle"):
     if not smtp_host or not smtp_from:
         return
 
+    # On notifie uniquement les agents avec un profil complet (nom/prénom) et une adresse email.
     agents = User.query.filter_by(role="agent").all()
-    recipients = [a.email.strip() for a in agents if (a.email or "").strip()]
+    recipients = [
+        (u.email or "").strip()
+        for u in agents
+        if (u.email or "").strip() and (u.nom or "").strip() and (u.prenom or "").strip()
+    ]
+    # Dé-doublonnage simple
+    recipients = sorted(set(recipients))
     if not recipients:
         return
 
@@ -274,6 +285,61 @@ def notify_agents_manoeuvre_created(manoeuvre: "ManoeuvreMensuelle"):
             s.send_message(msg)
     except Exception:
         return
+
+
+def notify_agents_manoeuvre_updated(manoeuvre):
+    """Quand un admin met à jour une manoeuvre, on notifie les agents.
+
+    Même logique que lors de la création mais avec un sujet différent.
+    """
+    smtp_host = os.environ.get("SMTP_HOST")
+    smtp_user = os.environ.get("SMTP_USER")
+    smtp_pass = os.environ.get("SMTP_PASS")
+    smtp_from = os.environ.get("SMTP_FROM") or smtp_user
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+
+    if not smtp_host or not smtp_from:
+        return
+
+    agents = User.query.filter_by(role="agent").all()
+    recipients = [
+        (u.email or "").strip()
+        for u in agents
+        if (u.email or "").strip()
+        and (u.nom or "").strip()
+        and (u.prenom or "").strip()
+    ]
+    recipients = sorted(set(recipients))
+    if not recipients:
+        return
+
+    subject = f"[Caserne BLR] Manoeuvre mise à jour : {manoeuvre.titre}"
+    body = (
+        "Bonjour,\n\n"
+        "Une manoeuvre mensuelle a été mise à jour par l'administrateur.\n\n"
+        f"Titre : {manoeuvre.titre}\n"
+        f"Date : {manoeuvre.date_manoeuvre.strftime('%d/%m/%Y')}\n\n"
+        "Connectez-vous pour consulter les informations et les ressources.\n"
+    )
+
+    try:
+        import smtplib
+        from email.message import EmailMessage
+
+        msg = EmailMessage()
+        msg["From"] = smtp_from
+        msg["To"] = ", ".join(recipients)
+        msg["Subject"] = subject
+        msg.set_content(body)
+
+        with smtplib.SMTP(smtp_host, smtp_port) as s:
+            s.starttls()
+            if smtp_user and smtp_pass:
+                s.login(smtp_user, smtp_pass)
+            s.send_message(msg)
+    except Exception:
+        return
+
 
 
 # ----------------------------
@@ -440,13 +506,23 @@ def profil():
 @app.route("/ma-dispo", methods=["GET", "POST"])
 @login_required
 def ma_dispo():
-    selected_date = request.args.get("date")
-    selected_date = parse_date(selected_date) if selected_date else datetime.now().date()
+    today = datetime.now().date()
+    selected_date_str = request.args.get("date")
+    selected_date = parse_date(selected_date_str) if selected_date_str else today
+
+    # Les agents ne peuvent pas consulter/saisir sur une date passée
+    if current_user.role != "admin" and selected_date < today:
+        flash("Impossible de sélectionner une date passée.")
+        return redirect(url_for("ma_dispo", date=today.strftime("%Y-%m-%d")))
 
     if request.method == "POST":
         date_obj = parse_date(request.form["date"])
         status = "disponible"
         # (Simplification) On ne gère plus astreinte/indisponible via l'UI.
+
+        if current_user.role != "admin" and date_obj < today:
+            flash("Impossible de modifier une date passée.")
+            return redirect(url_for("ma_dispo", date=today.strftime("%Y-%m-%d")))
 
         if request.form.get("start_time") and request.form.get("end_time"):
             start_t = parse_hhmm(request.form["start_time"])
@@ -537,6 +613,7 @@ def ma_dispo():
         "ma_dispo.html",
         dispos=dispos,
         selected_date=selected_date,
+        today=today,
         day_slots=day_slots,
         day_ranges=day_ranges,
         window_start=w_start,
@@ -554,6 +631,11 @@ def delete_slot(slot_id):
         return "Accès interdit", 403
 
     day_date = slot.start_dt.date()
+
+    today = datetime.now().date()
+    if current_user.role != "admin" and day_date < today:
+        flash("Impossible de modifier une date passée.")
+        return redirect(url_for("ma_dispo", date=today.strftime("%Y-%m-%d")))
     db.session.delete(slot)
     db.session.commit()
     flash("Créneau supprimé.")
@@ -582,6 +664,13 @@ def delete_range():
 
     slots = TimeSlot.query.filter(TimeSlot.id.in_(ids)).all()
 
+    today = datetime.now().date()
+    if current_user.role != "admin":
+        # Blocage modification d'une date passée
+        if any(sl.start_dt.date() < today for sl in slots):
+            flash("Impossible de modifier une date passée.")
+            return redirect(url_for("ma_dispo", date=today.strftime("%Y-%m-%d")))
+
     if current_user.role != "admin":
         for sl in slots:
             if sl.user_id != current_user.id:
@@ -609,6 +698,9 @@ def dispo_bulk():
         return jsonify({"ok": False, "error": "payload invalide"}), 400
 
     day_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    today = datetime.now().date()
+    if current_user.role != "admin" and day_date < today:
+        return jsonify({"ok": False, "error": "date passée"}), 400
     window_start, window_end = operational_window(day_date)
 
     clean = sorted({int(i) for i in indices if 0 <= int(i) <= 47})
@@ -787,6 +879,7 @@ def admin_synthese():
         segments_by_user=segments_by_user,
         ranges_text_by_user=ranges_text_by_user,   # NOUVEAU
         recent_slots=recent_slots,
+        timedelta=timedelta,
     )
 
 
@@ -796,58 +889,231 @@ def admin_volume_horaire():
     """
     Volume horaire du week-end:
     samedi 07:00 -> lundi 06:59 (lundi 07:00 exclus)
-    On calcule les heures par agent et par statut.
+    On calcule les heures par agent et par statut (disponible / indisponible).
     """
     if current_user.role != "admin":
         return "Accès interdit", 403
 
+    mode = (request.args.get("mode") or "weekend").lower()  # weekend | month
+
+    # --- Mode "Mois" : comparaison des week-ends du mois (heures DISPONIBLES) ---
+    if mode == "month":
+        month_str = request.args.get("month")
+        if month_str:
+            # input type="month" => YYYY-MM
+            month_start = datetime.strptime(month_str + "-01", "%Y-%m-%d").date()
+        else:
+            today = datetime.now().date()
+            month_start = date_cls(today.year, today.month, 1)
+
+        # bornes du mois
+        if month_start.month == 12:
+            month_end = date_cls(month_start.year + 1, 1, 1)
+        else:
+            month_end = date_cls(month_start.year, month_start.month + 1, 1)
+
+        # Liste des samedis du mois (week-ends à comparer)
+        days_to_sat = (5 - month_start.weekday()) % 7
+        first_sat = month_start + timedelta(days=days_to_sat)
+        saturdays = []
+        d = first_sat
+        while d < month_end:
+            saturdays.append(d)
+            d += timedelta(days=7)
+
+        weekend_windows = []  # [{idx,label,sat,start,end}]
+        for i, sat in enumerate(saturdays, start=1):
+            start = datetime.combine(sat, time(7, 0))
+            end = start + timedelta(days=2)  # lundi 07:00
+            weekend_windows.append({
+                "idx": i,
+                "label": f"Week-end {i}",
+                "sat": sat,
+                "start": start,
+                "end": end,
+            })
+
+        if weekend_windows:
+            global_start = weekend_windows[0]["start"]
+            global_end = weekend_windows[-1]["end"]
+        else:
+            global_start = datetime.combine(month_start, time(7, 0))
+            global_end = datetime.combine(month_end, time(7, 0))
+
+        slots = TimeSlot.query.filter(TimeSlot.start_dt < global_end, TimeSlot.end_dt > global_start).all()
+
+        # Comparaison surtout pour les agents (pas les admins)
+        users = User.query.filter_by(role="agent").order_by(User.username.asc()).all()
+
+        # uid -> we_idx -> seconds (disponible)
+        agg = {u.id: {w["idx"]: 0 for w in weekend_windows} for u in users}
+
+        for sl in slots:
+            if sl.user_id not in agg:
+                continue
+            # on ne garde que la disponibilité (astreinte comptée comme dispo si jamais elle existe encore)
+            st = sl.status
+            if st == "astreinte":
+                st = "disponible"
+            if st != "disponible":
+                continue
+
+            for w in weekend_windows:
+                secs = overlap_seconds(sl.start_dt, sl.end_dt, w["start"], w["end"])
+                if secs > 0:
+                    agg[sl.user_id][w["idx"]] += secs
+
+        month_rows = []
+        for u in users:
+            by_we = {idx: round(secs / 3600, 2) for idx, secs in agg.get(u.id, {}).items()}
+            total_h = round(sum(agg.get(u.id, {}).values()) / 3600, 2)
+            month_rows.append({
+                "username": u.username,
+                "by_we": by_we,
+                "total_h": total_h,
+            })
+
+        # tri par total décroissant
+        month_rows.sort(key=lambda r: r["total_h"], reverse=True)
+
+        return render_template(
+            "admin_volume_horaire.html",
+            mode="month",
+            month_start=month_start,
+            weekend_windows=weekend_windows,
+            month_rows=month_rows,
+        )
+
+    # --- Mode "Week-end" (détail) ---
     selected = request.args.get("date")
     anchor_date = datetime.strptime(selected, "%Y-%m-%d").date() if selected else datetime.now().date()
 
     sat_date, w_start, w_end = weekend_window(anchor_date)
 
-    # Slots qui intersectent la fenêtre week-end
     slots = TimeSlot.query.filter(TimeSlot.start_dt < w_end, TimeSlot.end_dt > w_start).all()
 
-    # Agrégation: user_id -> status -> seconds
-    agg = {}  # {uid: {"disponible": secs, "astreinte": secs, "indisponible": secs}}
+    agg = {}  # {uid: {"disponible": secs, "indisponible": secs}}
     for sl in slots:
         secs = overlap_seconds(sl.start_dt, sl.end_dt, w_start, w_end)
         if secs <= 0:
             continue
-        agg.setdefault(sl.user_id, {"disponible": 0, "astreinte": 0, "indisponible": 0})
-        key = sl.status if sl.status in ("disponible", "astreinte", "indisponible") else "indisponible"
+
+        agg.setdefault(sl.user_id, {"disponible": 0, "indisponible": 0})
+
+        # On ne distingue plus "astreinte" côté admin : on la compte comme "disponible"
+        st = sl.status
+        if st == "astreinte":
+            st = "disponible"
+
+        key = st if st in ("disponible", "indisponible") else "indisponible"
         agg[sl.user_id][key] += secs
 
     users = User.query.order_by(User.username.asc()).all()
 
     rows = []
     for u in users:
-        d = agg.get(u.id, {"disponible": 0, "astreinte": 0, "indisponible": 0})
+        d = agg.get(u.id, {"disponible": 0, "indisponible": 0})
         disp_h = round(d["disponible"] / 3600, 2)
-        astr_h = round(d["astreinte"] / 3600, 2)
         indis_h = round(d["indisponible"] / 3600, 2)
-        total_h = round((d["disponible"] + d["astreinte"] + d["indisponible"]) / 3600, 2)
+        total_h = round((d["disponible"] + d["indisponible"]) / 3600, 2)
 
         rows.append({
             "username": u.username,
             "role": u.role,
             "disponible_h": disp_h,
-            "astreinte_h": astr_h,
             "indisponible_h": indis_h,
             "total_h": total_h,
         })
 
-    # Tri: le plus d'heures "proposées" (disponible) d'abord
     rows.sort(key=lambda x: x["disponible_h"], reverse=True)
 
     return render_template(
         "admin_volume_horaire.html",
+        mode="weekend",
         anchor_date=anchor_date,
         weekend_saturday=sat_date,
         window_start=w_start,
         window_end=w_end,
         rows=rows,
+    )
+
+@app.route("/synthese", methods=["GET"])
+@login_required
+def agent_synthese():
+    """Synthèse hebdo (agent) : uniquement les créneaux du compte connecté."""
+    if current_user.role == "admin":
+        return redirect(url_for("admin_synthese"))
+
+    selected = request.args.get("date")
+    selected_date = datetime.strptime(selected, "%Y-%m-%d").date() if selected else datetime.now().date()
+
+    week_monday = selected_date - timedelta(days=selected_date.weekday())
+    week_start = datetime.combine(week_monday, time(7, 0))
+    week_end = week_start + timedelta(days=7)
+
+    window_seconds = 24 * 60 * 60
+
+    slots = (
+        TimeSlot.query
+        .filter(TimeSlot.user_id == current_user.id)
+        .filter(TimeSlot.start_dt < week_end, TimeSlot.end_dt > week_start)
+        .all()
+    )
+
+    def status_class(st):
+        if st == "disponible":
+            return "bg-success"
+        if st == "astreinte":
+            return "bg-warning"
+        return "bg-secondary"
+
+    days = []
+    for i in range(7):
+        day_date = week_monday + timedelta(days=i)
+        day_start = datetime.combine(day_date, time(7, 0))
+        day_end = day_start + timedelta(days=1)
+
+        day_slots = [sl for sl in slots if sl.start_dt < day_end and sl.end_dt > day_start]
+        day_segments = []
+        for sl in day_slots:
+            s = max(sl.start_dt, day_start)
+            e = min(sl.end_dt, day_end)
+            if e <= s:
+                continue
+            left = (s - day_start).total_seconds() / window_seconds * 100.0
+            width = (e - s).total_seconds() / window_seconds * 100.0
+            title = f"{s.strftime('%H:%M')} → {e.strftime('%H:%M')} ({sl.status})"
+            day_segments.append({
+                "left": left,
+                "width": width,
+                "cls": status_class(sl.status),
+                "title": title,
+            })
+        day_segments.sort(key=lambda x: x["left"])
+
+        merged = merge_slots_into_ranges(day_slots, window_start=day_start, window_end=day_end)
+        ranges = []
+        for r in merged:
+            ranges.append({
+                "start_hm": r["start_dt"].strftime("%H:%M"),
+                "end_hm": r["end_dt"].strftime("%H:%M"),
+                "status": r["status"],
+            })
+
+        days.append({
+            "date": day_date,
+            "segments": day_segments,
+            "ranges": ranges,
+        })
+
+    return render_template(
+        "agent_synthese.html",
+        selected_date=selected_date,
+        week_monday=week_monday,
+        week_start=week_start,
+        week_end=week_end,
+        days=days,
+        timedelta=timedelta,
     )
 
 
@@ -934,30 +1200,64 @@ def admin_manoeuvre_detail(manoeuvre_id):
     ).all()
 
     return render_template("admin_manoeuvre_detail.html", manoeuvre=manoeuvre, inscriptions=inscriptions)
-    # Liste complète des agents (pour voir aussi les non-inscrits)
-    agents = User.query.filter_by(role="agent").order_by(User.nom.asc(), User.prenom.asc(), User.username.asc()).all()
-    ins_by_user = {i.user_id: i for i in inscriptions if i.user_id}
-    full_list = []
-    for a in agents:
-        ins = ins_by_user.get(a.id)
-        full_list.append({
-            "user_id": a.id,
-            "nom": (a.nom or "").strip() or a.username,
-            "prenom": (a.prenom or "").strip(),
-            "statut": (ins.statut if ins else "NON_INSCRIT"),
-            "created_at": (ins.created_at if ins else None),
-        })
 
-    # Inscriptions dont le compte a été supprimé (user_id NULL)
-    orphelines = [i for i in inscriptions if not i.user_id]
 
-    return render_template(
-        "admin_manoeuvre_detail.html",
-        manoeuvre=manoeuvre,
-        inscriptions=inscriptions,
-        agents_full=full_list,
-        orphelines=orphelines,
-    )
+@app.route("/admin/manoeuvre-mensuel/<int:manoeuvre_id>/edit", methods=["GET", "POST"])
+@login_required
+def admin_manoeuvre_edit(manoeuvre_id: int):
+    if current_user.role != "admin":
+        flash("Accès réservé aux administrateurs.")
+        return redirect(url_for("dashboard"))
+
+    manoeuvre = ManoeuvreMensuelle.query.get_or_404(manoeuvre_id)
+
+    if request.method == "POST":
+        titre = (request.form.get("titre") or "").strip()
+        date_str = (request.form.get("date_manoeuvre") or "").strip()
+        desc_suap = (request.form.get("desc_suap") or "").strip()
+        desc_incdv = (request.form.get("desc_incdv") or "").strip()
+
+        urls = request.form.getlist("ressource_url[]")
+        labels = request.form.getlist("ressource_label[]")
+
+        if not titre or not date_str:
+            flash("Veuillez renseigner au minimum un titre et une date.")
+            return redirect(url_for("admin_manoeuvre_edit", manoeuvre_id=manoeuvre_id))
+
+        manoeuvre.titre = titre
+        manoeuvre.date_manoeuvre = parse_date(date_str)
+        manoeuvre.desc_suap = desc_suap
+        manoeuvre.desc_incdv = desc_incdv
+
+        # Remplace les ressources : on supprime puis on recrée
+        ManoeuvreRessource.query.filter_by(manoeuvre_id=manoeuvre.id).delete(synchronize_session=False)
+        for i, url in enumerate(urls):
+            url = (url or "").strip()
+            if not url:
+                continue
+            label = (labels[i] if i < len(labels) else "") or ""
+            db.session.add(ManoeuvreRessource(manoeuvre_id=manoeuvre.id, label=label.strip(), url=url))
+
+        db.session.commit()
+
+        notify_agents_manoeuvre_updated(manoeuvre)
+        flash("Manoeuvre mise à jour.")
+        return redirect(url_for("admin_manoeuvre_detail", manoeuvre_id=manoeuvre.id))
+
+    return render_template("admin_manoeuvre_edit.html", manoeuvre=manoeuvre)
+
+
+@app.route("/admin/manoeuvre-mensuel/<int:manoeuvre_id>/delete", methods=["POST"])
+@login_required
+def admin_manoeuvre_delete(manoeuvre_id: int):
+    if current_user.role != "admin":
+        return "Accès interdit", 403
+
+    manoeuvre = ManoeuvreMensuelle.query.get_or_404(manoeuvre_id)
+    db.session.delete(manoeuvre)
+    db.session.commit()
+    flash("Manoeuvre supprimée.")
+    return redirect(url_for("admin_manoeuvre_mensuel"))
 
 
 @app.route("/admin/manoeuvre-mensuel/agent/<int:user_id>")

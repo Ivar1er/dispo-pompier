@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Modifier manoeuvre</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="bg-light">
+  <nav class="navbar navbar-dark bg-danger shadow">
+    <div class="container">
+      <a class="navbar-brand text-decoration-none" href="{{ url_for('admin_manoeuvre_detail', manoeuvre_id=manoeuvre.id) }}">← Détail</a>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('admin_manoeuvre_mensuel') }}" class="btn btn-outline-light btn-sm">Liste</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Déconnexion</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h1 class="mb-3">Modifier la manoeuvre</h1>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-info shadow-soft" role="alert">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label">Titre</label>
+            <input name="titre" class="form-control" required value="{{ manoeuvre.titre }}">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Date</label>
+            <input type="date" name="date_manoeuvre" class="form-control" required value="{{ manoeuvre.date_manoeuvre.strftime('%Y-%m-%d') }}">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Descriptif SUAP</label>
+            <textarea name="desc_suap" class="form-control" rows="4">{{ manoeuvre.desc_suap }}</textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Descriptif INC/DIV</label>
+            <textarea name="desc_incdv" class="form-control" rows="4">{{ manoeuvre.desc_incdv }}</textarea>
+          </div>
+
+          <div class="mb-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <label class="form-label mb-0">Ressources pédagogiques</label>
+              <button type="button" class="btn btn-sm btn-outline-danger" onclick="addRessource()">+ Ajouter</button>
+            </div>
+          </div>
+
+          <div id="ressources" class="mb-3">
+            {% if manoeuvre.ressources %}
+              {% for r in manoeuvre.ressources %}
+                <div class="row g-2 align-items-end ressource-row {% if not loop.first %}mt-2{% endif %}">
+                  <div class="col-md-4">
+                    <label class="form-label small">Libellé (optionnel)</label>
+                    <input name="ressource_label[]" class="form-control" value="{{ r.label }}" placeholder="Ex : Fiche SUAP">
+                  </div>
+                  <div class="col-md-7">
+                    <label class="form-label small">Lien</label>
+                    <input name="ressource_url[]" class="form-control" value="{{ r.url }}" placeholder="https://..." type="url">
+                  </div>
+                  <div class="col-md-1 d-grid">
+                    <button type="button" class="btn btn-outline-secondary" onclick="removeRessource(this)">×</button>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="row g-2 align-items-end ressource-row">
+                <div class="col-md-4">
+                  <label class="form-label small">Libellé (optionnel)</label>
+                  <input name="ressource_label[]" class="form-control" placeholder="Ex : Fiche SUAP">
+                </div>
+                <div class="col-md-7">
+                  <label class="form-label small">Lien</label>
+                  <input name="ressource_url[]" class="form-control" placeholder="https://..." type="url">
+                </div>
+                <div class="col-md-1 d-grid">
+                  <button type="button" class="btn btn-outline-secondary" onclick="removeRessource(this)">×</button>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">Enregistrer (et notifier)</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin_manoeuvre_detail', manoeuvre_id=manoeuvre.id) }}">Annuler</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function addRessource(){
+      const container = document.getElementById('ressources');
+      const div = document.createElement('div');
+      div.className = 'row g-2 align-items-end ressource-row mt-2';
+      div.innerHTML = `
+        <div class="col-md-4">
+          <label class="form-label small">Libellé (optionnel)</label>
+          <input name="ressource_label[]" class="form-control" placeholder="Ex : Fiche INC/DIV">
+        </div>
+        <div class="col-md-7">
+          <label class="form-label small">Lien</label>
+          <input name="ressource_url[]" class="form-control" placeholder="https://..." type="url">
+        </div>
+        <div class="col-md-1 d-grid">
+          <button type="button" class="btn btn-outline-secondary" onclick="removeRessource(this)">×</button>
+        </div>
+      `;
+      container.appendChild(div);
+    }
+
+    function removeRessource(btn){
+      const row = btn.closest('.ressource-row');
+      if(row){ row.remove(); }
+    }
+  </script>
+</body>
+</html>

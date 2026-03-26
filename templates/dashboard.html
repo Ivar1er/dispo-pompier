@@ -58,6 +58,21 @@
         </div>
       </div>
 
+      {% if current_user.role != 'admin' %}
+      <!-- Carte Synthèse Agent -->
+      <div class="col-md-6 mb-3">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body text-center">
+            <h3>Ma synthèse</h3>
+            <p>Visualiser mes créneaux sur la semaine.</p>
+            <a href="{{ url_for('agent_synthese') }}" class="btn btn-outline-primary">
+              Voir ma synthèse
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Carte Manoeuvre mensuel -->
       <div class="col-md-6 mb-3">
         <div class="card h-100 shadow-sm border-danger">

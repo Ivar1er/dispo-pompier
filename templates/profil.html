@@ -21,9 +21,7 @@
   </nav>
 
   <div class="container mt-4" style="max-width: 720px;">
-    <a href="{{ url_for(\'dashboard\') }}" class="btn btn-secondary mb-3">← Retour</a>
     <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">← Retour</a>
- 27e2d3b (Fix liens profil/manoeuvre + participation admin + historique agent)
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -55,12 +53,11 @@
 
           <div class="mb-3">
             <label class="form-label">Email (notifications)</label>
-            <input type="email" class="form-control" name="email" value="{{ current_user.email }}" placeholder="ex: julien.dupont@exemple.fr" />
+            <input class="form-control" name="email" type="email" value="{{ current_user.email }}" placeholder="prenom.nom@exemple.com" />
           </div>
 
           <div class="d-flex gap-2">
             <button class="btn btn-danger" type="submit">Enregistrer</button>
-            <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">Retour</a>
           </div>
         </form>
       </div>

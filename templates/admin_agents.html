@@ -55,7 +55,6 @@
 
           {% if a.role == 'agent' %}
             <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin_manoeuvre_agent_history', user_id=a.id) }}">Historique manoeuvres</a>
- 27e2d3b (Fix liens profil/manoeuvre + participation admin + historique agent)
             <form method="POST" action="{{ url_for('admin_delete_agent', user_id=a.id) }}"
                   onsubmit="return confirm('Supprimer définitivement le compte de cet agent ?');">
               <button type="submit" class="btn btn-sm btn-outline-danger">Supprimer</button>

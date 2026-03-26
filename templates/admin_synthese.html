@@ -8,7 +8,6 @@
     <span class="navbar-brand">Caserne BLR 2.0</span>
     <div class="d-flex gap-2">
       <a href="{{ url_for('admin_volume_horaire') }}" class="btn btn-light btn-sm">⏱️ Volume horaire</a>
-      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-light btn-sm">← Retour</a>
       <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Déconnexion</a>
     </div>
   </div>
@@ -16,6 +15,8 @@
 {% endblock %}
 
 {% block content %}
+<a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">← Retour</a>
+
 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
   <h2 class="mb-0">Synthèse</h2>
   <span class="badge text-bg-secondary">Admin</span>
@@ -65,7 +66,15 @@
         <label class="form-label mb-1 small">Date</label>
         <input type="date" class="form-control" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
       </div>
+      <div class="d-flex gap-1">
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin_synthese', date=(selected_date - timedelta(days=30)).strftime('%Y-%m-%d')) }}" title="-1 mois">« Mois</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin_synthese', date=(selected_date - timedelta(days=1)).strftime('%Y-%m-%d')) }}" title="-1 jour">‹ Jour</a>
+      </div>
       <button class="btn btn-primary">Afficher</button>
+      <div class="d-flex gap-1">
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin_synthese', date=(selected_date + timedelta(days=1)).strftime('%Y-%m-%d')) }}" title="+1 jour">Jour ›</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin_synthese', date=(selected_date + timedelta(days=30)).strftime('%Y-%m-%d')) }}" title="+1 mois">Mois »</a>
+      </div>
     </form>
   </div>
 
@@ -73,7 +82,6 @@
   <div class="d-flex gap-3 flex-wrap mt-3 small">
     <span><span class="badge bg-success"> </span> Disponible</span>
     <span><span class="badge bg-secondary"> </span> Indisponible</span>
-    <span><span class="badge bg-warning text-dark"> </span> Astreinte</span>
     <span class="text-muted">Survole un segment pour voir les heures.</span>
   </div>
 
