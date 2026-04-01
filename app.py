@@ -12,6 +12,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import threading
 from datetime import datetime, timedelta, time, date as date_cls
+import secrets
+import string
 from sqlalchemy import inspect, text
 
 
@@ -233,19 +235,51 @@ def get_latest_manoeuvre_for_user():
     return m
 
 
-def notify_agents_manoeuvre_created(manoeuvre: "ManoeuvreMensuelle"):
-    """Envoie un email aux agents ayant renseigné une adresse.
-
-    Optionnel: si SMTP_* n'est pas configuré, on n'envoie rien (pas d'erreur).
-    """
+def send_email_message(recipients, subject: str, body: str) -> bool:
+    """Envoi email simple via SMTP. Retourne True si l'envoi a réussi."""
     smtp_host = os.environ.get("SMTP_HOST")
     smtp_user = os.environ.get("SMTP_USER")
     smtp_pass = os.environ.get("SMTP_PASS")
     smtp_from = os.environ.get("SMTP_FROM") or smtp_user
     smtp_port = int(os.environ.get("SMTP_PORT", "587"))
 
-    if not smtp_host or not smtp_from:
-        return
+    if isinstance(recipients, str):
+        recipients = [recipients]
+
+    recipients = sorted({(r or "").strip() for r in recipients if (r or "").strip()})
+    if not smtp_host or not smtp_from or not recipients:
+        return False
+
+    try:
+        import smtplib
+        from email.message import EmailMessage
+
+        msg = EmailMessage()
+        msg["From"] = smtp_from
+        msg["To"] = ", ".join(recipients)
+        msg["Subject"] = subject
+        msg.set_content(body)
+
+        with smtplib.SMTP(smtp_host, smtp_port) as s:
+            s.starttls()
+            if smtp_user and smtp_pass:
+                s.login(smtp_user, smtp_pass)
+            s.send_message(msg)
+        return True
+    except Exception:
+        return False
+
+
+def generate_temporary_password(length: int = 12) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+
+def notify_agents_manoeuvre_created(manoeuvre: "ManoeuvreMensuelle"):
+    """Envoie un email aux agents ayant renseigné une adresse.
+
+    Optionnel: si SMTP_* n'est pas configuré, on n'envoie rien (pas d'erreur).
+    """
 
     # On notifie uniquement les agents avec un profil complet (nom/prénom) et une adresse email.
     agents = User.query.filter_by(role="agent").all()
@@ -268,23 +302,7 @@ def notify_agents_manoeuvre_created(manoeuvre: "ManoeuvreMensuelle"):
         "Connectez-vous pour consulter les ressources et vous inscrire.\n"
     )
 
-    try:
-        import smtplib
-        from email.message import EmailMessage
-
-        msg = EmailMessage()
-        msg["From"] = smtp_from
-        msg["To"] = ", ".join(recipients)
-        msg["Subject"] = subject
-        msg.set_content(body)
-
-        with smtplib.SMTP(smtp_host, smtp_port) as s:
-            s.starttls()
-            if smtp_user and smtp_pass:
-                s.login(smtp_user, smtp_pass)
-            s.send_message(msg)
-    except Exception:
-        return
+    send_email_message(recipients, subject, body)
 
 
 def notify_agents_manoeuvre_updated(manoeuvre):
@@ -292,14 +310,6 @@ def notify_agents_manoeuvre_updated(manoeuvre):
 
     Même logique que lors de la création mais avec un sujet différent.
     """
-    smtp_host = os.environ.get("SMTP_HOST")
-    smtp_user = os.environ.get("SMTP_USER")
-    smtp_pass = os.environ.get("SMTP_PASS")
-    smtp_from = os.environ.get("SMTP_FROM") or smtp_user
-    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
-
-    if not smtp_host or not smtp_from:
-        return
 
     agents = User.query.filter_by(role="agent").all()
     recipients = [
@@ -322,23 +332,7 @@ def notify_agents_manoeuvre_updated(manoeuvre):
         "Connectez-vous pour consulter les informations et les ressources.\n"
     )
 
-    try:
-        import smtplib
-        from email.message import EmailMessage
-
-        msg = EmailMessage()
-        msg["From"] = smtp_from
-        msg["To"] = ", ".join(recipients)
-        msg["Subject"] = subject
-        msg.set_content(body)
-
-        with smtplib.SMTP(smtp_host, smtp_port) as s:
-            s.starttls()
-            if smtp_user and smtp_pass:
-                s.login(smtp_user, smtp_pass)
-            s.send_message(msg)
-    except Exception:
-        return
+    send_email_message(recipients, subject, body)
 
 
 
@@ -461,6 +455,51 @@ def login():
         flash("Erreur de connexion : Identifiant ou mot de passe incorrect")
 
     return render_template("login.html")
+
+
+@app.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    email = (request.form.get("email") or "").strip().lower()
+
+    smtp_host = os.environ.get("SMTP_HOST")
+    smtp_from = os.environ.get("SMTP_FROM") or os.environ.get("SMTP_USER")
+    if not smtp_host or not smtp_from:
+        flash("Réinitialisation indisponible : la messagerie n'est pas configurée.")
+        return redirect(url_for("login"))
+
+    if not email:
+        flash("Merci de renseigner votre adresse email.")
+        return redirect(url_for("login"))
+
+    user = User.query.filter(db.func.lower(User.email) == email).first()
+    if user:
+        temporary_password = generate_temporary_password()
+        previous_password = user.password
+        previous_flag = user.must_change_password
+
+        user.password = generate_password_hash(temporary_password, method="pbkdf2:sha256")
+        user.must_change_password = True
+
+        subject = "[Caserne BLR] Réinitialisation de votre mot de passe"
+        body = (
+            f"Bonjour {user.prenom or user.username},\n\n"
+            "Un mot de passe provisoire a été généré pour votre compte.\n\n"
+            f"Identifiant : {user.username}\n"
+            f"Mot de passe provisoire : {temporary_password}\n\n"
+            "Connectez-vous avec ce mot de passe provisoire puis changez-le immédiatement à la première connexion.\n"
+        )
+
+        if not send_email_message(user.email, subject, body):
+            user.password = previous_password
+            user.must_change_password = previous_flag
+            db.session.rollback()
+            flash("Impossible d'envoyer l'email pour le moment. Merci de réessayer plus tard.")
+            return redirect(url_for("login"))
+
+        db.session.commit()
+
+    flash("Si un compte est associé à cet email, un mot de passe provisoire vient d'être envoyé.")
+    return redirect(url_for("login"))
 
 
 @app.route("/dashboard")
