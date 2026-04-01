@@ -16,15 +16,54 @@
     <div class="card p-4 shadow mb-4">
       <h3 class="mb-3">Ajouter un Personnel</h3>
 
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="alert alert-info">{{ messages[0] }}</div>
+        {% endif %}
+      {% endwith %}
+
       <form method="POST">
         <div class="mb-3">
           <input
             type="text"
             name="username"
             class="form-control"
-            placeholder="Nom Prénom"
+            placeholder="Nom Prénom ou identifiant"
             required
           />
+        </div>
+
+        <div class="mb-3">
+          <input
+            type="email"
+            name="email"
+            class="form-control"
+            placeholder="Adresse email"
+            autocomplete="email"
+          />
+        </div>
+
+        <div class="mb-3">
+          <label for="temporaryPassword" class="form-label">Mot de passe provisoire</label>
+          <div class="input-group">
+            <input
+              type="password"
+              name="temporary_password"
+              id="temporaryPassword"
+              class="form-control"
+              placeholder="Définir un mot de passe provisoire"
+              required
+              minlength="6"
+            />
+            <button
+              class="btn btn-outline-secondary"
+              type="button"
+              data-toggle-password="temporaryPassword"
+            >
+              Afficher
+            </button>
+          </div>
+          <div class="form-text">Le mot de passe reste stocké de façon sécurisée. Il n'est pas visible après création.</div>
         </div>
 
         <div class="mb-3">
@@ -46,6 +85,7 @@
         <div>
           <div class="fw-semibold">{{ a.username }}</div>
           <div class="text-muted small">Rôle : {{ a.role }}</div>
+          <div class="text-muted small">Email : {{ a.email or 'Non renseigné' }}</div>
         </div>
 
         <div class="d-flex align-items-center gap-2">
@@ -66,6 +106,16 @@
     </ul>
   </div>
 
+  <script>
+    document.querySelectorAll('[data-toggle-password]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const input = document.getElementById(button.dataset.togglePassword);
+        const visible = input.type === 'text';
+        input.type = visible ? 'password' : 'text';
+        button.textContent = visible ? 'Afficher' : 'Masquer';
+      });
+    });
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

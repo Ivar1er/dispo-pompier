@@ -780,22 +780,29 @@ def admin_agents():
         return "Accès interdit", 403
 
     if request.method == "POST":
-        username = request.form["username"].strip()
-        role = request.form["role"]
+        username = (request.form.get("username") or "").strip()
+        email = (request.form.get("email") or "").strip().lower()
+        role = (request.form.get("role") or "agent").strip()
+        temporary_password = request.form.get("temporary_password") or ""
 
-        if not User.query.filter_by(username=username).first():
-            hashed_pw = generate_password_hash("Pompier123!", method="pbkdf2:sha256")
+        if not username:
+            flash("Merci de renseigner un identifiant.")
+        elif User.query.filter_by(username=username).first():
+            flash("Cet identifiant existe déjà.")
+        elif len(temporary_password) < 6:
+            flash("Le mot de passe provisoire doit contenir au moins 6 caractères.")
+        else:
+            hashed_pw = generate_password_hash(temporary_password, method="pbkdf2:sha256")
             new_user = User(
                 username=username,
                 password=hashed_pw,
                 role=role,
+                email=email,
                 must_change_password=True,
             )
             db.session.add(new_user)
             db.session.commit()
-            flash(f"Agent {username} créé avec succès !")
-        else:
-            flash("Cet identifiant existe déjà.")
+            flash(f"Compte {username} créé avec succès.")
 
     return render_template("admin_agents.html", agents=User.query.all())
 
